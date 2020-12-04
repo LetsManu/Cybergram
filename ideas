@@ -2,9 +2,61 @@ Style:
     Design: Anime/Cartoon
     Theme: Futuristic Fantasy
 
-Waffen: 
-    Main: Weapons
-    Upgradability: With Crystaly, Chips and similar things
+Weapons: 
+    Main: Ammo/Mana Based Guns
+    Upgradability: With Crystals, Chips and similar things
+        Uprades: Should be visible like adding Crystals as Mounts into a Gun.
     Ammo: Different Types of Ammo wich can also be modded in specific ways.
 
 Characters: Like in LoL/Dota with Legends/Heros with special abilities and Power which can be upgraded during the game.
+    Types: Mechanical and Mana
+    Mana: Recharable Ammonition
+    Mechanical: Magazines to reload Ammonition
+    
+Maps:
+    War like, Tasks to be done at Hardpoints to push the oponnent back.
+    
+
+Mobs:
+    AI wich follow the Players, more on the defending side as offensive, allthought there can be specific vartions of the Mobs during the game.
+    To be picked up at spawn.
+    Maybe buyable or progression
+    Money given through the Mobs.
+    
+Skills:
+    Minimal Skilltree pro Skill
+    4 fixed Skills pro Char
+    Skillpoints though EXP.
+    
+    
+UI/UX:
+    Visualisation of Progression on the Map
+    Visualisation of Health/Mana or Ammo
+    Visualisation of Mobs folowing
+
+EXP:
+    Killing Mobs
+    Killing Players
+    Capturing Hardpoint
+
+Legend/Heros:
+
+1. Minionmancer: Char who controlls the Mobs and can change them with his ult.
+2. Stealth/Ninja/Assasin: Can get behind opponents barricades to infiltrate or plant traps.
+3. Trapier: Can plant complicated Traps, ...
+4. Soldier: DD Char with no big deffense ability
+5. Tank: Lot of HP, rather defensive skills and weapons.
+6. Healer: Defensive Weapons, can Heal Teammates with Mana or Med-Packs
+7. "Hacker": Can hack into all kinds of gadgets of opponents and can get them to malfunction.
+
+Rounds:
+    Duration: Max 60Min
+    Win Conditions: Deactivate the Opponents "Mana Uplink"
+    After 60Min "Mana Uplink" runs out of Mana resources, Team wich is futher into the Opponents HQ wins
+    Tie: Sudden Death till one Team is last on Map
+    If last to Fighters kill each other SuddenDeath will reset in the Mid Map and the fight will start agan
+    
+    
+Mana Uplink:
+    Gives "normal Humans" the abbility to use Mana and Magic.
+    If destroied those Humand can no longer use Mana and therefore loose the round.
