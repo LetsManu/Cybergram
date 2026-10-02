@@ -16,6 +16,11 @@ extends Resource
 ## design/balance/slice-tuning.md). Read by GameSession and BotDirector.
 @export_range(1, 5) var team_size: int = 5
 
+## Safety net: a living hero whose position drops below this height (metres)
+## has fallen out of the map and is killed so the normal respawn applies.
+## Lanes sit at y ~ 0; the Leyfall void is far below.
+@export_range(-500.0, 0.0, 1.0) var kill_plane_y: float = -25.0
+
 ## ---- Hardpoint capture (E7; match-flow-and-map.md §3.4, F1-F3, §8 knobs) ----
 ## C4: AI (Wardling) presence cap per team per hardpoint; heroes are uncapped.
 @export_range(0.0, 10.0, 0.1) var ai_presence_cap: float = 3.0

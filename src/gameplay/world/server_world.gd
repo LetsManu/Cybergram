@@ -363,6 +363,10 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		h.state.speed_scale *= objectives.move_speed_mult(h.net_id)  # E14: Cell carrier 90%
 		_note_actor(h, cmd)
 	h.step(cmd, dt)
+	if not c.dead and h.global_position.y < rules.kill_plane_y:
+		# Fell through the map: kill so respawn and Cell drop logic run.
+		damage_hero(h, DamageInfo.make(c.health.max_hp * 10.0, 0, -1, 0, DamageInfo.Type.TRUE))
+		return
 	abilities.post_move(h, cmd)  # E10: charge contact, skill casts
 	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
 		wardlings.issue_command(h, cmd)

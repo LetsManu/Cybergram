@@ -5,8 +5,10 @@ over a war-like front line, each player leading their own squad of minions
 ("Wardlings"). The goal is to push into the enemy base and destroy their
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
-> Status: **pre-alpha.** The design is done (M0). The offline vertical slice
-> (M1) is in progress: 8 of its 15 epics are built.
+> Status: **pre-alpha, playable.** The offline vertical slice (M1) is
+> playable: a 3v3 match against bots on a 1-lane map. Its balance target
+> (most matches ending by Uplink kill) is not met yet; see
+> `production/qa/m1-soak-report.md`.
 
 ## The game in short
 
@@ -53,39 +55,39 @@ Still to come in M1:
 
 The roadmap is in [`production/milestones/roadmap.md`](production/milestones/roadmap.md).
 
-## Running it
+## Playing it
 
-Requires **Godot 4.7** (stable).
+**Download:** open the latest successful **Build** run under the repo's
+*Actions* tab and download **Cybergram-Windows** (or **Cybergram-Linux**).
+Unzip it and run `Cybergram.exe`. No install is needed.
+
+The game starts straight into a **3v3 match on the slice map** with you as
+Vesper Loom and bots filling the other slots. Destroy the enemy Mana Uplink
+to win. It only takes damage once your team holds the enemy's Inner
+hardpoint.
+
+From source (Godot 4.7): `godot --path .`. Options:
 
 ```bash
-godot --path .                          # offline session on the test course
-godot --path . -- --map slice           # walk the slice map
-godot --path . -- --map slice --hero brannoc
-godot --path . -- --net-sim 100ms_2pct  # simulate 100 ms lag + 2% packet loss
-godot --headless --path .               # dedicated server only
+godot --path . -- --hero brannoc        # play Brannoc instead of Vesper
+godot --path . -- --map test_course     # movement test course
+godot --headless --path . -- --server --bots-only --seed 3   # all-bot match, prints a summary
 ```
-
-Controls:
 
 | Action | Key |
 |---|---|
-| Move | WASD |
-| Aim / fire | mouse; click once to capture the mouse |
-| Jump | Space |
-| Sprint | Shift |
-| Crouch | Ctrl or C |
-| Reload | R |
-| Smart squad command | tap `Z` |
-| Command wheel | hold `Z` |
-| Squad follows you | `X` |
+| Move / jump / sprint / crouch | WASD / Space / Shift / Ctrl |
+| Fire / reload | Left mouse (click once to capture the mouse) / R |
+| Skills / ultimate | Q, E, C / G (ultimate unlocks at level 6) |
+| Learn a skill (spend a skill point) | hold Alt + Q/E/C/G |
+| Interact (pick up Mana Cell) / open Armory on your HQ pad | F |
+| Use Med-Pack | 4 |
+| Squad: smart command / wheel / follow | tap Z / hold Z / X |
+| Scoreboard | Tab |
+| Net graph / colour-blind / UI scale / damage numbers | F3 / F6 / F7-F8 / F9 |
 
-Tests and checks:
-
-```bash
-GODOT=/path/to/godot tools/ci/run_tests.sh           # gdUnit4 suite
-tools/ci/check_deps.sh                               # code layer rules
-GODOT=/path/to/godot tools/ci/capture_scene.sh "" out.png 150 --map slice  # screenshot
-```
+Tests: `GODOT=/path/to/godot tools/ci/run_tests.sh` (gdUnit4) and
+`tools/ci/check_deps.sh`.
 
 ## Project layout
 

@@ -137,3 +137,21 @@ func test_shots_pass_allies_and_hit_the_enemy_behind() -> void:
 	_tick(60)
 	assert_float(_server.hero(ally).combat.health.hp).is_equal(250.0)
 	assert_float(_server.hero(enemy).combat.health.hp).is_less(250.0)
+
+
+func test_hero_below_kill_plane_dies_and_respawns() -> void:
+	var scene := CombatFixtures.range_scene(false)
+	var vesper := CombatFixtures.vesper()
+	_server_world(scene, vesper)
+	var id := _server.add_scripted_hero(ScriptedInputSource.new(CombatFixtures.idle_input()),
+		_server.spawn_point("DummySpawn1"), vesper)
+	await get_tree().physics_frame
+	var died := [false]
+	_server.hero_died.connect(func(v: int, _k: int) -> void:
+		if v == id:
+			died[0] = true)
+	var h := _server.hero(id)
+	h.global_position.y = _server.rules.kill_plane_y - 5.0
+	_tick(1)
+	assert_bool(died[0]).is_true()
+	assert_bool(h.combat.dead).is_true()
