@@ -17,7 +17,7 @@ func test_squad_follows_owner_across_the_slice_map() -> void:
 	walker.server = server
 	walker.goal = def.lanes[0].hardpoints[1].position
 	walker.wait_ticks = 3 * HZ
-	var id := server.add_scripted_hero(walker, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.vesper(),
+	var id := server.add_scripted_hero(walker, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.base_commander(),
 		ServerWorld.TEAM_PLAYERS)
 	walker.hero_id = id
 	var hero := server.hero(id)

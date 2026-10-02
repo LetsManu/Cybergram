@@ -1,0 +1,97 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/rewrite_effect_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="4"]
+
+[sub_resource type="Resource" id="rewrite_1"]
+script = ExtResource("3")
+
+[sub_resource type="Resource" id="node_2"]
+script = ExtResource("2")
+kind = 5
+required_level = 6
+modifiers = Array[ExtResource("1")]([])
+rank = 1
+
+[sub_resource type="Resource" id="mod_3"]
+script = ExtResource("1")
+stat = &"radius"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="mod_4"]
+script = ExtResource("1")
+stat = &"duration"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="mod_5"]
+script = ExtResource("1")
+stat = &"secondary_duration"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="mod_6"]
+script = ExtResource("1")
+stat = &"cooldown"
+op = 0
+value = -15.0
+
+[sub_resource type="Resource" id="node_7"]
+script = ExtResource("2")
+kind = 5
+required_level = 10
+modifiers = Array[ExtResource("1")]([SubResource("mod_3"), SubResource("mod_4"), SubResource("mod_5"), SubResource("mod_6")])
+rank = 2
+
+[sub_resource type="Resource" id="mod_8"]
+script = ExtResource("1")
+stat = &"radius"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="mod_9"]
+script = ExtResource("1")
+stat = &"duration"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="mod_10"]
+script = ExtResource("1")
+stat = &"secondary_duration"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="mod_11"]
+script = ExtResource("1")
+stat = &"cooldown"
+op = 0
+value = -15.0
+
+[sub_resource type="Resource" id="node_12"]
+script = ExtResource("2")
+kind = 5
+required_level = 14
+modifiers = Array[ExtResource("1")]([SubResource("mod_8"), SubResource("mod_9"), SubResource("mod_10"), SubResource("mod_11")])
+rank = 3
+
+[resource]
+script = ExtResource("4")
+id = &"skill_vesper_rewrite"
+display_name = "Rewrite"
+short_label = "RWRT"
+ultimate = true
+required_level = 6
+targeting = 0
+interruptible = true
+params = {
+&"cooldown": 120.0,
+&"radius": 18.0,
+&"duration": 12.0,
+&"secondary_duration": 6.0,
+&"cast_time": 0.8
+}
+effects = Array[Resource]([SubResource("rewrite_1")])
+nodes = Array[ExtResource("2")]([SubResource("node_2"), SubResource("node_7"), SubResource("node_12")])

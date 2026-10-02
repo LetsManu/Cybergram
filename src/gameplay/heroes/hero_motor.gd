@@ -30,7 +30,7 @@ func _init(movement: MovementDef, hero_body: HeroBody) -> void:
 static func compute_intent(state: MotorState, cmd: InputCommand, d: MovementDef, dt: float) -> bool:
 	var wants_crouch := cmd.has(InputCommand.BTN_CROUCH)
 	var crouched := state.crouching or wants_crouch
-	var speed := d.base_move_speed
+	var speed := d.base_move_speed * maxf(state.speed_scale, 0.0)
 	if crouched:
 		speed *= d.crouch_multiplier
 	elif cmd.has(InputCommand.BTN_SPRINT) and cmd.move.y > 0.0:
@@ -39,13 +39,25 @@ static func compute_intent(state: MotorState, cmd: InputCommand, d: MovementDef,
 	var wish := basis * Vector3(cmd.move.x, 0.0, -cmd.move.y)
 	var target := Vector2(wish.x, wish.z) * speed
 	var accel := d.ground_acceleration if state.grounded else d.air_acceleration
-	var h := Vector2(state.velocity.x, state.velocity.z).move_toward(target, accel * dt)
+	var hv := Vector2(state.velocity.x, state.velocity.z)
+	if state.dash_ticks == 0 and state.dash_velocity != Vector3.ZERO:
+		hv = hv.limit_length(speed)  # E10: a dash just ended; back to walk speed
+		state.dash_velocity = Vector3.ZERO
+	var h := hv.move_toward(target, accel * dt)
 	var vy := state.velocity.y
 	if state.grounded:
 		vy = minf(vy, 0.0)
 	vy -= d.gravity * dt
+	# E10 forced motion (dash / leap) replaces the walk velocity.
+	if state.dash_ticks > 0:
+		state.dash_ticks -= 1
+		h = Vector2(state.dash_velocity.x, state.dash_velocity.z)
+		if state.dash_launch:
+			vy = state.dash_velocity.y
+			state.dash_launch = false
+			state.grounded = false
 	# Jump: press edge fills the buffer; take-off needs ground or coyote time.
-	var jump_down := cmd.has(InputCommand.BTN_JUMP)
+	var jump_down := cmd.has(InputCommand.BTN_JUMP) and state.speed_scale > 0.0
 	if jump_down and not state.jump_held:
 		state.jump_buffer_ticks = roundi(d.jump_buffer_s / dt) + 1
 	state.jump_held = jump_down

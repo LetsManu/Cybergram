@@ -1,8 +1,8 @@
 class_name HeroDef
 extends Resource
 ## Minimal hero definition for M1 combat (architecture.md §6 HeroDef, abridged).
-## Stats from design/gdd/heroes.md §3.1. Skills, squads and level growth arrive
-## with E10/E15. Hitbox values marked PLACEHOLDER are not in the GDD.
+## Stats from design/gdd/heroes.md §3.1; skills and passive from §4 (E10).
+## Level growth arrives with E15. Hitbox values marked PLACEHOLDER are not in the GDD.
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -12,6 +12,20 @@ extends Resource
 ## Run speed (m/s). Overrides MovementDef.base_move_speed for this hero.
 @export_range(0.0, 20.0, 0.1) var move_speed: float = 6.0
 @export var weapon: WeaponDef
+
+@export_group("Kit (E10)")
+## S1, S2, S3, Ult (heroes.md §4; binds Q / E / C / G, hud.md §4.4).
+@export var skills: Array[SkillDef] = []
+## Passive: always-on hero-scope modifiers (e.g. Vesper Conductor +2 squad).
+@export var passive_modifiers: Array[ModifierDef] = []
+## Passive: hero-scope modifiers active only inside a hardpoint zone with an
+## active task (Brannoc Anchor: +15% DR, knockback immune).
+@export var zone_passive_modifiers: Array[ModifierDef] = []
+## Passive: radius of the WARDLING_AURA_DAMAGE aura (Vesper Conductor: 15 m).
+@export_range(0.0, 60.0, 0.5) var wardling_aura_radius_m: float = 0.0
+## Passive: allied Vanguard waves with a member this close are "conducted"
+## (Vesper Conductor: 25 m; 0 = cannot conduct waves).
+@export_range(0.0, 60.0, 0.5) var conduct_radius_m: float = 0.0
 
 @export_group("Hitbox")
 ## Linear scale of the hitbox. heroes.md §3.1: Brannoc +25% volume -> 1.25^(1/3) = 1.077.

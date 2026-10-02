@@ -58,6 +58,22 @@ var agent: RID
 var fire_cooldown: int = 0
 var stuck_ticks: int = 0
 
+## --- E10 Minionmancer hooks (wardlings-and-economy.md §13; MinionmancerHooks) ---
+## Elite (Rewrite) until this tick, -1 = not Elite.
+var elite_until_tick: int = -1
+## Turned (subvert) until this tick, -1 = own allegiance.
+var turned_until_tick: int = -1
+var turned_from_team: int = -1
+var turned_from_owner: int = 0
+var turned_from_squad: Squad
+var turned_from_wave: VanguardWave
+## Overflow member of a squad (subverted: no slot, no capacity).
+var overflow: bool = false
+## Stalled / stunned until this tick (no move, no fire).
+var stun_until_tick: int = -1
+## apply_squad_modifier buckets: source id -> [bucket, mult, expires_tick].
+var squad_mods: Dictionary = {}
+
 ## Damage memory (retaliation, LOD).
 var last_attacker_id: int = 0
 var last_hit_tick: int = -1000000

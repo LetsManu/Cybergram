@@ -17,6 +17,16 @@ extends RefCounted
 ##                                                  facing its squad (E8 evidence)
 ##   ... -- --map slice --debug-capture s_mid    -> debug: spawn inside that hardpoint's zone,
 ##                                                  which starts mid-capture (E7 evidence)
+##   ... -- --map slice --match-clock 20         -> debug: match clock (phases, Surges,
+##                                                  Time-out, C11 minutes) 20x faster
+##   ... -- --debug-match-time 1040             -> debug: the match clock starts at 17:20
+##   ... -- --debug-uplink                      -> debug: Concord holds the lane to S-BI, the
+##                                                  player spawns at the Syndicate Uplink and
+##                                                  fires at it with its squad (E9 evidence)
+##   ... -- --debug-uplink-integrity 2000       -> debug: Syndicate Uplink starts at 2000
+##   ... -- --grant-ult                          -> debug: ultimates usable below level 6 (E10)
+##   ... -- --debug-skill-demo                   -> debug: the local hero casts its skills on a
+##                                                  schedule (E10 evidence)
 
 enum Mode { OFFLINE, DEDICATED }
 
@@ -36,6 +46,14 @@ var spawn_wardlings: int = 0
 var wave_clock: float = 1.0
 var debug_camera: String = ""
 var debug_squad_demo: bool = false
+## E10 debug: ultimate unlocked below level 6; scripted skill casts.
+var grant_ult: bool = false
+var debug_skill_demo: bool = false
+## E9 debug: match clock scale, start time, Uplink siege setup and start Integrity (< 0 = off).
+var match_clock: float = 1.0
+var debug_match_time: float = 0.0
+var debug_uplink: bool = false
+var debug_uplink_integrity: float = -1.0
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -67,6 +85,24 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.debug_camera = args[i].validate_filename()
 			"--debug-squad-demo":
 				c.debug_squad_demo = true
+			"--grant-ult":
+				c.grant_ult = true
+			"--debug-skill-demo":
+				c.debug_skill_demo = true
+			"--match-clock":
+				if i + 1 < args.size():
+					i += 1
+					c.match_clock = clampf(args[i].to_float(), 0.01, 1000.0)
+			"--debug-match-time":
+				if i + 1 < args.size():
+					i += 1
+					c.debug_match_time = maxf(args[i].to_float(), 0.0)
+			"--debug-uplink":
+				c.debug_uplink = true
+			"--debug-uplink-integrity":
+				if i + 1 < args.size():
+					i += 1
+					c.debug_uplink_integrity = maxf(args[i].to_float(), 1.0)
 			"--debug-capture":
 				if i + 1 < args.size():
 					i += 1

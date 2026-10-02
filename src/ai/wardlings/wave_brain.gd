@@ -54,6 +54,9 @@ func _centroid() -> Vector3:
 ## any enemy inside the target zone. Heroes otherwise pass (hero gate, §9.4).
 func _pick_threat() -> int:
 	var now := world.server.tick
+	# E10 command_vanguard: a conducting Vesper's focus overrides the wave's pick.
+	if wave.forced_until_tick > now and world.live_entity(wave.forced_threat_id) != null:
+		return wave.forced_threat_id
 	var memory := roundi(rules.threat_memory_s * world.tick_hz)
 	var hitters := {}
 	for m in wave.members:

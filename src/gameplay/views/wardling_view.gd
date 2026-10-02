@@ -20,6 +20,13 @@ var _pennant: Node3D
 var _hp_fill: MeshInstance3D
 var _hp_mat: StandardMaterial3D
 var _body_mat: StandardMaterial3D
+## E10 Rewrite tells: Elite = gold outline shell + x1.3 scale; Turned = violet sash.
+const ELITE_GOLD := Color("#FFC93C")
+const TURNED_VIOLET := Color("#B07CFF")
+const ELITE_SCALE: float = 1.3
+var _elite_shell: MeshInstance3D
+var _elite: bool = false
+var _turned: bool = false
 
 
 func _ready() -> void:
@@ -59,6 +66,12 @@ func _ready() -> void:
 	_hp_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	_hp_fill.position = Vector3(0.0, _H + 0.3, 0.0)
 	add_child(_hp_fill)
+	var gold := _mat(ELITE_GOLD, true)
+	gold.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gold.albedo_color.a = 0.45
+	gold.cull_mode = BaseMaterial3D.CULL_FRONT
+	_elite_shell = _box(Vector3(0.86, 1.25, 0.66), Vector3(0.0, 0.62, 0.0), gold)
+	_elite_shell.visible = false
 
 
 func apply(pos: Vector3, yaw: float) -> void:
@@ -79,6 +92,22 @@ func set_state(team_: int, hp_frac: float, owner_kind: int) -> void:
 	var f := clampf(hp_frac, 0.0, 1.0)
 	_hp_fill.scale = Vector3(maxf(f, 0.02), 1.0, 1.0)
 	_hp_mat.albedo_color = Color(1.0, 0.25, 0.2).lerp(Color(0.4, 1.0, 0.5), f)
+
+
+## E10: Elite / Turned (snapshot state bits 6 / 7).
+func set_rewrite(elite: bool, turned: bool) -> void:
+	_elite = elite
+	_turned = turned
+	_elite_shell.visible = elite
+	scale = Vector3.ONE * (ELITE_SCALE if elite else 1.0)
+	if turned:
+		_sash.visible = true
+		(_sash.material_override as StandardMaterial3D).albedo_color = TURNED_VIOLET
+		(_sash.material_override as StandardMaterial3D).emission = TURNED_VIOLET
+
+
+func is_elite() -> bool:
+	return _elite
 
 
 func _box(size: Vector3, pos: Vector3, m: Material) -> MeshInstance3D:

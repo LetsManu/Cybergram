@@ -97,6 +97,15 @@ func sample(seq: int, out: InputCommand) -> void:
 		out.buttons |= InputCommand.BTN_FIRE
 	if _pressed("reload", KEY_R):
 		out.buttons |= InputCommand.BTN_RELOAD
+	# E10 skills (hud.md §4.4 / §13 binds: S1 Q, S2 E, S3 C, Ult G).
+	if _pressed("skill_1", KEY_Q):
+		out.buttons |= InputCommand.BTN_SKILL1
+	if _pressed("skill_2", KEY_E):
+		out.buttons |= InputCommand.BTN_SKILL2
+	if _pressed("skill_3", KEY_C):
+		out.buttons |= InputCommand.BTN_SKILL3
+	if _pressed("skill_4", KEY_G):
+		out.buttons |= InputCommand.BTN_SKILL4
 	out.squad_cmd = _squad_request
 	out.squad_target = 0
 	out.squad_point = Vector3.ZERO

@@ -39,6 +39,9 @@ var capture_index: int = -1
 var capture_point: Vector3 = Vector3.ZERO
 var capture_radius: float = 12.0
 var last_end_reason: int = END_NONE
+## E10 skill-driven Attack Target (Marionette Thread focus): ends at this tick
+## (-1 = the normal attack_timeout_s applies).
+var attack_expire_tick: int = -1
 
 ## Owner death (DeathHold); -1 while the owner lives.
 var owner_dead_tick: int = -1
@@ -68,8 +71,13 @@ func is_dissolving() -> bool:
 	return owner_dead_tick >= 0
 
 
+## Members holding a slot (subverted overflow units do not, wardlings §13).
 func alive_count() -> int:
-	return members.size()
+	var n := members.size()
+	for m in members:
+		if m.overflow:
+			n -= 1
+	return n
 
 
 ## Applies a validated command. Attack Target remembers the command to revert to.
@@ -93,6 +101,7 @@ func issue(cmd: int, tick: int, point: Vector3 = Vector3.ZERO, target_id: int = 
 			capture_point = point
 	if cmd != CMD_ATTACK:
 		attack_target_id = 0
+	attack_expire_tick = -1
 	last_end_reason = END_NONE
 
 
@@ -111,7 +120,8 @@ func update_attack(tick: int, tick_hz: int, rules: WardlingRulesDef, target_aliv
 	var reason := END_NONE
 	if not target_alive:
 		reason = END_TARGET_GONE
-	elif tick - attack_start_tick >= roundi(rules.attack_timeout_s * tick_hz):
+	elif tick - attack_start_tick >= roundi(rules.attack_timeout_s * tick_hz) \
+			or (attack_expire_tick >= 0 and tick >= attack_expire_tick):
 		reason = END_TIMEOUT
 	elif tick - attack_seen_tick >= roundi(rules.attack_los_timeout_s * tick_hz):
 		reason = END_LOS_LOST

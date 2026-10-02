@@ -12,6 +12,10 @@ signal hit_confirmed(event: GameEvent)
 signal kill_received(event: GameEvent)
 ## E7: a replicated hardpoint changed owner (index into hardpoint_defs()).
 signal hardpoint_owner_changed(index: int, old_team: int, new_team: int)
+## E9: the match phase changed (MatchRules.Phase), from the reliable event.
+signal match_phase_changed(phase: int)
+## E9: the match ended (winner -1 = draw; reason = MatchRules.EndReason).
+signal match_ended(winner: int, reason: int)
 
 var net: NetConfig
 var movement: MovementDef
@@ -37,8 +41,16 @@ var fronts: PackedInt32Array = PackedInt32Array()
 var _hp_defs: Array[HardpointDef] = []
 var _hp_views: Array[HardpointView] = []
 
+## E9: replicated match phase / clock / result / Uplinks (null until received).
+var match_state: SnapshotData.MatchState
+var _uplink_views: Array[UplinkView] = []
+
 ## E8: Wardling views, bolt tracers, own squad strip and squad-order resolution.
 var wardlings: WardlingPresenter
+## E10: skill FX / deployables (walls, beacons, telegraphs) and the own hero's
+## replicated move-speed scale (fed to prediction).
+var abilities: AbilityPresenter
+var own_speed_scale: float = 1.0
 
 var _views: Dictionary = {}  # net id -> HeroView
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
@@ -63,6 +75,9 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	wardlings = WardlingPresenter.new()
 	wardlings.client = self
 	add_child(wardlings)
+	abilities = AbilityPresenter.new()
+	abilities.client = self
+	add_child(abilities)
 	session.connect_to_server()
 
 
@@ -78,6 +93,11 @@ func setup_objectives(md: MapDef) -> void:
 			v.setup(d)
 			add_child(v)
 			_hp_views.append(v)
+	for hq in md.hqs:
+		var uv := UplinkView.new()
+		uv.setup(hq)
+		add_child(uv)
+		_uplink_views.append(uv)
 
 
 func hardpoint_defs() -> Array[HardpointDef]:
@@ -119,6 +139,7 @@ func tick() -> void:
 	if _cmd.squad_cmd != InputCommand.SQUAD_NONE:
 		wardlings.resolve(_cmd)
 		_cmd.quantize()
+	body.state.speed_scale = own_speed_scale  # E10: slows / roots / stances
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -183,7 +204,11 @@ func _on_snapshot(s: SnapshotData) -> void:
 		else:
 			_visual_offset += predictor.reconcile(s.own_state, s.last_processed_seq)
 	_apply_objectives(s)
+	_apply_match(s)
 	wardlings.apply_snapshot(s)
+	abilities.apply_snapshot(s)  # E10
+	if s.own_state != null:
+		own_speed_scale = s.own_state.speed_scale
 	var seen := {}
 	for e in s.entities:
 		if e.net_id == s.own_net_id:
@@ -196,6 +221,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_buffers[e.net_id] = InterpolationBuffer.new(net.extrapolation_cap_ticks)
 		_buffers[e.net_id].push(s.tick, e.position, e.yaw, e.crouching)
 		_views[e.net_id].set_health(e.hp, e.max_hp, e.dead)
+		_views[e.net_id].set_status(e.status)  # E10
 	for id in _views.keys():
 		if not seen.has(id):
 			_views[id].queue_free()
@@ -214,6 +240,33 @@ func _apply_objectives(s: SnapshotData) -> void:
 		if i < _hp_views.size():
 			_hp_views[i].apply(st)
 	hardpoints = s.hardpoints
+
+
+func _apply_match(s: SnapshotData) -> void:
+	if s.match_state == null:
+		return
+	var was_over := match_state != null and match_state.phase == MatchRules.Phase.END
+	match_state = s.match_state
+	for u in match_state.uplinks:
+		for v in _uplink_views:
+			if v.team == u.team:
+				v.apply(u)
+	if not was_over and match_state.phase == MatchRules.Phase.END:
+		match_ended.emit(match_state.winner, match_state.end_reason)
+
+
+## E9: replicated Uplink state of `team`, or null.
+func uplink_state(team: int) -> SnapshotData.UplinkState:
+	if match_state == null:
+		return null
+	for u in match_state.uplinks:
+		if u.team == team:
+			return u
+	return null
+
+
+func uplink_views() -> Array[UplinkView]:
+	return _uplink_views
 
 
 func _spawn_own(state: MotorState) -> void:
@@ -236,3 +289,5 @@ func _on_event(e: GameEvent, _server_tick: int) -> void:
 			hit_confirmed.emit(e)
 		GameEvent.KILL:
 			kill_received.emit(e)
+		GameEvent.MATCH_PHASE:
+			match_phase_changed.emit(e.target_net_id)

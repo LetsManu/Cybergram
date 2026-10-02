@@ -1,0 +1,86 @@
+class_name SkillBar
+extends Control
+## Skill bar (design/ux/hud.md §4.4): four 64 px icons labelled with their
+## binds S1 [Q], S2 [E], S3 [C], Ult [G]. Cooldown: dark radial sweep +
+## seconds (≤ 3 s shows tenths). Ready: bright. Locked (ult below level 6):
+## greyed with a lock and the level gate. Active (wall / stance up): team-rim
+## border, cooldown starts when it ends. Greybox: icons are text labels.
+## Reads ClientWorld.combat (replicated) and hero_def.skills; writes nothing.
+
+const BINDS: Array[String] = ["Q", "E", "C", "G"]
+const ICON: float = 64.0
+const GAP: float = 12.0
+const READY := Color(0.9, 0.95, 1.0)
+const RIM := Color("#2E86FF")
+const LOCK := Color(0.45, 0.45, 0.5)
+const ACTIVE := Color("#FFC93C")
+
+var client: ClientWorld
+var _font: Font
+
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_font = ThemeDB.fallback_font
+	custom_minimum_size = Vector2(4.0 * ICON + 3.0 * GAP, ICON + 30.0)
+
+
+func _process(_delta: float) -> void:
+	queue_redraw()
+
+
+func _draw() -> void:
+	if client == null or client.hero_def == null:
+		return
+	var c := client.combat
+	var skills := client.hero_def.skills
+	var hz := float(client.net.tick_rate_hz) if client.net != null else 30.0
+	for i in 4:
+		var x := i * (ICON + GAP)
+		var r := Rect2(Vector2(x, 0.0), Vector2(ICON, ICON))
+		var def: SkillDef = skills[i] if i < skills.size() else null
+		var left := c.skill_cd_left[i] if c != null else 0
+		var total := c.skill_cd_total[i] if c != null else 0
+		var flags := c.skill_flags[i] if c != null else 0
+		var locked := def == null or (flags & AbilityRunner.FLAG_LOCKED) != 0
+		var active := (flags & (AbilityRunner.FLAG_ACTIVE | AbilityRunner.FLAG_CASTING)) != 0
+		draw_rect(r, Color(0.05, 0.06, 0.1, 0.8))
+		var label := def.short_label if def != null else "-"
+		var fg := LOCK if locked else READY
+		if left > 0 and not locked:
+			fg = READY.darkened(0.45)
+		_text(label, r.position + Vector2(ICON * 0.5, ICON * 0.42), 15, fg)
+		if left > 0 and total > 0 and not locked:
+			_sweep(r, float(left) / float(total))
+			var s := left / hz
+			_text("%.1f" % s if s <= 3.0 else str(ceili(s)), r.position + Vector2(ICON * 0.5, ICON * 0.78), 18, Color.WHITE)
+		if locked:
+			_text("LOCK", r.position + Vector2(ICON * 0.5, ICON * 0.78), 13, LOCK)
+			if def != null:
+				_text("Lv %d" % def.required_level, r.position + Vector2(ICON * 0.5, -10.0), 13, LOCK)
+		var border := RIM if not locked and left == 0 else Color(0.3, 0.3, 0.35)
+		if active:
+			border = ACTIVE
+			_text("ACTIVE", r.position + Vector2(ICON * 0.5, ICON * 0.78), 12, ACTIVE)
+		draw_rect(r, border, false, 3.0 if active or (left == 0 and not locked) else 2.0)
+		_text("[%s]" % BINDS[i], r.position + Vector2(ICON * 0.5, ICON + 16.0), 14, Color(0.8, 0.85, 0.95))
+
+
+## Dark radial sweep covering `frac` of the icon, clockwise from 12 o'clock.
+func _sweep(r: Rect2, frac: float) -> void:
+	var c := r.get_center()
+	var pts := PackedVector2Array([c])
+	var steps := maxi(3, ceili(32.0 * frac))
+	var half := ICON * 0.5
+	for k in steps + 1:
+		var a := -PI / 2.0 + TAU * (1.0 - frac) + TAU * frac * k / steps
+		var d := Vector2(cos(a), sin(a))
+		pts.append(c + d * (half / maxf(absf(d.x), absf(d.y))))
+	draw_colored_polygon(pts, Color(0.0, 0.0, 0.0, 0.6))
+
+
+func _text(t: String, center: Vector2, size: int, col: Color) -> void:
+	var w := _font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var p := center + Vector2(-w * 0.5, size * 0.35)
+	draw_string_outline(_font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 4, Color.BLACK)
+	draw_string(_font, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)

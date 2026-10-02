@@ -18,6 +18,9 @@ var lanes: Array = []
 var all: Array[HardpointSim] = []
 ## D_s: Surge task-duration multiplier (F5). Match flow (E9) drives it.
 var duration_scale: float = 1.0
+## Deploy (match-flow-and-map.md §3.1): Mid hardpoints are Locked for both
+## teams. Match flow (E9 MatchRules) drives it.
+var mid_locked: bool = false
 var front: LaneFrontResolver
 ## Events produced by the last step() (cleared at the start of each step).
 var events: Array[ObjectiveEvent] = []
@@ -56,7 +59,7 @@ func eligible(lane: int, index: int, team: int) -> bool:
 	if h.owner == team:
 		return false
 	if h.def.tier == HardpointDef.Tier.MID:
-		return true
+		return not mid_locked
 	var prev := index - 1 if team == MapDef.TEAM_CONCORD else index + 1
 	if prev < 0 or prev >= hps.size():
 		return true
@@ -118,6 +121,16 @@ func debug_set_progress(id: StringName, team: int, p: float) -> void:
 	if h != null and h.owner != team:
 		h.capturing_team = team
 		h.progress = clampf(p, 0.0, 0.999)
+
+
+## Debug / tests: hands a hardpoint to `team` (no event, no progress).
+func debug_set_owner(id: StringName, team: int) -> void:
+	var h := find(id)
+	if h != null:
+		h.owner = team
+		h.progress = 0.0
+		h.capturing_team = MapDef.TEAM_NEUTRAL
+		_refresh_eligibility()
 
 
 func _refresh_eligibility() -> void:

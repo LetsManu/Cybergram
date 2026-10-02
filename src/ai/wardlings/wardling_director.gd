@@ -34,6 +34,8 @@ func attach(server: ServerWorld) -> bool:
 	world.think_hook = think
 	world.wardling_minted.connect(_on_minted)
 	world.wardling_removed.connect(_on_removed)
+	# E10: subvert / revert changes squad or wave; the brain restarts from scratch.
+	world.wardling_allegiance_changed.connect(_on_minted)
 	for w in world.wardlings:
 		_on_minted(w)
 	return true

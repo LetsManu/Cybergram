@@ -11,8 +11,15 @@ var max_hp: float
 var hp: float
 ## Flat % reduction (0.20 = 20%).
 var armor: float
-## Active damage reduction from skills (Fortify, Anchor...; E10).
+## Flat extra damage reduction (stacked with armor; clamp 70%).
 var damage_reduction: float = 0.0
+## E10: hero StatBlock (null for Wardlings). DAMAGE_REDUCTION adds to armor and
+## DAMAGE_TAKEN multiplies the result (statuses, passives, zones write them).
+var stats: StatBlock
+## E10: absorb pool (StatusComponent SHIELD); spent before HP.
+var shield: float = 0.0
+## HP + shield removed by the latest apply_damage (diagnostics).
+var last_absorbed: float = 0.0
 var team: int
 var last_attacker: int = 0
 
@@ -37,7 +44,20 @@ func apply_damage(info: DamageInfo) -> float:
 		return 0.0
 	var amount := info.amount
 	if info.type != DamageInfo.Type.TRUE:
-		amount *= DamageMath.armor_mult(armor, damage_reduction)
+		var dr := damage_reduction
+		if stats != null:
+			dr += stats.get_value(StatCatalog.DAMAGE_REDUCTION)
+		amount *= DamageMath.armor_mult(armor, dr)
+		if stats != null:
+			amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
+	last_absorbed = 0.0
+	if shield > 0.0:
+		last_absorbed = minf(shield, amount)
+		shield -= last_absorbed
+		amount -= last_absorbed
+		if amount <= 0.0:
+			last_attacker = info.source_net_id
+			return 0.0
 	var applied := minf(amount, hp)
 	hp -= applied
 	last_attacker = info.source_net_id
@@ -57,4 +77,5 @@ func heal(amount: float) -> float:
 
 func reset() -> void:
 	hp = max_hp
+	shield = 0.0
 	last_attacker = 0

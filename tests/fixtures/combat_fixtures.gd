@@ -14,6 +14,16 @@ static func brannoc() -> HeroDef:
 	return load(BRANNOC) as HeroDef
 
 
+## Vesper's stats and gun without her kit (E10): a squad owner with the BASE
+## squad of 3 (no Conductor +2 / +15% HP / aura), for Wardling rule tests.
+static func base_commander() -> HeroDef:
+	var d := vesper().duplicate() as HeroDef
+	d.passive_modifiers = []
+	d.wardling_aura_radius_m = 0.0
+	d.conduct_radius_m = 0.0
+	return d
+
+
 ## Full-auto test gun with a huge pool so only the fire rate gates it.
 static func auto_gun(rate: float) -> WeaponDef:
 	var w := WeaponDef.new()

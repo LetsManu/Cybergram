@@ -1,0 +1,97 @@
+class_name UplinkView
+extends Node3D
+## Client-side greybox of one Mana Uplink (E9; match-flow-and-map.md §3.6,
+## design/ux/hud.md §4.8). Sealed: a translucent team-coloured shell closes over
+## the map's core. Exposed: the shell opens (hidden), a hot pulsing core and
+## "EXPOSED" label appear. Destroyed: the core goes dark. A billboard shows the
+## Integrity %. Reads replicated SnapshotData.UplinkState only.
+
+const SHELL_RADIUS: float = 2.4
+const SHELL_HEIGHT: float = 4.2
+## Core centre above the Uplink floor (the slice map's UplinkCore node).
+const CORE_Y: float = 7.3
+const EXPOSED_COLOR := Color(1.0, 0.25, 0.2)
+const DEAD_COLOR := Color(0.12, 0.12, 0.14)
+
+var team: int = 0
+var exposed: bool = false
+var destroyed: bool = false
+var _shell: MeshInstance3D
+var _shell_mat: StandardMaterial3D
+var _core: MeshInstance3D
+var _core_mat: StandardMaterial3D
+var _label: Label3D
+var _t: float = 0.0
+
+
+func setup(hq: HqDef) -> void:
+	team = hq.team
+	name = "UplinkView%d" % team
+	position = hq.uplink
+	var col := HardpointView.team_color(team)
+	_shell_mat = StandardMaterial3D.new()
+	_shell_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_shell_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_shell_mat.albedo_color = Color(col, 0.35)
+	_shell_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var shell := CylinderMesh.new()
+	shell.top_radius = SHELL_RADIUS * 0.8
+	shell.bottom_radius = SHELL_RADIUS
+	shell.height = SHELL_HEIGHT
+	shell.radial_segments = 6
+	shell.material = _shell_mat
+	_shell = MeshInstance3D.new()
+	_shell.mesh = shell
+	_shell.position.y = CORE_Y
+	_shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_shell)
+	_core_mat = StandardMaterial3D.new()
+	_core_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_core_mat.albedo_color = EXPOSED_COLOR
+	var core := SphereMesh.new()
+	core.radius = 1.9
+	core.height = 3.8
+	core.material = _core_mat
+	_core = MeshInstance3D.new()
+	_core.mesh = core
+	_core.position.y = CORE_Y
+	_core.visible = false
+	_core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_core)
+	_label = Label3D.new()
+	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.no_depth_test = true
+	_label.fixed_size = true
+	_label.pixel_size = 0.0016
+	_label.font_size = 28
+	_label.outline_size = 8
+	_label.modulate = col.lightened(0.3)
+	_label.position.y = CORE_Y + 4.5
+	add_child(_label)
+
+
+## Applies one replicated Uplink state.
+func apply(st: SnapshotData.UplinkState) -> void:
+	exposed = st.exposed
+	destroyed = st.integrity <= 0.0
+	var pct := 100.0 * st.integrity / maxf(st.max_integrity, 1.0)
+	_shell.visible = not exposed and not destroyed
+	_core.visible = exposed or destroyed
+	if destroyed:
+		_core_mat.albedo_color = DEAD_COLOR
+		_label.text = "UPLINK DESTROYED"
+	elif exposed:
+		_label.text = "EXPOSED  %d%%" % ceili(pct)
+		_label.modulate = EXPOSED_COLOR.lightened(0.3)
+	else:
+		_label.text = "UPLINK  %d%%" % ceili(pct)
+		_label.modulate = HardpointView.team_color(team).lightened(0.3)
+
+
+func _process(delta: float) -> void:
+	if not exposed or destroyed:
+		return
+	_t += delta
+	var k := 0.5 + 0.5 * sin(_t * TAU * 1.5)
+	_core_mat.albedo_color = EXPOSED_COLOR.lerp(Color(1.0, 0.95, 0.8), k * 0.6)
+	_core.scale = Vector3.ONE * (1.0 + 0.08 * k)

@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="4"]
+
+[sub_resource type="Resource" id="status_1"]
+script = ExtResource("4")
+kind = 4
+magnitude_param = &"dr"
+on_caster = true
+
+[sub_resource type="Resource" id="status_2"]
+script = ExtResource("4")
+kind = 5
+magnitude = 1.0
+on_caster = true
+
+[sub_resource type="Resource" id="status_3"]
+script = ExtResource("4")
+kind = 0
+magnitude_param = &"slow"
+on_caster = true
+
+[sub_resource type="Resource" id="mod_4"]
+script = ExtResource("1")
+stat = &"dr"
+op = 0
+value = 0.1
+
+[sub_resource type="Resource" id="node_5"]
+script = ExtResource("2")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("1")]([SubResource("mod_4")])
+
+[resource]
+script = ExtResource("3")
+id = &"skill_brannoc_fortify"
+display_name = "Fortify"
+short_label = "FORT"
+targeting = 0
+cooldown_on_end = true
+params = {
+&"cooldown": 20.0,
+&"duration": 3.0,
+&"dr": 0.4,
+&"slow": 0.25
+}
+effects = Array[Resource]([SubResource("status_1"), SubResource("status_2"), SubResource("status_3")])
+nodes = Array[ExtResource("2")]([SubResource("node_5")])

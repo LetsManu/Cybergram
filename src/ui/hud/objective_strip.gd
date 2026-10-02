@@ -7,7 +7,8 @@ extends CanvasLayer
 
 const PIP: Vector2 = Vector2(46.0, 22.0)
 const GAP: float = 10.0
-const TOP: float = 18.0
+## Below the E9 match header (Uplinks, clock, phase).
+const TOP: float = 66.0
 const BAR_W: float = 320.0
 const LOCKED_COLOR := Color(0.25, 0.25, 0.3)
 

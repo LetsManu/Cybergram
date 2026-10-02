@@ -125,3 +125,8 @@ extends Resource
 @export_range(1, 64) var max_path_requests_per_tick: int = 8
 ## LOS rays per tick for target checks.
 @export_range(1, 256) var max_los_rays_per_tick: int = 40
+
+@export_group("Minionmancer hooks (E10)")
+## wardlings §13 rewrite_to_elite: tier +1 (Tier I -> II: HP 150 -> 195, bolt 7 -> 8.5).
+@export_range(1.0, 3.0, 0.01) var elite_hp_mult: float = 1.3
+@export_range(1.0, 3.0, 0.001) var elite_damage_mult: float = 1.214

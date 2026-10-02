@@ -25,7 +25,7 @@ func test_attack_target_kills_a_dummy_in_the_expected_time() -> void:
 	cmdr.order_tick = ORDER_TICK
 	cmdr.order_cmd = InputCommand.SQUAD_ATTACK
 	cmdr.order_target = dummy_id
-	var id := server.add_scripted_hero(cmdr, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.vesper(),
+	var id := server.add_scripted_hero(cmdr, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.base_commander(),
 		ServerWorld.TEAM_PLAYERS)
 	cmdr.hero_id = id
 	var dummy := server.hero(dummy_id)
@@ -65,7 +65,7 @@ func test_owner_death_holds_the_squad_10_s_then_dissolves_it() -> void:
 	var def := WardlingFixtures.map_def()
 	var cmdr := WardlingFixtures.Owner.new()
 	cmdr.server = server
-	var id := server.add_scripted_hero(cmdr, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.vesper(),
+	var id := server.add_scripted_hero(cmdr, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.base_commander(),
 		ServerWorld.TEAM_PLAYERS)
 	cmdr.hero_id = id
 	for i in 3 * HZ:

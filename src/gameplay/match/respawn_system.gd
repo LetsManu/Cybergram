@@ -13,3 +13,9 @@ static func respawn_seconds(rules: MatchRulesDef, match_minutes: float) -> float
 static func respawn_ticks(rules: MatchRulesDef, death_tick: int, tick_rate_hz: int) -> int:
 	var minutes := float(death_tick) / tick_rate_hz / 60.0
 	return ceili(respawn_seconds(rules, minutes) * tick_rate_hz - 1e-6)
+
+
+## Whole ticks until respawn for a death at `match_minutes` on the match clock
+## (MatchRules.minutes(); E9 wires C11 to the real match time).
+static func respawn_ticks_at_minutes(rules: MatchRulesDef, match_minutes: float, tick_rate_hz: int) -> int:
+	return ceili(respawn_seconds(rules, match_minutes) * tick_rate_hz - 1e-6)

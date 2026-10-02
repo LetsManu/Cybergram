@@ -23,6 +23,10 @@ var bolts: Array[Bolt] = []
 ## Bolts fired this tick as [from, to] for the snapshot tracer block.
 var fired: Array = []
 var hits_total: int = 0
+## E10: optional blocker (enemy shield walls): func(from: Vector3, dir: Vector3,
+## seg: float, team: int, damage: float) -> float, the distance along the
+## segment where the bolt is stopped (it applies the damage), or -1.
+var blocker: Callable
 
 
 func spawn(origin: Vector3, dir: Vector3, speed: float, max_dist: float, damage: float, team: int,
@@ -58,6 +62,11 @@ func step(dt: float, candidates: Callable, on_hit: Callable) -> void:
 			if t >= 0.0 and t <= seg and t < best_t:
 				best_t = t
 				best = c[0]
+		if blocker.is_valid():
+			var bt: float = blocker.call(b.pos, b.dir, minf(seg, best_t), b.team, b.damage)
+			if bt >= 0.0:
+				bolts.remove_at(i)
+				continue
 		if best != null:
 			hits_total += 1
 			on_hit.call(best, b)

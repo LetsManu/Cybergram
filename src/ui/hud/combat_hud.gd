@@ -47,6 +47,12 @@ func _ready() -> void:
 	_client = session.get("client") as ClientWorld if session != null else null
 	if _client != null:
 		_client.hit_confirmed.connect(_on_hit)
+		# E10: skill bar, bottom centre (hud.md §4.4).
+		var bar := SkillBar.new()
+		bar.client = _client
+		bar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		bar.position += Vector2(-(4.0 * SkillBar.ICON + 3.0 * SkillBar.GAP) / 2.0, -SkillBar.ICON - 40.0)
+		root.add_child(bar)
 
 
 func _process(delta: float) -> void:

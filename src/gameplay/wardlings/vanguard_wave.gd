@@ -17,6 +17,9 @@ var target_radius: float = 12.0
 ## Shared march path (one query per wave).
 var path: PackedVector3Array = PackedVector3Array()
 var threat_id: int = 0
+## E10 command_vanguard (Vesper): forced threat until this tick (-1 = none).
+var forced_threat_id: int = 0
+var forced_until_tick: int = -1
 ## Path re-plans (diagnostics / tests).
 var plans: int = 0
 

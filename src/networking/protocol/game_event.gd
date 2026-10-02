@@ -6,9 +6,15 @@ extends RefCounted
 
 const HIT_CONFIRM: int = 1
 const KILL: int = 2
+## E9: match phase change, to every client. target_net_id = MatchRules.Phase,
+## source_net_id = winner + 1 (0 = none / draw), flags = MatchRules.EndReason,
+## amount = match clock seconds.
+const MATCH_PHASE: int = 3
 
 const FLAG_HEADSHOT: int = 1
 const FLAG_KILL: int = 2
+## E9: the hit landed on a sealed (not Exposed) Uplink and was dropped (ImmuneHit cue).
+const FLAG_IMMUNE: int = 4
 
 var kind: int = 0
 ## HIT_CONFIRM: the target hit. KILL: the victim.
@@ -39,4 +45,14 @@ static func kill(victim: int, killer: int, pos: Vector3) -> GameEvent:
 	e.target_net_id = victim
 	e.source_net_id = killer
 	e.position = pos
+	return e
+
+
+static func match_phase(phase: int, winner: int, reason: int, time_s: float) -> GameEvent:
+	var e := GameEvent.new()
+	e.kind = MATCH_PHASE
+	e.target_net_id = phase
+	e.source_net_id = winner + 1
+	e.flags = reason
+	e.amount = time_s
 	return e

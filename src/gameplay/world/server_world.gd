@@ -46,6 +46,10 @@ var _hero_presence: Dictionary = {}  # hero net id -> PresenceSource
 var debug_player_spawn: Variant = null
 ## E8 Wardlings (squads, Vanguard, bolts); null on maps without a MapDef.
 var wardlings: WardlingWorld
+## E9 match flow (phases, clock, Uplinks); null until setup_match().
+var match_flow: MatchRules
+## E10 skills: deployables, skill projectiles, charges, leaps, skill FX.
+var abilities: AbilityWorld
 
 
 ## Builds the map and session. Call after the node is in the tree.
@@ -60,6 +64,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 	registry = EntityRegistry.new(roundi(net.net_id_recycle_s * net.tick_rate_hz))
 	session = ServerSession.new(transport, net)
 	session.client_joined.connect(_on_client_joined)
+	abilities = AbilityWorld.new(self)
 	_map = map_scene.instantiate()
 	add_child(_map)
 
@@ -68,6 +73,19 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 func setup_objectives(map_def: MapDef) -> void:
 	if map_def != null and not map_def.lanes.is_empty():
 		objectives = ObjectiveSystem.new(map_def, rules)
+
+
+## E9: match state machine and one UplinkSim per HQ (call after
+## setup_objectives()). `clock_scale` > 1 compresses the timeline (debug).
+func setup_match(map_def: MapDef, clock_scale: float = 1.0) -> MatchRules:
+	match_flow = MatchRules.new(rules, objectives)
+	match_flow.clock_scale = clock_scale
+	for u in match_flow.build_uplinks(map_def):
+		add_child(u)
+		u.net_id = registry.register(u, UplinkSim.KIND_UPLINK, tick)
+		u.destroyed.connect(match_flow.on_uplink_destroyed.bind(u.team))
+	match_flow.surge_started.connect(_on_surge_started)
+	return match_flow
 
 
 ## E8: enables Wardlings (squads + Vanguard) on a map with HQs. The AI is
@@ -120,9 +138,9 @@ func hero(net_id: int) -> HeroBody:
 	return registry.get_node_by_id(net_id) as HeroBody
 
 
-## Match time in seconds (server ticks since start).
+## Match time in seconds: the E9 match clock, or server ticks without one.
 func match_seconds() -> float:
-	return tick * dt
+	return match_flow.time_s if match_flow != null else tick * dt
 
 
 ## One server tick.
@@ -142,8 +160,10 @@ func step() -> void:
 		_step_hero(d[0], _cmd)
 	if wardlings != null:
 		wardlings.step()
+	abilities.step()
 	_respawn_due()
 	_step_objectives()
+	_step_match()
 	_send_snapshots()
 	_flush_events()
 	tick += 1
@@ -171,6 +191,43 @@ func _step_objectives() -> void:
 		objective_event.emit(ev)
 
 
+## E9: match clock, phases, Uplink exposure; phase changes go out as events.
+func _step_match() -> void:
+	if match_flow == null:
+		return
+	match_flow.step(dt)
+	for p in match_flow.phase_events:
+		var ev := GameEvent.match_phase(p, match_flow.winner, match_flow.end_reason, match_flow.time_s)
+		for peer in session.clients:
+			_queue_event(peer, ev)
+	match_flow.phase_events.clear()
+	if match_flow.is_over() and wardlings != null:
+		wardlings.vanguard_enabled = false
+
+
+func _on_surge_started(_index: int, _task_scale: float) -> void:
+	if wardlings != null:
+		wardlings.tier = match_flow.wardling_tier  # Wardling tier hook (stats: PLACEHOLDER)
+
+
+## E9: a hit on an Uplink (hero hitscan 100%, Wardling bolt 50%). Counts only
+## while it is Exposed this tick and the match is live. Returns Integrity removed.
+func damage_uplink(u: UplinkSim, amount: float, from_wardling: bool) -> float:
+	if match_flow == null or not match_flow.is_live():
+		return 0.0
+	return u.apply_damage(amount, from_wardling)
+
+
+## Enemy Uplinks a pellet from `team` can hit (none once the match is over).
+func _enemy_uplinks(team: int) -> Array[UplinkSim]:
+	var out: Array[UplinkSim] = []
+	if match_flow != null and match_flow.is_live():
+		for u in match_flow.uplinks:
+			if u.team != team and not u.is_destroyed():
+				out.append(u)
+	return out
+
+
 static func _alive_check(h: HeroBody) -> Callable:
 	return func() -> bool: return is_instance_valid(h) and not h.combat.dead
 
@@ -183,14 +240,16 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		# prediction keeps matching (ClientWorld.tick()).
 		cmd.move = Vector2.ZERO
 		cmd.buttons = 0
+	abilities.pre_move(h)  # E10: stat/status expiry, move-speed scale
 	h.step(cmd, dt)
+	abilities.post_move(h, cmd)  # E10: charge contact, skill casts
 	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
 		wardlings.issue_command(h, cmd)
 	if c.dead or c.weapon == null:
 		return
 	# heroes.md §3.1: no firing while sprinting.
 	var sprinting := cmd.has(InputCommand.BTN_SPRINT) and cmd.move.y > 0.0 and not h.state.crouching
-	if c.weapon.step(cmd, c.local_tick, not sprinting):
+	if c.weapon.step(cmd, c.local_tick, not sprinting and c.can_shoot()):
 		_fire(h, cmd)
 
 
@@ -202,13 +261,17 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var origin := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
 	var fwd := Basis(Vector3.UP, h.look_yaw) * Basis(Vector3.RIGHT, h.look_pitch) * Vector3.FORWARD
 	var dirs := w.pellet_directions(fwd)
-	if targets.is_empty() and (wardlings == null or wardlings.wardlings.is_empty()):
+	if targets.is_empty() and (wardlings == null or wardlings.wardlings.is_empty()) and match_flow == null:
 		return
 	var space := h.get_world_3d().direct_space_state
 	var per_target := {}  # net id -> [raw damage, flags, first point]
 	var per_wardling := {}  # WardlingSim -> [raw damage, first point]
+	var per_uplink := {}  # E9: UplinkSim -> [raw damage, first point]
+	var uplinks := _enemy_uplinks(c.team)
+	var dealt := c.stats.get_value(StatCatalog.DAMAGE_DEALT)  # E10
 	for dir in dirs:
-		var hit := _tracer.trace(space, origin, dir, w.def.range_m, targets, cmd.view_tick, cmd.view_alpha)
+		var clip := abilities.clip_shot(origin, dir, w.def.range_m, c.team)  # E10: enemy shield walls
+		var hit := _tracer.trace(space, origin, dir, clip[0], targets, cmd.view_tick, cmd.view_alpha)
 		if wardlings != null:
 			var wl := wardlings.trace_wardlings(origin, dir, hit.distance if hit.target != null else _tracer.last_limit, c.team)
 			if not wl.is_empty():
@@ -216,7 +279,12 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
 				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false, c.level)
 				continue
+		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, c.level):
+			continue
 		if hit.target == null:
+			if clip[1] != null and _tracer.last_limit >= clip[0] - 1e-3:
+				abilities.damage_deployable(clip[1], DamageMath.hit_damage(w.def, clip[0], false, c.level) * dealt)
+				abilities.blocked_shots += 1
 			continue
 		var raw := DamageMath.hit_damage(w.def, hit.distance, hit.headshot, c.level)
 		var id := hit.target.net_id
@@ -229,7 +297,7 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		var target := hero(id)
 		var rec: Array = per_target[id]
 		var dmg_flags: int = DamageInfo.FLAG_HEADSHOT if (rec[1] & GameEvent.FLAG_HEADSHOT) != 0 else 0
-		var applied := target.combat.health.apply_damage(DamageInfo.make(rec[0], h.net_id, c.team, dmg_flags))
+		var applied := target.combat.health.apply_damage(DamageInfo.make(rec[0] * dealt, h.net_id, c.team, dmg_flags))
 		if applied > 0.0:
 			hero_damaged.emit(id, h.net_id, applied)
 		var ev_flags: int = rec[1]
@@ -239,9 +307,29 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(id, h.net_id, applied, ev_flags, rec[2]))
 	for wd in per_wardling:
 		var wrec: Array = per_wardling[wd]
-		var wapplied := wardlings.damage_wardling(wd, DamageInfo.make(wrec[0], h.net_id, c.team))
+		var wapplied := wardlings.damage_wardling(wd, DamageInfo.make(wrec[0] * dealt, h.net_id, c.team))
 		var wflags: int = GameEvent.FLAG_KILL if wd.dead else 0
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(wd.net_id, h.net_id, wapplied, wflags, wrec[1]))
+	for u in per_uplink:
+		var urec: Array = per_uplink[u]
+		var uapplied := damage_uplink(u, urec[0], false)
+		var uflags: int = 0 if u.exposed else GameEvent.FLAG_IMMUNE
+		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(u.net_id, h.net_id, uapplied, uflags, urec[1]))
+
+
+## E9: nearest Uplink in front of the hero hit and the static wall; accumulates
+## the raw weapon damage (no headshot, no ammo effects: C7). True if it took the pellet.
+func _pellet_hits_uplink(uplinks: Array[UplinkSim], origin: Vector3, dir: Vector3, hit: HitscanTracer.Hit,
+		acc: Dictionary, wdef: WeaponDef, level: int) -> bool:
+	var limit := hit.distance if hit.target != null else _tracer.last_limit + 0.5
+	for u in uplinks:
+		var t := u.ray_hit(origin, dir)
+		if t >= 0.0 and t <= limit:
+			if not acc.has(u):
+				acc[u] = [0.0, origin + dir * t]
+			acc[u][0] += DamageMath.hit_damage(wdef, t, false, level)
+			return true
+	return false
 
 
 ## E8: non-hitscan damage to a hero (Wardling bolts). Handles the kill.
@@ -254,6 +342,14 @@ func damage_hero(target: HeroBody, info: DamageInfo) -> float:
 	if not target.combat.health.is_alive():
 		_kill(target, info.source_net_id)
 	return applied
+
+
+## E10: hit marker / damage number for skill damage, to the caster's client.
+func skill_hit_feedback(caster: HeroBody, target_id: int, applied: float, killed: bool, pos: Vector3) -> void:
+	if applied <= 0.0 and not killed:
+		return
+	_queue_event(_peer_of.get(caster.net_id, 0),
+		GameEvent.hit_confirm(target_id, caster.net_id, applied, GameEvent.FLAG_KILL if killed else 0, pos))
 
 
 func _hurtable_enemies(team: int) -> Array[HeroBody]:
@@ -272,7 +368,10 @@ func _kill(victim: HeroBody, killer_id: int) -> void:
 	var killer := hero(killer_id)
 	if killer != null:
 		killer.combat.kills += 1
-	c.respawn_tick = tick + RespawnSystem.respawn_ticks(rules, tick, net.tick_rate_hz)
+	if match_flow != null:  # C11 on the real match clock (E9)
+		c.respawn_tick = tick + RespawnSystem.respawn_ticks_at_minutes(rules, match_flow.minutes(), net.tick_rate_hz)
+	else:
+		c.respawn_tick = tick + RespawnSystem.respawn_ticks(rules, tick, net.tick_rate_hz)
 	victim.collision_layer = 0  # corpses do not block
 	var ev := GameEvent.kill(victim.net_id, killer_id, victim.state.position)
 	for peer in session.clients:
@@ -358,6 +457,7 @@ func _send_snapshots() -> void:
 		e.team = h.combat.team
 		e.hp = ceili(h.combat.health.hp)
 		e.max_hp = h.combat.def.max_hp
+		e.status = abilities.status_bits(h)  # E10
 		entities.append(e)
 	for peer in session.clients:
 		var c: ServerSession.ClientConnection = session.clients[peer]
@@ -369,8 +469,11 @@ func _send_snapshots() -> void:
 		if own != null:
 			s.own_state = own.state
 			s.own_combat = _own_combat(own.combat)
+			abilities.fill_own(s.own_combat, own.combat)  # E10 skill bar
 		s.entities = entities
 		_fill_objectives(s)
+		_fill_match(s)
+		abilities.write_snapshot(s)  # E10 skill FX
 		if wardlings != null:
 			wardlings.write_snapshot(s)
 		session.send_snapshot(peer, s)
@@ -392,6 +495,26 @@ func _fill_objectives(s: SnapshotData) -> void:
 	for lane in objectives.lanes.size():
 		for team in 2:
 			s.fronts.append(objectives.front.front_for(team, lane))
+
+
+## E9: match phase, clock, result and both Uplinks.
+func _fill_match(s: SnapshotData) -> void:
+	if match_flow == null:
+		return
+	var m := SnapshotData.MatchState.new()
+	m.phase = match_flow.phase
+	m.time_s = match_flow.time_s
+	m.next_phase_s = match_flow.next_phase_time()
+	m.winner = match_flow.winner
+	m.end_reason = match_flow.end_reason
+	for u in match_flow.uplinks:
+		var us := SnapshotData.UplinkState.new()
+		us.team = u.team
+		us.integrity = u.integrity
+		us.max_integrity = u.max_integrity
+		us.exposed = u.exposed
+		m.uplinks.append(us)
+	s.match_state = m
 
 
 static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:

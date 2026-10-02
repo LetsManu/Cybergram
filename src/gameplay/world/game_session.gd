@@ -87,11 +87,16 @@ func _ready() -> void:
 		vp.add_child(server)
 	server.setup(net_config, movement, map_scene, link.create_endpoint(SERVER_PEER), player_hero, match_rules)
 	server.setup_objectives(map_def)
+	_setup_match()
 	_apply_debug_capture()
+	if launch_config != null:
+		server.abilities.grant_ult = launch_config.grant_ult  # E10 debug
 	var wardling_rules := load(WARDLING_RULES) as WardlingRulesDef
 	if server.enable_wardlings(map_def, wardling_rules, load(WARDLING_PICKET) as WardlingDef) != null \
 			and launch_config != null:
-		server.wardlings.clock_scale = launch_config.wave_clock
+		# The Vanguard cadence follows the match clock unless --wave-clock overrides it.
+		server.wardlings.clock_scale = launch_config.wave_clock if launch_config.wave_clock != 1.0 \
+			else launch_config.match_clock
 		if launch_config.spawn_wardlings > 0:
 			server.wardlings.debug_spawn(launch_config.spawn_wardlings)
 	for i in dummy_inputs.size():
@@ -101,8 +106,12 @@ func _ready() -> void:
 		client = ClientWorld.new()
 		add_child(client)
 		var source: Object
-		if launch_config != null and launch_config.autofire:
+		if launch_config != null and launch_config.debug_uplink:
+			source = DebugUplinkSiegeSource.new(client)
+		elif launch_config != null and launch_config.autofire:
 			source = DebugAutoAimSource.new(client)
+		elif launch_config != null and launch_config.debug_skill_demo:
+			source = DebugSkillDemoSource.new(client)
 		elif launch_config != null and launch_config.debug_squad_demo:
 			source = DebugSquadDemoSource.new(client)
 		else:
@@ -117,6 +126,49 @@ func _ready() -> void:
 			client.wardlings.rules = wardling_rules
 		if launch_config != null:
 			client.wardlings.debug_camera = launch_config.debug_camera
+
+
+## E9: match flow (phases, clock, Uplinks) on maps with hardpoints and HQs.
+func _setup_match() -> void:
+	if map_def == null or server.objectives == null or map_def.hqs.is_empty():
+		return
+	var lc := launch_config
+	var m := server.setup_match(map_def, lc.match_clock if lc != null else 1.0)
+	if lc == null:
+		return
+	m.debug_start_s = lc.debug_match_time
+	m.phase_changed.connect(func(_old: int, p: int) -> void:
+		print("[match] tick %d  %s  at %s" % [server.tick, MatchRules.PHASE_NAMES[p], MatchRules.format_clock(m.time_s)]))
+	if lc.debug_uplink:
+		# Concord (the player team) holds the whole lane, so the Syndicate Uplink is
+		# Exposed; the player spawns 20 m in front of it.
+		for h in server.objectives.all:
+			server.objectives.debug_set_owner(h.def.id, ServerWorld.TEAM_PLAYERS)
+		var u := m.uplink_of(1 - ServerWorld.TEAM_PLAYERS)
+		if u != null:
+			var toward := map_def.hq(ServerWorld.TEAM_PLAYERS).uplink - u.base
+			server.debug_player_spawn = u.base + Vector3(toward.x, 0.0, toward.z).normalized() * 20.0 + Vector3(0.0, 0.05, 0.0)
+	if lc.debug_uplink_integrity > 0.0:
+		var e := m.uplink_of(1 - ServerWorld.TEAM_PLAYERS)
+		if e != null:
+			e.integrity = minf(lc.debug_uplink_integrity, e.max_integrity)
+
+
+## --debug-uplink: once the player's hero exists, give it a squad and order it
+## onto the Exposed enemy Uplink (bolts at 50%, E9 evidence).
+func _debug_uplink_squad() -> void:
+	if launch_config == null or not launch_config.debug_uplink or server.wardlings == null \
+			or server.match_flow == null or server.tick < 45:
+		return
+	var h := server.hero(client.session.own_net_id) if client != null else null
+	var u := server.match_flow.uplink_of(1 - ServerWorld.TEAM_PLAYERS)
+	if h == null or u == null or not u.exposed:
+		return
+	var sq := server.wardlings.squad_of(h.net_id)
+	if sq == null:
+		sq = server.wardlings.debug_squad_at(h)
+	if sq.command != Squad.CMD_ATTACK:
+		sq.issue(Squad.CMD_ATTACK, server.tick, Vector3.ZERO, u.net_id)
 
 
 ## --debug-capture <hardpoint id>: the local player spawns inside that zone and
@@ -149,6 +201,7 @@ func step_tick() -> void:
 		client.session.poll()
 		client.tick()
 	server.step()
+	_debug_uplink_squad()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:
 		print("[server] tick=%d entities=%d" % [server.tick, server.registry.count()])
 		if server.wardlings != null and server.wardlings.steps > 0:

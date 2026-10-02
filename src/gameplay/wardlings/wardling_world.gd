@@ -14,6 +14,8 @@ signal wardling_minted(w: WardlingSim)
 signal wardling_removed(w: WardlingSim, killer_id: int)
 signal squad_command_issued(owner_net_id: int, cmd: int)
 signal squad_dissolved(owner_net_id: int)
+## E10: a Wardling changed team / squad / wave (subvert, revert); brains rebuild.
+signal wardling_allegiance_changed(w: WardlingSim)
 signal vanguard_wave_spawned(team: int, lane: int, minted: int)
 
 const KIND_WARDLING: int = EntityRegistry.KIND_WARDLING
@@ -30,6 +32,9 @@ var dt: float = 1.0 / 30.0
 ## Debug clock: > 1 compresses the Vanguard cadence (--wave-clock).
 var clock_scale: float = 1.0
 var vanguard_enabled: bool = true
+## E9 Surge hook: current Wardling tier (1-3), set by match flow. Tier II/III
+## stats are not authored yet (PLACEHOLDER: no stat change).
+var tier: int = 1
 ## Injected AI step: think_hook.call(tick). Set by WardlingDirector.attach().
 var think_hook: Callable
 
@@ -105,6 +110,7 @@ func step() -> void:
 	projectiles.fired.clear()
 	_collect_heroes()
 	_squad_rules(t)
+	MinionmancerHooks.step(self, t)  # E10: Elite / Turned expiry
 	if vanguard_enabled and map_def != null:
 		_vanguard_rules(t)
 	if think_hook.is_valid():
@@ -138,6 +144,9 @@ func live_entity(net_id: int) -> Node3D:
 		return n if not (n as HeroBody).combat.dead else null
 	if n is WardlingSim:
 		return n if not (n as WardlingSim).dead else null
+	if n is UplinkSim:  # E9: targetable while Exposed (Squad Attack, bolts)
+		var u := n as UplinkSim
+		return u if u.exposed and not u.is_destroyed() else null
 	return null
 
 
@@ -146,6 +155,8 @@ static func team_of(n: Node3D) -> int:
 		return (n as HeroBody).combat.team
 	if n is WardlingSim:
 		return (n as WardlingSim).team
+	if n is UplinkSim:
+		return (n as UplinkSim).team
 	return -1
 
 
@@ -160,6 +171,8 @@ func chest_of(n: Node3D) -> Vector3:
 		return (n as HeroBody).state.position + Vector3(0.0, rules.hero_aim_height_m, 0.0)
 	if n is WardlingSim:
 		return (n as WardlingSim).chest()
+	if n is UplinkSim:
+		return (n as UplinkSim).aim_point()
 	return n.global_position
 
 
@@ -302,6 +315,9 @@ func issue_command(h: HeroBody, cmd: InputCommand) -> bool:
 func damage_wardling(w: WardlingSim, info: DamageInfo) -> float:
 	if w.dead:
 		return 0.0
+	var taken := MinionmancerHooks.damage_taken_mult(w, server.tick)  # E10: Rally Beacon DR
+	if not is_equal_approx(taken, 1.0):
+		info = DamageInfo.make(info.amount * taken, info.source_net_id, info.instigator_team, info.flags, info.type)
 	var applied := w.health.apply_damage(info)
 	if applied > 0.0:
 		w.last_attacker_id = info.source_net_id
@@ -353,6 +369,22 @@ func debug_spawn(n: int) -> void:
 		k += 1
 
 
+## Debug / tests (E9): gives `owner` a full squad minted around it now (normally
+## squads mint only at the owner's Sanctum / Foundry). Returns the Squad.
+func debug_squad_at(owner: HeroBody) -> Squad:
+	var sq: Squad = squads.get(owner.net_id)
+	if sq == null:
+		sq = Squad.new(_next_squad_id, owner.net_id, owner.combat.team, rules.squad_size)
+		_next_squad_id += 1
+		squads[owner.net_id] = sq
+		_known_heroes[owner.net_id] = true
+	sq.anchor = owner.state.position
+	while sq.alive_count() < sq.size:
+		if _mint(picket, sq.team, owner.state.position + _ring_offset(sq.alive_count(), rules.mint_ring_m), owner.net_id, sq) == null:
+			break
+	return sq
+
+
 # --- Rules ------------------------------------------------------------------
 
 func _collect_heroes() -> void:
@@ -385,6 +417,7 @@ func _squad_rules(t: int) -> void:
 				_next_squad_id += 1
 				sq.anchor = pos
 				squads[h.net_id] = sq
+			sq.size = rules.squad_size + MinionmancerHooks.capacity_bonus(h)  # E10: Vesper +2
 			var n := Squad.mint_count(sq.alive_count(), sq.pending_mints, sq.size, at_foundry, spawned)
 			if n > 0:
 				if sq.pending_mints == 0:
@@ -478,6 +511,7 @@ func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int, squad: Squa
 	w.agent = a
 	wardlings.append(w)
 	server.register_presence_source(w)  # E7 seam: 0.5 presence (C4)
+	MinionmancerHooks.on_minted(self, w)  # E10: owner's Wardling HP bonus
 	wardling_minted.emit(w)
 	return w
 
@@ -534,6 +568,9 @@ func _service_paths() -> void:
 
 func _move(w: WardlingSim) -> void:
 	if w.dead:
+		return
+	if MinionmancerHooks.is_stunned(w, server.tick):  # E10: stalled
+		w.desired_velocity = Vector3.ZERO
 		return
 	var pos := w.global_position
 	var desired := Vector3.ZERO
@@ -594,6 +631,8 @@ func _fire(w: WardlingSim) -> void:
 		w.fire_cooldown -= 1
 	if w.dead or w.attack_target_id == 0 or not w.fire_clear or w.fire_cooldown > 0:
 		return
+	if MinionmancerHooks.is_stunned(w, server.tick):
+		return
 	var target := live_entity(w.attack_target_id)
 	if target == null or team_of(target) == w.team:
 		w.clear_attack()
@@ -614,7 +653,8 @@ func _fire(w: WardlingSim) -> void:
 	var r := space.intersect_ray(_ray)
 	if not r.is_empty():
 		limit = origin.distance_to(r.position)
-	projectiles.spawn(origin, dir, w.def.projectile_speed, limit, w.def.bolt_damage, w.team, w.net_id,
+	projectiles.spawn(origin, dir, w.def.projectile_speed, limit,
+		w.def.bolt_damage * MinionmancerHooks.damage_mult(self, w, server.tick), w.team, w.net_id,
 		origin + dir * minf(limit, dist + 0.3))
 	w.fire_cooldown = maxi(roundi(w.def.fire_interval_s * tick_hz), 1)
 
@@ -665,6 +705,12 @@ func _candidates(pos: Vector3, team: int) -> Array:
 					var w := n as WardlingSim
 					if w.team != team and not w.dead:
 						out.append([w, w.global_position, w.def.radius, w.def.height])
+	if server.match_flow != null:  # E9: enemy Uplinks near the bolt
+		var reach := rules.spatial_cell_m * 1.5
+		for u in server.match_flow.uplinks:
+			if u.team != team and not u.is_destroyed() \
+					and Vector2(u.base.x - pos.x, u.base.z - pos.z).length() <= reach + u.hit_radius:
+				out.append(u.bolt_capsule())
 	return out
 
 
@@ -674,6 +720,8 @@ func _on_bolt_hit(target: Object, b: ProjectileSystem.Bolt) -> void:
 		server.damage_hero(target as HeroBody, info)
 	elif target is WardlingSim:
 		damage_wardling(target as WardlingSim, info)
+	elif target is UplinkSim:
+		server.damage_uplink(target as UplinkSim, b.damage, true)  # C7: Wardlings deal 50%
 
 
 func _on_hero_died(victim_id: int, _killer_id: int) -> void:
@@ -710,6 +758,7 @@ func write_snapshot(s: SnapshotData) -> void:
 		e.owner_net_id = w.owner_net_id
 		var st := VANGUARD_STATE if w.wave != null else (w.squad.command if w.squad != null else 0)
 		st |= (w.display_flags & 3) << 3
+		st |= MinionmancerHooks.state_bits(w, server.tick)  # E10: Elite / Turned
 		if w.squad != null and w.squad.is_dissolving():
 			st |= STATE_DISSOLVING_BIT
 		e.state = st

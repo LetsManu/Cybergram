@@ -3,7 +3,7 @@ extends RefCounted
 ## Message type ids (first byte of every packet) and the protocol version
 ## (architecture.md §8.2). Bump PROTOCOL_VERSION on any layout change.
 
-const PROTOCOL_VERSION: int = 3
+const PROTOCOL_VERSION: int = 5  # v5: E10 skills (own block, statuses, FX)
 
 const HELLO: int = 1        ## C->S ch0: u16 protocol_version
 const WELCOME: int = 2      ## S->C ch0: u16 own net id, u32 server tick, u16 tick rate
