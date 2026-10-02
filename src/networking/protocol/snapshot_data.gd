@@ -1,0 +1,182 @@
+class_name SnapshotData
+extends RefCounted
+## Decoded server snapshot (architecture.md §8.2). Full state for now; delta
+## compression against acked baselines is a later epic but uses this same path.
+
+## Replicated state of one entity.
+class EntityState:
+	var net_id: int = 0
+	var kind: int = 0
+	var position: Vector3 = Vector3.ZERO
+	var velocity: Vector3 = Vector3.ZERO
+	var yaw: float = 0.0
+	var pitch: float = 0.0
+	var crouching: bool = false
+	var grounded: bool = false
+	var dead: bool = false
+	var team: int = 0
+	var hp: int = 0
+	var max_hp: int = 0
+	## E10: StatusComponent.BIT_* (slow, stun, Fortify DR, casting, dashing...).
+	var status: int = 0
+	## M1: hero identity, ContentDB.index_of(ContentDB.HERO, HeroDef.id)
+	## (0 = unknown). Drives the remote HeroView model.
+	var hero_index: int = 0
+
+## Combat state of the receiving client's own hero (health, feed, respawn).
+class OwnCombat:
+	var hp: int = 0
+	var max_hp: int = 0
+	var dead: bool = false
+	## Server tick of the respawn (valid while dead).
+	var respawn_tick: int = 0
+	## WeaponDef.FeedKind value.
+	var feed_kind: int = 0
+	## Mana in the pool, or rounds in the magazine.
+	var ammo: float = 0.0
+	var ammo_capacity: int = 0
+	var reserve: int = 0
+	## AmmoFeed.FLAG_* bits.
+	var ammo_flags: int = 0
+	## E10 skill bar, per slot S1/S2/S3/Ult: ticks of cooldown left, cooldown
+	## length (ticks) and AbilityRunner.FLAG_* (locked, active, casting).
+	var skill_cd_left: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	var skill_cd_total: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	var skill_flags: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	## E10: shield HP, hero level, own StatusComponent.BIT_*.
+	var shield: int = 0
+	var level: int = 1
+	var status: int = 0
+
+## Replicated state of one Wardling (E8, compact: wardlings-and-economy.md §14).
+class WardlingState:
+	var net_id: int = 0
+	var position: Vector3 = Vector3.ZERO
+	var yaw: float = 0.0
+	## HP fraction 0..1 (quantised to 1/255).
+	var hp_frac: float = 1.0
+	var team: int = 0
+	## Ownerless Vanguard wave member.
+	var vanguard: bool = false
+	## Owning hero (0 = none).
+	var owner_net_id: int = 0
+	## bits 0-2: Squad.CMD_* (5 = Vanguard); bits 3-4: WardlingSim.FLAG_*; bit 5: dissolving.
+	var state: int = 0
+	## M1: Surge tier I-III the Wardling was minted at (WardlingSim.tier).
+	var tier: int = 1
+
+## Replicated skill FX / deployable (E10, AbilityWorld.FX_*): walls, beacons,
+## zones, thread projectiles, telegraphs. Everyone sees them (enemy telegraphs).
+class FxState:
+	var id: int = 0
+	var kind: int = 0
+	var team: int = 0
+	var position: Vector3 = Vector3.ZERO
+	## Second point (line end) or size (wall w/h/thickness, circle radius in x).
+	var position2: Vector3 = Vector3.ZERO
+	var yaw: float = 0.0
+	## 0..1 (deployable HP fraction).
+	var param: float = 1.0
+	var ticks_left: int = 0
+
+## Replicated state of one hardpoint (E7), in ObjectiveSystem.all order.
+class HardpointState:
+	## MapDef team, or MapDef.TEAM_NEUTRAL (-1).
+	var owner: int = -1
+	## Capture progress P in [0, 1] (quantised to 1/65535).
+	var progress: float = 0.0
+	## Team the progress belongs to, or -1.
+	var capturing_team: int = -1
+	var contested: bool = false
+	var overtime: bool = false
+	var severed: bool = false
+	## Locked (C3-ineligible) for team 0 / team 1.
+	var locked: Array[bool] = [false, false]
+	## E14: effective task (HardpointDef.TaskKind) this match runs.
+	var task: int = 0
+	## Breach: Generator HP fraction (phase 1, quantised to 1/255), phase 2 flag, shield.
+	var gen_frac: float = 0.0
+	var breach_phase2: bool = false
+	var shielded: bool = false
+	## Plant: HardpointSim.CellState, the Cell's team (-1 none), position, carrier
+	## net id (0 none), and the interact channel (HardpointSim.Channel, 0..1 done).
+	var cell_state: int = 0
+	var cell_team: int = -1
+	var cell_pos: Vector3 = Vector3.ZERO
+	var carrier_id: int = 0
+	var channel: int = 0
+	var channel_frac: float = 0.0
+
+## Replicated state of one Uplink (E9).
+class UplinkState:
+	var team: int = 0
+	var integrity: float = 0.0
+	var max_integrity: float = 0.0
+	var exposed: bool = false
+
+## Match phase, clock and result (E9; MatchRules).
+class MatchState:
+	## MatchRules.Phase value.
+	var phase: int = 0
+	## Match clock seconds.
+	var time_s: float = 0.0
+	## Match time the next phase starts (-1 = none).
+	var next_phase_s: float = -1.0
+	## Winning team at End (-1 = none / draw).
+	var winner: int = -1
+	## MatchRules.EndReason value.
+	var end_reason: int = 0
+	var uplinks: Array[UplinkState] = []
+
+## E13/E15: the receiving client's progression and wallet (own hero only).
+class ProgressState:
+	var level: int = 1
+	## Total Resonance (floor).
+	var exp: int = 0
+	var skill_points: int = 0
+	var lumen: int = 0
+	var medpacks: int = 0
+	## FLAG_* bits.
+	var flags: int = 0
+	## Owned squad upgrades: bit i = catalog index i.
+	var owned_bits: int = 0
+	## Per socket (MOUNT_SOCKETS order): catalog index (-1 = empty), tier, Lumen
+	## paid for the line, part paid this Armory visit.
+	var mount_item: PackedInt32Array = PackedInt32Array([-1, -1, -1])
+	var mount_tier: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var mount_paid: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var mount_paid_visit: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	## Lumen Motes on the ground (everyone's; positions only).
+	var motes: PackedVector3Array = PackedVector3Array()
+
+	const FLAG_AT_ARMORY: int = 1
+	const FLAG_BEACON_READY: int = 2
+	const FLAG_SPAWN_BEACON: int = 4
+	const FLAG_HEALING: int = 8
+	## Slice sockets (weapons-and-mods.md §3.10: no Barrel): ArmoryItemDef.Socket.
+	const MOUNT_SOCKETS: Array[int] = [1, 3, 4]
+
+var tick: int = 0
+## Highest InputCommand.seq the server applied for the receiving client.
+var last_processed_seq: int = 0
+## Receiving client's hero (0 = none).
+var own_net_id: int = 0
+## Full motor state of the client's own hero, for reconciliation.
+var own_state: MotorState = null
+## Present whenever own_state is.
+var own_combat: OwnCombat = null
+var entities: Array[EntityState] = []
+## Wardlings (E8).
+var wardlings: Array[WardlingState] = []
+## E10 skill FX and deployables.
+var fx: Array[FxState] = []
+## Mana bolts fired this tick (E8 tracers): [from: Vector3, to: Vector3] pairs.
+var bolts: Array = []
+## Hardpoints (E7); empty on maps without objectives.
+var hardpoints: Array[HardpointState] = []
+## Lane fronts (LaneFrontResolver), per lane [concord, syndicate] flattened; -1 = none.
+var fronts: PackedInt32Array = PackedInt32Array()
+## Match flow (E9); null on servers without one.
+var match_state: MatchState = null
+## E13/E15 own progression (null on servers without a ProgressionSystem).
+var progress: ProgressState = null

@@ -1,0 +1,96 @@
+{
+  "bot_cost": {
+    "avg_ms": 0.442,
+    "max_ms": 10.442,
+    "p95_ms": 0.778,
+    "ticks": 54002
+  },
+  "bot_decide_ms_per_tick": 0.178,
+  "bot_goal_share": {
+    "cell": 0.12,
+    "defend": 0.089,
+    "fight": 0.096,
+    "push": 0.649,
+    "retreat": 0.037,
+    "siege": 0.009
+  },
+  "bot_shots": 45232,
+  "bot_skill_casts": 871,
+  "bot_squad_orders": 1321,
+  "bots": 10,
+  "captures": {
+    "concord": 9,
+    "syndicate": 9
+  },
+  "clock": "30:00",
+  "clock_scale": 1.0,
+  "damage_to_heroes": {
+    "concord": 55001,
+    "syndicate": 56858
+  },
+  "duration_s": 1800.0,
+  "end_reason": "incursion",
+  "first_capture_s": 104.3,
+  "flips": [
+    "1:44 s_mid C",
+    "2:36 s_mid S",
+    "3:51 s_mid C",
+    "4:58 s_mid S",
+    "7:25 s_mid C",
+    "9:29 s_mid S",
+    "12:32 s_mid C",
+    "14:37 s_mid S",
+    "17:13 s_mid C",
+    "18:16 s_mid S",
+    "20:00 s_mid C",
+    "21:09 s_bo C",
+    "22:24 s_bo S",
+    "24:48 s_mid S",
+    "25:51 s_mid C",
+    "26:49 s_mid S",
+    "27:47 s_mid C",
+    "29:30 s_mid S"
+  ],
+  "incursion": [
+    0,
+    1
+  ],
+  "kills": {
+    "concord": 104,
+    "syndicate": 96
+  },
+  "levels": {
+    "concord": 15.0,
+    "syndicate": 15.0
+  },
+  "ownership": "CCSSS",
+  "seed": 19,
+  "tasks": {
+    "cells_defused": 7,
+    "cells_planted": 9,
+    "gen_blocked": 0,
+    "gen_damage": 0,
+    "generators_destroyed": 0
+  },
+  "tick_time": {
+    "max_ms": 38.222,
+    "p50_ms": 2.96,
+    "p95_ms": 5.168,
+    "ticks": 54001
+  },
+  "ticks": 54001,
+  "uplink_exposed_s": {
+    "concord": 0.0,
+    "syndicate": 74.3
+  },
+  "uplink_first_exposed_s": {
+    "concord": -1.0,
+    "syndicate": 1269.8
+  },
+  "uplink_pct_dealt": {
+    "concord": 0.0,
+    "syndicate": 0.0
+  },
+  "wardling_step_ms_avg": 1.151,
+  "winner": "syndicate"
+}

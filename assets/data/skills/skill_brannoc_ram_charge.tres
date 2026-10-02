@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/charge_effect_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="4"]
+
+[sub_resource type="Resource" id="charge_1"]
+script = ExtResource("1")
+
+[sub_resource type="Resource" id="mod_2"]
+script = ExtResource("2")
+stat = &"damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="mod_3"]
+script = ExtResource("2")
+stat = &"bonus_damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="mod_4"]
+script = ExtResource("2")
+stat = &"cooldown"
+op = 0
+value = -2.0
+
+[sub_resource type="Resource" id="node_5"]
+script = ExtResource("3")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("2")]([SubResource("mod_2"), SubResource("mod_3"), SubResource("mod_4")])
+
+[resource]
+script = ExtResource("4")
+id = &"skill_brannoc_ram_charge"
+display_name = "Ram Charge"
+short_label = "RAM"
+targeting = 3
+interruptible = true
+params = {
+&"cooldown": 14.0,
+&"distance": 12.0,
+&"duration": 0.8,
+&"damage": 60.0,
+&"bonus_damage": 60.0,
+&"stun": 1.0,
+&"cast_time": 0.2
+}
+effects = Array[Resource]([SubResource("charge_1")])
+nodes = Array[ExtResource("3")]([SubResource("node_5")])

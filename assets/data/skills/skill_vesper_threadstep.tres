@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/swap_effect_def.gd" id="4"]
+
+[sub_resource type="Resource" id="swap_1"]
+script = ExtResource("4")
+
+[sub_resource type="Resource" id="mod_2"]
+script = ExtResource("1")
+stat = &"range"
+op = 0
+value = 10.0
+
+[sub_resource type="Resource" id="mod_3"]
+script = ExtResource("1")
+stat = &"cooldown"
+op = 0
+value = -3.0
+
+[sub_resource type="Resource" id="node_4"]
+script = ExtResource("2")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("1")]([SubResource("mod_2"), SubResource("mod_3")])
+
+[resource]
+script = ExtResource("3")
+id = &"skill_vesper_threadstep"
+display_name = "Threadstep"
+short_label = "STEP"
+targeting = 4
+params = {
+&"cooldown": 14.0,
+&"range": 30.0
+}
+effects = Array[Resource]([SubResource("swap_1")])
+nodes = Array[ExtResource("2")]([SubResource("node_4")])

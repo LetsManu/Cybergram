@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="WardlingDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/wardling_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wardling_picket"
+display_name = "Picket"
+glyph = "Pk"

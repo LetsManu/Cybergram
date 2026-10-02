@@ -1,0 +1,73 @@
+name: Build
+
+# Exports playable Windows and Linux builds as downloadable artifacts.
+on:
+  push:
+    branches: [main, "claude/**"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.7-stable
+  TEMPLATE_DIR: 4.7.stable
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot and export templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-export-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot
+        run: echo "GODOT=$(tools/ci/install_godot.sh)" >> "$GITHUB_ENV"
+
+      - name: Install export templates
+        run: |
+          dest="$HOME/.local/share/godot/export_templates/$TEMPLATE_DIR"
+          if [[ ! -f "$dest/windows_release_x86_64.exe" ]]; then
+            mkdir -p "$dest"
+            curl -sSL --retry 4 -o /tmp/templates.tpz \
+              "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION/Godot_v${GODOT_VERSION}_export_templates.tpz"
+            unzip -q -o /tmp/templates.tpz -d /tmp/tpl
+            mv /tmp/tpl/templates/* "$dest/"
+            rm -rf /tmp/templates.tpz /tmp/tpl
+          fi
+          ls "$dest" | head
+
+      - name: Import project
+        run: $GODOT --headless --path . --import || true
+
+      - name: Export Windows
+        run: |
+          mkdir -p build/windows
+          $GODOT --headless --path . --export-release "Windows Desktop" build/windows/Cybergram.exe
+          ls -la build/windows
+
+      - name: Export Linux
+        run: |
+          mkdir -p build/linux
+          $GODOT --headless --path . --export-release "Linux" build/linux/Cybergram.x86_64
+          ls -la build/linux
+
+      - name: Add play notes
+        run: |
+          for d in build/windows build/linux; do
+            cp README.md "$d/README.md"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cybergram-Windows
+          path: build/windows/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cybergram-Linux
+          path: build/linux/

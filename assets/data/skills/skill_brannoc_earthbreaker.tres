@@ -1,0 +1,123 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/area_effect_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/damage_effect_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/deployable_effect_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/leap_effect_def.gd" id="4"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="5"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="6"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="7"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="8"]
+
+[sub_resource type="Resource" id="damage_1"]
+script = ExtResource("2")
+amount_param = &"damage"
+
+[sub_resource type="Resource" id="status_2"]
+script = ExtResource("8")
+kind = 2
+duration_param = &"stun"
+
+[sub_resource type="Resource" id="area_3"]
+script = ExtResource("1")
+radius_param = &"radius"
+effects = Array[Resource]([SubResource("damage_1"), SubResource("status_2")])
+
+[sub_resource type="Resource" id="deploy_4"]
+script = ExtResource("3")
+kind = 2
+duration_param = &"secondary_duration"
+
+[sub_resource type="Resource" id="leap_5"]
+script = ExtResource("4")
+on_land = Array[Resource]([SubResource("area_3"), SubResource("deploy_4")])
+
+[sub_resource type="Resource" id="node_6"]
+script = ExtResource("6")
+kind = 5
+required_level = 6
+modifiers = Array[ExtResource("5")]([])
+rank = 1
+
+[sub_resource type="Resource" id="mod_7"]
+script = ExtResource("5")
+stat = &"damage"
+op = 0
+value = 30.0
+
+[sub_resource type="Resource" id="mod_8"]
+script = ExtResource("5")
+stat = &"stun"
+op = 0
+value = 0.2
+
+[sub_resource type="Resource" id="mod_9"]
+script = ExtResource("5")
+stat = &"secondary_duration"
+op = 0
+value = 1.0
+
+[sub_resource type="Resource" id="mod_10"]
+script = ExtResource("5")
+stat = &"cooldown"
+op = 0
+value = -10.0
+
+[sub_resource type="Resource" id="node_11"]
+script = ExtResource("6")
+kind = 5
+required_level = 10
+modifiers = Array[ExtResource("5")]([SubResource("mod_7"), SubResource("mod_8"), SubResource("mod_9"), SubResource("mod_10")])
+rank = 2
+
+[sub_resource type="Resource" id="mod_12"]
+script = ExtResource("5")
+stat = &"damage"
+op = 0
+value = 30.0
+
+[sub_resource type="Resource" id="mod_13"]
+script = ExtResource("5")
+stat = &"stun"
+op = 0
+value = 0.2
+
+[sub_resource type="Resource" id="mod_14"]
+script = ExtResource("5")
+stat = &"secondary_duration"
+op = 0
+value = 1.0
+
+[sub_resource type="Resource" id="mod_15"]
+script = ExtResource("5")
+stat = &"cooldown"
+op = 0
+value = -10.0
+
+[sub_resource type="Resource" id="node_16"]
+script = ExtResource("6")
+kind = 5
+required_level = 14
+modifiers = Array[ExtResource("5")]([SubResource("mod_12"), SubResource("mod_13"), SubResource("mod_14"), SubResource("mod_15")])
+rank = 3
+
+[resource]
+script = ExtResource("7")
+id = &"skill_brannoc_earthbreaker"
+display_name = "Earthbreaker"
+short_label = "QUAKE"
+ultimate = true
+required_level = 6
+targeting = 1
+params = {
+&"cooldown": 110.0,
+&"range": 25.0,
+&"radius": 8.0,
+&"damage": 120.0,
+&"stun": 1.2,
+&"secondary_duration": 6.0,
+&"dr": 0.25,
+&"leap_time": 0.6
+}
+effects = Array[Resource]([SubResource("leap_5")])
+nodes = Array[ExtResource("6")]([SubResource("node_6"), SubResource("node_11"), SubResource("node_16")])

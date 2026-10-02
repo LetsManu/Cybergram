@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/damage_effect_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/squad_focus_effect_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="4"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/projectile_effect_def.gd" id="5"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="6"]
+
+[sub_resource type="Resource" id="damage_1"]
+script = ExtResource("1")
+amount_param = &"damage"
+
+[sub_resource type="Resource" id="focus_2"]
+script = ExtResource("2")
+duration_param = &"secondary_duration"
+
+[sub_resource type="Resource" id="proj_3"]
+script = ExtResource("5")
+speed_param = &"speed"
+range_param = &"range"
+on_hit = Array[Resource]([SubResource("damage_1"), SubResource("focus_2")])
+
+[sub_resource type="Resource" id="mod_4"]
+script = ExtResource("3")
+stat = &"damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="mod_5"]
+script = ExtResource("3")
+stat = &"cooldown"
+op = 0
+value = -2.0
+
+[sub_resource type="Resource" id="node_6"]
+script = ExtResource("4")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("3")]([SubResource("mod_4"), SubResource("mod_5")])
+
+[resource]
+script = ExtResource("6")
+id = &"skill_vesper_marionette_thread"
+display_name = "Marionette Thread"
+short_label = "THRD"
+targeting = 2
+params = {
+&"cooldown": 10.0,
+&"damage": 40.0,
+&"range": 30.0,
+&"speed": 60.0,
+&"secondary_duration": 4.0
+}
+effects = Array[Resource]([SubResource("proj_3")])
+nodes = Array[ExtResource("4")]([SubResource("node_6")])

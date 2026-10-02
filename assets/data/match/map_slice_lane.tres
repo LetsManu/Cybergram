@@ -1,0 +1,126 @@
+[gd_resource type="Resource" script_class="MapDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hq_def.gd" id="1_pekmh"]
+[ext_resource type="Script" path="res://src/gameplay/data/lane_def.gd" id="2_5ee84"]
+[ext_resource type="Script" path="res://src/gameplay/data/flank_loop_def.gd" id="3_pbn3l"]
+[ext_resource type="Script" path="res://src/gameplay/data/hardpoint_def.gd" id="4_e4nh8"]
+[ext_resource type="PackedScene" path="res://assets/maps/slice/shardline_causeway.tscn" id="5_3q8ue"]
+[ext_resource type="Script" path="res://src/gameplay/data/map_def.gd" id="6_tqfo3"]
+
+[sub_resource type="Resource" id="Resource_m3oty"]
+script = ExtResource("1_pekmh")
+sanctum = Vector3(0, 0, -5)
+uplink = Vector3(0, 0, -30)
+foundry = Vector3(-19, 0, -17)
+armory = Vector3(19, 0, -17)
+lane_gate = Vector3(0, 0, -40)
+spawn_points = PackedVector3Array(-6, 0.05, -4, -3, 0.05, -4, 0, 0.05, -4, 3, 0.05, -4, 6, 0.05, -4)
+
+[sub_resource type="Resource" id="Resource_hrtqo"]
+script = ExtResource("1_pekmh")
+team = 1
+sanctum = Vector3(0, 0, -415)
+uplink = Vector3(0, 0, -390)
+foundry = Vector3(-19, 0, -403)
+armory = Vector3(19, 0, -403)
+lane_gate = Vector3(0, 0, -380)
+spawn_points = PackedVector3Array(-6, 0.05, -416, -3, 0.05, -416, 0, 0.05, -416, 3, 0.05, -416, 6, 0.05, -416)
+spawn_yaw_deg = 180.0
+
+[sub_resource type="Resource" id="Resource_y1kni"]
+script = ExtResource("3_pbn3l")
+id = &"loop_a"
+from_hardpoint = &"s_ao"
+to_hardpoint = &"s_mid"
+outer_door = Vector3(13, 0, -148)
+mid_door = Vector3(12, 0, -188)
+waypoints = PackedVector3Array(13, 0, -148, 20, 0, -148, 20, 0, -188, 12, 0, -188)
+
+[sub_resource type="Resource" id="Resource_rnl4u"]
+script = ExtResource("3_pbn3l")
+id = &"loop_b"
+from_hardpoint = &"s_bo"
+to_hardpoint = &"s_mid"
+outer_door = Vector3(13, 0, -272)
+mid_door = Vector3(12, 0, -232)
+waypoints = PackedVector3Array(13, 0, -272, 20, 0, -272, 20, 0, -232, 12, 0, -232)
+
+[sub_resource type="Resource" id="Resource_7ip8q"]
+script = ExtResource("4_e4nh8")
+id = &"s_ai"
+display_name = "Glasswork Gate"
+task = 2
+tier = 0
+initial_owner = 0
+position = Vector3(0, 0, -85)
+base_duration_s = 20.0
+generator_hp = 6000.0
+cell_cradles = PackedVector3Array()
+barricade_sockets = PackedVector3Array(0, 0, -58, 0, 0, -112)
+
+[sub_resource type="Resource" id="Resource_p0mah"]
+script = ExtResource("4_e4nh8")
+id = &"s_ao"
+display_name = "Signal Market"
+task = 1
+tier = 1
+lane_index = 1
+initial_owner = 0
+position = Vector3(0, 0, -145)
+zone_radius = 10.0
+base_duration_s = 75.0
+cell_cradles = PackedVector3Array(-5, 0, -85, -5, 0, -210)
+barricade_sockets = PackedVector3Array(0, 0, -120, 0, 0, -170)
+
+[sub_resource type="Resource" id="Resource_tmbmg"]
+script = ExtResource("4_e4nh8")
+id = &"s_mid"
+display_name = "The Spindle"
+lane_index = 2
+position = Vector3(0, 0, -210)
+cell_cradles = PackedVector3Array()
+barricade_sockets = PackedVector3Array(0, 0, -183, 0, 0, -237)
+
+[sub_resource type="Resource" id="Resource_pmkjg"]
+script = ExtResource("4_e4nh8")
+id = &"s_bo"
+display_name = "Scrap Bazaar"
+task = 1
+tier = 1
+lane_index = 3
+initial_owner = 1
+position = Vector3(0, 0, -275)
+zone_radius = 10.0
+base_duration_s = 75.0
+cell_cradles = PackedVector3Array(-5, 0, -210, -5, 0, -335)
+barricade_sockets = PackedVector3Array(0, 0, -250, 0, 0, -300)
+
+[sub_resource type="Resource" id="Resource_inw7b"]
+script = ExtResource("4_e4nh8")
+id = &"s_bi"
+display_name = "Furnace Gate"
+task = 2
+tier = 0
+lane_index = 4
+initial_owner = 1
+position = Vector3(0, 0, -335)
+base_duration_s = 20.0
+generator_hp = 6000.0
+cell_cradles = PackedVector3Array()
+barricade_sockets = PackedVector3Array(0, 0, -308, 0, 0, -362)
+
+[sub_resource type="Resource" id="Resource_7od80"]
+script = ExtResource("2_5ee84")
+id = &"slice"
+hardpoints = Array[ExtResource("4_e4nh8")]([SubResource("Resource_7ip8q"), SubResource("Resource_p0mah"), SubResource("Resource_tmbmg"), SubResource("Resource_pmkjg"), SubResource("Resource_inw7b")])
+flank_loops = Array[ExtResource("3_pbn3l")]([SubResource("Resource_y1kni"), SubResource("Resource_rnl4u")])
+
+[resource]
+script = ExtResource("6_tqfo3")
+id = &"map_slice_lane"
+display_name = "Shardline Causeway"
+scene = ExtResource("5_3q8ue")
+lanes = Array[ExtResource("2_5ee84")]([SubResource("Resource_7od80")])
+hqs = Array[ExtResource("1_pekmh")]([SubResource("Resource_m3oty"), SubResource("Resource_hrtqo")])
+mid_plaza_center = Vector3(0, 0, -210)
+sudden_death_spawns = PackedVector3Array(0, 0.05, -185, 0, 0.05, -235)

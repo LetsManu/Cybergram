@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ScriptedInputDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/scripted_input_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+segments = PackedVector2Array(0, 1)
+ticks_per_segment = 30
+start_yaw_deg = 90.0
+yaw_deg_per_tick = 4.0
+sprint = true
+jump_interval_ticks = 0
+crouch_segments = PackedInt32Array()
+respawn_at_home = true

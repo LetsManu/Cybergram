@@ -1,0 +1,67 @@
+[gd_resource type="Theme" load_steps=7 format=3]
+
+[ext_resource type="FontFile" path="res://assets/ui/fonts/noto-sans-latin-500-normal.woff2" id="1_body"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/chakra-petch-latin-600-normal.woff2" id="2_display"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/chakra-petch-latin-700-normal.woff2" id="3_numbers"]
+
+[sub_resource type="StyleBoxFlat" id="panel"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.043, 0.055, 0.094, 0.65)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.79, 0.83, 0.89, 0.35)
+corner_radius_top_left = 7
+corner_radius_bottom_right = 7
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="panel_strong"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.043, 0.055, 0.094, 0.86)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.79, 0.83, 0.89, 0.45)
+corner_radius_top_left = 10
+corner_radius_bottom_right = 10
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="panel_own"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+bg_color = Color(0.043, 0.055, 0.094, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.97, 1, 0.85)
+corner_radius_top_left = 6
+corner_radius_bottom_right = 6
+corner_detail = 1
+
+[resource]
+default_font = ExtResource("1_body")
+default_font_size = 18
+Hud/colors/text = Color(0.918, 0.953, 1, 1)
+Hud/colors/text_dim = Color(0.66, 0.7, 0.78, 1)
+Hud/colors/outline = Color(0, 0, 0, 0.85)
+Hud/constants/outline_size = 4
+Hud/fonts/body = ExtResource("1_body")
+Hud/fonts/display = ExtResource("2_display")
+Hud/fonts/numbers = ExtResource("3_numbers")
+Hud/styles/panel = SubResource("panel")
+Hud/styles/panel_own = SubResource("panel_own")
+Hud/styles/panel_strong = SubResource("panel_strong")
+Label/colors/font_color = Color(0.918, 0.953, 1, 1)
+Label/colors/font_outline_color = Color(0, 0, 0, 0.85)
+Label/constants/outline_size = 4

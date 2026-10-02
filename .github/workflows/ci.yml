@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GODOT_VERSION: 4.7-stable
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot
+        run: echo "GODOT=$(tools/ci/install_godot.sh)" >> "$GITHUB_ENV"
+
+      - name: Layer dependency check
+        run: tools/ci/check_deps.sh
+
+      - name: Unit and integration tests (gdUnit4)
+        run: tools/ci/run_tests.sh
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdunit-report
+          path: reports/
+          if-no-files-found: ignore
+
+  capture:
+    # Advisory "launch and look" screenshot; does not gate merges.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot and virtual display
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb mesa-utils
+          echo "GODOT=$(tools/ci/install_godot.sh)" >> "$GITHUB_ENV"
+
+      - name: Import project
+        run: $GODOT --headless --path . --import || true
+
+      - name: Capture boot scene
+        run: tools/ci/capture_scene.sh "" ci-evidence/boot_scene.png 10
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: ci-evidence/

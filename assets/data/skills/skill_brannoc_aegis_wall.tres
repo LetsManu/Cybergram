@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/deployable_effect_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="4"]
+
+[sub_resource type="Resource" id="deploy_1"]
+script = ExtResource("1")
+kind = 0
+ends_active = true
+
+[sub_resource type="Resource" id="mod_2"]
+script = ExtResource("2")
+stat = &"hp"
+op = 0
+value = 300.0
+
+[sub_resource type="Resource" id="mod_3"]
+script = ExtResource("2")
+stat = &"duration"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="node_4"]
+script = ExtResource("3")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("2")]([SubResource("mod_2"), SubResource("mod_3")])
+
+[resource]
+script = ExtResource("4")
+id = &"skill_brannoc_aegis_wall"
+display_name = "Aegis Wall"
+short_label = "WALL"
+targeting = 1
+cooldown_on_end = true
+params = {
+&"cooldown": 18.0,
+&"range": 20.0,
+&"width": 6.0,
+&"height": 3.0,
+&"hp": 1200.0,
+&"duration": 10.0
+}
+effects = Array[Resource]([SubResource("deploy_1")])
+nodes = Array[ExtResource("3")]([SubResource("node_4")])

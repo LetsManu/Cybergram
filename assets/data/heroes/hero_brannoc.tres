@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="HeroDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="1"]
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_ironmaw.tres" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="4"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_brannoc_aegis_wall.tres" id="5"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_brannoc_ram_charge.tres" id="6"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_brannoc_fortify.tres" id="7"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_brannoc_earthbreaker.tres" id="8"]
+
+[sub_resource type="Resource" id="anchor_dr"]
+script = ExtResource("3")
+stat = &"damage_reduction"
+op = 0
+value = 0.15
+hero_scope = true
+
+[sub_resource type="Resource" id="anchor_kb"]
+script = ExtResource("3")
+stat = &"knockback_immune"
+op = 0
+value = 1.0
+hero_scope = true
+
+[resource]
+script = ExtResource("1")
+id = &"hero_brannoc"
+display_name = "Brannoc"
+max_hp = 550
+armor = 0.2
+move_speed = 5.4
+weapon = ExtResource("2")
+skills = Array[ExtResource("4")]([ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8")])
+zone_passive_modifiers = Array[ExtResource("3")]([SubResource("anchor_dr"), SubResource("anchor_kb")])
+hitbox_scale = 1.077

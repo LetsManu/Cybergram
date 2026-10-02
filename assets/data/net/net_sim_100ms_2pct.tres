@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="NetSimProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/net_sim_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+one_way_latency_ms = 50
+jitter_ms = 10
+loss = 0.02
+seed = 1

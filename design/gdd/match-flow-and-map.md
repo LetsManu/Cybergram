@@ -1,0 +1,437 @@
+# Match Flow & Map
+
+*Created: 2026-10-02*
+*Status: Draft. Authored autonomously by level-designer + systems-designer (modes.automation: autonomous).*
+*Binding source: `design/gdd/game-concept.md` § Canon (C1–C18). This doc owns the details of C2–C11. It does not change any Canon value.*
+*Economy constraint: the Lumen curve is owned by `wardlings-and-economy.md` §17–§18 (single source): starting purse 500, trickle 40/min, average player ≈1,550 / 2,880 / 5,790 / 8,970 Lumen at 5 / 10 / 20 / 30 min. Armory bands: **Minor** 250–400, **Standard** 600–900, **Major** 1,400–1,800. Med-Pack 100.*
+*Consistency pass 2026-10-02: Uplink Integrity 33,000 (C7), AI presence cap 3.0 (C4), capture overtime (C8), Sudden Death safety valve (C10), Barricade and Supply Cache rules (C5), Wardling DPS retune.*
+
+---
+
+## 1. Overview
+
+This doc defines how a Cybergram match runs from the first second to the result, and the one arena it runs on. It covers the match state machine (Deploy → Skirmish → Surges → Drought → Time-out → Incursion → Sudden Death → End), the 3-lane map with 15 task hardpoints, Vanguard wave lane flow, the exact capture, contest, decay and flip rules, Mana Uplink exposure and damage, and the formulas that set tempo: capture rate, respawn (C11), Surge modifiers and Incursion score. It also specifies a reduced **Slice Map** (1 lane, 5 hardpoints, both HQs) for the first playable vertical slice.
+
+## 2. Player Fantasy
+
+*"The front moved because we moved it."* At any moment a player can read the war at a glance: which nodes glow blue or red, where the barricades stand, which spire is exposed. Early on the map is a set of skirmishes over three Mid hardpoints a short run from home. By minute 20 the fronts are bent and one lane is cracking. By minute 30 a team wipe is worth 18 seconds of empty ground, and that is enough to reach a spire. Every hardpoint feels like a place with a job to do: hold the bridge, carry the cell through the market, crack the gatehouse generator. The match always ends.
+
+---
+
+## 3. Detailed Rules
+
+### 3.1 Match state machine
+
+The match clock `t` runs from 0:00. Every state listed below except Time-out, Incursion and End can also exit straight to **End** when an Uplink reaches Integrity 0 (§3.6).
+
+```
+ [Load] -> DEPLOY -> SKIRMISH -> SURGES(I -> II) -> DROUGHT -> TIME-OUT -> INCURSION --decisive--> END
+   0:00     1:00      15:00     30:00   45:00      60:00 (+≤30 s capture OT)  \--tied--> SUDDEN DEATH -> END
+           (any combat state: an Uplink at 0 -> END)                          (mutual kill: loops to SD freeze, max 3 restarts)
+```
+
+| State | Entry condition | What is true during it | Exit condition → next |
+| ---- | ---- | ---- | ---- |
+| **Load** (pre-state) | Match created | Clients load. Bots are assigned to empty slots (C1). | All 10 slots ready, or 60 s load timeout (missing humans become bots) → Deploy |
+| **Deploy** | Load complete; `t = 0:00` | Everyone spawns at their Sanctum with **500 Lumen** (enough for one **Minor** item at 250–400 plus one Med-Pack at 100). Foundry gives each player a free squad of 3 Tier I Wardlings. **No Vanguard waves spawn.** Mid hardpoints are **Locked** and show a countdown. A **Leyfall Veil** blocks the map midline (x = 210 m): no movement or damage crosses it. All Outer and Inner hardpoints are attackable only through the C3 chain, so nothing is capturable yet. | `t = 1:00` → Skirmish |
+| **Skirmish** | `t = 1:00` | The Veil drops and Mid hardpoints unlock as neutral. **Vanguard waves start** (§3.8): the first wave leaves every lane gate at 1:00, and later waves follow on each 60 s tick. Wardlings and Garrisons are Tier I. Duration multiplier `D_s = 1.00`. | `t = 15:00` → Surges (I); an Uplink reaches 0 → End |
+| **Surges / Surge I** | `t = 15:00` | Every living Wardling (squads, Vanguard waves) and Garrison Sentinel transforms in place to Tier II over 3 s (an invulnerable morph). `D_s = 0.85`. In-progress tasks keep their progress *fraction* and continue at the new rate. | `t = 30:00` → Surge II |
+| **Surges / Surge II** | `t = 30:00` | Tier III, the same morph. `D_s = 0.70`. Respawn continues to grow per C11. | `t = 45:00` → Drought |
+| **Drought** (Mana Drought) | `t = 45:00` | The exposure rule widens: an Uplink is Exposed if the enemy holds ≥1 of its team's Inner **or Outer** hardpoints (C7). `D_s` stays 0.70. | `t = 60:00` → Time-out |
+| **Time-out** | `t = 60:00` (hard cap, C8) | Both Mana Reserves run dry. No new wave spawns. **Capture Overtime (C8):** every hardpoint whose task is *in progress* on the 60:00 tick (attacker progress P > 0 with an attacker in the zone or inside its Overtime window, a planted Cell, or a Breach in phase 2) keeps running for up to **30 s**; every other hardpoint locks (no new task can start or gain progress). Combat, respawns and Uplink damage continue normally. The overtime ends when each in-progress task has completed or failed (P back to 0, Cell defused), or at 60:30. On that tick the game takes a **snapshot** of hardpoint ownership and Uplink Integrity. Then a 5 s freeze: inputs are locked except the camera, everyone is invulnerable, and Wardlings, tasks, projectiles and respawn timers are suspended. | After the freeze → Incursion |
+| **Incursion** | Time-out ends | Incursion score is computed from the snapshot (F7). There is a 10 s reveal: lane-by-lane bars, then totals, then Uplink damage % if the totals are tied. | Higher Incursion wins → End. Tied, and Uplink damage % differs by ≥1.0 point → End. Still tied → Sudden Death |
+| **Sudden Death** | Incursion tied | Per C10. Sub-states: **SD-Freeze** (5 s: every player respawns at full HP and ammo on their own half of the Mid Plaza; squads, Vanguard waves and Garrisons are removed and no waves spawn, the shop is disabled, levels and gear are kept). **SD-Round** (no respawns; the Leyfall ring closes over 90 s). **SD-Confirm** (a 1.0 s window that opens when a team's last fighter dies). **SD-Final** (the round after the 3rd restart; F10). | One team eliminated and the other still has a fighter alive when SD-Confirm ends → End. Both teams' last fighters died within 1.0 s → SD-Freeze (new round; restarts 1–3). In SD-Final: if undecided when the ring finishes closing (90 s), the higher summed remaining HP% wins (F10) → End |
+| **End** | Uplink at 0, or a decisive Incursion, or a decisive SD | Result banner, then 20 s of stats. Lumen, levels and purchases are discarded (Anti-Pillar). | → post-match flow (out of scope) |
+
+**Sudden Death ring.** The ring starts at radius 45 m centred on the Spindle (C-Mid), which covers the plaza and the first 15 m of each spoke. It shrinks linearly to 4 m at 90 s. Outside the ring a fighter takes 8% of max HP per second. After 90 s, **Leyfall Bloom** begins: every fighter takes 2% of max HP per second, and the rate rises by 2% every 10 s. This guarantees that each round ends.
+
+### 3.2 Map layout: "Shardline Front"
+
+Reference **hero move speed = 6.0 m/s** (base run, used for all run-times here). The movement GDD owns the real value; times scale linearly. Wardlings follow at 6.5 m/s. A Mana Cell carrier moves at 5.4 m/s. Axis: x runs west to east (Concord HQ at x = 0, Syndicate HQ at x = 420); lane centrelines are at y = +80 (North), 0 (Center) and −80 (South). Between lanes is open Leyfall sky, which is impassable except through flank tunnels, the Mid spokes and HQ interiors.
+
+```
+ x(m) ->  0  25 40      85          145           210           275          335      380 395 420
+                                                  (not to scale; see distance table)
+ NORTH y+80     .---[N-AI]=========[N-AO]======[N-MID]======[N-BO]=========[N-BI]---.
+                /     Br              Ho  \      /  Pl  \      /  Ho            Br     \
+               /                     (Fx-AN)  X    ||    X  (Fx-BN)                     \
+ +---------+  /                           /    \   ||   /    \                           \  +---------+
+ | Sanctum |-'  |B|                      /      \ .||. /      \                     |B|   '-| Sanctum |
+ | Foundry |------[C-AI]=========[C-AO]===|B|===( C-MID )===|B|===[C-BO]=========[C-BI]------| Foundry |
+ | UPLINK  |-.  |B|       Ho         Pl  \      (MID PLAZA)      /  Pl         Ho   |B|   .-| UPLINK  |
+ | Armory  |  \                           \    / '||' \    /                           /  | Armory  |
+ +---------+   \                     (Fx-AS)  X    ||    X  (Fx-BS)                     /  +---------+
+ CONCORD HQ     \     Pl              Br  /      \  Br  /      \  Br            Pl     /    SYNDICATE HQ
+ SOUTH y-80      '---[S-AI]=========[S-AO]======[S-MID]======[S-BO]=========[S-BI]---'
+  ===  lane main path (12-20 m wide)    ||  Mid spoke    X  flank tunnel crossing (Undercroft)
+  |B|  Barricade socket (example)       Ho/Pl/Br  task type    AI/AO = Concord Inner/Outer, BO/BI = Syndicate
+```
+
+**Geometry rules**
+- **HQ** (40 × 60 m walled compound): the Sanctum is at x = 5 with a 10 m no-entry and heal zone (C6). The Uplink stands in an open courtyard at x = 30, 25 m from the Sanctum. The Foundry and Armory sit beside the Sanctum. Three lane gates open at x = 40; the North and South gates climb ramp roads to their lanes. The courtyard walls are 12 m high, so the Uplink core can only be hit from inside the HQ walls or from its three gates.
+- **Hardpoint zones** are 6 m tall cylinders: Hold r = 12 m, Breach r = 12 m (centred on the Generator), Plant r = 10 m (centred on the Socket).
+- **Barricade sockets:** each hardpoint has two, placed 15 m outside its zone edge on the main path, one on each side. Only the socket that faces the owner's enemy is active (C5).
+- **Flank tunnels (Undercroft):** four X-shaped tunnel pairs, one per team half per lane pair (Fx-AN, Fx-AS, Fx-BN, Fx-BS). Each X links the **Outer side door** of one lane to the **Mid side door** of the adjacent lane, and the two diagonals cross in a 15 m junction room. Side doors open *inside* hardpoint zones, so flanks bypass all Barricades by design (C2, C5). They run only between the Outer and Mid rows (C2).
+- **Mid Plaza:** a circle of r = 30 m at (210, 0). The Spindle (C-Mid) sits at its centre. Two 50 m spokes link the plaza to N-Mid and S-Mid. The plaza is also the Sudden Death arena, with spawn pads at x = 185 (Concord) and x = 235 (Syndicate).
+- **Sightlines:** lane sightlines are capped at 70 m by blockers. The one exception is Lattice/Rivet Bridge, at 90 m, which gives the North lane its long-range identity.
+
+**Distances and run-times (path length, 6.0 m/s)**
+
+| Route | Metres | Seconds |
+| ---- | ---- | ---- |
+| Sanctum → own Uplink | 25 | 4 |
+| Sanctum → C-Inner / N- or S-Inner (ramp road) | 85 / 130 | 14 / 22 |
+| Inner → Outer (any lane) | 60 | 10 |
+| Outer → Mid (main path) | 65 | 11 |
+| Sanctum → own C-Mid / N- or S-Mid | 210 / 255 | 35 / 43 |
+| Mid ↔ adjacent Mid (spoke via plaza) | 80 | 13 |
+| Outer side door ↔ adjacent lane's Mid side door (flank) | 110 | 18 |
+| Forward Beacon (Mid) → enemy Outer / enemy Inner | 65 / 125 | 11 / 21 |
+| Forward Beacon (C-Mid) → enemy Uplink | 210 | 35 |
+| Sanctum → Sanctum (Center lane) | 410 | 68 |
+| Mana Cell: Outer Cradle → Mid Socket (carrier speed) | 65 | 12 |
+| Vanguard wave (5.5 m/s): lane gate → own C-Mid / N- or S-Mid | 170 / 215 | 31 / 39 |
+| Vanguard wave: lane gate → enemy Inner (Center) | 295 | 54 |
+
+A Beacon spawn saves 24–32 s of running to the enemy Outer compared with an HQ spawn. In return the player arrives without a squad or a shop visit (C5, C11).
+
+### 3.3 The 15 hardpoints
+
+Every lane is mirror-symmetric (A and B halves are geometric mirrors with faction dressing), so both teams face identical tasks. Each task type appears exactly 5 times. **Base duration** is the time for the *reference push*, which is 1 hero plus 3 Wardlings, uncontested, at `D_s = 1.00` (see F2–F4).
+
+| Hardpoint | Name (Concord / Syndicate side) | Task | Base duration | Terrain identity |
+| ---- | ---- | ---- | ---- | ---- |
+| N-AI / N-BI | Glasswork Gate / Furnace Gate | Breach | Generator 6,000 + Hold 20 s (≈80 s) | A gatehouse with the Generator under an arch, flanked by two balconies that overlook the approach. |
+| N-AO / N-BO | Lattice Bridge / Rivet Span | Hold | 65 s | A 20 m wide bridge over the Leyfall with no centre cover and pylons at each end; the 90 m sightline lane. |
+| N-MID | Belfry Ruin | Plant | 70 s | A ruined crystal bell tower; the Socket is on the top floor, reached by 3 stairwells. |
+| C-AI / C-BI | Concord Atrium / Boiler Hall | Hold | 75 s | An indoor atrium with pillars and a mezzanine ring, so close range dominates. |
+| C-AO / C-BO | Signal Market / Scrap Bazaar | Plant | 75 s | Market stalls and awnings with five entrances; the Socket sits under the central canopy. |
+| C-MID | The Spindle | Hold | 60 s | A raised dais at the centre of Mid Plaza, exposed from 360°. |
+| S-AO / S-BO | Halo Dock / Cinder Dock | Breach | Generator 5,000 + Hold 20 s (≈70 s) | A docked skiff carries the Generator; shallow mana-water slows movement by 15%. |
+| S-MID | Leyfall Pumpworks | Breach | Generator 4,500 + Hold 20 s (≈65 s) | A two-level pump room with the Generator on the lower floor and grated catwalks above. |
+| S-AI / S-BI | Prism Locks / Slag Locks | Plant | 80 s | Canal lock gates; the Socket is on the lock floor, under catwalks the defenders control. |
+
+Inner tasks are the longest (75–80 s), which gives the defender an advantage before minute 30. Mids are the shortest (60–70 s), so early fights resolve quickly. All values fall within C4's 60–90 s range.
+
+### 3.4 Capture rules
+
+**Roles.** For an owned hardpoint, the owner is the **defender**. The other team is the **attacker** only if it is *eligible* under C3, meaning it holds the adjacent hardpoint toward its own HQ in that lane. A team's own Inner is always eligible for that team, because the adjacent node is its HQ. An ineligible team's presence counts as zero, its Plant socket rejects Cells, and Generator damage from it is ignored. The HUD shows **Locked** for that team. A neutral Mid (before its first capture) is attackable by both teams.
+
+**Presence.** `Pres(team)` = heroes alive in the zone (1.0 each, uncapped; stealthed heroes count) + 0.5 × that team's Wardlings in the zone, with the Wardling part **capped at 3.0 per team per hardpoint** (C4). Garrison Sentinels, Vanguard wave members and squads sent with **Go Capture** all count as Wardlings for their team (C4, C15). Dead heroes count 0. `Δ = Pres(attacker) − Pres(defender)`.
+
+**Heroless capture.** If the attacking presence in a zone contains **no hero**, for example a Vanguard wave alone or a squad on Go Capture whose owner is elsewhere, all progress rates (Hold, Plant charge, Breach phase 2) are multiplied by `K_hl = 0.5`. A Wardling-only force **cannot complete an Inner hardpoint**: its progress caps at 0.99 until at least 1 attacking hero is in the zone. This keeps the Uplink from being exposed with no hero involved (Pillars 1 and 2). Wardlings cannot carry Mana Cells, so a Plant always needs a hero to carry and plant the Cell; once it is planted, Wardlings can protect the charge. Defending needs no hero: defender presence from Wardlings alone contests normally.
+
+**Hold.** Progress `P ∈ [0, 1]` belongs to the attacker.
+- `Δ > 0` → P rises at the rate given by F2.
+- An attacker is present and `Δ ≤ 0` → **Contested**: P is frozen.
+- No attacker present → **Overtime window**, then **decay** (below).
+- Neutral Mid: the team with higher presence is the attacker. If the other team holds progress, that progress first drains at 2× the decay rate before the new team builds its own. Equal presence freezes P.
+
+**Plant.**
+1. The attacker takes a Mana Cell from the **Cell Cradle** at its eligible adjacent hardpoint (for a team's own Inner, the Cradle is at its HQ lane gate). Pickup is a 1 s interact. Only one active Cell per team per hardpoint at a time.
+2. The carrier moves at 90% speed, can fire their weapon, and cannot use mobility skills; phasing or teleporting drops the Cell. The carrier is pinged on the enemy minimap every 3 s.
+3. A dropped Cell lies for 15 s. Any attacker can pick it up by touching it. A defender hero standing on it for 2 s **disperses** it. When it expires or is dispersed, the Cradle produces a new Cell after 10 s.
+4. **Plant:** a 3 s channel inside the Socket zone. **Defuse:** a 6 s channel by a defender *hero*. Both are broken by crowd control or by leaving the zone. Damage alone does not break them.
+5. While a Cell is planted, charge P rises at the rate in F3: full speed when `Pres(att) ≥ Pres(def)`, half speed otherwise. A defused Cell is destroyed, and P then follows the Overtime/decay rule.
+
+**Breach.**
+1. **Phase 1, Generator:** HP = base × `D_s` (F4). Its shield blocks all damage that originates outside the 12 m zone, and blocks *all* damage while `Pres(def) > Pres(att)`. Wardlings and hero skill damage (including deployables) deal 50% to it unless a skill node says otherwise (the same as for the Uplink, C7; `heroes.md` §3.8). If the Generator takes no attacker damage for 8 s, it regenerates 4% of max HP per second.
+2. **Phase 2, Hold:** when the Generator is destroyed, a 20 s × `D_s` Hold runs under the Hold rules. If phase-2 progress sits at 0 with no attacker present for 15 s, the Generator respawns at full HP.
+3. Neutral S-MID: the team with higher presence in the zone when the Generator dies gets phase 2. Equal presence goes to the team that dealt more Generator damage.
+
+**Overtime window.** When the last attacker leaves the zone or dies (or a Cell is defused), P is frozen for **5 s**, or **10 s if P ≥ 0.75**. The HUD shows "OVERTIME". If an attacker re-enters during the window, nothing is lost.
+
+**Decay.** After the window, P falls at half the base rate (F3), or at the full base rate if a defender is in the zone. Decay stops at 0.
+
+**Severed hardpoints.** A hardpoint that is cut off from its owner's chain (the owner no longer holds the adjacent node toward its own HQ) is **Severed**. Its retake duration is ×0.75 (`K_sev`). All C5 benefits stay in place.
+
+**Prerequisite lost mid-task.** If the attacker loses eligibility while a task is running, its active Cell dissolves and P drains at 2× the decay rate. No Overtime window applies.
+
+### 3.5 When a hardpoint flips
+
+A flip is instant and goes straight to the capturing team (C3).
+
+| Element | On flip |
+| ---- | ---- |
+| **Garrison** (C5) | The old owner's Sentinels dissolve over 2 s. After a 10 s settling delay the new owner gets 2 Sentinels at the current Surge tier. Each Sentinel respawns 45 s after it dies. Sentinels never leave the zone. |
+| **Barricade** (C5) | The old owner's socket collapses. The new owner's socket (on the side facing *its* enemy) raises over 15 s and becomes solid at the end. Players standing in the socket volume are pushed out toward their own side. Integrity is 5,000; a Barricade on an **Inner** hardpoint that faces the defender's own HQ (an attacker-held Inner blocking the HQ gate) has 2,500 (Canon C5). Wardlings deal 50% to it. A destroyed Barricade rebuilds 60 s later if the hardpoint is still held. The owning team passes through freely. |
+| **Supply Cache** (C5) | Changes owner after 10 s. **Mechanical** heroes within 3 m refill +25% of max reserve per second (full in 4 s, `weapons-and-mods.md` §3.5). **Mana** heroes who touch it get −50% mana regen delay for 10 s, with an 8 s per-hero cooldown. |
+| **Forward Beacon** (Mid only) | Becomes a spawn point for the new owner after a 15 s attunement. It is "under attack", and so not selectable, while enemy progress P > 0 or an enemy hero is within 25 m of the zone centre. |
+| **Rewards** | Each participant (a hero who was in the zone during the last 10 s) gets **120 Lumen**, and every teammate gets 40 Lumen. A defence (P decays from ≥0.5 to 0, or a Cell is defused) pays 60 Lumen to each defender hero in the zone. Resonance amounts are owned by the progression GDD (C13). |
+
+**Lumen budget from match flow** (per average player, 30 min; figures from the economy GDD §17, the single source): starting 500 + passive trickle 40/min × 29 = 1,160 + captures ≈ 880 + defences ≈ 240. That totals **≈2,780, or about 31% of the ≈8,970 average at 30:00**. The rest comes from enemy Wardlings (the primary source, C14) and kills. ≈9,000 Lumen buys roughly one **Major** (1,400–1,800), four or five **Standard** (600–900), three **Minor** (250–400) and Med-Packs (100).
+
+### 3.6 Mana Uplink: exposure and damage
+
+- **Integrity 33,000** (C7). It is invulnerable unless **Exposed**.
+- **Exposed** while the enemy holds ≥1 of this team's Inner hardpoints, and from 45:00 also ≥1 Outer (F6). Exposure is re-evaluated every server tick, with no lingering. On a change, a 1 s VO and HUD sting plays and the spire's shell opens or seals.
+- **Damage sources:** hero weapons 100%; hero skill damage, including deployables (traps, turrets, drones), 50% (`heroes.md` §3.8); enemy Wardlings 50%; Garrisons cannot attack it. A hit counts only if the Uplink is Exposed on the server tick when it lands.
+- **Permanence:** no regen, no healing, no shields (C7). Each team's cumulative damage is tracked as a % of max Integrity (33,000) for the tie-break (C9).
+- **Target time to kill:** 33,000 / ≈558 DPS (5 heroes × 80 structure DPS + 15 Tier I Wardlings × 21 raw × 0.5) ≈ **59 s** uncontested at mid-match gear (F9).
+- **Integrity 0:** End on that tick, and the attacking team wins. If both Uplinks reach 0 on the same tick, see §5.
+
+### 3.7 Slice Map (vertical slice): "Shardline Causeway"
+
+One lane (the Center lane geometry, 410 m Sanctum to Sanctum), 5 hardpoints, both full HQs and a reduced Mid Plaza. Task assignment differs from the full Center lane so that the slice exercises all three task types:
+
+```
+ +---------+                                (MID PLAZA r=25m)                                +---------+
+ | CONCORD |--[S-AI]=========[S-AO]========|B|==( S-MID )==|B|========[S-BO]=========[S-BI]--| EMBER   |
+ |   HQ    |    Breach   60m    Plant  \     65m   Hold   65m     /  Plant    60m   Breach   |   HQ    |
+ +---------+  (85m from Sanctum)        '--- flank loop 90m ---'  '--- flank loop 90m ---'   +---------+
+                                       (Outer side door <-> Mid side door, one per half)
+```
+
+| Slice hardpoint | Task | Base duration | Identity (reuses full-map kit) |
+| ---- | ---- | ---- | ---- |
+| S-AI / S-BI | Breach | Generator 6,000 + 20 s | Glasswork / Furnace Gate kit |
+| S-AO / S-BO | Plant | 75 s | Signal Market / Scrap Bazaar kit |
+| S-MID | Hold | 60 s | Spindle dais in a reduced plaza (r = 25 m); also the Sudden Death arena |
+
+Slice rules are identical to the full map, with these differences: Incursion ranges 0–3 (one lane); each half has one flank loop (90 m, 15 s; the main path is 65 m) so that Barricades and flanking can be tested; the full state machine runs, and a debug `clock_scale` (default 1.0; QA uses 0.25) compresses the timeline for testing. Vanguard waves run in the single lane (1 wave per team, ≤8 wave agents in total). With one lane, a slice match is expected to run **12–22 min**. Match length is therefore validated only on the full map.
+
+**M1 staging (roadmap / `production/milestones/M1-vertical-slice.md`, consistency pass 2026-10-02).** The M1 offline slice uses this map with Vesper Loom + Brannoc (duplicates allowed, C1). It may stage the tasks: first all five nodes run as **Hold**, then S-AO/S-BO switch to **Plant** and S-AI/S-BI to **Breach** later in M1, ending on the Breach / Plant / Hold / Plant / Breach layout above. M1 also applies these slice-only overrides: match cap 30:00 (Surge I at 15:00 is in; Surge II, Drought, capture overtime and Sudden Death are not reached), a tie after Incursion (0–3) and Uplink % is a draw, and no Garrisons, Barricades or Supply Caches (they arrive in M3; the flank loops and Barricade sockets are built but inactive). The full state machine on this map (ACs 1, 13, 14 in §9) is verified in M3.
+
+### 3.8 Vanguard waves and lane flow (C15)
+
+Waves give every lane a baseline tempo. An empty lane still drifts toward whichever team keeps its waves alive. Waves are small, ownerless, uncommandable (Vesper Loom excepted, per the hero GDD) and objective-driven. They are never a farming stream.
+
+| Rule | Value |
+| ---- | ---- |
+| **Spawn** | Every 60 s from 1:00 (a global tick at 1:00, 2:00, 3:00 and so on), at each team's HQ lane gate, one wave per lane: **4 Wardlings** at the current Surge tier. |
+| **Cap** | At most 1 live wave per lane per team. On a tick, a wave spawns only if that lane's previous wave has **≤1 member alive**; otherwise the tick is skipped for that lane. A lone survivor **merges into** the new wave (it keeps its HP; no reward is paid) and only `4 − survivors` are minted, so a lane never holds more than 4 wave members per team (`wardlings-and-economy.md` §10). |
+| **AI budget** | Waves ≤24 (3 lanes × 2 teams × 4) + Garrisons ≤30 (15 × 2) + squads ≤54 (8 × 5 + 2 Vespers × 7) = **≤108 at the absolute peak**, and typically 70–90. This sits inside the Canon C1 budget of **≤110 AI agents**. |
+| **March** | 5.5 m/s along the lane's main path only. Waves never use flank tunnels or Mid spokes, and never enter the enemy HQ. |
+| **Target ("front")**, re-evaluated every 2 s and on arrival | ① The nearest **contested** hardpoint in its lane (enemy progress P > 0 on an own or neutral node, own progress P > 0, or a Cell planted), measured by path distance. ② Otherwise, the next hardpoint its team **may attack** under C3 (neutral Mid, or the enemy node next to its team's front-most node). A **Plant** node counts for ② only while an allied hero carries or has planted a Cell for it, because waves cannot carry Cells. ③ Otherwise, its team's front-most held hardpoint in that lane, which it defends. A held enemy Inner counts as the furthest front: the wave holds there. |
+| **At the target** | It works the task as Wardlings: Hold presence 0.5 each (2.0 for a full wave), Generator damage at 50%, defending the Plant charge. Heroless capture applies (§3.4). It engages any enemy within 20 m and does not chase beyond 30 m from the zone. |
+| **Barricades** | A wave blocked by an enemy Barricade attacks it (Wardlings deal 50%). At Tier I, 4 × 21 × 0.5 = 42 DPS against 5,000 Integrity takes ≈119 s, so a wave alone needs two minutes unopposed to open a defended line. |
+| **Rewards** | Enemy wave kills pay Lumen and Resonance like other enemy Wardlings, shared by proximity (C13, C14). Values are owned by the economy GDD. Waves earn nothing for themselves. |
+
+**Can a wave alone capture an empty lane?** Yes, but slowly, and never an Inner. A full Tier I wave (Pres 2.0, Δ = 2.0, M = 0.88, `K_hl` 0.5) takes these times on undefended nodes at `D_s` = 1. With a hero, 1 hero + 3 squad + a wave of 4 is 1.0 + min(3.0, 3.5) = 4.0 presence (C4 AI cap):
+
+| Target | Wave alone | 1 hero + 3 squad + wave |
+| ---- | ---- | ---- |
+| Neutral Spindle / Belfry (Hold 60 s / Plant) | 136 s / impossible (no carrier) | 44 s (Δ 4.0, M 1.36) / 70 s |
+| Enemy Outer Hold 65 s, Garrison alive (Δ 1.0) | 203 s, while being shot by Sentinels (normally fails) | 58 s (Δ 3.0, M 1.12) |
+| Enemy Outer Breach (Generator 5,000, Garrison alive) | 119 s (42 DPS) + 62 s hold ≈ 181 s | 33 s (80 + 7 × 21 × 0.5 ≈ 154 DPS) + 18 s = 51 s |
+| Enemy Inner | Capped at 0.99 | Normal |
+
+Net effect: an ignored lane loses about one node every 2.5–4 min to waves, and only where no Garrison or Barricade stands, which in practice means a neutral Mid or a node whose Garrison is dead. That is pressure players must answer (Pillar 1) without letting AI decide the match.
+
+---
+
+## 4. Formulas
+
+**F1. Presence.** `Pres = H + min(AI_cap, 0.5 × W)`, AI_cap = 3.0 (C4)
+
+| Symbol | Type | Range | Description |
+| ---- | ---- | ---- | ---- |
+| H | int | 0–5 | Living heroes of the team in the zone (uncapped) |
+| W | int | 0–33 | Team Wardlings in the zone (squads 3–5 each, up to 7 for Vesper, plus 2 Sentinels, plus a wave of 4) |
+| AI_cap | float | 3.0 | Canon C4: AI presence per team per hardpoint (knob §8) |
+| Pres | float | 0–8.0 | Output |
+
+Examples: 2 heroes + 6 Wardlings = 2 + 3.0 = 5.0. 1 Vesper + 7 Wardlings + a wave of 4 = 1 + min(3.0, 5.5) = 4.0.
+
+**F2. Hold capture rate.** `dP/dt = K_hl × M(Δ) / (T_base × D_s × K_sev)`, where `M(Δ) = min(M_max, 0.4 + 0.24 × Δ)` for Δ > 0. If Δ ≤ 0 the rate is 0 (Contested or no attackers).
+
+| Symbol | Type | Range | Description |
+| ---- | ---- | ---- | ---- |
+| Δ | float | 0.5–8.0 | Pres(att) − Pres(def) |
+| K_hl | float | 0.5 or 1.0 | Heroless multiplier: 0.5 if no attacking hero is in the zone (§3.4) |
+| M | float | 0.52–2.0 | Advantage multiplier; 1.0 at Δ = 2.5 (the reference push) |
+| M_max | float | 2.0 | Cap |
+| T_base | float | 20–80 s | §3.3 (20 s for Breach phase 2) |
+| D_s | float | 0.70–1.00 | Surge duration multiplier (F5) |
+| K_sev | float | 0.75 or 1.0 | Severed retake multiplier |
+| dP/dt | float/s | 0.0035–0.0635 | Output |
+
+Output range: the slowest case is a heroless Δ = 0.5 at T = 75, `D_s` = 1, giving 0.5 × 0.52/75 = 0.0035/s (288 s); with a hero present, 0.0069/s (144 s). The fastest is M = 2.0 at T = 60, `D_s` = 0.70, `K_sev` = 0.75, giving 2/31.5 = 0.0635/s (15.8 s). Neither is zero nor negative, so no division risk (T_base ≥ 20). Example: the Spindle at 18:00 (`D_s` = 0.85), attackers 2H + 6W = 5.0 against defenders 1H + 2 Sentinels = 2.0, so Δ = 3.0 and M = 1.12. dP/dt = 1.12/51 = 0.0220/s, and the capture takes **45.5 s**.
+
+**F3. Plant charge and decay.** `charge = K_hl/(T_base × D_s × K_sev)` per second when Pres(att) ≥ Pres(def), and ×0.5 otherwise. `decay = 0.5/(T_base × D_s)` per second, or `1.0/(T_base × D_s)` if a defender is in the zone, after the Overtime window. Example: Signal Market at 20:00, P = 0.60 after a defuse. Overtime is 5 s (P < 0.75), then decay with a defender present is 1/63.75 = 0.0157/s, so the progress is gone in 38 s.
+
+**F4. Breach Generator.** `HP_gen = HP_base × D_s`. `DPS_eff = Σ hero_structure_DPS + 0.5 × Σ wardling_DPS`. `t_breach = HP_gen / DPS_eff + 20 × D_s / M(Δ)`.
+
+| Symbol | Type | Range | Description |
+| ---- | ---- | ---- | ---- |
+| HP_base | int | 4,500–6,000 | §3.3 |
+| hero_structure_DPS | float | 60–140 | Reference 80 at mid-match gear (owned by the weapons GDD) |
+| wardling_DPS | float | 8–48 | Raw (structures are always hit): Picket 21 / 25.5 / 30 by tier, variants ×0.4–×1.6 (`wardlings-and-economy.md` §4, §6); reference 21 at Tier I |
+| t_breach | float | ≈25–110 s | Output |
+
+Example: Halo Dock at 21:00 has HP 5,000 × 0.85 = 4,250. Attackers are 2 heroes + 6 Tier II Wardlings, so DPS_eff = 160 + 0.5 × 6 × 25.5 = 237, and Phase 1 takes 18 s. Phase 2 has Δ = 5.0 against an empty zone, so M = 1.6 and it takes 17/1.6 = 10.6 s. Total ≈ **28.6 s**.
+
+**F5b. Vanguard wave spawn.** At each tick `t_k = 1:00 + k × 60 s` (k = 0, 1, 2 …, stopping at 60:00), for each team and lane: `spawn = (alive_prev ≤ 1)`. Wave size 4 at `Tier(t_k)`. Wave members in play ≤ 4 × 3 × 2 = 24. Example: at 7:00 the North Concord wave has 2 alive, so the tick is skipped. At 8:00 it has 1 alive, so that member merges into the new wave and 3 fresh Wardlings are minted (wave of 4).
+
+**F5. Surge modifiers.** `D_s(t) = 1.00 if t < 15:00; 0.85 if 15:00 ≤ t < 30:00; 0.70 if t ≥ 30:00`. `Tier(t) = I / II / III` on the same breakpoints. `D_s` scales T_base for Hold, Plant charge, Breach phase 2 and Generator HP. It does not affect Cell plant or defuse channels, the Overtime window, or Barricades.
+
+**F6. Exposure.** `Exposed(X) = (enemy holds ≥1 Inner of X) OR (t ≥ 45:00 AND enemy holds ≥1 Outer of X)`.
+
+**F7. Respawn (C11).** `R(s) = min(R_max, R_0 + k × m)`, where m = match minutes at the time of death (float).
+
+| Symbol | Default | Range | Description |
+| ---- | ---- | ---- | ---- |
+| R_0 | 6 | 4–10 | Base seconds |
+| k | 0.4 | 0.3–0.5 | Seconds added per minute |
+| R_max | 30 | 25–35 | Cap (reached at m = 60) |
+
+Values: 0:00 → 6 s; 12:00 → 10.8 s; 30:00 → 18 s; 45:00 → 24 s; 60:00 → 30 s. The same timer applies to HQ and Beacon spawns (the trade-off is squad and shop access, not time).
+
+**F8. Incursion score (C9).** `lane_score = max over held hardpoints h in the lane of depth(h)`, with depth: own Inner or Outer = 0, Mid = 1, enemy Outer = 2, enemy Inner = 3. `Incursion = Σ over 3 lanes` (0–9; 0–3 on the Slice Map). Tie-break: `U = 100 × damage_dealt_to_enemy_uplink / Integrity_max` (33,000), and the team with the higher U wins if `|U_A − U_B| ≥ 1.0`; otherwise Sudden Death. Example: Concord holds N-MID, C-BO and nothing past its own S-AO, giving 1 + 2 + 0 = 3. Syndicate holds S-AO (Concord's), S-MID and nothing else, giving 2 + 0 + 0 = 2. **Concord wins.**
+
+**F9. Uplink time to kill.** `TTK = Integrity_max / (Σ hero_structure_DPS + 0.5 × Σ wardling_DPS)`, Integrity_max = 33,000 (C7). The reference full team (5 heroes at 80 + 15 Tier I Wardlings at 21 raw) is 400 + 157.5 = 557.5 DPS, giving TTK **59.2 s** (the C7 ~60 s target). 3 heroes with 7 Wardlings give 240 + 73.5 = 313.5, or 105 s. Integrity was raised from 30,000 to 33,000 in the consistency pass because the Wardling retune (raw 14 → 21) had cut the reference TTK to 54 s.
+
+**F10. Sudden Death safety valve (C10).** Let `n` = restarts so far. Restarts 1–3 follow the mutual-kill rule. The round that starts after restart 3 is **SD-Final**: if no team is eliminated by the moment its ring finishes closing (90 s), the winner is the team with the higher `HPsum = Σ over living fighters (HP / MaxHP) × 100` at that tick (0–500). Exact tie → the team that dealt more total damage across all Sudden Death rounds. A mutual kill inside SD-Final is decided the same way, both HPsums being 0. Example: Concord has 2 fighters at 60% and 25% (HPsum 85), Syndicate 1 fighter at 100% (HPsum 100) → Syndicate wins. *(Pending owner confirmation: `design/open-questions.md`.)*
+
+---
+
+## 5. Worked Example: a 31-minute match
+
+| Clock | Event | Numbers |
+| ---- | ---- | ---- |
+| 0:00 | Deploy. Each player buys a Minor (300) and a Med-Pack (100) and picks up 3 Wardlings. | Lumen 500 → 100 |
+| 1:00 | Skirmish: the Veil drops. The first Vanguard waves (4 per lane per team) leave the gates. Concord sends 2/2/1 heroes to N/C/S; Syndicate sends 1/2/2. | Sanctum → C-Mid 35 s; wave 31 s |
+| 1:35–2:50 | Spindle (Hold 60 s): both Center waves arrive at 1:31 and cancel out (2.0 against 2.0). Concord 2H+6W against Syndicate 1H+3W, Δ = 2.5, M = 1.0. Syndicate's second hero arrives at 2:05 with P = 0.5, which makes it Contested. Concord trades a kill and finishes at 2:50. | Respawn at 2:20 = 6.9 s |
+| 3:05 | The Spindle becomes a Concord Forward Beacon (15 s attunement). | |
+| 4:40 | Syndicate breaches S-MID: 4,500 / 223 DPS (2H × 80 + 6 Tier I W × 21 × 0.5) = 20 s, plus a 20 s / 1.6 = 12.5 s hold. | |
+| 3:00–5:40 | North: Belfry is a Plant node, so with no Cell carriers both teams' waves defend their own Outers. Concord's 2 heroes farm the Syndicate wave at Rivet Span, which keeps pushing the Syndicate wave cadence to 60 s. South: the Concord hero is alone, and two Syndicate waves die on S-MID without capturing. | Wave Lumen flows to whoever farms the front |
+| 6:10 | Concord carries a Cell from Lattice Bridge (12 s) and plants at Belfry Ruin. The charge runs 70 s and completes at 7:23. | |
+| 10:10 | Concord's Plant at Scrap Bazaar (C-BO) is defused at P = 0.55. The 5 s Overtime runs out, then the progress decays to 0 by 10:50. | |
+| 15:00 | Surge I: Tier II, `D_s` 0.85. | Spindle Hold now 51 s |
+| 18:20 | Syndicate retakes the Spindle (Δ 3.0 → 45.5 s, F2). Concord's Beacon is lost. | |
+| 19:30 | North is empty of heroes. A Tier II Syndicate wave finds Belfry Ruin (Concord) un-contested but cannot Plant (no carrier), so it parks at its own front-most node, Rivet Span. The lane holds. | Heroless rule |
+| 21:00 | Syndicate breaches Halo Dock (Concord's S-AO) in 28.6 s (F4). | |
+| 24:30 | Syndicate charges a Plant at Prism Locks (S-AI): 80 × 0.85 = 68 s. **Concord Uplink Exposed.** | |
+| 24:40–26:10 | Syndicate deals 9,900 damage (30% of 33,000) before Concord retakes Prism Locks from its HQ-gate Cradle (Severed? No: Syndicate still holds S-AO). The Uplink seals. | U_Synd = 30.0 |
+| 29:50 | Syndicate retakes Prism Locks. Exposed again. | |
+| 30:00 | Surge II: Tier III, `D_s` 0.70. | Respawn 18 s |
+| 30:20 | Syndicate wipes 4 Concord heroes at the HQ gate. The remaining 23,100 Integrity takes 4H × 80 + 9 Tier III W × 30 × 0.5 = 455 DPS (squads only: waves stop at Prism Locks and do not enter the HQ). | TTK 51 s |
+| 30:38 | The first Concord respawns (died 30:20, R = 18.1 s), 4 s from the Uplink. That is too few, too late. | |
+| 31:11 | Concord Uplink reaches 0, Syndicate wins. Typical length confirmed (target 25–35). | |
+
+---
+
+## 6. Edge Cases
+
+| Case | Resolution |
+| ---- | ---- |
+| **Player disconnects** | After a 10 s grace the slot is taken over by a bot (C1) with the same hero, level, gear, Lumen and squad. A player who reconnects takes control back at their next death, or immediately if the bot is within the Sanctum zone. A disconnected Cell carrier drops the Cell (normal drop rules). |
+| **Disconnect during Sudden Death** | The bot takes over immediately (no grace) and counts as a fighter. |
+| **Whole team disconnected** | The match continues with 5 bots. No forfeit before M5 (surrender is out of scope). |
+| **Waves alone in an empty lane** | They can capture neutral, Outer or Mid nodes at `K_hl` 0.5 (§3.8 table), cannot Plant, and cap at 0.99 on an Inner. A heroless Inner at 0.99 does not expose the Uplink. Decay and Overtime apply normally once the wave dies. |
+| **Wave's target becomes invalid mid-march** (flip or lost prerequisite) | Re-targeted within 2 s per the ①②③ order. A wave never retreats past its own front-most node. |
+| **Wave blocked by a Barricade with a better target elsewhere** | It attacks the Barricade only if that Barricade lies on the path to its current target. Waves never use flanks. |
+| **Opposing waves meet on a neutral Mid** | 2.0 against 2.0 is Contested (frozen). They fight; survivors decide the progress. |
+| **Wave spawn tick when the lane gate is blocked** (an enemy Barricade from a held Inner) | The wave spawns inside the gate and targets the blocking Barricade (attack 50%) as part of the path to ① or ②. |
+| **Wave survivors at Time-out / Sudden Death** | Frozen at Time-out; removed at SD-Freeze (C10). |
+| **AI budget exceeded** (e.g. debug spawns) | The server refuses wave spawns first, then Garrison respawns. Squads are never refused. A warning is logged. |
+| **Stalled match** (no flips) | **Stagnation:** after 15:00, if no hardpoint has flipped anywhere for 5:00, all task durations are ×0.85 on top of `D_s` until the next flip. This does not stack. Combined with Surges and Drought, the Time-out still guarantees resolution at 60:00. |
+| **Capture in progress at 60:00** | Capture Overtime (C8): it keeps running for up to 30 s; if it completes by 60:30 the flip counts in the snapshot, otherwise the node stays with its owner. A capture that *starts* after 60:00 is impossible (all other nodes lock). |
+| **Uplink reaches 0 during Capture Overtime** | End immediately; the attacking team wins (same as any combat state). |
+| **Respawn timer running at 60:00** | Irrelevant to Incursion. In Sudden Death everyone respawns. |
+| **Incursion tie, Uplink % within 1.0 point** | Example: Concord dealt 12.4% and Syndicate 11.6% (a 0.8 difference), so the match goes to Sudden Death. |
+| **Both Uplinks reach 0 on the same tick** | Compare Incursion at that tick. If still tied, compare U. If still tied, Sudden Death. |
+| **Mutual kill in Sudden Death** | The last fighters of both teams die within 1.0 s (from weapons, ring or Bloom). Everyone respawns in SD-Freeze and the ring resets. After 3 restarts the next round is SD-Final, decided at ring close by summed remaining HP% (C10, F10). |
+| **Last fighter dies, opponent dies 1.2 s later** | The first team to be eliminated loses. SD-Confirm closed at +1.0 s while the opponent was still alive. |
+| **Attacker loses eligibility on the flip tick** | Server order: flips resolve first in hardpoint-ID order, then eligibility is re-evaluated. A flip that lands on the same tick stands. |
+| **Beacon becomes under attack during the respawn countdown** | The spawn falls back to the Sanctum without resetting the timer, and a HUD notice is shown. |
+| **Barricade raises on top of players** | Players are pushed out toward their own side over 0.5 s, and collision applies after the push. |
+| **Uplink exposure ends mid-flight** | Projectiles that land on a sealed tick deal 0. |
+| **Neutral Mid with equal presence** | Frozen. If neither team is present, progress decays as normal. |
+| **Wardling squad owner dies inside a zone** | The squad holds for 10 s and keeps counting (C15), then dissolves and counts 0. |
+
+---
+
+## 7. Dependencies
+
+| System (GDD, planned) | Direction | Interface |
+| ---- | ---- | ---- |
+| Hero movement | This doc depends on it | Run speed (6.0 m/s reference), mobility skills that drop Cells |
+| Weapons & combat | Depends on | Structure DPS reference (80 per hero at mid-match gear, `weapons-and-mods.md` §3.4) for F4 and F9; damage on hit; Supply Cache refill rate and Mana regen-delay buff |
+| Wardlings | Both directions | Presence 0.5, Tier by Surge, Garrison Sentinels, 50% structure damage, 10 s dissolve, Go Capture (heroless rule), Vanguard wave behaviour (§3.8: spawn, cap, targeting, march) |
+| Vesper Loom hero kit | Both directions | Only hero allowed to command Vanguard waves (C15); command must respect the Inner cap |
+| Economy & Armory | Both directions | Starting 500, capture/defence payouts, trickle 40/min; the bands above |
+| Progression (Resonance) | Depends on | Capture and defence EXP, shared team-wide (C13) |
+| Heroes (Sable, Hex, Juniper, Brannoc) | Both directions | Barricade phasing and hacking, deployables at 50%, Hold anchoring |
+| HUD & minimap | Is depended on by | Front-line ownership, Contested/Overtime/Locked, Exposed alerts, Incursion reveal |
+| Bot AI | Is depended on by | Lane assignment, task behaviours, disconnect takeover |
+| Networking | Is depended on by | Server-authoritative ticks, snapshot at 60:00, same-tick ordering |
+
+Each of those GDDs must list this doc back when it is written.
+
+---
+
+## 8. Tuning Knobs
+
+| Knob | Default | Safe range | Affects |
+| ---- | ---- | ---- | ---- |
+| Hold T_base (Inner/Outer/Mid) | 75/65/60 s | 60–90 (C4) | Front speed; defender advantage |
+| Plant T_base (Inner/Outer/Mid) | 80/75/70 s | 60–90 | Same |
+| Generator HP (Inner/Outer/Mid) | 6,000/5,000/4,500 | 3,500–8,000 | Breach length; burst-hero value |
+| Breach phase 2 hold | 20 s | 10–30 | Breach defender comeback window |
+| M(Δ) intercept / slope / cap | 0.4 / 0.24 / 2.0 | 0.2–0.6 / 0.15–0.35 / 1.5–3.0 | How much numbers matter |
+| Wardling presence weight | 0.5 | Canon C4 (fixed) | n/a |
+| Wardling (AI) presence cap per team per hardpoint | 3.0 (Canon C4) | 2.0–4.0 | Stacking (Vesper, waves); heroes stay uncapped |
+| Heroless multiplier `K_hl` | 0.5 | 0.3–0.8 | How fast an ignored lane erodes |
+| Heroless Inner cap | 0.99 (on) | on/off | Whether AI alone can expose an Uplink (keep on) |
+| Wave interval / size / live cap | 60 s / 4 / 1 per lane per team | Canon C15 (fixed) | n/a |
+| Wave respawn threshold (alive ≤) | 1 | Canon C15 (fixed) | n/a |
+| Wave march speed | 5.5 m/s | 4.5–6.5 | Whether heroes can escort or outrun waves |
+| Wave leash (engage / chase) | 20 / 30 m | 12–30 / 20–45 | Wave stickiness to objectives |
+| `D_s` Surge I / II | 0.85 / 0.70 | Canon (fixed) | n/a |
+| Overtime window (P<0.75 / ≥0.75) | 5 / 10 s | 3–8 / 6–15 | Clutch moments |
+| Decay rate (×base) | 0.5 / 1.0 with defender | 0.25–1.0 / 0.5–2.0 | Progress stickiness |
+| Severed retake K_sev | 0.75 | 0.6–1.0 | Anti-snowball |
+| Stagnation trigger / multiplier | 5:00 / 0.85 | 3–8 min / 0.75–0.95 | Anti-stall |
+| Uplink Integrity | 33,000 | 20,000–40,000 (C7) | Siege length |
+| Capture overtime past 60:00 | 30 s | 0–45 s | Clutch captures at time-out (C8) |
+| Sudden Death restarts before SD-Final | 3 | 2–5 | Guarantees an end (C10) |
+| Respawn R_0 / k / R_max | 6 / 0.4 / 30 | 4–10 / 0.3–0.5 / 25–35 | Late-game wipe value |
+| Barricade Integrity (lane / Inner facing the defender's HQ) | 5,000 / 2,500 (C5) | 3,000–8,000 / 1,500–5,000 | Flank value, HQ lock-in |
+| Supply Cache: Mech refill / Mana regen-delay cut, duration, cooldown | 25%/s / −50%, 10 s, 8 s (C5) | 10–50%/s / −25–75%, 5–15 s, 5–15 s | Value of held nodes for both resource types |
+| Beacon attunement / under-attack radius | 15 s / 25 m | 5–30 s / 15–40 m | Spawn tempo |
+| Cell carrier speed | 90% | 80–100% | Plant difficulty |
+| Defuse channel | 6 s | 4–8 | Plant defence |
+| Capture Lumen (participant / team / defence) | 120 / 40 / 60 | 80–200 / 20–80 / 30–120 | Share of the 9,000 target |
+| Starting Lumen | 500 | 400–700 | First buy (Minor + Med-Pack) |
+| SD ring start / end radius, Bloom | 45 → 4 m over 90 s, 2%/s +2%/10 s | Over-time fixed (C10); radii 30–60 / 2–8 | Round length |
+
+---
+
+## 9. Acceptance Criteria (vertical slice, Slice Map)
+
+1. Clock-driven transitions fire at 1:00 / 15:00 / 30:00 / 45:00 / 60:00 within ±1 server tick (verified in a log with `clock_scale` 0.25).
+2. During Deploy, no player, projectile or damage crosses x = 210, and the Mid zone reports Locked.
+3. 1 hero + 3 Wardlings alone on a neutral Mid Hold (60 s) captures in 60 ± 1 s. 2H + 6W captures in 37.5 ± 1 s (M = 1.6).
+4. With equal presence, progress stays exactly frozen for 30 s.
+5. After the last attacker leaves at P = 0.5, P holds for 5 s, then decays to 0 in 120 s with no defender present (60 s with one).
+6. An ineligible team in a zone (no prerequisite held) produces 0 progress, a rejected plant and 0 Generator damage.
+7. A Cell carrier moves at 5.4 m/s ±2%, drops the Cell on death, and the Cell returns to the Cradle 15 s later (plus a 10 s Cradle delay after dispersal).
+8. A Generator takes no damage from outside its 12 m zone or while defenders out-number attackers in the zone, and regenerates after 8 s idle.
+9. On a flip: the new Garrison appears at 10 s, the Barricade becomes solid at 15 s, the Supply Cache switches at 10 s, and a Mid Beacon becomes selectable at 15 s.
+10. The Uplink takes 0 damage while not Exposed. It becomes Exposed on the tick an enemy Inner capture completes (and an Outer capture at ≥45:00), and seals on the retake tick.
+11. Wardling hits on the Uplink deal 50% of the damage they deal to a hero-equivalent target.
+12. Respawn equals F7 to within 0.1 s at deaths sampled at 0, 12, 30 and 60 minutes.
+13. A scripted 60:00 snapshot yields the expected Incursion (0–3) and U values, and routes correctly to End or Sudden Death in 3 test fixtures (decisive, U-decided, SD).
+14. In Sudden Death: everyone spawns on their own half of the plaza, there are no Wardlings or shop, the ring reaches 4 m at 90 s, and a forced mutual kill within 1.0 s restarts the round. After 3 forced restarts, a 4th round left undecided at ring close ends with the team of higher summed HP% winning (F10).
+14b. A Hold at P = 0.9 with attackers present at 59:58 completes during Capture Overtime and counts in the snapshot; a node with P = 0 at 60:00 cannot gain progress; the snapshot is taken no later than 60:30.
+15a. Waves spawn at 1:00 and on each 60 s tick only while that lane's previous wave has ≤1 alive. The server never holds more than 24 live wave members (verified by a counter in a 30 min bot match).
+15b. A lone Tier I wave on an empty neutral Mid Hold (60 s) captures in 136 ± 2 s, and a wave alone on an empty enemy Inner stops at P = 0.99 with the Uplink not Exposed.
+15c. Waves never enter flank tunnels, Mid spokes or the enemy HQ (path log over 20 matches).
+15. Pulling a client's network mid-match hands its slot to a bot within 10 s with the same hero, level and gear.
+16. 20 bot-vs-bot slice matches all reach End, and none exceeds 60:00 plus Sudden Death.
+
+---
+
+## Canon Concerns
+
+Resolved in consistency pass 2026-10-02:
+- C8 snapshot at 60:00 discarding a 99% capture: Canon C8 now grants up to 30 s of capture overtime for tasks already in progress (R6).
+- C10 unlimited mutual-kill restarts: Canon C10 keeps the owner's restart rule and adds a safety valve after 3 restarts (summed HP% at the final round's ring close, F10). Pending owner confirmation in `design/open-questions.md` (R6).
+- 1-lane Slice Map vs concept Scope Tier 1 (3 lanes): concept Scope Tiers now map the 1-lane Shardline Causeway to M1 (Tier 0) and the 3-lane map to M3 (R5).
+- HQ-facing Barricade lock-in: Canon C5 now sets 2,500 Integrity for Inner Barricades facing the defender's HQ, 5,000 otherwise (R7).
+- Uncapped Wardling presence: Canon C4 caps AI presence at 3.0 per team per hardpoint; the knob defaults to 3.0 (R3).
+- Pillar 3 "more than two commands": now "more than four squad commands" (R1).
+- AI budget ~100 vs a 104–108 peak: Canon C1 budget is ≤110 AI agents (R4).
+
+No open Canon concerns remain in this doc.

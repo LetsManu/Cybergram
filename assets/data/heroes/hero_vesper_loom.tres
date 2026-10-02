@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="HeroDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="1"]
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_threadcaster.tres" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="4"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_vesper_marionette_thread.tres" id="5"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_vesper_rally_beacon.tres" id="6"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_vesper_threadstep.tres" id="7"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_vesper_rewrite.tres" id="8"]
+
+[sub_resource type="Resource" id="squad_bonus"]
+script = ExtResource("3")
+stat = &"squad_capacity_bonus"
+op = 0
+value = 2.0
+hero_scope = true
+
+[sub_resource type="Resource" id="wardling_hp"]
+script = ExtResource("3")
+stat = &"wardling_hp_mult"
+op = 1
+value = 0.15
+hero_scope = true
+
+[sub_resource type="Resource" id="aura"]
+script = ExtResource("3")
+stat = &"wardling_aura_damage"
+op = 0
+value = 0.1
+hero_scope = true
+
+[resource]
+script = ExtResource("1")
+id = &"hero_vesper_loom"
+display_name = "Vesper Loom"
+max_hp = 250
+armor = 0.0
+move_speed = 6.0
+weapon = ExtResource("2")
+skills = Array[ExtResource("4")]([ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8")])
+passive_modifiers = Array[ExtResource("3")]([SubResource("squad_bonus"), SubResource("wardling_hp"), SubResource("aura")])
+wardling_aura_radius_m = 15.0
+conduct_radius_m = 25.0
+hitbox_scale = 1.0
