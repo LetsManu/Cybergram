@@ -2,5 +2,5 @@
 
 [ext_resource type="Script" path="res://src/core/app/app_root.gd" id="1"]
 
-[node name="AppRoot" type="Node3D"]
+[node name="AppRoot" type="Node"]
 script = ExtResource("1")

@@ -23,7 +23,7 @@ func setup(look_settings: LookSettings, movement: MovementDef) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := deg_to_rad(look.mouse_sensitivity_deg)
-		var dy := -event.relative.y if not look.invert_y else event.relative.y
+		var dy: float = -event.relative.y if not look.invert_y else event.relative.y
 		live_yaw = fposmod(live_yaw - event.relative.x * sens, TAU)
 		live_pitch = clampf(live_pitch + dy * sens, -max_pitch_rad, max_pitch_rad)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

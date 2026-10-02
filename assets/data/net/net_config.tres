@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="NetConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/net_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tick_rate_hz = 30
+interp_delay_ticks = 3
+extrapolation_cap_ticks = 1
+reconcile_epsilon_m = 0.02
+max_replay_ticks = 16
+prediction_history_size = 64
+error_smoothing_s = 0.1
+input_redundancy = 3
+max_inputs_per_tick = 8
+max_buffered_inputs = 32
+max_packet_bytes = 1400
+max_violations = 50
+net_id_recycle_s = 2.0
+max_rewind_ms = 200
+snapshot_budget_bytes = 1100

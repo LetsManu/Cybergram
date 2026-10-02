@@ -12,7 +12,7 @@ extends RefCounted
 
 var conditioner: NetSimConditioner
 var now_usec: int = 0
-var _endpoints: Dictionary = {}  # peer id -> LoopbackTransport
+var _endpoints: Dictionary = {}  # peer id -> WeakRef(LoopbackTransport); weak to avoid a ref cycle
 
 
 func _init(profile: NetSimProfile = null) -> void:
@@ -22,7 +22,7 @@ func _init(profile: NetSimProfile = null) -> void:
 ## Creates an endpoint with `peer_id` (1 = server by convention).
 func create_endpoint(peer_id: int) -> LoopbackTransport:
 	var ep := LoopbackTransport.new(self, peer_id)
-	_endpoints[peer_id] = ep
+	_endpoints[peer_id] = weakref(ep)
 	return ep
 
 
@@ -32,7 +32,8 @@ func advance(dt_sec: float) -> void:
 
 
 func _route(from_peer: int, to_peer: int, channel: int, data: PackedByteArray) -> void:
-	var target: LoopbackTransport = _endpoints.get(to_peer)
+	var ref: WeakRef = _endpoints.get(to_peer)
+	var target: LoopbackTransport = ref.get_ref() if ref != null else null
 	if target == null:
 		return
 	var at := conditioner.schedule(now_usec, channel, (from_peer << 16) | to_peer)

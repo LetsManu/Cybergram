@@ -1,0 +1,19 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/world/game_session.gd" id="1"]
+[ext_resource type="Resource" path="res://assets/data/net/net_config.tres" id="2"]
+[ext_resource type="Resource" path="res://assets/data/movement/movement_default.tres" id="3"]
+[ext_resource type="Resource" path="res://assets/data/input/look_settings_default.tres" id="4"]
+[ext_resource type="PackedScene" path="res://assets/maps/test_course/movement_course.tscn" id="5"]
+[ext_resource type="Resource" path="res://assets/data/net/net_sim_off.tres" id="6"]
+[ext_resource type="Resource" path="res://assets/data/debug/scripted_input_dummy_strafe.tres" id="7"]
+[ext_resource type="Resource" path="res://assets/data/debug/scripted_input_dummy_circle.tres" id="8"]
+
+[node name="GameSession" type="Node"]
+script = ExtResource("1")
+net_config = ExtResource("2")
+movement = ExtResource("3")
+look = ExtResource("4")
+map_scene = ExtResource("5")
+net_sim = ExtResource("6")
+dummy_inputs = Array[Resource]([ExtResource("7"), ExtResource("8")])
