@@ -20,3 +20,5 @@ extends Resource
 ## Fire held for fire_hold_ticks out of every fire_period_ticks (0 = never fire).
 @export_range(0, 600) var fire_period_ticks: int = 0
 @export_range(0, 600) var fire_hold_ticks: int = 1
+## Debug: respawn at the hero's own spawn point, not its team HQ (ServerWorld).
+@export var respawn_at_home: bool = false

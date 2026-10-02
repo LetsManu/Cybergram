@@ -5,14 +5,16 @@ extends RefCounted
 ## emit this. The client quantizes BEFORE predicting so client and server feed
 ## HeroMotor bit-identical values.
 ##
-## Wire layout (WIRE_SIZE = 17 bytes): seq u32, move i8 x2, yaw u16, pitch i16,
-## buttons u16, view_tick u32, view_alpha u8.
+## Wire layout (WIRE_SIZE = 26 bytes): seq u32, move i8 x2, yaw u16, pitch i16,
+## buttons u16, view_tick u32, view_alpha u8, squad_cmd u8, squad_target u16,
+## squad_point i16 x3 (1/8 m). Squad fields (E8, wardlings-and-economy.md §8)
+## are an edge event: set on the one tick the order is given, else SQUAD_NONE.
 ##
 ## Example:
 ##   cmd.quantize(); var off := cmd.write_to(buf, 0)
 ##   var back := InputCommand.new(); InputCommand.read_from(buf, 0, back)
 
-const WIRE_SIZE: int = 17
+const WIRE_SIZE: int = 26
 
 const BTN_JUMP: int = 1 << 0
 const BTN_CROUCH: int = 1 << 1
@@ -27,6 +29,18 @@ const BTN_SKILL4: int = 1 << 9
 const BTN_INTERACT: int = 1 << 10
 const BTN_SQUAD: int = 1 << 11
 const BUTTON_MASK: int = (1 << 12) - 1
+
+## Squad orders (C15: 4 commands). Values match Squad.CMD_*.
+const SQUAD_NONE: int = 0
+const SQUAD_FOLLOW: int = 1
+const SQUAD_HOLD: int = 2
+const SQUAD_ATTACK: int = 3
+const SQUAD_CAPTURE: int = 4
+## Client-local only (Smart Command, Z tap): ClientWorld resolves it from the
+## crosshair into ATTACK / CAPTURE / HOLD before the command is sent.
+const SQUAD_SMART: int = 7
+const _SQUAD_MAX: int = SQUAD_CAPTURE
+const _POINT_STEPS: float = 8.0
 
 const _MOVE_STEPS: float = 127.0
 const _YAW_STEPS: float = 65536.0
@@ -46,6 +60,12 @@ var buttons: int = 0
 ## Server tick the client was viewing (lag compensation, E4).
 var view_tick: int = 0
 var view_alpha: float = 0.0
+## SQUAD_* order issued this tick (0 = none).
+var squad_cmd: int = SQUAD_NONE
+## ATTACK: target net id. CAPTURE: hardpoint index in the lane.
+var squad_target: int = 0
+## HOLD: ground point (the server re-validates range and projects to the navmesh).
+var squad_point: Vector3 = Vector3.ZERO
 
 
 func has(button: int) -> bool:
@@ -68,6 +88,9 @@ func copy_from(other: InputCommand) -> void:
 	buttons = other.buttons
 	view_tick = other.view_tick
 	view_alpha = other.view_alpha
+	squad_cmd = other.squad_cmd
+	squad_target = other.squad_target
+	squad_point = other.squad_point
 
 
 func duplicate_command() -> InputCommand:
@@ -79,7 +102,8 @@ func duplicate_command() -> InputCommand:
 func equals(other: InputCommand) -> bool:
 	return seq == other.seq and move == other.move and yaw == other.yaw \
 		and pitch == other.pitch and buttons == other.buttons \
-		and view_tick == other.view_tick and view_alpha == other.view_alpha
+		and view_tick == other.view_tick and view_alpha == other.view_alpha \
+		and squad_cmd == other.squad_cmd and squad_target == other.squad_target and squad_point == other.squad_point
 
 
 ## Writes WIRE_SIZE bytes at `offset` (buffer must be large enough). Returns the end offset.
@@ -93,6 +117,11 @@ func write_to(buf: PackedByteArray, offset: int) -> int:
 	buf.encode_u16(offset + 10, buttons & BUTTON_MASK)
 	buf.encode_u32(offset + 12, view_tick & 0xFFFFFFFF)
 	buf.encode_u8(offset + 16, clampi(roundi(view_alpha * _ALPHA_STEPS), 0, 255))
+	buf.encode_u8(offset + 17, squad_cmd if squad_cmd >= 0 and squad_cmd <= _SQUAD_MAX else SQUAD_NONE)
+	buf.encode_u16(offset + 18, squad_target & 0xFFFF)
+	buf.encode_s16(offset + 20, clampi(roundi(squad_point.x * _POINT_STEPS), -32767, 32767))
+	buf.encode_s16(offset + 22, clampi(roundi(squad_point.y * _POINT_STEPS), -32767, 32767))
+	buf.encode_s16(offset + 24, clampi(roundi(squad_point.z * _POINT_STEPS), -32767, 32767))
 	return offset + WIRE_SIZE
 
 
@@ -111,4 +140,9 @@ static func read_from(buf: PackedByteArray, offset: int, out: InputCommand) -> b
 	out.buttons = buf.decode_u16(offset + 10) & BUTTON_MASK
 	out.view_tick = buf.decode_u32(offset + 12)
 	out.view_alpha = buf.decode_u8(offset + 16) / _ALPHA_STEPS
+	var sc := buf.decode_u8(offset + 17)
+	out.squad_cmd = sc if sc <= _SQUAD_MAX else SQUAD_NONE
+	out.squad_target = buf.decode_u16(offset + 18)
+	out.squad_point = Vector3(buf.decode_s16(offset + 20), buf.decode_s16(offset + 22),
+		buf.decode_s16(offset + 24)) / _POINT_STEPS
 	return true

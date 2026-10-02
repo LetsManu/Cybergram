@@ -10,6 +10,14 @@ extends RefCounted
 ##   f32 ammo, u16 ammo_capacity, u16 reserve, u8 ammo_flags.
 ## Entity: u16 net_id, u8 kind, pos f32x3, vel f32x3, yaw f32, pitch f32, u8 flags,
 ##   u8 team, u16 hp, u16 max_hp.
+## Wardlings (E8, after the entities): u16 count, count x wardling (14 B), then
+##   u16 bolt count, count x bolt (12 B: from i16x3, to i16x3; 1/32 m).
+## Wardling: u16 net_id, pos i16x3 (1/32 m), u8 yaw, u8 hp (1/255), u8 team (bit 7 =
+##   Vanguard), u8 state, u16 owner net id.
+## Objectives (E7, after the Wardlings): u8 hardpoint count, count x hardpoint (5 B),
+##   u8 front count, count x i8 front index.
+## Hardpoint: i8 owner, i8 capturing team, u8 flags (contested, overtime, severed,
+##   locked0, locked1), u16 progress (P x 65535).
 
 const _HEADER: int = 12
 const _OWN: int = 27
@@ -19,12 +27,23 @@ const _F_GROUNDED: int = 1
 const _F_CROUCH: int = 2
 const _F_JUMP_HELD: int = 4
 const _F_DEAD: int = 8
+const _HARDPOINT: int = 5
+const _WARDLING: int = 14
+const _BOLT: int = 12
+const _POS_STEPS: float = 32.0
+const _HF_CONTESTED: int = 1
+const _HF_OVERTIME: int = 2
+const _HF_SEVERED: int = 4
+const _HF_LOCKED0: int = 8
+const _HF_LOCKED1: int = 16
 
 
 static func encode(s: SnapshotData) -> PackedByteArray:
 	var has_own := s.own_state != null
 	var b := PackedByteArray()
-	b.resize(_HEADER + (_OWN + _OWN_COMBAT if has_own else 0) + 2 + s.entities.size() * _ENTITY)
+	b.resize(_HEADER + (_OWN + _OWN_COMBAT if has_own else 0) + 2 + s.entities.size() * _ENTITY
+		+ 2 + s.hardpoints.size() * _HARDPOINT + s.fronts.size()
+		+ 4 + s.wardlings.size() * _WARDLING + s.bolts.size() * _BOLT)
 	b.encode_u8(0, MsgType.SNAPSHOT)
 	b.encode_u32(1, s.tick)
 	b.encode_u32(5, s.last_processed_seq)
@@ -67,7 +86,118 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 		b.encode_u16(off + 10, clampi(e.hp, 0, 65535))
 		b.encode_u16(off + 12, clampi(e.max_hp, 0, 65535))
 		off += 14
+	off = _encode_wardlings(b, off, s)
+	_encode_objectives(b, off, s)
 	return b
+
+
+static func _encode_wardlings(b: PackedByteArray, off: int, s: SnapshotData) -> int:
+	b.encode_u16(off, s.wardlings.size())
+	off += 2
+	for w in s.wardlings:
+		b.encode_u16(off, w.net_id)
+		_put_q3(b, off + 2, w.position)
+		b.encode_u8(off + 8, roundi(fposmod(w.yaw, TAU) / TAU * 256.0) & 0xFF)
+		b.encode_u8(off + 9, clampi(roundi(w.hp_frac * 255.0), 0, 255))
+		b.encode_u8(off + 10, (w.team & 0x7F) | (0x80 if w.vanguard else 0))
+		b.encode_u8(off + 11, w.state & 0xFF)
+		b.encode_u16(off + 12, w.owner_net_id & 0xFFFF)
+		off += _WARDLING
+	b.encode_u16(off, s.bolts.size())
+	off += 2
+	for bolt in s.bolts:
+		_put_q3(b, off, bolt[0])
+		_put_q3(b, off + 6, bolt[1])
+		off += _BOLT
+	return off
+
+
+## Decodes the Wardling and bolt blocks at `off`; returns the end offset or -1.
+static func _decode_wardlings(b: PackedByteArray, off: int, s: SnapshotData) -> int:
+	if b.size() < off + 2:
+		return -1
+	var n := b.decode_u16(off)
+	off += 2
+	if b.size() < off + n * _WARDLING + 2:
+		return -1
+	for i in n:
+		var w := SnapshotData.WardlingState.new()
+		w.net_id = b.decode_u16(off)
+		w.position = _get_q3(b, off + 2)
+		w.yaw = b.decode_u8(off + 8) * TAU / 256.0
+		w.hp_frac = b.decode_u8(off + 9) / 255.0
+		var t := b.decode_u8(off + 10)
+		w.team = t & 0x7F
+		w.vanguard = (t & 0x80) != 0
+		w.state = b.decode_u8(off + 11)
+		w.owner_net_id = b.decode_u16(off + 12)
+		s.wardlings.append(w)
+		off += _WARDLING
+	var nb := b.decode_u16(off)
+	off += 2
+	if b.size() < off + nb * _BOLT:
+		return -1
+	for i in nb:
+		s.bolts.append([_get_q3(b, off), _get_q3(b, off + 6)])
+		off += _BOLT
+	return off
+
+
+static func _put_q3(b: PackedByteArray, off: int, v: Vector3) -> void:
+	b.encode_s16(off, clampi(roundi(v.x * _POS_STEPS), -32767, 32767))
+	b.encode_s16(off + 2, clampi(roundi(v.y * _POS_STEPS), -32767, 32767))
+	b.encode_s16(off + 4, clampi(roundi(v.z * _POS_STEPS), -32767, 32767))
+
+
+static func _get_q3(b: PackedByteArray, off: int) -> Vector3:
+	return Vector3(b.decode_s16(off), b.decode_s16(off + 2), b.decode_s16(off + 4)) / _POS_STEPS
+
+
+static func _encode_objectives(b: PackedByteArray, off: int, s: SnapshotData) -> void:
+	b.encode_u8(off, s.hardpoints.size())
+	off += 1
+	for h in s.hardpoints:
+		b.encode_s8(off, h.owner)
+		b.encode_s8(off + 1, h.capturing_team)
+		var f := (_HF_CONTESTED if h.contested else 0) | (_HF_OVERTIME if h.overtime else 0) \
+			| (_HF_SEVERED if h.severed else 0) | (_HF_LOCKED0 if h.locked[0] else 0) | (_HF_LOCKED1 if h.locked[1] else 0)
+		b.encode_u8(off + 2, f)
+		b.encode_u16(off + 3, roundi(clampf(h.progress, 0.0, 1.0) * 65535.0))
+		off += _HARDPOINT
+	b.encode_u8(off, s.fronts.size())
+	off += 1
+	for fr in s.fronts:
+		b.encode_s8(off, clampi(fr, -128, 127))
+		off += 1
+
+
+## Decodes the objectives block at `off`; false if malformed or not ending the packet.
+static func _decode_objectives(b: PackedByteArray, off: int, s: SnapshotData) -> bool:
+	if b.size() < off + 1:
+		return false
+	var n := b.decode_u8(off)
+	off += 1
+	if b.size() < off + n * _HARDPOINT + 1:
+		return false
+	for i in n:
+		var h := SnapshotData.HardpointState.new()
+		h.owner = b.decode_s8(off)
+		h.capturing_team = b.decode_s8(off + 1)
+		var f := b.decode_u8(off + 2)
+		h.contested = (f & _HF_CONTESTED) != 0
+		h.overtime = (f & _HF_OVERTIME) != 0
+		h.severed = (f & _HF_SEVERED) != 0
+		h.locked = [(f & _HF_LOCKED0) != 0, (f & _HF_LOCKED1) != 0]
+		h.progress = b.decode_u16(off + 3) / 65535.0
+		s.hardpoints.append(h)
+		off += _HARDPOINT
+	var nf := b.decode_u8(off)
+	off += 1
+	if b.size() != off + nf:
+		return false
+	for i in nf:
+		s.fronts.append(b.decode_s8(off + i))
+	return true
 
 
 ## Returns null if malformed.
@@ -107,7 +237,7 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		off += _OWN_COMBAT
 	var count := b.decode_u16(off)
 	off += 2
-	if b.size() != off + count * _ENTITY:
+	if b.size() < off + count * _ENTITY:
 		return null
 	for i in count:
 		var e := SnapshotData.EntityState.new()
@@ -126,6 +256,9 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		e.max_hp = b.decode_u16(off + 39)
 		s.entities.append(e)
 		off += _ENTITY
+	off = _decode_wardlings(b, off, s)
+	if off < 0 or not _decode_objectives(b, off, s):
+		return null
 	return s
 
 

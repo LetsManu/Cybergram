@@ -11,3 +11,4 @@ yaw_deg_per_tick = 4.0
 sprint = true
 jump_interval_ticks = 0
 crouch_segments = PackedInt32Array()
+respawn_at_home = true

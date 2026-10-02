@@ -9,6 +9,10 @@ extends Node3D
 
 signal hero_died(victim_net_id: int, killer_net_id: int)
 signal hero_respawned(net_id: int)
+## E8: a hero lost HP (retaliation trigger for its squad).
+signal hero_damaged(victim_net_id: int, attacker_net_id: int, amount: float)
+## E7: a capture or defence outcome (Lumen / EXP hook; no economy yet).
+signal objective_event(event: ObjectiveEvent)
 
 const PLAYER_SPAWN := "PlayerSpawn"
 ## Optional per-team respawn markers in the map ("TeamSpawn0", "TeamSpawn1").
@@ -33,6 +37,15 @@ var _map: Node3D
 var _cmd := InputCommand.new()
 var _tracer := HitscanTracer.new()
 var _events: Dictionary = {}  # peer id -> Array[GameEvent] (flushed every tick)
+## E7 presence seam: non-hero sources (Wardlings) counted by hardpoint zones.
+var _presence_sources: Array = []
+## E7 hardpoints (null on maps without a MapDef).
+var objectives: ObjectiveSystem
+var _hero_presence: Dictionary = {}  # hero net id -> PresenceSource
+## Debug (--debug-capture): where joining clients spawn instead of PlayerSpawn.
+var debug_player_spawn: Variant = null
+## E8 Wardlings (squads, Vanguard, bolts); null on maps without a MapDef.
+var wardlings: WardlingWorld
 
 
 ## Builds the map and session. Call after the node is in the tree.
@@ -49,6 +62,21 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 	session.client_joined.connect(_on_client_joined)
 	_map = map_scene.instantiate()
 	add_child(_map)
+
+
+## E7: builds the hardpoints from `map_def` (call after setup()).
+func setup_objectives(map_def: MapDef) -> void:
+	if map_def != null and not map_def.lanes.is_empty():
+		objectives = ObjectiveSystem.new(map_def, rules)
+
+
+## E8: enables Wardlings (squads + Vanguard) on a map with HQs. The AI is
+## wired separately from a higher layer (WardlingDirector.attach(server)).
+func enable_wardlings(map_def: MapDef, wardling_rules: WardlingRulesDef, picket: WardlingDef) -> WardlingWorld:
+	if map_def == null or map_def.hqs.is_empty() or wardling_rules == null or picket == null:
+		return null
+	wardlings = WardlingWorld.new(self, map_def, wardling_rules, picket)
+	return wardlings
 
 
 ## World-space position of a Marker3D in the map, or the origin.
@@ -69,6 +97,23 @@ func add_scripted_hero(source: ScriptedInputSource, spawn: Vector3, hero_def: He
 	var h := _spawn_hero(spawn, hero_def if hero_def != null else HeroDef.new(), team)
 	_dummies.append([h, source])
 	return h.net_id
+
+
+## E7 presence seam (PresenceSource): registers a non-hero presence source
+## (Wardling, weight 0.5, AI-capped per team per hardpoint). Idempotent.
+## Heroes are counted automatically; do not register them here.
+func register_presence_source(src: Object) -> void:
+	if src != null and not _presence_sources.has(src):
+		_presence_sources.append(src)
+
+
+func unregister_presence_source(src: Object) -> void:
+	_presence_sources.erase(src)
+
+
+## Registered non-hero presence sources (read-only use).
+func presence_sources() -> Array:
+	return _presence_sources
 
 
 func hero(net_id: int) -> HeroBody:
@@ -95,10 +140,39 @@ func step() -> void:
 	for d in _dummies:
 		d[1].sample(tick, _cmd)
 		_step_hero(d[0], _cmd)
+	if wardlings != null:
+		wardlings.step()
 	_respawn_due()
+	_step_objectives()
 	_send_snapshots()
 	_flush_events()
 	tick += 1
+
+
+## Stage 9 (architecture.md §8.3): hardpoint presence, tasks and ownership.
+func _step_objectives() -> void:
+	if objectives == null:
+		return
+	var sources: Array = []
+	for id in registry.ids():
+		var h := registry.get_node_by_id(id) as HeroBody
+		if h == null or h.combat == null:
+			continue
+		var src: PresenceSource = _hero_presence.get(id)
+		if src == null or src.node != h:
+			src = PresenceSource.for_node(h, h.combat.team, PresenceSource.HERO_WEIGHT, _alive_check(h))
+			src.is_hero = true
+			src.net_id = id
+			_hero_presence[id] = src
+		sources.append(src)
+	sources.append_array(_presence_sources)
+	objectives.step(dt, sources, tick)
+	for ev in objectives.events:
+		objective_event.emit(ev)
+
+
+static func _alive_check(h: HeroBody) -> Callable:
+	return func() -> bool: return is_instance_valid(h) and not h.combat.dead
 
 
 func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
@@ -110,6 +184,8 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		cmd.move = Vector2.ZERO
 		cmd.buttons = 0
 	h.step(cmd, dt)
+	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
+		wardlings.issue_command(h, cmd)
 	if c.dead or c.weapon == null:
 		return
 	# heroes.md §3.1: no firing while sprinting.
@@ -126,12 +202,20 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var origin := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
 	var fwd := Basis(Vector3.UP, h.look_yaw) * Basis(Vector3.RIGHT, h.look_pitch) * Vector3.FORWARD
 	var dirs := w.pellet_directions(fwd)
-	if targets.is_empty():
+	if targets.is_empty() and (wardlings == null or wardlings.wardlings.is_empty()):
 		return
 	var space := h.get_world_3d().direct_space_state
 	var per_target := {}  # net id -> [raw damage, flags, first point]
+	var per_wardling := {}  # WardlingSim -> [raw damage, first point]
 	for dir in dirs:
 		var hit := _tracer.trace(space, origin, dir, w.def.range_m, targets, cmd.view_tick, cmd.view_alpha)
+		if wardlings != null:
+			var wl := wardlings.trace_wardlings(origin, dir, hit.distance if hit.target != null else _tracer.last_limit, c.team)
+			if not wl.is_empty():
+				if not per_wardling.has(wl[0]):
+					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
+				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false, c.level)
+				continue
 		if hit.target == null:
 			continue
 		var raw := DamageMath.hit_damage(w.def, hit.distance, hit.headshot, c.level)
@@ -146,11 +230,30 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		var rec: Array = per_target[id]
 		var dmg_flags: int = DamageInfo.FLAG_HEADSHOT if (rec[1] & GameEvent.FLAG_HEADSHOT) != 0 else 0
 		var applied := target.combat.health.apply_damage(DamageInfo.make(rec[0], h.net_id, c.team, dmg_flags))
+		if applied > 0.0:
+			hero_damaged.emit(id, h.net_id, applied)
 		var ev_flags: int = rec[1]
 		if not target.combat.health.is_alive():
 			ev_flags |= GameEvent.FLAG_KILL
-			_kill(target, h)
+			_kill(target, h.net_id)
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(id, h.net_id, applied, ev_flags, rec[2]))
+	for wd in per_wardling:
+		var wrec: Array = per_wardling[wd]
+		var wapplied := wardlings.damage_wardling(wd, DamageInfo.make(wrec[0], h.net_id, c.team))
+		var wflags: int = GameEvent.FLAG_KILL if wd.dead else 0
+		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(wd.net_id, h.net_id, wapplied, wflags, wrec[1]))
+
+
+## E8: non-hitscan damage to a hero (Wardling bolts). Handles the kill.
+func damage_hero(target: HeroBody, info: DamageInfo) -> float:
+	if target.combat.dead:
+		return 0.0
+	var applied := target.combat.health.apply_damage(info)
+	if applied > 0.0:
+		hero_damaged.emit(target.net_id, info.source_net_id, applied)
+	if not target.combat.health.is_alive():
+		_kill(target, info.source_net_id)
+	return applied
 
 
 func _hurtable_enemies(team: int) -> Array[HeroBody]:
@@ -162,17 +265,19 @@ func _hurtable_enemies(team: int) -> Array[HeroBody]:
 	return out
 
 
-func _kill(victim: HeroBody, killer: HeroBody) -> void:
+func _kill(victim: HeroBody, killer_id: int) -> void:
 	var c := victim.combat
 	c.dead = true
 	c.deaths += 1
-	killer.combat.kills += 1
+	var killer := hero(killer_id)
+	if killer != null:
+		killer.combat.kills += 1
 	c.respawn_tick = tick + RespawnSystem.respawn_ticks(rules, tick, net.tick_rate_hz)
 	victim.collision_layer = 0  # corpses do not block
-	var ev := GameEvent.kill(victim.net_id, killer.net_id, victim.state.position)
+	var ev := GameEvent.kill(victim.net_id, killer_id, victim.state.position)
 	for peer in session.clients:
 		_queue_event(peer, ev)
-	hero_died.emit(victim.net_id, killer.net_id)
+	hero_died.emit(victim.net_id, killer_id)
 
 
 func _respawn_due() -> void:
@@ -181,7 +286,7 @@ func _respawn_due() -> void:
 		if h == null or not h.combat.dead or tick < h.combat.respawn_tick:
 			continue
 		var fresh := MotorState.new()
-		fresh.position = team_spawn(h.combat.team, h.combat.home_spawn)
+		fresh.position = h.combat.home_spawn if _respawns_at_home(h) else team_spawn(h.combat.team, h.combat.home_spawn)
 		h.state.copy_from(fresh)
 		h.collision_layer = HeroBody.LAYER_HEROES
 		h.motor.restore(h.state)
@@ -189,9 +294,18 @@ func _respawn_due() -> void:
 		hero_respawned.emit(id)
 
 
+## Debug: scripted dummies flagged respawn_at_home come back where they started.
+func _respawns_at_home(h: HeroBody) -> bool:
+	for d in _dummies:
+		if d[0] == h:
+			return (d[1] as ScriptedInputSource).respawn_at_home
+	return false
+
+
 func _spawn_hero(spawn: Vector3, def: HeroDef, team: int) -> HeroBody:
 	var h := HeroBody.new()
 	h.setup(def.movement_for(movement), spawn, true)
+	h.collision_mask |= WardlingSim.layer_for_team(1 - team)  # E8: enemy Wardlings body-block
 	add_child(h)
 	h.place()
 	h.net_id = registry.register(h, EntityRegistry.KIND_HERO, tick)
@@ -201,7 +315,8 @@ func _spawn_hero(spawn: Vector3, def: HeroDef, team: int) -> HeroBody:
 
 
 func _on_client_joined(peer_id: int) -> void:
-	var h := _spawn_hero(spawn_point(PLAYER_SPAWN), player_hero, TEAM_PLAYERS)
+	var at: Vector3 = debug_player_spawn if debug_player_spawn != null else spawn_point(PLAYER_SPAWN)
+	var h := _spawn_hero(at, player_hero, TEAM_PLAYERS)
 	_humans[peer_id] = h
 	_peer_of[h.net_id] = peer_id
 	session.accept(peer_id, h.net_id, tick)
@@ -228,6 +343,8 @@ func _send_snapshots() -> void:
 	var entities: Array[SnapshotData.EntityState] = []
 	for id in registry.ids():
 		var h := registry.get_node_by_id(id) as HeroBody
+		if h == null:
+			continue  # Wardlings go in their own compact block
 		var e := SnapshotData.EntityState.new()
 		e.net_id = id
 		e.kind = registry.kind_of(id)
@@ -253,7 +370,28 @@ func _send_snapshots() -> void:
 			s.own_state = own.state
 			s.own_combat = _own_combat(own.combat)
 		s.entities = entities
+		_fill_objectives(s)
+		if wardlings != null:
+			wardlings.write_snapshot(s)
 		session.send_snapshot(peer, s)
+
+
+func _fill_objectives(s: SnapshotData) -> void:
+	if objectives == null:
+		return
+	for h in objectives.all:
+		var st := SnapshotData.HardpointState.new()
+		st.owner = h.owner
+		st.progress = h.progress
+		st.capturing_team = h.capturing_team
+		st.contested = h.contested
+		st.overtime = h.overtime_left > 0.0
+		st.severed = h.severed
+		st.locked = [h.locked_for(0), h.locked_for(1)]
+		s.hardpoints.append(st)
+	for lane in objectives.lanes.size():
+		for team in 2:
+			s.fronts.append(objectives.front.front_for(team, lane))
 
 
 static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:

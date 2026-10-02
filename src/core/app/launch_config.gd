@@ -10,6 +10,8 @@ extends RefCounted
 ##   ... -- --hero brannoc                       -> play hero_brannoc.tres (also --hero=brannoc)
 ##   ... -- --autofire                           -> debug: the local client aims and fires at
 ##                                                  the nearest enemy (evidence captures)
+##   ... -- --map slice --debug-capture s_mid    -> debug: spawn inside that hardpoint's zone,
+##                                                  which starts mid-capture (E7 evidence)
 
 enum Mode { OFFLINE, DEDICATED }
 
@@ -21,6 +23,9 @@ var map_name: String = ""
 ## Hero id suffix (assets/data/heroes/hero_<id>.tres); "" = session default.
 var hero_id: String = ""
 var autofire: bool = false
+## Debug: hardpoint id to start in, mid-capture ("" = off).
+var debug_capture: String = ""
+var debug_capture_progress: float = 0.45
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -38,6 +43,10 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.net_sim_name = args[i].validate_filename()
 			"--autofire":
 				c.autofire = true
+			"--debug-capture":
+				if i + 1 < args.size():
+					i += 1
+					c.debug_capture = args[i].validate_filename()
 			"--hero":
 				if i + 1 < args.size():
 					i += 1

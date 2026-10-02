@@ -10,6 +10,8 @@ extends Node3D
 signal hit_confirmed(event: GameEvent)
 ## Someone died (kill feed later; HUD uses it for the own death).
 signal kill_received(event: GameEvent)
+## E7: a replicated hardpoint changed owner (index into hardpoint_defs()).
+signal hardpoint_owner_changed(index: int, old_team: int, new_team: int)
 
 var net: NetConfig
 var movement: MovementDef
@@ -26,6 +28,14 @@ var player_input: PlayerInputSource
 var client_seq: int = 0
 ## Render-time estimate of the server tick (fractional).
 var server_tick_estimate: float = 0.0
+
+## E7: map layout (null = no objectives), replicated hardpoint states (lane-major,
+## same order as hardpoint_defs()) and lane fronts ([concord, syndicate] per lane).
+var map_def: MapDef
+var hardpoints: Array[SnapshotData.HardpointState] = []
+var fronts: PackedInt32Array = PackedInt32Array()
+var _hp_defs: Array[HardpointDef] = []
+var _hp_views: Array[HardpointView] = []
 
 var _views: Dictionary = {}  # net id -> HeroView
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
@@ -48,6 +58,42 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	session.snapshot_received.connect(_on_snapshot)
 	session.event_received.connect(_on_event)
 	session.connect_to_server()
+
+
+## E7: builds the hardpoint views from `md` (null = none).
+func setup_objectives(md: MapDef) -> void:
+	map_def = md
+	if md == null:
+		return
+	for lane in md.lanes:
+		for d in lane.hardpoints:
+			_hp_defs.append(d)
+			var v := HardpointView.new()
+			v.setup(d)
+			add_child(v)
+			_hp_views.append(v)
+
+
+func hardpoint_defs() -> Array[HardpointDef]:
+	return _hp_defs
+
+
+## Team of the local player (offline: always the player team).
+func own_team() -> int:
+	return ServerWorld.TEAM_PLAYERS
+
+
+## Index of the hardpoint whose zone holds the predicted own hero, or -1.
+func own_hardpoint_index() -> int:
+	if body == null:
+		return -1
+	var p := body.state.position
+	for i in _hp_defs.size():
+		var d := _hp_defs[i]
+		if p.y >= d.position.y - 1.0 and p.y <= d.position.y + d.zone_height \
+				and Vector2(p.x - d.position.x, p.z - d.position.z).length() <= d.zone_radius:
+			return i
+	return -1
 
 
 ## One client tick: sample input, predict, send.
@@ -121,6 +167,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_spawn_own(s.own_state)
 		else:
 			_visual_offset += predictor.reconcile(s.own_state, s.last_processed_seq)
+	_apply_objectives(s)
 	var seen := {}
 	for e in s.entities:
 		if e.net_id == s.own_net_id:
@@ -138,6 +185,19 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_views[id].queue_free()
 			_views.erase(id)
 			_buffers.erase(id)
+
+
+func _apply_objectives(s: SnapshotData) -> void:
+	if s.hardpoints.is_empty():
+		return
+	fronts = s.fronts
+	for i in s.hardpoints.size():
+		var st := s.hardpoints[i]
+		if i < hardpoints.size() and hardpoints[i].owner != st.owner:
+			hardpoint_owner_changed.emit(i, hardpoints[i].owner, st.owner)
+		if i < _hp_views.size():
+			_hp_views[i].apply(st)
+	hardpoints = s.hardpoints
 
 
 func _spawn_own(state: MotorState) -> void:

@@ -157,8 +157,11 @@ func _build_materials() -> void:
 	mats.socket = _mat(Color(0.95, 0.8, 0.25), 0.4, 0.55, true)
 	for key in ["a", "b", "n"]:
 		var c: Color = AZURE if key == "a" else (EMBER if key == "b" else NEUTRAL)
-		mats["team_" + key] = _mat(c, 1.5)
-		mats["glow_" + key] = _mat(c, 2.5, 0.55, true)
+		# Unshaded, no emission: an HDR emission boost clips the red channel first
+		# and shifts ember (#FF5A1F) to yellow and azure to cyan on screen.
+		# Flat unshaded keeps the art-bible team hues exact (art-bible.md §4).
+		mats["team_" + key] = _mat(c, 0.0, 1.0, true)
+		mats["glow_" + key] = _mat(c, 0.0, 0.7, true)
 		mats["decal_" + key] = _mat(c, 0.0, 0.16, true)
 
 

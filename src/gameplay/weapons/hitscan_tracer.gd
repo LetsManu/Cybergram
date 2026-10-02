@@ -20,6 +20,8 @@ class Pose:
 	var feet: Vector3
 	var y_scale: float = 1.0
 
+## Static-world limit of the last trace (wall distance, or max_range).
+var last_limit: float = 0.0
 var _query := PhysicsRayQueryParameters3D.new()
 var _pose_scratch := Pose.new()
 
@@ -41,6 +43,7 @@ func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, max_
 		var r := space.intersect_ray(_query)
 		if not r.is_empty():
 			limit = origin.distance_to(r.position)
+	last_limit = limit
 	for h in targets:
 		var pose := _pose(h, view_tick, view_alpha)
 		var d: HeroDef = h.combat.def

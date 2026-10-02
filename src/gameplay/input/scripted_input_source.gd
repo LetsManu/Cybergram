@@ -5,10 +5,14 @@ extends RefCounted
 ## emit InputCommands the same way from src/ai.
 
 var def: ScriptedInputDef
+## Debug: ServerWorld respawns this source's hero at its own spawn point instead
+## of its team's HQ (keeps test/evidence dummies near where they started).
+var respawn_at_home: bool = false
 
 
 func _init(d: ScriptedInputDef) -> void:
 	def = d
+	respawn_at_home = d.respawn_at_home
 
 
 ## Fills `out` for tick `seq` (already quantized).

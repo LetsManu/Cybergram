@@ -5,6 +5,7 @@ extends RefCounted
 ## after release, so late packets never address a new entity.
 
 const KIND_HERO: int = 1
+const KIND_WARDLING: int = 2
 const MAX_NET_ID: int = 65535
 
 var _nodes: Dictionary = {}   # net id -> Node

@@ -34,6 +34,9 @@ const LOCAL_CLIENT_PEER: int = 2
 ## Respawn rules (null = DEFAULT_MATCH_RULES).
 @export var match_rules: MatchRulesDef
 
+## Map layout (hardpoints, E7). Set by --map; null = no objectives.
+@export var map_def: MapDef
+
 ## Set by AppRoot before _ready (core LaunchConfig; duck-typed fields used).
 var launch_config: LaunchConfig
 var server: ServerWorld
@@ -52,9 +55,10 @@ func _ready() -> void:
 		if launch_config.net_sim_name != "":
 			net_sim = load(NET_SIM_PATH % launch_config.net_sim_name) as NetSimProfile
 		if launch_config.map_name != "":
-			var map_def := load(MAP_DEF_PATH % launch_config.map_name) as MapDef
-			if map_def != null and map_def.scene != null:
-				map_scene = map_def.scene
+			var md := load(MAP_DEF_PATH % launch_config.map_name) as MapDef
+			if md != null and md.scene != null:
+				map_def = md
+				map_scene = md.scene
 		if launch_config.hero_id != "" and ResourceLoader.exists(HERO_PATH % launch_config.hero_id):
 			player_hero = load(HERO_PATH % launch_config.hero_id) as HeroDef
 	if player_hero == null:
@@ -79,6 +83,8 @@ func _ready() -> void:
 		add_child(vp)
 		vp.add_child(server)
 	server.setup(net_config, movement, map_scene, link.create_endpoint(SERVER_PEER), player_hero, match_rules)
+	server.setup_objectives(map_def)
+	_apply_debug_capture()
 	for i in dummy_inputs.size():
 		server.add_scripted_hero(ScriptedInputSource.new(dummy_inputs[i]), server.spawn_point("DummySpawn%d" % (i + 1)),
 			dummy_heroes[i % dummy_heroes.size()] as HeroDef)
@@ -95,6 +101,20 @@ func _ready() -> void:
 			source = input
 		client.setup(net_config, movement, look, map_scene, link.create_endpoint(LOCAL_CLIENT_PEER), source,
 			player_hero)
+		client.setup_objectives(map_def)
+
+
+## --debug-capture <hardpoint id>: the local player spawns inside that zone and
+## the hardpoint starts mid-capture for the player's team (evidence captures).
+func _apply_debug_capture() -> void:
+	if launch_config == null or launch_config.debug_capture == "" or server.objectives == null:
+		return
+	var h := server.objectives.find(StringName(launch_config.debug_capture))
+	if h == null:
+		return
+	var toward_home := Vector3(0.0, 0.05, h.def.zone_radius * 0.5)
+	server.debug_player_spawn = h.def.position + toward_home
+	server.objectives.debug_set_progress(h.def.id, ServerWorld.TEAM_PLAYERS, launch_config.debug_capture_progress)
 
 
 func _physics_process(delta: float) -> void:
