@@ -130,9 +130,9 @@ Crystal families (§7) may tint the core band, never the rim.
 
 | Token | Hex | Use | Never use for |
 | --- | --- | --- | --- |
-| `heal_verdant` | `#4CE38A` | Healing, Mender, Verdant crystals | Team identity |
-| `crit_solar` | `#FFD447` | Weak-spot hits, Solar crystals, Lumen currency | Ally/enemy |
-| `aether_violet` | `#B07CFF` | Aether crystals, skill points, Resonance/level | Neutral ownership (that's `leyfall_violet`, desaturated) |
+| `heal_verdant` | `#4CE38A` | Healing, Mender, heal numbers | Team identity |
+| `crit_solar` | `#FFD447` | Weak-spot hits, critical hit markers | Ally/enemy |
+| `aether_violet` | `#B07CFF` | Skill points, Resonance/level | Neutral ownership (that's `leyfall_violet`, desaturated) |
 | `warning_white` | `#FFFFFF` + black stroke | Danger telegraph cores, low-HP pulses | Decoration |
 | `lumen_gold` | `#FFC93C` | Money pickups and HUD | — |
 
@@ -190,8 +190,8 @@ Coblis/Color Oracle simulation on the five test screenshots listed in §11.6.
 coat split into ribbon-tails at the back. The hook is a **floating "Loom halo"**: four
 spindle-arms hovering behind the shoulders in a semicircle, linked to the fingers by thin
 glowing threads that pull taut when she commands. Inverted-triangle torso (wide collar,
-narrow waist), long legs. Her gun, the *Loomcaster*, is a long-barrelled mana carbine with a
-spindle drum instead of a magazine. Her ultimate makes the halo flare open to eight spindles,
+narrow waist), long legs. Her gun, the *Threadcaster*, is a long-barrelled semi-auto mana carbine
+with a spindle drum as its conduit. Her ultimate makes the halo flare open to eight spindles,
 so the threat is visible from across a lane before the Wardlings change.
 
 **Sable — Infiltrator (Mana).** The smallest hero (1.70 m), always in a forward-leaning
@@ -206,28 +206,29 @@ her team colour, so stealth is never fully invisible to an attentive enemy.
 tool-pack** taller than her head, with a cable spool wheel on one side and a folded
 mine-launcher arm on the other: a top-heavy box on slim legs. Brass goggles pushed up into
 a messy bun stuck with quill-darts (the tripwire anchors). Utility belt of trap
-canisters, each with a stripe for its type. Weapon: the *Quillgun*, a lever-action dart
-rifle with a box magazine and a visible spool feeding tripwire line; chips mount on the side rail.
+canisters, each with a stripe for its type. Weapon: the *Tackhammer*, a semi-auto rail-tack
+rifle with a box magazine and a visible spool feeding tripwire line along the frame.
 
 **Ryker Vance — Soldier (Mechanical).** The baseline every other hero is measured against: an
 upright V-taper in light combat armour. The hook is a **single oversized left pauldron**
 with a rising antenna fin, plus a closed helmet with a horizontal visor bar. A grenade
-bandolier crosses the chest diagonally. Weapon: a bulky bullpup assault rifle with a top rail
-and a big drum-housing that carries the chip rack; it is the most "classic gun" in the cast
+bandolier crosses the chest diagonally. Weapon: the *Vanguard AR-7*, a bulky full-auto rifle with a top
+rail and a big receiver that carries the chip rack; it is the most "classic gun" in the cast
 so new players have an anchor.
 
 **Brannoc — Tank (Mechanical).** 2.2 m, the widest silhouette in the game: a block of plate
 armour with a small head sunk between huge square shoulders. The hook is the **right arm
 shield generator**, a slab-shaped forearm emitter that unfolds into the shield wall,
 making him visibly asymmetric. A furnace vent on the back glows (team colour) and breathes
-heat. Weapon: the *Bellows*, a short, fat, four-barrel scattergun held low at the hip. He
+heat. Weapon: the *Ironmaw*, a short, fat pump scattergun with a jaw-shaped
+muzzle, held low at the hip. He
 walks with a heavy, grounded gait so his tankiness reads in motion too.
 
 **Liora Vale — Healer (Mana).** Built from circles: a flowing round-hemmed long coat, very
 long hair in a loose ribbon, soft rounded armour. The hook is a **halo ring** orbiting her
 back at shoulder height, carrying two docked Med-Pack drones like lantern beads; when she
-throws one, the ring visibly has a gap until it recharges. Weapon: the *Lantern*, a mana rifle
-with a glass bulb chamber, which fires bolts and projects her green-core heal beam.
+throws one, the ring visibly has a gap until it recharges. Weapon: the *Halo Repeater*, a
+full-auto mana rifle with a glass bulb conduit that fires slow, glowing bolts.
 
 **Hex — Hacker (Mana).** A slouched, hunched figure in an oversized hoodie with a
 **cat-ear headset** whose antennae stick up past the hood, giving a horned square silhouette.
@@ -242,24 +243,33 @@ offset hex rings that visibly misalign when firing.
 two short legs that hover-skip, a single visor eye, and a **mana core** in the chest that is
 visible from front and back (the core is the team-colour signal; it pulses when the Wardling
 takes damage). Faction skin: Concord = white porcelain shell + gold trim; Syndicate = black
-iron shell + brass rivets. Each bound Wardling shows a small number glyph (1–5) above it to
-its owner only, matching the HUD squad strip.
+iron shell + brass rivets. Each bound Wardling shows a small slot-number glyph (1–7; Vesper
+carries up to 7) above it to its owner only, matching the HUD squad strip.
 
 | Variant | Shape hook | Height | Behaviour read |
 | --- | --- | --- | --- |
-| **Wardling** (base) | Round shell, single eye | 0.9 m | Neutral idle bob |
-| **Shieldling** | Wide slab shield on front arm, square stance | 0.9 m, 1.2× wider | Shield faces the threat |
-| **Striker** | Forward-leaning, spike lance arm, triangular head fin | 1.0 m | Lunging posture |
-| **Mender** | Round body with a small halo ring, green core band | 0.85 m | Floats higher, soft bob |
-| **Sentinel** (garrison only) | Tripod turret-construct anchored to the hardpoint plinth | 1.4 m | Never moves; rotates head only |
+| **Picket** (free default) | Round shell, single crystal eye, short back fin | 0.9 m | Neutral idle bob |
+| **Shieldling** | Large slab shield on the front arm, hunched square stance | 0.9 m, 1.2× wider | Shield faces the threat |
+| **Striker** | Forward lean, long barrel arm, triangular head fin | 1.0 m | Lunging posture |
+| **Seeker** | Antenna crest + sweeping scan-light cone (white, 12 m) | 0.95 m | Head turns constantly; scan sweep every 0.5 s |
+| **Mender** | Round body, floating halo, green tether beam to its heal target | 0.85 m | Floats higher, soft bob |
+| **Sapper** | Backpack charge + drill arm | 0.9 m | Drill spins up near Barricades/Generators |
+| **Sentinel** (Garrison only) | Tripod turret-construct anchored to the hardpoint plinth | 1.4 m | Never moves; rotates head only |
+
+Variant names and traits are owned by `wardlings-and-economy.md` §5; silhouettes above match its
+"silhouette tell" column. Squad upgrades have tells per its §6 (plating rim / full plating for
+Reinforced Cores, brighter muzzle for Overclock Emitters, owner-colour trail for Harmonic Tether,
+small ground shield in Hold for Bulwark Protocol).
 
 **Tiers (Surge I/II, C15):** each tier adds silhouette, not just glow.
 
 | Tier | Additions | Core | Scale |
 | --- | --- | --- | --- |
-| I | Bare shell | Single core, soft pulse | 1.0 |
-| II | Shoulder armour plates + one head crest fin | Core ringed by a bright band | 1.08 |
-| III | Crown of three crystal shards over the head + short trailing mana ribbon | Core white-hot with team rim, faint bloom | 1.15 |
+| I | Bare shell, 1 tier pip on the back fin | Single core, soft pulse | 1.0 |
+| II | Shoulder armour plates + head crest, 2 pips | Core ringed by a bright band | 1.08 |
+| III | Crown of three crystal shards over the head + short trailing mana ribbon, 3 pips | Core white-hot with team rim, faint bloom | 1.15 |
+
+A Surge upgrades every living Wardling in place with a 3 s invulnerable morph and a crystal-bloom VFX (`match-flow-and-map.md` §3.1).
 
 ### 5.4 Three Kinds of Wardling — Personal, Vanguard, Garrison
 
@@ -269,8 +279,8 @@ All three are team-coloured; their *ownership class* must read as fast as their 
 
 | Class | Shell & markings | Core | Head marker | Movement read |
 | --- | --- | --- | --- | --- |
-| **Personal squad** | Faction shell + a **bright owner band** (a ribbon-sash in team colour around the torso) | Team colour, soft pulse | To the owner: number glyph 1–5. To allies: owner's hero icon (tiny). To enemies: nothing extra | Loose cluster near a hero, hover-skip |
-| **Vanguard** | Faction shell with **no sash**; instead a **tall banner-fin on the back** (a narrow pennant, 0.4 m, team colour with the faction glyph) and a single shoulder stripe | Team colour, **steady** (no pulse) | Lane-letter glyph (N / C / S) to allies only | **Marching formation**: a 2×2 block walking in step along the lane, pennants aligned — the formation itself is the read |
+| **Personal squad** | Faction shell + a **bright owner band** (a ribbon-sash in team colour around the torso); for the owner only, a 1 px owner-accent outline and 0.6 m ground ring (`wardlings-and-economy.md` §7) | Team colour, soft pulse | To the owner: slot number 1–7. To allies: owner's hero icon (tiny). To enemies: nothing extra | Loose cluster near a hero, hover-skip |
+| **Vanguard** | Faction shell with **no sash**; instead a **pennant pole rising 0.4 m above the back fin** (narrow flag, team colour with the faction glyph; tier pips stay on the fin below it) and a single shoulder stripe | Team colour, **steady** (no pulse) | Lane-letter glyph (N / C / S) to allies only | **Marching formation**: a 2×2 block walking in step along the lane, pennants aligned — the formation itself is the read |
 | **Garrison Sentinel** | Tripod turret, no legs, anchored | Team colour, slow rotate | None | Static on hardpoint sockets |
 
 - The **pennant** is the Vanguard's silhouette hook: no personal Wardling or Sentinel ever
@@ -296,8 +306,10 @@ strength) and **allies** (50% opacity); enemies see none of them except Attack T
 
 **Vesper's rewritten elites:** shell gains gold thread-lines and a second floating
 spindle above the head; enemy Wardlings she turns show their original faction shell with the
-core flipped to her team colour, wrapped in a visible thread tether back to her, with a glitch
-flicker so ownership change is obvious.
+core flipped to her team colour, wrapped in a visible thread tether back to her and a violet `leyfall_violet` ring under their
+feet (the "Turned" icon colour in `wardlings-and-economy.md`), with a glitch flicker so the
+ownership change is obvious. Elite scale follows `heroes.md` (×1.3) — note `wardlings-and-economy.md`
+says ×1.15; the art rig supports either (§15 A7).
 
 ---
 
@@ -317,9 +329,11 @@ local light colour swap to the new owner over 1.5 s.
 
 | Lane | Biome dressing | Landmark |
 | --- | --- | --- |
-| **North** | High spire-district: narrow causeways, wind banners, aerial trams overhead | A broken crystal colossus at North Mid |
-| **Center** | Market arcology: arcades, holo-signs (dim, non-signal colours), covered streets | The Mid Plaza crystal fountain (Sudden Death arena) |
-| **South** | Industrial docks: cranes, mana pipelines, cargo pods | A tilted sky-freighter wreck at South Mid |
+| **North** | High spire-district: bridges over the Leyfall, wind banners, gatehouses | **Belfry Ruin** (N-Mid), a ruined crystal bell tower; Lattice Bridge / Rivet Span (the 90 m sightline) |
+| **Center** | Market arcology: stalls, awnings, holo-signs (dim, non-signal colours), indoor atria | **The Spindle** (C-Mid), a raised dais in Mid Plaza (Sudden Death arena) |
+| **South** | Industrial docks: docked skiffs, canal locks, mana pipelines, shallow mana-water | **Leyfall Pumpworks** (S-Mid), a two-level pump hall |
+
+Hardpoint names, positions and the "Shardline Front" layout are owned by `match-flow-and-map.md` §3.2–3.3.
 
 Rule: every lane must be identifiable from any screenshot in it, through a landmark plus a
 dominant prop family; floor colour stays neutral `halcyra_stone` so characters pop. Flank
@@ -378,77 +392,107 @@ case with a workbench where the gun-socketing animation plays).
 
 ## 7. Weapon Art & the Visible Upgrade System
 
-Visible weapon growth is the owner's top visual request (`/ideas`) and Pillar 4. Every
-hero weapon is built around a standard **three-mount layout** so the shop UI, the viewmodel and the
-third-person model all use the same sockets.
+Visible weapon growth is the owner's top visual request (`/ideas`) and Pillar 4. Rules,
+lines, prices and tiers are owned by `design/gdd/weapons-and-mods.md` (§3.6–3.8); this
+section owns how they **look**. Every weapon uses the same four mounts, and mount meshes are
+shared per line (placed by per-weapon scale/offset presets), so art cost is *lines × tiers*,
+not *lines × tiers × weapons*.
 
-### 7.1 Mount Layout (all guns)
+### 7.1 Mount Layout (all 7 weapons)
 
-| Mount | Position | Visible in FP view | Visible in 3P view |
+| Socket (marker) | Position | Visible in FP view | Changes |
 | --- | --- | --- | --- |
-| `SOCKET_core` | Top of receiver, just ahead of the sight | Always (centre-bottom of screen) | Yes, top of gun |
-| `SOCKET_muzzle` | Around/under the barrel tip | Yes, changes muzzle flash | Yes, leading tip |
-| `SOCKET_side` | Camera-facing side of receiver (left side for right-hand viewmodels) | Yes | Yes, side profile |
+| **Core** (`socket_core`) | Top/heart of the receiver, just ahead of the sight | Always (centre-bottom of screen) | The gun's idle glow; muzzle flash takes the line's family hue |
+| **Barrel** (`socket_barrel`) | Muzzle and barrel shroud | Yes, the leading tip | Lens rings (Crystal) or shroud/rail (Chip); ring count = tier; tracer length/shape |
+| **Frame** (`socket_frame`) | Grip, stock and camera-facing side plates | Yes, left edge | Side crystals pulse during mana regen (pulse speed = regen rate) / stock LED counter = rounds left |
+| **Chamber** (`socket_chamber`) | Mana conduit (Mana) / magazine window (Mech) | Yes | Conduit glow / tinted rounds = loaded **Ammo Type**; Ammo Mod adds a small rune/cap on the conduit or mag base |
 
-Empty mounts are visible as open brass/silver claws (mana guns) or empty chip slots with a dark
-LED (mechanical guns), so players see what they *could* buy.
+Empty sockets are visible as open brass claws (Mana) or empty chip slots with a dark LED
+(Mechanical), so players see what they *could* buy. Third-person mount meshes are scaled
+1.3× relative to the viewmodel (a standard cheat so they survive distance).
 
-### 7.2 Crystals (Mana guns)
+### 7.2 Crystals (Mana guns: Halo Repeater, Threadcaster, Whisperfang, Glitchcaster)
 
-- Crystals are physical, faceted, emissive meshes gripped by claw mounts, with a shared
-  shader (`spatial_fx_crystal`): interior parallax glow, fresnel rim in team colour, core band in
-  the crystal family colour, slow internal swirl.
-- **Families:** the core-band hue and the *cut shape* both identify a family (shape is the
-  colour-blind backup). Stat mapping belongs to the economy/weapon GDDs; the visual family
-  is fixed here.
+- Physical, faceted, emissive meshes gripped by claw mounts, all using `spatial_fx_crystal`:
+  interior parallax glow, fresnel rim, **core band in the line's family hue**, slow internal swirl.
+- **Family hue never sits in a team range.** Exclusion zones: azure 195°–235°, ember 0°–25°
+  (HSV hue). The GDD hues map to these tokens: amber `#FFB534` (≈40°), violet `#A970FF`,
+  white `#F4F1FF`, green `#57E07F`, teal-green `#2FD3A0` (≈160°), magenta `#F24FD0`.
+- **Each line also has a cut shape** (the colour-blind backup), so two amber lines never look alike:
 
-| Family | Cut shape | Core band | Muzzle change when mounted at `SOCKET_muzzle` |
-| --- | --- | --- | --- |
-| **Solar** | Long single spike | Gold `crit_solar` | Star-burst flash with a long forward spike; tracer gains a thin gold core |
-| **Verdant** | Rounded cluster of 3 nubs | Green `heal_verdant` | Petal-shaped flash; soft leaf motes on impacts |
-| **Aether** | Twisted double-point | Violet `aether_violet` | Spiral ring flash; projectiles leave a corkscrew trail |
-| **Prism** | Faceted orb | White iridescent | Hexagonal lens flash; impacts refract into 3 small sparks |
-
-A crystal in `SOCKET_core` changes the gun's ambient idle glow and the sight reticle tint;
-a crystal in `SOCKET_side` adds a slow orbiting mote around the receiver. Muzzle crystals own
-the flash shape; if no muzzle crystal is mounted, the hero's default flash is used.
-
-- **Socketing moment:** when bought, the crystal flies into the mount, the claws clamp with a
-  metallic "chk", a ring of light runs along the barrel, and the next shot plays a
-  one-off brighter flash. (Same animation drives the Armory turntable preview.)
-
-### 7.3 Chips (Mechanical guns)
-
-- Chips are cartridge-like cards slotted into a **chip rack** with an LED strip; the gun also
-  gets one physical module per chip family so the change is a silhouette, not only an LED.
-
-| Family | Card colour + icon | Physical module added to the gun |
+| Line (socket) | Cut shape | Hue |
 | --- | --- | --- |
-| **Overclock** | Gold card, lightning glyph | Heat-sink fins on the barrel shroud, glow orange-hot when firing |
-| **Stabilizer** | Steel card, crosshair glyph | Muzzle brake / compensator with side ports |
-| **Feeder** | Green card, stacked-bars glyph | Extended / drum magazine housing |
-| **Targeting** | Violet card, eye glyph | Holo-sight module projecting a small lens above the rail |
+| Ember Heart (Core) | Heart-shaped twin-lobe crystal | amber |
+| Tempest Shard (Core) | Jagged lightning spike | violet |
+| Prism Eye (Core) | Faceted orb with a pupil-like inner facet | white |
+| Wellspring (Core) | Droplet with a rising bubble mote | green |
+| Focus Lens (Barrel) | Flat lens rings | white |
+| Stillwater Ring (Barrel) | Smooth torus rings | teal-green |
+| Velocity Facet (Barrel) | Swept arrow-head facets | magenta |
+| Reservoir (Frame) | Capsule vials along the side plate | green |
+| Flux Coil (Frame) | Helix crystal wrapped around the grip | violet |
+| Anchor Crystal (Frame) | Squat hexagonal blocks on the stock | amber |
+
+- **Socketing moment:** on purchase the crystal flies into its claw mount, the claws clamp with a
+  metallic "chk", a ring of light runs down the barrel, and the next shot plays a one-off
+  brighter flash. The same animation drives the Armory turntable preview (HUD doc §10).
+- Mana state is diegetic: crystal glow tracks the current pool %, and **Burnout** turns every
+  crystal dark grey with a crackle of sparks until regen starts.
+
+### 7.3 Chips (Mechanical guns: Vanguard AR-7, Ironmaw, Tackhammer)
+
+Chips are cartridge-like cards slotted into a **chip rack** with an LED strip; every line also adds
+a physical module so the change is a silhouette, not just an LED.
+
+| Line (socket) | Card glyph | Physical module |
+| --- | --- | --- |
+| Overclock (Core) | Lightning | Heat-sink fins on the receiver; glow orange-hot while firing (3 fins at Mk III) |
+| Cyclic Governor (Core) | Spinning gear | Exposed spinning flywheel |
+| Ballistic Solver (Core) | Crosshair | Small computer housing with a lens above the rail |
+| Feedback Loop (Core) | Circular arrows | Looped cable from receiver to magazine |
+| Rifling (Barrel) | Spiral | Lengthened barrel shroud with spiral grooves |
+| Stabilizer (Barrel) | Level bars | Muzzle brake with side ports |
+| Penetrator (Barrel) | Arrow through plate | Spiked muzzle tip |
+| Extended Mag (Frame) | Stacked bars | Longer / drum magazine housing |
+| Quickload (Frame) | Double chevron | Spring-loaded mag guide flared at the well |
+| Gyro (Frame) | Gyroscope | Gyroscope ring on the stock that spins while firing |
 
 ### 7.4 Tiers and the FPS-Distance Read
 
+Tier names per GDD: Crystals **Shard / Facet / Heart**, Chips **Mk I / Mk II / Mk III**. Tiers
+read by **size, facet/fin count, glow and idle animation**, never by colour.
+
 | Tier | Crystal | Chip | 3P read at 20–40 m |
 | --- | --- | --- | --- |
-| I | Small shard (4 cm), dim glow | Flat card, 1 LED | Mount looks filled; no bloom |
-| II | Cluster with 2 sub-shards + 1 orbiting mote | Gold-edged card, 2 LEDs, tiny fan spins | Visibly larger; faint bloom on mana; module grows 1 step |
-| III | Large crystal piercing out of the mount + floating halo ring + sparse particles | Card projects a holo-glyph above it; coolant glow lines run along the gun | Halo/holo shape visible at 40 m; muzzle flash enlarged 25% |
+| I | Thumb-size shard, low glow | Single card, 1 LED | Socket looks filled; no bloom |
+| II | Twin facets + 1–2 orbiting motes, slow pulse | Card + heat-sink fins + LED strip | Visibly larger; faint bloom (Mana) |
+| III | Large heart crystal with a floating halo ring and sparse particles | Full module, exposed core, moving parts | Halo/moving module adds ≥ 15 cm of silhouette, readable at 40 m |
 
-**Distance rules:** at > 25 m only the *count of lit mounts* and *Tier III halos* need to
-read; we guarantee this by making Tier III add ≥ 15 cm of silhouette. On the third-person gun,
-crystal and chip meshes are scaled 1.3× relative to the viewmodel (a standard cheat so they
-survive distance). The killer's mounts are shown on the death recap (HUD doc §8), so players
-learn the read.
+- Core Tier III adds a **halo-ring muzzle flash every 5th shot** (every shot on Ironmaw and Tackhammer, per GDD).
+- At > 25 m we only guarantee the read of *how many sockets are filled* and *which are Tier III*;
+  finer detail comes from the scoreboard build icons and the death recap (HUD doc §7, §11).
+- Acceptance (from GDD): QA can identify each socket's tier from 20 m in third person on a **greyscale** screenshot.
+- Cosmetic VFX unlocks may recolour Core/Barrel/Frame family hues only; tier size/glow and
+  ammo-type impact VFX are gameplay information and never recolourable.
 
-### 7.5 Ammo Types (`/ideas`)
+### 7.5 Ammo Types and Mods (Chamber)
 
-Ammo types show on the magazine (a coloured stripe + icon band on the mag/mana cell) and as a
-**tracer pattern**, never hue alone: Standard = solid tracer; Piercing = long thin dashes;
-Shredder = double parallel tracer; Arc = zig-zag micro-lightning. Mana guns show ammo type as a
-pattern etched into the projectile core.
+Ammo type is the strongest channel for the **victim**, so it gets hue + tracer pattern + impact shape.
+The team colour stays on the projectile's outer rim; the ammo type owns its core and impact.
+
+| Ammo Type (Mana: Infusion / Mech: Round) | Core hue | Tracer pattern | Impact shape | Status icon |
+| --- | --- | --- | --- | --- |
+| Standard | White | Solid | Small spark/puff | — |
+| Piercing | Silver | Long thin needle dashes | Exit-hole spike | Broken shield |
+| Incendiary | Amber | Flickering flame flecks | Ember splash + lingering flame on target (Burn/Scorched) | Flame |
+| Shock | Violet | Zig-zag micro-arcs | Arc jump to nearby targets (Overload) | Lightning |
+| Siphon | Green | Spiral that curls back toward the shooter | Motes flowing to shooter | Droplet |
+| Cryo | Frost white (desaturated, never azure) | Crystalline beads | Frost-star; Brittle adds ice shell | Snowflake |
+| Sunder | Magenta | Serrated cog shards | Shatter shards on constructs | Cracked gear |
+
+Ammo Mods add a small cap/rune on the magazine or conduit (Saturated = filled dot, Lingering = clock,
+Volatile = burst, Tracer = eye, Overcharged = double chevron) and the **Tracer** mod's mark is an
+ally-visible outline in the shooter's team colour (through walls, 1.5 s).
 
 ---
 
@@ -477,7 +521,11 @@ pattern etched into the projectile core.
 - **Traps (Juniper):** invisible-by-design traps still show a 0.5 m team-coloured glint
   every 2 s to enemies within 8 m; Hex-hacked enemy gadgets get a glitch overlay (RGB-split, scanline
   flicker) in Hex's team colour.
-- **Heals:** Verdant green core always, rim = healer's team colour; healed targets get a
+- **Skill Forks and Mastery (`heroes.md` §3.5):** a learned Fork shifts that skill's effect
+  core band cool (Fork A, toward white-teal `#BDF5EC`) or warm (Fork B, toward white-gold
+  `#FFE7B0`) and adds a small shape accent (A: rings, B: sparks); the team rim never changes.
+  Each Mastery adds a glyph to the hero's level ring (over-head nameplate and HUD portrait).
+- **Heals:** `heal_verdant` green core always, rim = healer's team colour; healed targets get a
   rising plus-motes effect (shape cue).
 
 ### 8.3 Budgets
@@ -591,8 +639,8 @@ technical-director must ratify them.
 - **Rigs:** one shared humanoid skeleton naming compatible with Godot's `SkeletonProfileHumanoid`
   for retargeting; Wardlings share one small rig. Animations as NLA actions, names
   `idle`, `run_fwd`, `cast_q`, … no root motion for players.
-- **Sockets:** empty nodes in the weapon glb named `SOCKET_core`, `SOCKET_muzzle`, `SOCKET_side`,
-  `FX_muzzle`, `FX_eject`; characters export `HAND_R_weapon`, `BACK_attach`, `HEAD_nameplate`.
+- **Sockets:** empty nodes in the weapon glb named `socket_core`, `socket_barrel`, `socket_frame`,
+  `socket_chamber` (names fixed by `weapons-and-mods.md` §3.6.1), plus `fx_muzzle`, `fx_eject`; characters export `HAND_R_weapon`, `BACK_attach`, `HEAD_nameplate`.
   Godot attaches via `BoneAttachment3D` / `Marker3D`.
 - **Import hints:** use Godot's node-name suffixes for collisions (`-col`, `-convcolonly`, `-colonly`) and
   occluders (`-occ`); an `EditorScenePostImport` script assigns the toon/outline materials by
@@ -631,22 +679,25 @@ Pattern (from art-director standard): `[category]_[name]_[variant]_[size].[ext]`
 
 ## 12. Vertical-Slice Asset List (Scope Tier 1)
 
-Tier 1 = 3-lane map, 4 heroes (Ryker, Liora, Vesper, Brannoc), all 3 task types, levels,
-Lumen shop, Surges, Sudden Death. Barricades, Garrisons, Beacons, Wardling variants and the full
-crystal/chip set are Tier 2 (Alpha); the slice includes a minimal read-test of the socket system.
+Tier 1 = the one-lane **Slice Map "Shardline Causeway"** (`match-flow-and-map.md` §3.7: 5
+hardpoints using all 3 task types, both HQs, reduced Mid Plaza, one flank loop per half), 4 heroes
+(Ryker, Liora, Vesper, Brannoc), levels, Lumen shop, Surges, Vanguard waves, Sudden Death.
+Garrisons, Beacons, Wardling variants and the full crystal/chip set are Tier 2 (Alpha); the slice
+includes a minimal read-test of the socket system.
 
 | # | Asset | Quantity | Fidelity in VS |
 | --- | --- | --- | --- |
 | 1 | Hero 3P models + FP arms: Ryker, Liora, Vesper, Brannoc | 4 + 4 | Final-quality body, 1 faction trim swap |
-| 2 | Hero weapons FP + TP with three `SOCKET_*` nodes | 4 × 2 | Final |
+| 2 | Hero weapons FP + TP (Vanguard AR-7, Halo Repeater, Threadcaster, Ironmaw) with four `socket_*` markers | 4 × 2 | Final |
 | 3 | Hero animation sets (locomotion, fire, reload/vent, 4 skills, death, emote idle) | 4 | Final for FP, blockout-plus for TP |
-| 4 | Crystal read-test: Solar family T1–T3; chip read-test: Overclock T1–T3 | 6 | Final quality (validates Pillar 4 early) |
+| 4 | Slice mounts per `weapons-and-mods.md` §3.10: Ember Heart + Flux Coil crystals, Overclock + Quickload chips, Tiers I–III each; Piercing + Sunder tracers/impacts (no Barrel socket, no Ammo Mods) | 12 mounts + 2 ammo FX | Greybox primitives per GDD; final art for Ember Heart + Overclock as the Pillar 4 read-test |
 | 5 | Wardling base form, both faction skins, Tiers I–III; owner sash + Vanguard pennant variants | 1 rig, 3 tier states, 2 class markings | Final |
 | 5b | Command world markers: Hold ring, Attack reticle + threads, Go Capture ping column + path ribbon | 4 | Final |
-| 6 | Map: 3 lanes × 5 hardpoint plazas, causeways, flank paths | 15 nodes | Stylised neutral kit + 1 faction kit each side |
+| 6 | Slice Map: 1 lane × 5 hardpoints (Glasswork/Furnace Gate, Signal Market/Scrap Bazaar, Spindle kits), causeways, 2 flank loops, Barricade sockets | 5 nodes | Stylised neutral kit + 1 faction kit each side; full 15-node map is Alpha |
 | 7 | Task objects: Holdstone, Charge Cradle + Mana Cell, Ward Generator (3 crack stages) | 3 + cell | Final |
+| 7b | Barricade (Concord lattice / Syndicate blast gate), 3 damage states + rubble | 2 | Final |
 | 8 | HQ ×2: Uplink spire (protected/exposed/3 crack stages/destroyed), Sanctum, Foundry, Armory | 2 | Uplink final; rooms stylised kit |
-| 9 | Mid Plaza + Leyfall ring wall (Sudden Death) | 1 | Final |
+| 9 | Reduced Mid Plaza (r = 25 m) + Leyfall ring wall (Sudden Death) | 1 | Final |
 | 10 | Skybox: Leyfall sea, distant shards, per-phase LUTs (4) | 1 + 4 | Final |
 | 11 | VFX: 4 heroes × (weapon fire, impact, 4 skills), heal, Wardling hit/death, capture flip, Uplink damage, Surge transition | ~40 | Final for gameplay-critical, simple for ambient |
 | 12 | Shaders: toon (char/env), outline, crystal, team-tint, telegraph decal, Leyfall, LUT grading | 7 | Final |
@@ -666,7 +717,7 @@ Code must not wait for art. Placeholder art follows the same pipeline, naming (`
    Animation Library) or **KayKit** character packs (CC0), recoloured via `team_tint`, plus a primitive
    "hook" bolted on (ring for Liora, slab for Brannoc, spindles for Vesper, pauldron for Ryker) to test
    silhouette rules immediately.
-3. **Weapons:** **Kenney Blaster Kit** (CC0) guns with added `SOCKET_*` empties; crystals as
+3. **Weapons:** **Kenney Blaster Kit** (CC0) guns with added `socket_*` markers; crystals as
    coloured `PrismMesh`/`SphereMesh` primitives in the right cut shapes.
 4. **Wardlings:** capsule + sphere core with emissive team colour, sized per §5.3.
 5. **Environment:** Kenney/Quaternius CC0 sci-fi kits for HQ dressing; **Poly Haven** / **ambientCG** (CC0)
@@ -697,7 +748,8 @@ Code must not wait for art. Placeholder art follows the same pipeline, naming (`
 | --- | --- | --- |
 | A1 | Team colours absolute (Concord always blue) or relative (my team always blue)? | Absolute by default; Relative as an option |
 | A2 | Damage numbers on by default? (UX decision mirrored here) | On, compact; can be turned off |
-| A3 | Crystal family names and stat mapping (Solar/Verdant/Aether/Prism; Overclock/Stabilizer/Feeder/Targeting) | Visual families fixed here; stats owned by the weapon/economy GDDs |
+| A3 | Ryker's rifle is named **Vanguard AR-7** in `weapons-and-mods.md`, which collides with the new **Vanguard waves** (C15) | Flag to game-designer: rename the rifle (e.g. *Warden AR-7*); this doc uses the GDD name until then |
 | A4 | Environment outlines (post edge-detect) | None in VS; Alpha experiment with a < 0.5 ms budget |
 | A5 | Performance budgets in §10.5 | Proposed; technical-director to ratify in `technical-preferences.md` |
+| A7 | Elite (Rewrite) scale differs: `heroes.md` ×1.3 vs `wardlings-and-economy.md` ×1.15 | Flag to game-designer; art uses ×1.3 until resolved |
 | A6 | Pillar 3's design test still reads "more than two commands … cut it", but revised C15 has 4 commands | Art follows C15 (canon); creative-director should update the Pillar 3 test text |
