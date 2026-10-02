@@ -51,7 +51,7 @@ You are a gifted fighter of a world where magic is a broadcast — a gunslinger,
 
 ## Unique Hook
 
-**"It's a lane MOBA in first person, AND ALSO every player carries their own minions."** There are no autonomous creep waves: the AI army exists only because players bring it. Where you take your Wardlings, how you spend them (escort, garrison, sacrifice), and whether you respawn at HQ *with* them or at the front *without* them is the strategic layer — expressed through a first-person shooter's hands.
+**"It's a lane MOBA in first person, AND ALSO every player carries their own minions."** The AI army is mostly what players bring — small objective-driven Vanguard waves keep empty lanes alive, but the squad at your heels is the star. Where you take your Wardlings, how you spend them (escort, garrison, sacrifice), and whether you respawn at HQ *with* them or at the front *without* them is the strategic layer — expressed through a first-person shooter's hands.
 
 Secondary hook: hardpoints are **tasks** (hold, plant, breach), not just capture circles, and the front line is the score.
 
@@ -82,7 +82,7 @@ Matches resolve decisively, typically in 25–35 min. Comebacks must exist; stal
 ### Anti-Pillars (what Cybergram is NOT)
 
 - **NOT pay-to-win or persistent power.** Everything bought with match currency resets each match; meta progression is cosmetic/unlock-only. Persistent power breaks PvP trust.
-- **NOT a last-hit farming game.** No creep waves, no last-hitting minigame; income comes from fighting over the front.
+- **NOT a last-hit farming game.** No last-hitting minigame and no endless creep streams; Vanguard waves are small, capped, and go to objectives. Kill rewards are shared by proximity, so income comes from fighting over the front.
 - **NOT an RTS.** No unit micro, no top-down control, no build orders for Wardlings.
 - **NOT an ability-spam game with guns as decoration.** Weapons are the primary damage source for every hero.
 - **NOT a battle royale, extraction or open-world game.** One authored arena, fixed teams, fixed objectives.
@@ -168,7 +168,7 @@ Hero mastery, account level and cosmetic unlocks (skins, Wardling skins, crystal
 | C12 | **Level & skill points** | **Level cap 15.** 1 skill point at level 1, +1 per level → **15 points**. 4 skills per hero: 3 basic + 1 ultimate. Basic skill tree = 4 nodes: **Unlock → Boost → Fork (pick A *or* B) → Mastery** (Mastery needs level 9+). Ultimate = 3 ranks, available at levels **6 / 10 / 14**. 3×4 + 3 = 15 = everything at cap. Typical player reaches L6 ≈ 6–8 min, L15 ≈ 30–35 min. | Owner: "minimal skill tree per skill, 4 fixed skills, points through EXP". Hitting cap ≈ target match length. |
 | C13 | **EXP — "Resonance"** | Earned from: enemy Wardling kills, enemy hero kills/assists, hardpoint captures/defences (owner list). Kills/Wardlings share to allies within 25 m; captures grant EXP to the whole team (participants bonus). Kills of higher-level heroes pay a bonus (catch-up). | In-fiction: attunement to the Cybergram grows. |
 | C14 | **Money — "Lumen"** | Per-match currency (resets each match). Sources: **enemy Wardlings (primary)**, hero kills/assists, captures, small passive trickle. Spent **only at HQ Armory** on: weapon Crystals (Mana guns) / Chips (Mechanical guns), ammo types, consumables (Med-Packs), Wardling squad upgrades. | Owner: "money given through the mobs"; HQ-only shopping makes the HQ-vs-Beacon spawn choice matter. |
-| C15 | **Wardlings (player mobs)** | Picked up at your HQ **Foundry** when you spawn there or walk in: base squad **3**, upgradeable (Lumen) to **5** (Minionmancer +2 more). Behaviour: **defensive** — follow, body-block, return fire at whoever damages you, contribute to Hold tasks. Commands: **Follow** (default) / **Hold Here** (garrison a spot). Variants bought at Foundry (e.g. Shieldling, Striker, Mender). Lost squad members are only replaced at the Foundry. On owner's death, squad holds position 10 s then dissolves. Tier I/II/III by Surge. Only **Garrisons** (C5) spawn without a player. | All five owner notes: picked up at spawn, follow, defensive, buyable, money source. |
+| C15 | **Wardlings (player mobs)** | **Personal squad:** picked up free at your HQ **Foundry** when you spawn there or walk in: base squad **3**, upgradeable (Lumen) to **5** (Minionmancer +2 more). Variants bought at Foundry (e.g. Shieldling, Striker, Mender); squad upgrades bought at the Armory. Lost squad members are only replaced at the Foundry. On owner's death, squad holds position 10 s then dissolves. **Commands (4):** **Follow** (default), **Hold Here** (garrison a spot), **Attack Target** (aim + press: focus a hero/Wardling/gadget), **Go Capture** (send squad to a hardpoint to work its task). Radial wheel + quick keys. **Strength: middle ground** — a base squad is a real but modest threat (focused fire from a base squad of 3 ≈ 30% of a Soldier's DPS; can finish a wounded hero, cannot beat a healthy one alone); Lumen upgrades/variants (e.g. Striker) push it toward a genuine threat. They still body-block, retaliate against whoever damages their owner, and count for Hold. **Vanguard waves:** every **60 s** each team's Foundry sends a wave of **4** Tier-matched Wardlings into **each lane**, which marches to that lane's **front** (the nearest hardpoint being contested; else the next enemy hardpoint it may attack per C3, else its own front-most hardpoint) and works/defends it. Max **1 live wave per lane per team** (a new wave spawns only when the previous has ≤1 alive). Waves are ownerless and uncommandable (Minionmancer excepted). Tier I/II/III by Surge for all Wardlings. **Garrisons** (C5) and **Vanguard waves** are the only Wardlings without an owner. | Owner notes + owner decision 2026-10-02: picked up at spawn, follow players, buyable, money source; owner chose bodyguard squad + small waves, 4 commands, middle-ground strength. |
 | C16 | **Hero resource types** | **Mana** heroes: weapon fires from a recharging mana pool (regen after short delay, no reloads, no reserve). **Mechanical** heroes: magazines + finite reserve; refill at Armory, Supply Caches, and from enemy Wardling drops. Skills use **cooldowns** for all heroes (resource type affects the weapon only). Mana guns upgrade with socketed **Crystals**, Mechanical guns with slotted **Chips** — both visible on the weapon model. | Owner's two types; cooldown-only skills keep one readable skill model across heroes. |
 | C17 | **Hero roster (7)** | See table below. | Owner's 7 roles, kept. |
 | C18 | **Names** | World **Halcyra**; signal **the Cybergram**; teams **Azure Concord** (blue) vs **Ember Syndicate** (red); mobs **Wardlings**; EXP **Resonance**; money **Lumen**; Uplink HP **Integrity**; spawn **Sanctum**; mob pickup **Foundry**; shop **Armory**. | Single vocabulary for UI, VO, docs. |
@@ -193,14 +193,14 @@ Type split: 4 Mana / 3 Mechanical.
 
 | Game | What we take | What we do differently |
 | ---- | ---- | ---- |
-| **Paragon / Predecessor** | 3D lane MOBA with heroes, levels, items | First-person, gun-first; no creep waves or last-hitting; front line is the score |
+| **Paragon / Predecessor** | 3D lane MOBA with heroes, levels, items | First-person, gun-first; no last-hitting, small objective-driven waves; front line is the score |
 | **Deadlock** | Shooter-MOBA hybrid, souls economy | Players *carry* their minions; hardpoint tasks instead of tower trades; lower complexity, readable anime look |
 | **Overwatch 2** | Hero roles, ability identity, readability | Long arc (levelling, builds, 30-min front war) vs. short rounds |
 | **Battlefield (Breakthrough)** | Sector-by-sector push, front lines | Symmetric two-way front with comebacks; heroes and MOBA growth |
 | **Dota 2 / LoL** | Lanes, roles, skill points, ultimate at L6 | Shooter execution; 4-node "minimal" skill trees |
 
 **Unique selling points**
-1. **Bring-your-own army** — every player leads a Wardling squad; no autonomous creep waves.
+1. **Bring-your-own army** — every player leads a commandable Wardling squad; small Vanguard waves keep the front alive.
 2. **Hardpoints are tasks** — hold, plant, breach — and the front line is visible everywhere.
 3. **Spawn choice with teeth** — HQ (squad + shop) vs. Forward Beacon (speed).
 4. **Visible weapon growth** — crystals and chips physically socketed into your gun.
@@ -226,7 +226,7 @@ Type split: 4 Mana / 3 Mechanical.
 
 | Risk | Type | Why it matters | Mitigation |
 | ---- | ---- | ---- | ---- |
-| **Netcode for ~10 heroes + ~60 AI** in Godot 4.7 | Technical | Wardlings multiply replicated entities; FPS needs lag compensation | Server-authoritative from Tier 0; Wardling state compressed/interest-managed; cap squads (C15); prototype 5v5 + full squads load test in Tier 1 |
+| **Netcode for ~10 heroes + ~100 AI** (squads ≤50, Garrisons ≤30, Vanguard ≤24) in Godot 4.7 | Technical | Wardlings multiply replicated entities; FPS needs lag compensation | Server-authoritative from Tier 0; Wardling state compressed/interest-managed; cap squads (C15); prototype 5v5 + full squads load test in Tier 1 |
 | **Wardlings as noise** | Design | Up to ~60 constructs may bury readability and feel like clutter | Pillar 3 & 4: strong team colour, simple silhouettes, defensive behaviour, squad cap, audio tells |
 | **Match length drift** | Design | 60-min stalemates kill the genre fit | Canon C7/C8/C11 levers; telemetry on match length from Tier 1 playtests with bots |
 | **Snowballing** | Design | Front + levels + money compound | Forward Beacons only at Mid; catch-up EXP bounty; defender advantage pre-30 min; Uplink exposure reversible by retaking |
@@ -246,6 +246,6 @@ These are decisions made autonomously that most change the game. Confirm or over
 3. **Uplink exposure rule** (C7): Uplink only damageable while an enemy holds one of your Inner hardpoints (Outer from 45:00), and damage never heals. Is the "break a lane, then siege" shape what you imagined?
 4. **Tie-break order** (C9): Incursion score first, then % Uplink damage dealt, then Sudden Death. The Uplink-damage step is an addition to your notes.
 5. **Sudden Death details** (C10): starts at Mid Plaza (not at HQs), Wardlings removed, shop disabled, shrinking ring, "mutual kill" = both last fighters die within 1.0 s.
-6. **Wardlings** (C15): no autonomous creep waves at all — only player-carried squads plus hardpoint Garrisons. Squad 3 base / 5 max, lost squad members only replaced at the Foundry.
+6. ~~**Wardlings** (C15)~~ — **DECIDED by owner 2026-10-02:** personal squad (free 3, buy up to 5) + small Vanguard waves; 4 commands; middle-ground strength.
 7. **Skills use cooldowns for every hero** (C16); Mana vs. Mechanical only changes how the *gun* is fed. Alternative: Mana heroes also pay mana for skills.
 8. **Names** (C17/C18): Halcyra, the Cybergram signal, Azure Concord vs. Ember Syndicate, Wardlings, Lumen, Resonance, and the hero names Vesper Loom, Sable, Juniper Quill, Ryker Vance, Brannoc, Liora Vale, Hex.
