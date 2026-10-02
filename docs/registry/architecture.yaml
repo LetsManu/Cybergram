@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-10-02"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -43,7 +43,79 @@ last_updated: ""
 # interface: how other systems access this state (read-only property, method call,
 #   signal, shared resource, etc.) — this is the contract other ADRs depend on.
 
-state_ownership: []
+state_ownership:
+  - state: authoritative_match_state
+    status: active
+    owner_system: server-world
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    interface: "ServerWorld (server only); clients see replicated copies via Snapshot/Event messages into ClientWorld view models"
+    write_access: server-world-only
+    referenced_by:
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+      - docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+      - docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    added: 2026-10-02
+    revised: ""
+
+  - state: hero_stats
+    status: active
+    owner_system: stat-system
+    adr: docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+    interface: "StatBlock.get_value(stat_index); writes only via add_modifier/remove_modifier/remove_by_source"
+    write_access: stat-system-only
+    referenced_by:
+      - docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+      - docs/architecture/adr/ADR-0003-data-driven-resources.md
+    added: 2026-10-02
+    revised: ""
+
+  - state: entity_health
+    status: active
+    owner_system: health-component
+    adr: docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+    interface: "HealthComponent.apply_damage(DamageInfo) / apply_heal(); signals damaged, died"
+    write_access: health-component-only
+    referenced_by:
+      - docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
+    revised: ""
+
+  - state: hardpoint_ownership
+    status: active
+    owner_system: objective-system
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    interface: "HardpointSim.ownership_changed(old_team, new_team); LaneFrontResolver.front_for(team, lane)"
+    write_access: objective-system-only
+    referenced_by:
+      - docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+      - docs/architecture/adr/ADR-0006-test-and-ci-strategy.md
+    added: 2026-10-02
+    revised: ""
+
+  - state: squad_membership_and_command
+    status: active
+    owner_system: squad
+    adr: docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    interface: "Squad.command_changed(SquadCommand); SquadCommand kinds FOLLOW|HOLD|ATTACK_TARGET|GO_CAPTURE (Canon C15)"
+    write_access: squad-only (via validated Command or SquadCommandEffectDef)
+    referenced_by:
+      - docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+      - docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+    added: 2026-10-02
+    revised: ""
+
+  - state: content_definitions
+    status: active
+    owner_system: content-db
+    adr: docs/architecture/adr/ADR-0003-data-driven-resources.md
+    interface: "ContentDB.get_def/index_of/def_at/content_hash (immutable after boot; injected)"
+    write_access: none-at-runtime
+    referenced_by:
+      - docs/architecture/adr/ADR-0003-data-driven-resources.md
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
+    revised: ""
 
 # Example:
 #
@@ -71,7 +143,57 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: client_server_messages
+    status: active
+    pattern: rpc   # custom binary messages over Transport (not Godot @rpc)
+    producer: networking
+    consumers: [server-world, client-world]
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    signal_signature: "Hello/Welcome/Reject, InputBatch, Command, Snapshot, Event, Ping/Pong — versioned, see architecture.md §8.2"
+    referenced_by:
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+      - docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    added: 2026-10-02
+    revised: ""
+
+  - contract: server_cross_system_events
+    status: active
+    pattern: event_bus   # per-tick, ordered SimEventQueue owned by ServerWorld (not a global autoload)
+    producer: server-world
+    consumers: [economy, respawn-system, squad, objective-system, snapshot-builder]
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    signal_signature: "SimEventQueue.push(DeathEvent|DamageEvent|CaptureEvent|…); dispatched at tick stage 8"
+    referenced_by:
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+      - docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md
+    added: 2026-10-02
+    revised: ""
+
+  - contract: player_and_bot_input
+    status: active
+    pattern: direct_call
+    producer: ai-input-sources
+    consumers: [server-world]
+    adr: docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    signal_signature: "InputSource.produce(tick: int, out_cmd: InputCommand) -> InputBuffer[slot]"
+    referenced_by:
+      - docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
+    revised: ""
+
+  - contract: ui_to_game
+    status: active
+    pattern: signal
+    producer: client-world
+    consumers: [ui]
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    signal_signature: "MatchViewModel signals (lumen_changed, cooldown_changed(slot, end_tick), objective_changed(idx), kill_feed_added(entry)); UI writes only UiCommand -> ClientSession.send_command()"
+    referenced_by:
+      - docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
+    revised: ""
 
 # Example:
 #
@@ -100,7 +222,51 @@ interfaces: []
 # Register a budget when an ADR explicitly claims a frame time allocation.
 # The registry lets /architecture-review verify the total doesn't exceed the target.
 
-performance_budgets: []
+performance_budgets:
+  - target_fps: 144
+    total_frame_budget_ms: 6.94
+    platform: PC
+    adr: docs/architecture/adr/ADR-0001-engine-and-language.md
+    added: 2026-10-02
+    revised: ""
+  - target_fps: 60
+    total_frame_budget_ms: 16.6
+    platform: PC   # minimum spec
+    adr: docs/architecture/adr/ADR-0001-engine-and-language.md
+    added: 2026-10-02
+    revised: ""
+  - system: server-tick-total
+    status: active
+    budget_ms: 10.0
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    notes: "Per 33.3 ms tick (30 Hz), 10 heroes + 120 Wardlings + 9 clients; breakdown in architecture.md §12"
+    referenced_by: [docs/architecture/adr/ADR-0001-engine-and-language.md, docs/architecture/adr/ADR-0002-server-authoritative-networking.md, docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md, docs/architecture/adr/ADR-0006-test-and-ci-strategy.md]
+    added: 2026-10-02
+    revised: ""
+  - system: ai-decisions
+    status: active
+    budget_ms: 2.0
+    adr: docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    notes: "Per server tick: Wardling+wave 1.6, bots 0.4. Movement/avoidance separate (2.6)."
+    referenced_by: [docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md]
+    added: 2026-10-02
+    revised: ""
+  - system: snapshot-build
+    status: active
+    budget_ms: 1.7
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    notes: "9 clients; 1100 B per client per tick; <=256 kbps down typical"
+    referenced_by: [docs/architecture/adr/ADR-0002-server-authoritative-networking.md]
+    added: 2026-10-02
+    revised: ""
+  - system: client-prediction
+    status: active
+    budget_ms: 0.5
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    notes: "Average per rendered frame incl. reconciliation replay (max 16 ticks)"
+    referenced_by: [docs/architecture/adr/ADR-0002-server-authoritative-networking.md]
+    added: 2026-10-02
+    revised: ""
 
 # Example:
 #
@@ -131,7 +297,52 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: network_transport
+    status: active
+    api: "ENetMultiplayerPeer as raw MultiplayerPeer packet API behind Transport; LoopbackTransport offline"
+    not: "@rpc, MultiplayerSynchronizer, MultiplayerSpawner for gameplay state"
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    reason: "Per-client delta baselines, priority under byte budget, interest management at ~110 entities"
+    referenced_by: [docs/architecture/adr/ADR-0002-server-authoritative-networking.md]
+    added: 2026-10-02
+    revised: ""
+  - purpose: hitscan_hit_detection
+    status: active
+    api: "HitboxHistory + Geometry3D segment-vs-capsule; PhysicsDirectSpaceState3D.intersect_ray for static occlusion only"
+    not: "Moving physics hitbox bodies to rewound poses"
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    reason: "No physics-space mutation mid-tick; cheap, deterministic rewind"
+    referenced_by: [docs/architecture/adr/ADR-0002-server-authoritative-networking.md]
+    added: 2026-10-02
+    revised: ""
+  - purpose: wardling_navigation
+    status: active
+    api: "NavigationAgent3D (avoidance) + NavigationServer3D.query_path shared per Vanguard wave"
+    not: "Per-agent path query every tick"
+    adr: docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    reason: "Bounded cost for ~100 agents; RID-level fallback if node overhead too high"
+    referenced_by: [docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md]
+    added: 2026-10-02
+    revised: ""
+  - purpose: tunable_data
+    status: active
+    api: "Typed custom Resource (.tres) indexed by ContentDB"
+    not: "JSON config or script constants for gameplay values"
+    adr: docs/architecture/adr/ADR-0003-data-driven-resources.md
+    reason: "Inspector authoring, typing, stable net indices, CI validation"
+    referenced_by: [docs/architecture/adr/ADR-0003-data-driven-resources.md, docs/architecture/adr/ADR-0004-ability-effect-modifier-system.md]
+    added: 2026-10-02
+    revised: ""
+  - purpose: test_framework
+    status: active
+    api: "gdUnit4 + MatchSimHarness (headless ServerWorld.step) + Movie Maker screenshots"
+    not: "GUT; GPU-gated CI"
+    adr: docs/architecture/adr/ADR-0006-test-and-ci-strategy.md
+    reason: "Matches project.yaml commands.test; deterministic stepped sims"
+    referenced_by: [docs/architecture/adr/ADR-0006-test-and-ci-strategy.md]
+    added: 2026-10-02
+    revised: ""
 
 # Example:
 #
@@ -157,7 +368,49 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: client_authoritative_gameplay_state
+    status: active
+    description: "Any gameplay state computed or changed on a client without going through ServerWorld (including in offline mode)."
+    why: "Owner requirement: netcode is never retrofitted; offline uses the same local-server path."
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
+  - pattern: godot_rpc_or_synchronizer_for_gameplay
+    status: active
+    description: "@rpc, MultiplayerSynchronizer or MultiplayerSpawner used for gameplay replication."
+    why: "Bypasses delta baselines, interest management and byte budgets."
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
+  - pattern: game_state_autoload
+    status: active
+    description: "Autoloads holding match state (GameManager, EventBus, PlayerData). Only Log, UserSettings, ContentDB (read-only, injected) are allowed."
+    why: "Untestable hidden coupling; breaks multiple worlds in one process (listen/offline)."
+    adr: docs/architecture/adr/ADR-0001-engine-and-language.md
+    added: 2026-10-02
+  - pattern: hardcoded_gameplay_values
+    status: active
+    description: "Numeric gameplay literals in src/gameplay or src/ai instead of Def resources."
+    why: "Data-driven rule; designers tune without code changes."
+    adr: docs/architecture/adr/ADR-0003-data-driven-resources.md
+    added: 2026-10-02
+  - pattern: wall_clock_or_unseeded_rng_in_sim
+    status: active
+    description: "Time.get_ticks_*, randf()/randi() or OS time in server sim code; durations as float timers instead of end ticks."
+    why: "Breaks deterministic sim tests and replication of cooldowns."
+    adr: docs/architecture/adr/ADR-0006-test-and-ci-strategy.md
+    added: 2026-10-02
+  - pattern: bot_direct_hero_control
+    status: active
+    description: "Bot code writing HeroSim state directly instead of emitting InputCommand."
+    why: "Second control path that skips validation and netcode."
+    adr: docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
+    added: 2026-10-02
+  - pattern: per_node_physics_process_for_sim
+    status: active
+    description: "Sim systems driven by their own _physics_process instead of TickRunner's ordered stages."
+    why: "Tick order must be explicit and identical on every run."
+    adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
+    added: 2026-10-02
 
 # Example:
 #

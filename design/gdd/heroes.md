@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-Cybergram has **7 heroes** (Canon C17), each with one weapon (the primary damage source), one optional passive, **3 basic skills and 1 ultimate**, all on **cooldowns** (C16). Each basic skill has a 4-node tree **Unlock → Boost → Fork (A or B) → Mastery** and the ultimate has 3 ranks at levels **6 / 10 / 14** (C12). This doc defines shared hero rules (stats, cooldowns, level scaling, status effects, the "gadget" definition used by the Hacker), every kit in full, the counter matrix, and the balance targets that other docs must hit. It does **not** define guns beyond archetype and balance bands, the mod system, Wardling stat blocks, or hardpoint/Barricade HP; those belong to the sibling docs.
+Cybergram has **7 heroes** (Canon C17), each with one weapon (the primary damage source), one optional passive, **3 basic skills and 1 ultimate**, all on **cooldowns** (C16). Each basic skill has a 4-node tree **Unlock → Boost → Fork (A or B) → Mastery** and the ultimate has 3 ranks at levels **6 / 10 / 14** (C12). This doc defines shared hero rules (stats, cooldowns, level scaling, status effects, the "gadget" definition used by the Hacker), every kit in full, the counter matrix, and the balance targets that other docs must hit. It follows Canon C15 as revised on 2026-10-02: every player commands a squad with 4 commands (Follow, Hold Here, Attack Target, Go Capture), squads are middle-ground strength, and ownerless **Vanguard waves** of 4 march every lane every 60 s. Only Vesper Loom can command waves; every other hero has an explicit wave interaction (§3.8, §4). It does **not** define guns beyond archetype and balance bands, the mod system, Wardling stat blocks, or hardpoint/Barricade HP; those belong to the sibling docs.
 
 **Design goals**
 | Goal | Pillar | Test |
@@ -658,7 +658,9 @@ TTK_real = TTK_ideal / accuracy        # accuracy assumed 0.55 (bots 0.40, good 
 | Low DPS vs 225–250 HP | 2.0–2.6 s | Liora vs Sable: 2.37 s | 4.3 s |
 | High DPS vs Brannoc | 3.5–4.5 s | Ryker vs Brannoc: 3.82 s | 6.9 s |
 | Sable full combo (Eclipse +50%, Shadowgraph +20%, Ambush +40%) vs 250 HP | ≥0.8 s (floor) | 190 × 2.1 = 399 DPS → 0.63 s ⚠ | see §7.3 |
-| Any hero vs Tier I Wardling (HP from `wardlings-and-economy.md`, assumed ~150) | ≤1.2 s | Mid: 1.0 s | 1.9 s |
+| Any hero vs Tier I Wardling (150 HP, `wardlings-and-economy.md` §4) | ≤1.2 s | Mid: 1.0 s | 1.9 s |
+| Focused base squad of 3 (≈54 DPS, C15) vs healthy 250 HP hero | ≥4.5 s ("cannot beat a healthy hero alone") | 4.6 s | ~7 s |
+| Vesper's 7 + aura (≈139 DPS) vs 250 HP hero | ≥1.8 s | 1.8 s | ~3 s |
 
 Rule: no single hero may reach TTK_ideal < 0.8 s on a full-HP, level-matched 250 HP target without an ultimate; with ultimate, the floor is 0.6 s. Sable is capped by a damage-bonus rule in §7.3.
 
@@ -732,7 +734,7 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 | ---- | ---- | ---- | ---- | ---- |
 | 1 | **Hex** | Frustration (gadgets "stop working"); value swings wildly with enemy comp | Post-hack immunity; never affects guns; Scramble keeps crosshair/HP/ammo; Wardlings never stolen | Win rate vs Juniper >65%, or "my gadgets didn't work" survey >30% |
 | 2 | **Sable** | Stealth + teleport + Silence in FPS = invisible death | Shimmer 8 m, hum, whisper sting 0.5 s, Barricade crackle, +80% bonus clamp, Silence leaves guns active | Deaths to Sable with <0.6 s TTK >10% of her kills |
-| 3 | **Vesper** | Readability (7 Wardlings + Elites + Turned); netcode load; Rewrite flips Holds alone | 0.8 s interruptible cast, ring telegraph, 20 m leash, Turned only 6–10 s | Hold flips within 5 s of Rewrite >50% |
+| 3 | **Vesper** | Readability (7 Wardlings + a conducted wave + Elites + Turned); netcode load; Rewrite R3 permanently converting a Vanguard wave can snowball a lane; her squad maths (≈139 DPS) rivals a High-band gun | 0.8 s interruptible cast, ring telegraph, 20 m leash, Turned only 6–10 s, one conducted wave per lane, Wardling presence cap (wardlings doc), Hex/Ryker/Juniper counters | Hold flips within 5 s of Rewrite >50%; converted waves capture a hardpoint in >25% of R3 casts; Vesper damage share from Wardlings >60% |
 | 4 | **Juniper** | Trap clutter; defence stalls matches (Pillar 5) | Budget of 6, glint, traps shootable, Hex counter, Surges shorten tasks | Median match length +3 min when Juniper is present |
 | 5 | Brannoc | Wall + Anchor makes Holds unbreakable without Hex | Wall is a gadget; Fortify short; DR clamp 0.70 | Defensive Hold success >70% with Brannoc in zone |
 
@@ -741,6 +743,9 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 | Pair | Ruling |
 | ---- | ---- |
 | Vesper Rewrite vs Hex Malfunction on the same Wardling | Malfunction wins while active (Wardling is inert); Turned/Elite timers keep running underneath |
+| Vesper conducting a wave vs Hex Malfunction on it | Malfunctioned members ignore her command until it ends, then rejoin the conducted wave |
+| Two Vespers (mirror) contest one Vanguard wave | A wave obeys only its own team's Vesper; an enemy Vesper can only Turn it (Rewrite / Puppet String) |
+| Juniper snare vs a Vanguard wave | Waves walk over snares and wires without triggering them; mines trigger |
 | Hex vs Sable stealth | Hex cannot hack heroes; Signal Sight only widens shimmer visibility to 12 m for Hex |
 | Sable Phase vs Rampart wall / Killbox fence | Phase passes both (they are deployables/traps) |
 | Brannoc Fortify vs Juniper Snare | CC immune: snare deals damage, no root |
@@ -753,7 +758,10 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 ## 7. Edge Cases
 
 1. **Vesper dies during Rewrite.** Elites keep Elite status until their duration ends or the squad dissolves (10 s after death, C15), whichever is first. Turned Wardlings return to their owner immediately.
-2. **Turned Wardling's owner dies.** The Turned Wardling dissolves on schedule (C15: 10 s), even if still Turned.
+2. **Turned Wardling's owner dies.** The Turned Wardling dissolves on schedule (C15: 10 s), even if still Turned. Turned **Vanguard** Wardlings have no owner and simply return to their team when the effect ends (R1–R2) or stay converted (R3).
+2a. **Vesper dies while conducting a wave.** The wave keeps her last command for the 8 s grace, then resumes its own march AI. A Muster Point wave stays until the beacon dies.
+2b. **Rewrite R3 converts a wave while Vesper's team already has a live wave in that lane.** The converted group merges into the existing live wave (max 8 members; extras dissolve with no bounty). The next wave still waits for the C15 "≤1 alive" rule.
+2c. **Puppet String on the last member of an enemy wave.** Allowed; while subverted it does not count as alive for the enemy's wave-spawn rule, so their next wave can spawn (counterplay: they get a fresh wave).
 3. **Sable plants a Sabotage Charge on a Barricade, then the Barricade changes owner** (hardpoint flips). The charge is removed and 50% of the cooldown refunded.
 4. **Sable is inside an enemy Barricade's footprint when Phase ends** (e.g. latency). She is pushed to the nearest valid side along her dash direction.
 5. **Juniper exceeds the trap budget mid-Killbox.** Killbox re-arm does not create new traps; the oldest trap is removed only when she places a new one.
@@ -762,7 +770,7 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 8. **Liora heal beam on a full-HP target.** No mana drained.
 9. **Hex Relay Hop target is destroyed during the channel.** Hop cancels, 50% cooldown refund.
 10. **Zero Day on a Barricade the enemy is behind.** Gate opens both ways for 10 s (R3); defenders can also come out.
-11. **Sudden Death (C10).** All Wardlings and garrisons are removed: Vesper's Passive, Rally Beacon heals and Rewrite have nothing to affect except deployables. Accepted: Vesper is weakest in Sudden Death, her ultimate becomes a mobility-free dud. Rewrite in Sudden Death instead grants Vesper and allies within radius a 100 shield for 5 s (fallback).
+11. **Sudden Death (C10).** All Wardlings, Vanguard waves and garrisons are removed: Vesper's Passive, Rally Beacon heals and Rewrite have nothing to affect except deployables. Accepted: Vesper is weakest in Sudden Death, her ultimate becomes a mobility-free dud. Rewrite in Sudden Death instead grants Vesper and allies within radius a 100 shield for 5 s (fallback).
 12. **Respawn at HQ resets basic cooldowns** but not if the player spawned at a Forward Beacon and later walks into the Sanctum (reset only on spawn).
 13. **Same-type CC chain** (Juniper Snare root → Sable Snare Charge root within 4 s): second root lasts 50%.
 
@@ -774,7 +782,7 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 | ---- | ---- | ---- |
 | `game-concept.md` (Canon) | C1, C4, C5, C7, C10–C17 | — |
 | `weapons-and-mods.md` | Per-hero gun stats inside the bands of §3.2; head multiplier; any CDR mods (capped 25%) | Archetype, resource, DPS/range bands per hero; additive skill-bonus clamp (+80%) |
-| `wardlings-and-economy.md` | Wardling HP/damage per tier; squad upgrade costs; Med-Pack heal and carry cap; Lumen bounties | Vesper squad cap (+2 → base 5/max 7); Rewrite Elite/Turned rules; Malfunction rules for Wardlings; Liora's free Med-Pack every 30 s; ×1.5 Wardling multiplier on grenades/mines |
+| `wardlings-and-economy.md` | Wardling HP/damage per tier (Picket 150 HP T1); the 4 commands and Vanguard wave AI (C15); hooks `squad_capacity_bonus`, `apply_squad_modifier`, `rewrite_to_elite`, `subvert`, `issue_command`; Med-Pack (40% over 3 s, carry 3); Seeker reveal; Wardling presence cap | Vesper +2 squad; **wave command** (Conductor), Muster Point diversion, Puppet String and Rewrite (Elite / Turned / Stalled / R3 permanent wave conversion); Malfunction durations for squads, waves and Sentinels; Liora's free and thrown Med-Packs; ×1.5 Wardling multiplier on grenades/mines; hero-only trigger rule for snares/wires/charges. **Consistency check:** C15 says a base squad of 3 ≈ 30% of a Soldier's DPS (≈54 vs Ryker's 180); the Picket's 12 DPS × 3 = 36 (20%) at 100% hit rate, so one of the two needs tuning |
 | `match-flow-and-map.md` | Barricade and Ward Generator integrity; Hold presence formula; Mana Cell carry rules; Hold zone sizes | Breach Gate (Hex); Phase Shift (Sable); %-integrity effects (Sabotage, Bulldozer, Earthbreaker R3); skill damage ×0.5 vs structures; stealth-in-Hold ping; Mana Cell carrier restrictions (Sable) |
 | Bot AI (future) | — | Role order for drafting (§3.9) |
 | UX / HUD (future) | — | Status glossary (§3.6), Scramble spec, Fork tint and Mastery glyph visibility rules |
@@ -796,6 +804,8 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 | Post-hack immunity | 4 s / 8 s | 2–6 s / 6–12 s | Feel | Hex frustration |
 | Juniper trap budget | 6 | 4–8 | Gate | Clutter, defence stall |
 | Vesper squad bonus | +2 | +1–+2 | Gate | Net load, Hold power |
+| Conductor wave radius / grace | 25 m / 8 s | 15–35 m / 4–12 s | Feel | How far Vesper must lead waves |
+| Rewrite R3 permanent wave conversion | on | on / off (fallback: Turned 10 s) | Gate | Lane snowball |
 | Rewrite Turned duration | 6/8/10 s | 4–10 s | Feel | Hold swing |
 | Stealth shimmer radius | 8 m | 6–10 m | Feel | Sable fairness |
 | Same-type CC DR window | 4 s | 3–6 s | Feel | CC chains |
@@ -815,6 +825,9 @@ All per-node numbers live in `assets/data/heroes/<hero>.tres` (one resource per 
 7. No hard CC in the roster exceeds 1.6 s (Silence 2.5 s); a third same-type hard CC within 4 s has 0 duration.
 8. Respawning at HQ Sanctum resets basic cooldowns; respawning at a Forward Beacon does not.
 9. Playtest (Tier 1): ≥70% of testers can name what killed them when killed by Sable or Juniper (readability check).
+10. An allied Vanguard wave within 25 m of Vesper executes her current squad command (Follow / Hold Here / Attack Target / Go Capture) within 0.5 s, and resumes its march AI 8 s after she leaves; no other hero can command a wave.
+11. Rewrite R3 leaves enemy Vanguard Wardlings in its radius permanently on Vesper's team; enemy squad Wardlings return to their owners; enemy Sentinels are Stalled, never subverted.
+12. A Vanguard wave walking across Juniper's Snare Coil or Tripwire does not trigger it; a Pressure Mine does trigger.
 
 ---
 
@@ -824,7 +837,7 @@ Canon's Scope Tiers fix the prototype pair (**Ryker + Liora**) and add **Vesper 
 
 | Hero | Why it belongs in the slice | What it proves |
 | ---- | ---- | ---- |
-| **Vesper Loom** | She *is* the Unique Hook ("every player carries their own minions") turned up to maximum: +2 squad, Rewrite, Rally Beacon. If Vesper is fun and readable, Wardlings work; if she is noise, the concept's top design risk shows early. | Pillar 3; Wardling netcode at worst case (7 per Vesper); Hold presence math; Surge tier scaling |
+| **Vesper Loom** | She *is* the Unique Hook ("every player carries their own minions") turned up to maximum: +2 squad, conducting Vanguard waves, Puppet String, Rewrite. If Vesper is fun and readable, Wardlings work; if she is noise, the concept's top design risk shows early. | Pillar 3; all 4 squad commands plus the Vanguard wave AI (she drives both); Wardling netcode at worst case (7 per Vesper + overflow); Hold presence cap; Surge tier scaling |
 | **Brannoc** | The slice must test all 3 task types; Hold and Breach need a frontline anchor, and he is the simplest new kit (difficulty 2) using only shared systems (deployable wall, dash, self-buff). | Pillar 1 (Hold anchoring), deployables pipeline (reused later by Juniper/Hex), Mechanical ammo vs Supply Caches |
 
 Together with Ryker (damage) and Liora (healer), the slice covers damage / sustain / frontline / commander, and both resource types twice (2 Mana, 2 Mechanical). Sable, Juniper and Hex all depend on systems that arrive in Alpha (Barricades, Garrisons, gadget categories), so building them earlier would mean designing against placeholder systems.
@@ -836,6 +849,7 @@ Together with Ryker (damage) and Liora (healer), the slice covers damage / susta
 | # | Canon item | Concern | What this doc did | Suggested fix |
 | ---- | ---- | ---- | ---- | ---- |
 | 1 | C1 (each hero unique within a team) + Scope Tier 1 (4 heroes, 5v5 with bots) | A 5-player team cannot be filled with 4 unique heroes. The Vertical Slice as written cannot run 5v5. | Followed Canon: recommended Vesper + Brannoc for the slice (§11). | Either add a 5th hero to the slice (Juniper is next-cheapest: her traps reuse the deployable pipeline), or allow duplicates within a team in Tier 1 only. |
-| 2 | C15 (Minionmancer +2) + concept "~60 AI" net budget | Worst case: 10 players × 5 Wardlings + 2 Vespers × 2 + 15 hardpoints × 2 Sentinels = **84** AI, plus Elite/Turned state changes. | Implemented +2 (base 5, max 7) as Canon. | Re-baseline the AI budget to ~85 in the netcode risk, or cap Garrisons per lane. |
+| 2 | C15 (Minionmancer +2) + Top Risks netcode row (squads ≤50) | With 2 Vespers, squads reach 8 × 5 + 2 × 7 = **54**, above the ≤50 in the risk table; Vesper's subverted overflow units and a conducted wave add more. Total worst case ≈ 54 + 30 Sentinels + 24 Vanguard = **108** AI vs "~100". | Implemented +2 (base 5, max 7) as Canon. Subverted units are temporary overflow; Rewrite R3 merges converted waves into an existing wave (max 8) rather than adding a new one. | Re-baseline the netcode budget to ~110 AI, or cap Vesper at +1 when both teams pick her. |
 | 3 | C16 (skills use cooldowns only) vs owner's "Healer heals with mana" | Read literally, Liora's healing cannot spend mana via a skill. | Routed mana healing through her **weapon alt-fire** (heal beam drains the weapon pool); skills stay on cooldowns. Fully Canon-compliant. | None needed; flagged so the weapons doc models a dual-mode weapon. |
-| 4 | C4 (Wardlings = 0.5 Hold presence) | Vesper's 7 Wardlings = 3.5 players of presence, more than 3 enemy heroes, before Rewrite turns more. | Kept 0.5 untouched; mitigated with Rewrite leash/short Turned timers and Hex's 0-presence Malfunction. | Consider a per-team Wardling presence cap in `match-flow-and-map.md` (e.g. Wardlings max 50% of a side's presence). |
+| 4 | C4 (Wardlings = 0.5 Hold presence) | Vesper's 7 Wardlings + a conducted wave of 4 = 5.5 players of presence before Rewrite turns more. | Kept 0.5 untouched; relied on the wardlings doc's 3.0 per-team Wardling presence cap (an extension of C4 they flagged) plus short Turned timers and Hex's 0-presence Malfunction. | Promote the 3.0 Wardling presence cap into Canon C4 so every doc obeys it. |
+| 5 | Pillar 3 design test ("more than two commands → cut") vs C15 (4 commands, owner decision 2026-10-02) | The concept now contradicts itself: C15 grants 4 commands, but Pillar 3's test still cuts any feature that needs more than two. | Followed C15: Vesper uses the same 4 commands and adds **no** new inputs (waves obey her current squad command). | Update Pillar 3's test to "more than the 4 standard commands or a top-down view". |
