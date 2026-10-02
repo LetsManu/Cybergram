@@ -148,7 +148,7 @@ func _build_materials() -> void:
 	mats.floor_hq_b = _mat(Color(0.2, 0.18, 0.19))
 	mats.floor_mid = _mat(Color(0.34, 0.33, 0.37))
 	mats.floor_loop = _mat(Color(0.26, 0.22, 0.34))
-	mats.wall_a = _mat(Color(0.62, 0.65, 0.72))
+	mats.wall_a = _mat(Color(0.42, 0.45, 0.52))
 	mats.wall_b = _mat(Color(0.2, 0.18, 0.19))
 	mats.rail = _mat(Color(0.3, 0.31, 0.36))
 	mats.cover_low = _mat(Color(0.58, 0.5, 0.36))
@@ -159,7 +159,7 @@ func _build_materials() -> void:
 		var c: Color = AZURE if key == "a" else (EMBER if key == "b" else NEUTRAL)
 		mats["team_" + key] = _mat(c, 1.5)
 		mats["glow_" + key] = _mat(c, 2.5, 0.55, true)
-		mats["decal_" + key] = _mat(c, 0.0, 0.25)
+		mats["decal_" + key] = _mat(c, 0.0, 0.16, true)
 
 
 ## Solid box with collision (center = box centre).
@@ -174,6 +174,8 @@ func _box(parent: Node, n: String, size: Vector3, center: Vector3, mat: Material
 	bm.size = size
 	bm.material = mat
 	mi.mesh = bm
+	if not collide:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	body.add_child(mi)
 	if collide:
 		var cs := CollisionShape3D.new()
@@ -206,6 +208,8 @@ func _cyl(parent: Node, n: String, r_bottom: float, r_top: float, h: float, base
 	var mi := MeshInstance3D.new()
 	mi.name = "Mesh"
 	mi.mesh = cm
+	if not collide:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	body.add_child(mi)
 	if collide:
 		var cs := CollisionShape3D.new()
@@ -250,6 +254,7 @@ func _env() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.55, 0.5, 0.7)
 	env.fog_density = 0.0015
+	env.fog_sky_affect = 0.25
 	var we := WorldEnvironment.new()
 	we.name = "Env"
 	we.environment = env
@@ -257,7 +262,7 @@ func _env() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-52.0, -35.0, 0.0)
-	sun.light_energy = 0.9
+	sun.light_energy = 0.8
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 250.0
 	_add(map_root, sun)
@@ -286,7 +291,7 @@ func _hq(half: int) -> void:
 	_slab(g, "GatePylonR", LANE_HALF_W, LANE_HALF_W + 1, l_front, f_out, 0, HQ_WALL_H + 2, mats["team_" + k])
 	# Sanctum: r 10 no-entry + heal zone (C6), floor decal + ring.
 	var s := P(0, _half_l(half, SANCTUM_L))
-	_cyl(g, "SanctumZone", SANCTUM_R, SANCTUM_R, 0.03, s + Vector3(0, 0.01, 0), mats["decal_" + k], false, 48)
+	_cyl(g, "SanctumZone", SANCTUM_R, SANCTUM_R, 0.02, s + Vector3(0, 0.02, 0), mats["decal_" + k], false, 48)
 	_cyl(g, "SanctumCanopy", 3.0, 3.0, 0.4, s + Vector3(0, 6.0, 0), mats["team_" + k], false, 24)
 	# Uplink: plinth (steep cone, an obstacle) + spire + core.
 	var u := P(0, _half_l(half, UPLINK_L))
@@ -296,8 +301,8 @@ func _hq(half: int) -> void:
 	var ol := OmniLight3D.new()
 	ol.name = "UplinkLight"
 	ol.light_color = AZURE if half == 0 else EMBER
-	ol.omni_range = 22.0
-	ol.light_energy = 1.6
+	ol.omni_range = 14.0
+	ol.light_energy = 0.6
 	ol.position = u + Vector3(0, 7.0, 0)
 	_add(g, ol)
 	# Foundry (west, -X) and Armory (east, +X) beside the Sanctum.
