@@ -37,7 +37,7 @@ var presence_weight: float:
 var has_move_target: bool = false
 var move_target: Vector3 = Vector3.ZERO
 var move_speed: float = 0.0
-var arrive_radius: float = 0.5
+var arrive_radius: float = 0.0
 var attack_target_id: int = 0
 var focused: bool = false
 ## The brain's latest LOS check to the target passed (no fire without LOS).
@@ -84,7 +84,7 @@ func setup(d: WardlingDef, team_: int, pos: Vector3) -> void:
 
 
 ## Walk (or sprint) to `pos` and stop within `arrive`.
-func set_move_target(pos: Vector3, speed: float, arrive: float = 0.5) -> void:
+func set_move_target(pos: Vector3, speed: float, arrive: float) -> void:
 	has_move_target = true
 	move_target = pos
 	move_speed = speed
@@ -92,7 +92,7 @@ func set_move_target(pos: Vector3, speed: float, arrive: float = 0.5) -> void:
 
 
 ## Follow a precomputed (shared) path, e.g. a wave's march route.
-func set_path(p: PackedVector3Array, speed: float, arrive: float = 1.0) -> void:
+func set_path(p: PackedVector3Array, speed: float, arrive: float) -> void:
 	if p.is_empty():
 		stop()
 		return

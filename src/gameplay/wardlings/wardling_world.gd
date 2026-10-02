@@ -17,20 +17,9 @@ signal squad_dissolved(owner_net_id: int)
 signal vanguard_wave_spawned(team: int, lane: int, minted: int)
 
 const KIND_WARDLING: int = EntityRegistry.KIND_WARDLING
-## Spatial hash cell (wardlings-and-economy.md §14: 8 m).
-const CELL_M: float = 8.0
-## Re-path when the goal drifted this far from the planned path's end.
-const REPATH_M: float = 3.0
-## Closer than this: steer straight, no path query.
-const DIRECT_M: float = 5.0
-const WAYPOINT_M: float = 0.7
-## Ticks without progress before a Wardling re-paths from where it stands.
-const STUCK_TICKS: int = 15
 ## Personal squads keep this distance band when choosing a firing spot.
 const VANGUARD_STATE: int = 5
 const STATE_DISSOLVING_BIT: int = 1 << 5
-## Hero hit capsule height used for bolts (head top, standing).
-const HERO_HIT_HEIGHT: float = 1.8
 
 var server: ServerWorld
 var map_def: MapDef
@@ -166,9 +155,9 @@ static func feet_of(n: Node3D) -> Vector3:
 	return n.global_position
 
 
-static func chest_of(n: Node3D) -> Vector3:
+func chest_of(n: Node3D) -> Vector3:
 	if n is HeroBody:
-		return (n as HeroBody).state.position + Vector3(0.0, 1.1, 0.0)
+		return (n as HeroBody).state.position + Vector3(0.0, rules.hero_aim_height_m, 0.0)
 	if n is WardlingSim:
 		return (n as WardlingSim).chest()
 	return n.global_position
@@ -177,7 +166,7 @@ static func chest_of(n: Node3D) -> Vector3:
 ## Live enemies of `team` within `radius` (flat) of `pos`, heroes and Wardlings.
 func enemies_near(pos: Vector3, radius: float, team: int) -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	var r := ceili(radius / CELL_M)
+	var r := ceili(radius / rules.spatial_cell_m)
 	var c := _cell(pos)
 	var r2 := radius * radius
 	for x in range(c.x - r, c.x + r + 1):
@@ -407,7 +396,7 @@ func _squad_rules(t: int) -> void:
 		var sq: Squad = squads[owner_id]
 		while sq.pending_mints > 0 and t >= sq.next_mint_tick:
 			var hq := map_def.hq(sq.team)
-			_mint(picket, sq.team, snap(hq.foundry + _ring_offset(sq.alive_count(), 1.5)), owner_id, sq)
+			_mint(picket, sq.team, snap(hq.foundry + _ring_offset(sq.alive_count(), rules.mint_ring_m)), owner_id, sq)
 			sq.pending_mints -= 1
 			sq.next_mint_tick += interval
 		if sq.command == Squad.CMD_ATTACK:
@@ -480,9 +469,9 @@ func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int, squad: Squa
 	NavigationServer3D.agent_set_map(a, nav_map())
 	NavigationServer3D.agent_set_radius(a, def.radius + 0.1)
 	NavigationServer3D.agent_set_max_speed(a, def.sprint_speed)
-	NavigationServer3D.agent_set_neighbor_distance(a, 4.0)
+	NavigationServer3D.agent_set_neighbor_distance(a, rules.avoidance_neighbor_m)
 	NavigationServer3D.agent_set_max_neighbors(a, 8)
-	NavigationServer3D.agent_set_time_horizon_agents(a, 0.8)
+	NavigationServer3D.agent_set_time_horizon_agents(a, rules.avoidance_horizon_s)
 	NavigationServer3D.agent_set_position(a, w.global_position)
 	NavigationServer3D.agent_set_avoidance_callback(a, w._on_safe_velocity)
 	NavigationServer3D.agent_set_avoidance_enabled(a, true)
@@ -553,16 +542,16 @@ func _move(w: WardlingSim) -> void:
 		var to_goal := Vector3(goal.x - pos.x, 0.0, goal.z - pos.z)
 		var dist := to_goal.length()
 		if dist > w.arrive_radius:
-			if dist < DIRECT_M:
+			if dist < rules.direct_steer_m:
 				w.path = PackedVector3Array()
-			elif (w.path.is_empty() or _flat(goal, w.path_goal) > REPATH_M) and not w.path_pending:
+			elif (w.path.is_empty() or _flat(goal, w.path_goal) > rules.repath_m) and not w.path_pending:
 				w.path_pending = true
 				_path_queue.append(w)
 			var steer := goal
 			if not w.path.is_empty():
-				while w.path_index < w.path.size() - 1 and _passed(pos, w.path, w.path_index):
+				while w.path_index < w.path.size() - 1 and _passed(pos, w.path, w.path_index, rules.waypoint_m):
 					w.path_index += 1
-				if not (w.path_index == w.path.size() - 1 and _flat(pos, w.path[w.path_index]) < WAYPOINT_M):
+				if not (w.path_index == w.path.size() - 1 and _flat(pos, w.path[w.path_index]) < rules.waypoint_m):
 					steer = w.path[w.path_index]
 			var d := Vector3(steer.x - pos.x, 0.0, steer.z - pos.z)
 			if d.length_squared() > 1e-6:
@@ -589,7 +578,7 @@ func _move(w: WardlingSim) -> void:
 	# Stuck (pinned against the mesh edge): re-path from here.
 	if _flat(np, pos) < v.length() * dt * 0.2:
 		w.stuck_ticks += 1
-		if w.stuck_ticks > STUCK_TICKS and not w.path_pending:
+		if w.stuck_ticks > rules.stuck_ticks and not w.path_pending:
 			w.stuck_ticks = 0
 			w.path = PackedVector3Array()
 			w.path_pending = true
@@ -618,7 +607,7 @@ func _fire(w: WardlingSim) -> void:
 	w.yaw = atan2(-dir.x, -dir.z)
 	var cone := deg_to_rad(w.def.spread_focused_deg if w.focused else w.def.spread_retaliation_deg) * 0.5
 	dir = _spread(dir, cone)
-	var limit := w.def.range_m * 1.25
+	var limit := w.def.range_m * rules.bolt_range_frac
 	var space := server.get_world_3d().direct_space_state
 	_ray.from = origin
 	_ray.to = origin + dir * limit
@@ -671,7 +660,7 @@ func _candidates(pos: Vector3, team: int) -> Array:
 					var h := n as HeroBody
 					if h.combat.team != team and not h.combat.dead:
 						var s := h.combat.def.hitbox_scale
-						out.append([h, h.state.position, h.combat.def.body_radius * s, HERO_HIT_HEIGHT * s])
+						out.append([h, h.state.position, h.combat.def.body_radius * s, rules.hero_hit_height_m * s])
 				else:
 					var w := n as WardlingSim
 					if w.team != team and not w.dead:
@@ -737,17 +726,17 @@ static func _flat(a: Vector3, b: Vector3) -> float:
 
 ## Waypoint i is reached when close, or when `pos` is past the plane through it
 ## perpendicular to the next segment (robust to waypoints offset off the mesh).
-static func _passed(pos: Vector3, path: PackedVector3Array, i: int) -> bool:
+static func _passed(pos: Vector3, path: PackedVector3Array, i: int, reach_m: float) -> bool:
 	var wp := path[i]
-	if _flat(pos, wp) < WAYPOINT_M:
+	if _flat(pos, wp) < reach_m:
 		return true
 	var nxt := path[i + 1]
 	var seg := Vector2(nxt.x - wp.x, nxt.z - wp.z)
 	return seg.dot(Vector2(pos.x - wp.x, pos.z - wp.z)) > 0.0
 
 
-static func _cell(p: Vector3) -> Vector2i:
-	return Vector2i(floori(p.x / CELL_M), floori(p.z / CELL_M))
+func _cell(p: Vector3) -> Vector2i:
+	return Vector2i(floori(p.x / rules.spatial_cell_m), floori(p.z / rules.spatial_cell_m))
 
 
 static func _ring_offset(i: int, r: float) -> Vector3:

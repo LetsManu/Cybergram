@@ -14,6 +14,8 @@ extends Resource
 
 @export_group("Commands")
 @export_range(1.0, 200.0, 0.5) var command_range_m: float = 50.0
+## Crosshair snap cone for Attack Target / a hardpoint diamond (§8: 3°).
+@export_range(0.5, 20.0, 0.5) var command_snap_cone_deg: float = 3.0
 @export_range(1.0, 100.0, 0.5) var hold_ground_range_m: float = 25.0
 ## Attack Target ends after this long, or after the target is out of LOS this long (§9.5).
 @export_range(0.5, 60.0, 0.5) var attack_timeout_s: float = 12.0
@@ -60,6 +62,55 @@ extends Resource
 @export_range(0.5, 10.0, 0.5) var wave_retarget_s: float = 2.0
 ## PLACEHOLDER. Lateral spacing of the 2 x 2 march block (m).
 @export_range(0.5, 5.0, 0.1) var wave_spacing_m: float = 1.6
+
+@export_group("Targeting (utility score, §9.4)")
+## Score = w_threat Threat + w_proximity Proximity + w_objective Objective + w_stickiness Stickiness.
+@export_range(0.0, 1.0, 0.01) var score_w_threat: float = 0.40
+@export_range(0.0, 1.0, 0.01) var score_w_proximity: float = 0.20
+@export_range(0.0, 1.0, 0.01) var score_w_objective: float = 0.15
+@export_range(0.0, 1.0, 0.01) var score_w_stickiness: float = 0.10
+## Below this a candidate is ignored (enemy Wardlings in aggro range excepted).
+@export_range(0.0, 1.0, 0.01) var score_min: float = 0.25
+## Proximity falls to 0 at this distance from the anchor.
+@export_range(1.0, 100.0, 0.5) var score_proximity_m: float = 25.0
+## Threat value of whoever hit the owner / a squadmate (simplified §9.4 Threat).
+@export_range(0.0, 1.0, 0.05) var threat_owner_hit: float = 1.0
+@export_range(0.0, 1.0, 0.05) var threat_member_hit: float = 0.7
+## PLACEHOLDER. Retaliate against an attacker up to range + this margin.
+@export_range(0.0, 20.0, 0.5) var attacker_margin_m: float = 4.0
+## PLACEHOLDER. Stop closing in once inside range x this (with LOS).
+@export_range(0.1, 1.0, 0.05) var engage_range_frac: float = 0.85
+## PLACEHOLDER. A Vanguard member is "at the front" inside zone radius x this.
+@export_range(0.1, 1.0, 0.05) var front_arrive_frac: float = 0.8
+
+@export_group("Steering (PLACEHOLDER values)")
+## Follow wedge rear arc (§9.2: 140°) and how much of it 3–5 units use.
+@export_range(10.0, 360.0, 1.0) var follow_rear_arc_deg: float = 140.0
+@export_range(0.1, 1.0, 0.05) var follow_arc_use: float = 0.6
+## Arrival radii: formation / ring slot, return, chase, march end.
+@export_range(0.1, 5.0, 0.05) var arrive_slot_m: float = 0.6
+@export_range(0.1, 5.0, 0.05) var arrive_return_m: float = 1.0
+@export_range(0.1, 5.0, 0.05) var arrive_chase_m: float = 1.5
+@export_range(0.1, 5.0, 0.05) var arrive_march_m: float = 1.0
+## Death-hold ring and Foundry mint ring radii (m).
+@export_range(0.5, 10.0, 0.1) var death_hold_ring_m: float = 1.5
+@export_range(0.5, 10.0, 0.1) var mint_ring_m: float = 1.5
+## Re-path when the goal moved this far from the path end; steer straight below direct_steer_m.
+@export_range(0.5, 20.0, 0.5) var repath_m: float = 3.0
+@export_range(0.5, 20.0, 0.5) var direct_steer_m: float = 5.0
+@export_range(0.1, 5.0, 0.05) var waypoint_m: float = 0.7
+## Ticks without progress before a Wardling re-paths from where it stands.
+@export_range(1, 120) var stuck_ticks: int = 15
+## RVO avoidance (NavigationServer3D agents).
+@export_range(0.5, 20.0, 0.5) var avoidance_neighbor_m: float = 4.0
+@export_range(0.1, 5.0, 0.05) var avoidance_horizon_s: float = 0.8
+## Bolts fly up to range x this before expiring.
+@export_range(1.0, 3.0, 0.05) var bolt_range_frac: float = 1.25
+## Hero aim point (chest) and bolt hit-capsule height above the feet (m).
+@export_range(0.5, 3.0, 0.05) var hero_aim_height_m: float = 1.1
+@export_range(0.5, 3.0, 0.05) var hero_hit_height_m: float = 1.8
+## Perception spatial hash cell (§14: 8 m).
+@export_range(2.0, 64.0, 1.0) var spatial_cell_m: float = 8.0
 
 @export_group("AI scheduling (architecture.md §10.2)")
 ## Per-Wardling decisions every N ticks (3 = 10 Hz at 30 Hz), staggered by net id.

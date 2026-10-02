@@ -62,13 +62,13 @@ func _pick_threat() -> int:
 	var c := _centroid()
 	var best := 0
 	var best_d := INF
-	for e in world.enemies_near(c, rules.wave_engage_m + 4.0, wave.team):
+	for e in world.enemies_near(c, rules.wave_engage_m + rules.attacker_margin_m, wave.team):
 		var id: int = e.get("net_id")
 		var p := WardlingWorld.feet_of(e)
 		var d := WardlingWorld._flat(p, c)
 		var in_zone := wave.target_index >= 0 and WardlingWorld._flat(p, wave.target_point) <= wave.target_radius
 		var ok := hitters.has(id) or in_zone or (e is WardlingSim and d <= rules.wave_engage_m)
-		if ok and (d < best_d or id == wave.threat_id and d < best_d + 3.0):
+		if ok and (d < best_d or id == wave.threat_id and d < best_d + rules.repath_m):
 			best_d = d
 			best = id
 	return best

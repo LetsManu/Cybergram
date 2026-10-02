@@ -138,7 +138,7 @@ func perceive() -> Percept:
 		if own != null:
 			_target = own
 		p.threat = _target != null
-		p.at_front = wv.target_index >= 0 and _flat(pos, wv.target_point) <= wv.target_radius * 0.8
+		p.at_front = wv.target_index >= 0 and _flat(pos, wv.target_point) <= wv.target_radius * rules.front_arrive_frac
 		return p
 	var sq := body.squad
 	if sq == null:
@@ -160,7 +160,7 @@ func perceive() -> Percept:
 	match sq.command:
 		Squad.CMD_HOLD:
 			p.out_of_leash = d > rules.hold_slot_radius_m + rules.hold_engage_m
-			p.returned = d <= rules.hold_slot_radius_m + 2.0
+			p.returned = d <= rules.hold_slot_radius_m + rules.arrive_return_m
 		Squad.CMD_CAPTURE:
 			p.out_of_leash = d > rules.capture_leash_m
 			p.returned = d <= sq.capture_radius
@@ -176,7 +176,7 @@ func _own_attacker() -> Node3D:
 	var a := world.live_entity(body.last_attacker_id)
 	if a == null or WardlingWorld.team_of(a) == body.team:
 		return null
-	if _flat(body.global_position, WardlingWorld.feet_of(a)) > body.def.range_m + 4.0:
+	if _flat(body.global_position, WardlingWorld.feet_of(a)) > body.def.range_m + rules.attacker_margin_m:
 		return null
 	return a
 
@@ -195,7 +195,7 @@ func _act(tick: int) -> void:
 		State.RETURN:
 			body.clear_attack()
 			body.set_display_flags(WardlingSim.FLAG_RETURNING)
-			body.set_move_target(sq.slots.get(body.net_id, sq.anchor), body.def.sprint_speed, 1.0)
+			body.set_move_target(sq.slots.get(body.net_id, sq.anchor), body.def.sprint_speed, rules.arrive_return_m)
 		State.ENGAGE, State.ATTACK_TARGET:
 			_engage(tick, state == State.ATTACK_TARGET)
 		State.MARCH:
@@ -215,7 +215,7 @@ func _act(tick: int) -> void:
 ## Move to a slot; sprint when far behind (§9.2).
 func _go_slot(slot: Vector3, speed: float) -> void:
 	var far := _flat(body.global_position, slot) > rules.catch_up_m
-	body.set_move_target(slot, body.def.sprint_speed if far else speed, 0.6)
+	body.set_move_target(slot, body.def.sprint_speed if far else speed, rules.arrive_slot_m)
 
 
 func _engage(tick: int, focused: bool) -> void:
@@ -226,7 +226,7 @@ func _engage(tick: int, focused: bool) -> void:
 	body.set_display_flags(WardlingSim.FLAG_COMBAT)
 	var tpos := WardlingWorld.feet_of(_target)
 	var dist := _flat(body.global_position, tpos)
-	if los and dist <= body.def.range_m * 0.85:
+	if los and dist <= body.def.range_m * rules.engage_range_frac:
 		body.stop()
 		return
 	# Close in (no LOS or out of range), but never past the leash.
@@ -237,15 +237,15 @@ func _engage(tick: int, focused: bool) -> void:
 		var dir := Vector3(dest.x - anchor.x, 0.0, dest.z - anchor.z).normalized()
 		dest = anchor + dir * leash
 	var speed := rules.wave_march_speed if body.wave != null else body.def.move_speed
-	body.set_move_target(dest, speed, 1.5)
+	body.set_move_target(dest, speed, rules.arrive_chase_m)
 
 
 ## Aims at the current target; returns the LOS result used for firing.
 func _fire_at(tick: int, focused: bool, report: bool) -> bool:
 	var from := body.chest()
-	var to := WardlingWorld.chest_of(_target)
+	var to := world.chest_of(_target)
 	var clear: bool = body.fire_clear and body.attack_target_id == int(_target.get("net_id"))
-	if from.distance_to(to) <= body.def.range_m + 2.0:
+	if from.distance_to(to) <= body.def.range_m + rules.arrive_chase_m:
 		var r: int = los_probe.call(from, to) if los_probe.is_valid() else (1 if world.has_los(from, to) else 0)
 		if r >= 0:
 			clear = r == 1
@@ -286,9 +286,9 @@ func _march() -> void:
 		_plan_seen = wv.plans
 		var i := wv.members.find(body)
 		_march_offset = Vector2((float(i % 2) - 0.5) * rules.wave_spacing_m, float((i / 2) % 2) * rules.wave_spacing_m)
-		body.set_path(_offset_path(wv.path, _march_offset), rules.wave_march_speed, 1.0)
+		body.set_path(_offset_path(wv.path, _march_offset), rules.wave_march_speed, rules.arrive_march_m)
 	elif not body.has_move_target:
-		body.set_path(_offset_path(wv.path, _march_offset), rules.wave_march_speed, 1.0)
+		body.set_path(_offset_path(wv.path, _march_offset), rules.wave_march_speed, rules.arrive_march_m)
 
 
 ## The shared path shifted sideways by offset.x (2 x 2 block); the rear rank

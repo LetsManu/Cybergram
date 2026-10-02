@@ -19,7 +19,6 @@ class SquadPip:
 	var flags: int
 	var dissolving: bool
 
-const SNAP_CONE_DEG: float = 3.0
 ## Height of a hardpoint's world-space HUD diamond above its zone centre.
 const DIAMOND_UP_M: float = 6.0
 const TRACER_LEN: float = 0.9
@@ -171,7 +170,7 @@ func crosshair_targets(yaw: float, pitch: float) -> Dictionary:
 	var eye := feet + Vector3(0.0, body.eye_height(), 0.0)
 	var fwd := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3.FORWARD
 	var space := client.get_world_3d().direct_space_state
-	var cone := deg_to_rad(SNAP_CONE_DEG)
+	var cone := deg_to_rad(rules.command_snap_cone_deg)
 	var own_team := client.own_team()
 	var best_ang := cone
 	for id in client.remote_views():
@@ -215,7 +214,7 @@ func _aim_angle(space: PhysicsDirectSpaceState3D, eye: Vector3, fwd: Vector3, ta
 	if to.length() > rules.command_range_m:
 		return INF
 	var a := fwd.angle_to(to)
-	if a > deg_to_rad(SNAP_CONE_DEG):
+	if a > deg_to_rad(rules.command_snap_cone_deg):
 		return INF
 	_ray.from = eye
 	_ray.to = target
