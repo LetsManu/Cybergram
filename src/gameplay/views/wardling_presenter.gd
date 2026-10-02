@@ -257,7 +257,9 @@ func _vanguard_camera() -> void:
 		return
 	c /= n
 	var rig := client.rig
-	rig.position = c + Vector3(14.0, 11.0, 12.0)
+	rig.position = c + Vector3(7.0, 5.5, 7.0)
 	rig.rotation = Vector3.ZERO
-	rig.look_at(c + Vector3(0.0, 0.0, -10.0), Vector3.UP)
+	rig.look_at(c + Vector3(0.0, 0.5, -4.0), Vector3.UP)
 	rig.camera.rotation = Vector3.ZERO
+	for child in rig.camera.get_children():
+		(child as Node3D).visible = false  # no viewmodel in the overview
