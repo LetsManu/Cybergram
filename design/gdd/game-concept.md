@@ -22,7 +22,7 @@
 | **Platform** | PC first (keyboard + mouse). Controller/console is not a target before launch. |
 | **Engine** | Godot 4.7, GDScript, Forward+, Jolt physics |
 | **Player Count** | 5v5 online PvP; bots fill any empty slot. Later: co-op 5 humans vs. 5 bots. |
-| **Session Length** | One match: target **25–35 min**, hard cap 60 min (+ sudden death) |
+| **Session Length** | One match: target **25–35 min**, hard cap 60 min (+ ≤30 s capture overtime, + sudden death) |
 | **Art** | 3D stylized anime/cartoon (cel-shaded), futuristic fantasy |
 | **Monetization** | Undecided; anything sold is cosmetic only (see Anti-Pillars) |
 | **Comparable Titles** | Paragon / Predecessor, Overwatch, Deadlock, Battlefield Conquest/Breakthrough |
@@ -66,10 +66,11 @@ The state of the match is *where the front lines are*, and it is always visible 
 ### Pillar 2 — Shooter Hands, MOBA Head
 Aiming, movement and gun feel are first-class and decide fights; MOBA depth (levels, skills, builds, roles) layers on top and never replaces aim.
 *Design test:* damage abilities must be aimed or placed; no point-and-click lock-on damage. (Support effects such as heals may use soft-targeting.)
+*Explicit exemption:* designating a target for your Wardlings with **Attack Target** is not hero lock-on damage, because Wardling shots are slow, dodgeable projectiles, need line of sight, and the order times out after 12 s (C15).
 
 ### Pillar 3 — Your Squad at Your Heels
-Every player is a small commander. Wardlings are readable, defensive by nature, and a resource you choose how to spend. Commands stay at the "one key" level.
-*Design test:* if a Wardling feature needs more than two commands or a top-down view, cut it.
+Every player is a small commander. Wardlings are readable, defensive by nature, and a resource you choose how to spend. Commands stay at the "one key" level: one context-sensitive Smart Command key plus a Follow key (C15).
+*Design test:* if a Wardling feature needs more than four squad commands or a top-down view, cut it.
 
 ### Pillar 4 — Power You Can See
 In-match growth is visible: crystals and chips mounted on the gun, Wardling tiers, hero level glyphs, hardpoint ownership on the map.
@@ -141,8 +142,8 @@ Hero mastery, account level and cosmetic unlocks (skins, Wardling skins, crystal
 | **Surge I** | 15:00 | Wardlings & garrisons → Tier II; task durations −15%. |
 | **Surge II** | 30:00 | Wardlings & garrisons → Tier III; task durations −30% (total); respawn grows (formula). |
 | **Mana Drought** | 45:00 | Uplinks also become **Exposed** while the enemy holds *any* of your Outer hardpoints (not just Inner). |
-| **Time-out** | 60:00 | Both Mana Reserves run dry. Incursion tie-break (see Canon). |
-| **Sudden Death** | after 60:00 if tied | No respawns; last team standing wins; mutual wipe resets at Mid. |
+| **Time-out** | 60:00 | Both Mana Reserves run dry. Captures already in progress get up to 30 s of capture overtime (C8), then the Incursion tie-break (see Canon). |
+| **Sudden Death** | after the time-out if tied | No respawns; last team standing wins; a mutual kill restarts the round at Mid (after 3 restarts, remaining HP decides, C10). |
 
 **How the design pulls matches toward 25–35 min:** Uplink damage is permanent (no regen); Surges shorten tasks and strengthen attackers' Wardlings; respawn time rises with match time, so late team-wipes open real windows; Mana Drought widens Uplink exposure; Forward Beacons cut travel for the side that holds Mid.
 
