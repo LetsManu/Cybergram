@@ -20,6 +20,9 @@ var front_index: int = NO_HARDPOINT
 var front_pos: Vector3 = Vector3.ZERO
 var front_radius: float = 12.0
 var front_is_own: bool = false
+## E14: how far this team's task on the front has got (0 = not started): the
+## planted Cell's charge, the Generator damage / post-breach hold, or Hold progress.
+var front_task_progress: float = 0.0
 ## Own hardpoint the enemy is taking (progress > 0), nearest to the bot.
 var defend_index: int = NO_HARDPOINT
 var defend_pos: Vector3 = Vector3.ZERO
@@ -46,6 +49,11 @@ var enemy_uplink_exposed: bool = false
 var enemy_uplink_id: int = 0
 var enemy_uplink_pos: Vector3 = Vector3.ZERO
 var siege_pos: Vector3 = Vector3.ZERO
+## E14 regroup: where the team gathers before going into the enemy HQ, how many
+## live allies are there, and whether this bot is already committed (inside).
+var siege_stage_pos: Vector3 = Vector3.ZERO
+var siege_allies_staged: int = 0
+var siege_committed: bool = false
 
 ## E14 Plant: a Cell job for this bot (carry from the Cradle, pick up a dropped
 ## Cell, plant it, defuse an enemy Cell, disperse a dropped enemy Cell).

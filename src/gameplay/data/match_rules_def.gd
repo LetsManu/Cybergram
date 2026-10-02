@@ -7,6 +7,9 @@ extends Resource
 @export_range(0.0, 60.0, 0.1) var respawn_base_s: float = 6.0
 @export_range(0.0, 5.0, 0.01) var respawn_per_min_s: float = 0.4
 @export_range(0.0, 120.0, 0.1) var respawn_cap_s: float = 30.0
+## Slice tuning (E14, design/balance/slice-tuning.md): a team whose Uplink is
+## Exposed when the hero dies respawns this much slower (1.0 = C11 as is).
+@export_range(1.0, 4.0, 0.05) var exposed_respawn_mult: float = 1.0
 
 ## ---- Hardpoint capture (E7; match-flow-and-map.md §3.4, F1-F3, §8 knobs) ----
 ## C4: AI (Wardling) presence cap per team per hardpoint; heroes are uncapped.
@@ -56,7 +59,13 @@ extends Resource
 ## F3: charge runs at this fraction while Pres(att) < Pres(def).
 @export_range(0.0, 1.0, 0.05) var plant_outnumbered_mult: float = 0.5
 
+## Slice tuning (E14, design/balance/slice-tuning.md): multiplies every Plant
+## T_base from the MapDef (1.0 = the map's §3.3 values).
+@export_range(0.25, 2.0, 0.01) var plant_base_mult: float = 1.0
+
 ## ---- Breach (E14; match-flow-and-map.md §3.4 Breach, F4, §8 knobs) ----
+## Slice tuning (E14): multiplies every Generator HP_base from the MapDef.
+@export_range(0.25, 2.0, 0.01) var generator_hp_mult: float = 1.0
 ## Wardling hits on a Generator count this fraction (as on the Uplink, C7).
 @export_range(0.0, 1.0, 0.05) var generator_wardling_damage_scale: float = 0.5
 ## Regeneration: after this long without attacker damage, this fraction of max HP per second.
@@ -88,6 +97,9 @@ extends Resource
 @export var surge_task_scale: PackedFloat32Array = PackedFloat32Array([0.85, 0.70])
 ## Mana Drought: from here an enemy-held Outer also exposes an Uplink (F6, C7).
 @export_range(0.0, 7200.0, 1.0) var drought_time_s: float = 2700.0
+## Slice tuning (E14): from this match time an enemy-held Outer also exposes an
+## Uplink without entering the Drought phase (< 0 = off: only Drought does).
+@export_range(-1.0, 7200.0, 1.0) var outer_exposure_from_s: float = -1.0
 ## Hard cap -> Time-out (C8). Standard 60:00; the M1 slice overrides 30:00.
 @export_range(60.0, 7200.0, 1.0) var time_cap_s: float = 3600.0
 ## C7: Uplink Integrity, and the Wardling damage scale against it.

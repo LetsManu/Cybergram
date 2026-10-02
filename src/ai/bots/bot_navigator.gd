@@ -64,6 +64,11 @@ func check_stuck(pos: Vector3, tick: int, wants_move: bool, rng: RandomNumberGen
 	return stuck
 
 
+## Tick of the next stuck check (callers skip check_stuck before it: E14 bot cost).
+func next_check_tick() -> int:
+	return _check_tick
+
+
 func unsticking(tick: int) -> bool:
 	return tick < unstick_until
 

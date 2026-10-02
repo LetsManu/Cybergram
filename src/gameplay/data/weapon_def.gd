@@ -51,6 +51,13 @@ enum FeedKind { MANA, MAGAZINE }
 ## interrupts it. False: one committed reload moves a full magazine.
 @export var reload_per_round: bool = false
 
+@export_group("Art")
+## Procedural model key (ModelCatalog), e.g. &"vesper". Empty = derived from `id`.
+@export var model_id: StringName = &""
+## Optional authored model scene; when set, views instance it instead of the
+## procedural stand-in (the swap path for final art).
+@export var model_scene: PackedScene
+
 
 ## Ticks between shots at `tick_rate_hz` (fractional; WeaponSim accumulates).
 func fire_interval_ticks(tick_rate_hz: int) -> float:

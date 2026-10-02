@@ -13,6 +13,13 @@ extends Resource
 @export_range(0.0, 20.0, 0.1) var move_speed: float = 6.0
 @export var weapon: WeaponDef
 
+@export_group("Art")
+## Procedural model key (ModelCatalog), e.g. &"vesper". Empty = derived from `id`.
+@export var model_id: StringName = &""
+## Optional authored model scene; when set, views instance it instead of the
+## procedural stand-in (the swap path for final art).
+@export var model_scene: PackedScene
+
 @export_group("Kit (E10)")
 ## S1, S2, S3, Ult (heroes.md §4; binds Q / E / C / G, hud.md §4.4).
 @export var skills: Array[SkillDef] = []

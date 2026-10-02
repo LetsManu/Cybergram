@@ -11,13 +11,31 @@ const _RADIUS: float = 0.4
 const _CROUCH_SCALE: float = 0.67
 
 var _body: MeshInstance3D
-var _label: Label3D
+## Last replicated health (E12: the HUD draws the compact world health plate in
+## screen space, src/ui/hud/world_overlay.gd; the old 64 px Label3D is gone).
+var hp: int = 0
+var max_hp: int = 0
 ## E10 status tells (StatusComponent.BIT_*): shell (Fortify DR / shield),
 ## halo (stun), ground ring (casting), slow chevrons.
 var _shell: MeshInstance3D
 var _halo: MeshInstance3D
 var _cast_ring: MeshInstance3D
 var _status: int = 0
+## Art pass: procedural stand-in model (HeroModel) replacing the capsule.
+## Hero identity is not replicated yet: set_hero() picks the model, and
+## until it is called the baseline hero (Ryker) is shown. Team, velocity and
+## pitch are read from the replicated snapshot entity of this view.
+const DEFAULT_MODEL_ID: StringName = &"ryker"
+var model: HeroModel
+var model_key: StringName = &""
+var team: int = -1
+var _net_id: int = 0
+var _pitch: float = 0.0
+var _vel := Vector3.ZERO
+var _last_pos := Vector3.INF
+var _last_us: int = 0
+var _crouching: bool = false
+var _slow_ring: MeshInstance3D
 
 
 func _ready() -> void:
@@ -36,14 +54,6 @@ func _ready() -> void:
 	visor.material_override = _mat(_VISOR_COLOR, true)
 	_body.add_child(visor)
 	visor.position = Vector3(0.0, 1.5 - _HEIGHT / 2.0, -_RADIUS)
-	_label = Label3D.new()
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.no_depth_test = true
-	_label.font_size = 64
-	_label.outline_size = 14
-	_label.pixel_size = 0.01
-	_label.position = Vector3(0.0, _HEIGHT + 0.35, 0.0)
-	add_child(_label)
 	_shell = MeshInstance3D.new()
 	var sph := SphereMesh.new()
 	sph.radius = 0.75
@@ -68,22 +78,45 @@ func _ready() -> void:
 	_cast_ring.position.y = 0.05
 	_cast_ring.material_override = _tell_mat(Color(0.56, 0.36, 1.0, 0.9))
 	add_child(_cast_ring)
+	_slow_ring = MeshInstance3D.new()
+	var sr := TorusMesh.new()
+	sr.inner_radius = 0.5
+	sr.outer_radius = 0.6
+	_slow_ring.mesh = sr
+	_slow_ring.position.y = 0.08
+	_slow_ring.material_override = _tell_mat(Color(0.5, 0.75, 1.0, 0.8))
+	add_child(_slow_ring)
+	if ModelCatalog.models_enabled():
+		_attach_model(model_key if model_key != &"" else DEFAULT_MODEL_ID)
+		_bind_client.call_deferred()
 	set_status(_status)
 
 
 func apply(pos: Vector3, yaw: float, crouching: bool) -> void:
+	if model != null:
+		var now := Time.get_ticks_usec()
+		if _net_id == 0 and _last_pos != Vector3.INF and now > _last_us:
+			var v := (pos - _last_pos) / ((now - _last_us) / 1000000.0)
+			_vel = _vel.lerp(v, 0.35) if v.length() < 30.0 else _vel
+		_last_pos = pos
+		_last_us = now
 	position = pos
 	rotation = Vector3(0.0, yaw, 0.0)
-	scale = Vector3(1.0, _CROUCH_SCALE if crouching else 1.0, 1.0)
+	_crouching = crouching
+	if model != null:
+		scale = Vector3.ONE  # the model crouches by pose
+		model.set_motion(_vel, crouching, _pitch)
+	else:
+		scale = Vector3(1.0, _CROUCH_SCALE if crouching else 1.0, 1.0)
 
 
 ## Replicated health; a dead hero is hidden until it respawns.
-func set_health(hp: int, max_hp: int, dead: bool) -> void:
+func set_health(hp_: int, max_hp_: int, dead: bool) -> void:
 	visible = not dead
-	if _label != null:
-		_label.text = "%d / %d" % [hp, max_hp]
-		var f := float(hp) / maxf(1.0, max_hp)
-		_label.modulate = Color(1.0, 0.25, 0.2).lerp(Color(0.4, 1.0, 0.5), f)
+	if model != null and hp_ < hp and not dead:
+		model.flinch(clampf(float(hp - hp_) / maxf(1.0, max_hp_) * 6.0, 0.35, 1.0))
+	hp = hp_
+	max_hp = max_hp_
 
 
 ## E10: replicated status bits -> greybox tells.
@@ -95,6 +128,7 @@ func set_status(bits: int) -> void:
 	_shell.visible = dr
 	_halo.visible = (bits & (StatusComponent.BIT_STUN | StatusComponent.BIT_ROOT)) != 0
 	_cast_ring.visible = (bits & (StatusComponent.BIT_CASTING | StatusComponent.BIT_DASHING)) != 0
+	_slow_ring.visible = model != null and (bits & StatusComponent.BIT_SLOW) != 0
 	_body.transparency = 0.0
 	(_body.material_override as StandardMaterial3D).albedo_color = \
 		_BODY_COLOR.lerp(Color(0.5, 0.75, 1.0), 0.5) if (bits & StatusComponent.BIT_SLOW) != 0 else _BODY_COLOR
@@ -117,3 +151,62 @@ func _mat(c: Color, emissive: bool) -> StandardMaterial3D:
 		m.emission_enabled = true
 		m.emission = c
 	return m
+
+
+## Art hook: which hero this view shows (HeroDef, model key or id) and its
+## team. Data-driven via HeroDef.model_id (ModelCatalog).
+func set_hero(hero: Variant, team_: int = -2) -> void:
+	var k: StringName = &""
+	if hero is HeroDef:
+		k = ModelCatalog.hero_key(hero as HeroDef)
+	elif hero != null:
+		k = ModelCatalog.hero_key_from_id(String(hero))
+	if team_ != -2:
+		team = team_
+	if k != &"" and k != model_key and ModelCatalog.models_enabled():
+		_attach_model(k)
+	elif model != null and model.team != team:
+		model.set_team(team)
+
+
+func _attach_model(k: StringName) -> void:
+	if not is_inside_tree() and _body == null:
+		model_key = k
+		return
+	if model != null:
+		model.queue_free()
+	model_key = k
+	model = HeroModelBuilder.build(k, team)
+	add_child(model)
+	_body.visible = false
+	scale = Vector3.ONE
+
+
+## Reads team / pitch for this view from replicated snapshots (no ClientWorld
+## change needed): finds its own net id in the parent's remote_views().
+func _bind_client() -> void:
+	var cw := get_parent()
+	if cw == null or not cw.has_method("remote_views"):
+		return
+	var session: Variant = cw.get("session")
+	if session != null and (session as Object).has_signal("snapshot_received"):
+		(session as Object).connect("snapshot_received", _on_snapshot)
+
+
+func _on_snapshot(snap: SnapshotData) -> void:
+	if _net_id == 0:
+		var views: Dictionary = get_parent().call("remote_views")
+		for id in views:
+			if views[id] == self:
+				_net_id = id
+				break
+	for e in snap.entities:
+		if e.net_id == _net_id:
+			_pitch = e.pitch
+			_vel = e.velocity
+			if e.team != team:
+				team = e.team
+				if model != null:
+					model.set_team(team)
+			return
+

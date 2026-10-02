@@ -14,6 +14,9 @@ var _t := PackedFloat32Array()
 var _c := PackedColorArray()
 var _uv := PackedVector2Array()
 var _i := PackedInt32Array()
+## Keep the primitive's own UVs (holo panels with a UV pattern) instead of
+## encoding the zone kind into UV.
+var keep_uv: bool = false
 
 static var _prims: Dictionary = {}
 
@@ -97,6 +100,16 @@ func prism(size: Vector3, t: Transform3D, color: Color, kind: int = Kind.FLAT, e
 	return self
 
 
+## Flat quad facing +Z (UV 0..1 kept when keep_uv is set).
+func quad(size: Vector2, t: Transform3D, color: Color, kind: int = Kind.FLAT, energy: float = 0.0) -> PartBuilder:
+	var a := _arrays("quad", func() -> PrimitiveMesh:
+		var m := QuadMesh.new()
+		m.size = Vector2.ONE
+		return m)
+	_append(a, t, Vector3(size.x, size.y, 1.0), color, kind, energy, false)
+	return self
+
+
 ## Torus in local XZ; radii in metres.
 func torus(inner: float, outer: float, t: Transform3D, color: Color, kind: int = Kind.FLAT,
 		energy: float = 0.0, rings: int = 16, segs: int = 6) -> PartBuilder:
@@ -160,6 +173,7 @@ func _append(a: Array, t: Transform3D, size: Vector3, color: Color, kind: int, e
 	var norms: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
 	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
 	var base := _v.size()
+	var src_uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV] if keep_uv else PackedVector2Array()
 	var nb := t.basis.inverse().transposed()
 	var uv := Vector2(float(kind), energy)
 	for k in verts.size():
@@ -179,7 +193,7 @@ func _append(a: Array, t: Transform3D, size: Vector3, color: Color, kind: int, e
 				od = n
 		_t.append_array(PackedFloat32Array([od.x, od.y, od.z, 1.0]))
 		_c.append(color)
-		_uv.append(uv)
+		_uv.append(src_uv[k] if keep_uv else uv)
 	var flip := t.basis.determinant() < 0.0
 	for k in range(0, idx.size(), 3):
 		if flip:

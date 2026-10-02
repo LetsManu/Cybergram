@@ -22,6 +22,8 @@ var scale: float = 1.0
 ## Overlay state that changes what the gameplay HUD shows (hud.md §14).
 var armory_open: bool = false
 var scoreboard_open: bool = false
+## On the HQ Armory pad with the panel closed ([F] prompt).
+var armory_prompt: bool = false
 
 
 func _init(session_: Node, settings_: HudSettings, tuning_: HudTuningDef) -> void:

@@ -112,7 +112,9 @@ static func material_for(d: String, team_: int, enemy_outline: bool = false) -> 
 	if d == "holo":
 		return ModelMaterials.holo(tc, 0.9)
 	if d == "holo_panel":
-		return ModelMaterials.holo(tc, 0.95, true)
+		var pm := ModelMaterials.holo(tc.lightened(0.45), 1.0, true)
+		pm.set_shader_parameter("alpha", 0.95)
+		return pm
 	if d == "mana_team":
 		return ModelMaterials.crystal(tc, 1.6, 4.0, 0.6)
 	if d.begins_with("mana:"):

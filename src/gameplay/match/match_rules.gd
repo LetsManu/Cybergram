@@ -147,11 +147,14 @@ func refresh_exposure() -> void:
 		u.set_exposed(is_live() and exposed_now(u.team))
 
 
-## F6: enemy holds >= 1 Inner of `team`, or (Drought) >= 1 Outer.
+## F6: enemy holds >= 1 Inner of `team`, or (Drought, or the slice's
+## outer_exposure_from_s) >= 1 Outer.
 func exposed_now(team: int) -> bool:
 	if objectives == null:
 		return false
 	var outer_too := time_s >= def.drought_time_s and def.drought_time_s < def.time_cap_s
+	if def.outer_exposure_from_s >= 0.0 and time_s >= def.outer_exposure_from_s:
+		outer_too = true  # E14 slice tuning (design/balance/slice-tuning.md)
 	for h in objectives.all:
 		if h.owner != 1 - team or half_of(h) != team:
 			continue

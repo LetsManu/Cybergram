@@ -7,7 +7,7 @@ extends HudWidget
 ## distance when outside. Presence counts are not replicated yet (deviation).
 
 const VERB_KEYS: Array[String] = ["HUD_TASK_HOLD", "HUD_TASK_PLANT", "HUD_TASK_BREACH"]
-const W: float = 320.0
+const W: float = 316.0
 const H: float = 92.0
 
 

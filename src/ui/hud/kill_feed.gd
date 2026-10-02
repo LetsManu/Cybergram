@@ -33,18 +33,21 @@ func _draw() -> void:
 	for e in model.entries:
 		var a := model.alpha(e)
 		var size_k := 16
-		var vw := text_width(e.victim_name, size_k)
-		var kw := text_width(e.killer_name, size_k)
+		var max_name := (size.x - 90.0) * 0.5
+		var killer := _fit(e.killer_name, size_k, max_name)
+		var victim := _fit(e.victim_name, size_k, max_name)
+		var vw := text_width(victim, size_k)
+		var kw := text_width(killer, size_k)
 		var arrow := " >> "
 		var aw := text_width(arrow, size_k, ctx.font_display)
 		var w := 16.0 + 18.0 + kw + aw + 18.0 + vw + 12.0
 		var r := Rect2(size.x - w, y, w, ROW_H)
 		var style := ctx.panel_own if e.own_involved else ctx.panel
-		_row(r, e, style, a, kw, aw, size_k)
+		_row(r, e, killer, victim, style, a, kw, aw, size_k)
 		y += ROW_H + ROW_GAP
 
 
-func _row(r: Rect2, e: KillFeedModel.Entry, style: StyleBox, a: float, kw: float, aw: float, fs: int) -> void:
+func _row(r: Rect2, e: KillFeedModel.Entry, killer: String, victim: String, style: StyleBox, a: float, kw: float, aw: float, fs: int) -> void:
 	if a >= 0.99:
 		draw_style_box(style, r)
 	else:
@@ -53,13 +56,13 @@ func _row(r: Rect2, e: KillFeedModel.Entry, style: StyleBox, a: float, kw: float
 	var mid := r.position.y + ROW_H * 0.5
 	_glyph(Vector2(x + 6.0, mid), e.killer_team, a)
 	x += 18.0
-	text(e.killer_name, Vector2(x, mid + 6.0), fs, Color(_name_col(e.killer_team), a))
+	text(killer, Vector2(x, mid + 6.0), fs, Color(_name_col(e.killer_team), a))
 	x += kw
 	text(" >> ", Vector2(x, mid + 6.0), fs, Color(HudPalette.TEXT_DIM, a), ctx.font_display)
 	x += aw
 	_glyph(Vector2(x + 6.0, mid), e.victim_team, a)
 	x += 18.0
-	text(e.victim_name, Vector2(x, mid + 6.0), fs, Color(_name_col(e.victim_team), a))
+	text(victim, Vector2(x, mid + 6.0), fs, Color(_name_col(e.victim_team), a))
 
 
 func _faded_panel(r: Rect2, style: StyleBox, a: float) -> void:
@@ -80,3 +83,11 @@ func _glyph(c: Vector2, team: int, a: float) -> void:
 
 func _name_col(team: int) -> Color:
 	return ctx.team_color(team).lightened(0.45) if team >= 0 else HudPalette.TEXT
+
+
+## Shortens `t` until it fits `max_w` (names truncate, glyphs never).
+func _fit(t: String, fs: int, max_w: float) -> String:
+	var out := t
+	while out.length() > 2 and text_width(out, fs) > max_w:
+		out = HudFormat.truncate(out, out.length() - 1)
+	return out

@@ -28,6 +28,10 @@ var net_graph: bool = false
 var clamp_16_9: bool = true
 ## Debug (evidence captures): keep the scoreboard open.
 var debug_scoreboard: bool = false
+## Debug (evidence captures): [seconds, png path] pairs; each frame is saved
+## when its time comes, the app quits after the last. Real-time, unlike
+## --write-movie (repeatable: --hud-screenshot 30 a.png --hud-screenshot 36 b.png).
+var debug_screenshots: Array = []
 
 
 func set_ui_scale(v: float) -> void:
@@ -66,6 +70,7 @@ func write_config(cfg: ConfigFile) -> void:
 ##   --ui-scale 1.1   --colorblind deuteranopia|protanopia|tritanopia|default
 ##   --damage-numbers off|compact|full   --plate-numbers   --net-graph
 ##   --hud-aspect native|16:9   --hud-scoreboard (debug: scoreboard held open)
+##   --hud-screenshot <seconds> <png path>  (debug: save one frame, then quit)
 func apply_args(args: PackedStringArray) -> void:
 	var i := 0
 	while i < args.size():
@@ -96,6 +101,10 @@ func apply_args(args: PackedStringArray) -> void:
 					clamp_16_9 = args[i] != "native"
 			"--hud-scoreboard":
 				debug_scoreboard = true
+			"--hud-screenshot":
+				if i + 2 < args.size():
+					debug_screenshots.append([maxf(args[i + 1].to_float(), 0.0), args[i + 2]])
+					i += 2
 		i += 1
 
 

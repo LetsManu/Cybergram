@@ -36,7 +36,7 @@ func _draw() -> void:
 		text("%d %s" % [i + 1, tr("HUD_VARIANT_PICKET")], r.position + Vector2(7.0, 18.0), 14, HudPalette.TEXT,
 			ctx.font_display)
 		var badge := badge_of(p)
-		var normal := badge == COMMAND_LETTER.get(p.command, "-")
+		var normal: bool = badge == COMMAND_LETTER.get(p.command, "-")
 		text(badge, r.position + Vector2(SLOT_W - 17.0, 19.0), 17, EDGE if normal else HudPalette.DANGER.lightened(0.2),
 			ctx.font_numbers)
 		var b := Rect2(r.position + Vector2(7.0, SLOT_H - 14.0), Vector2(SLOT_W - 14.0, 7.0))

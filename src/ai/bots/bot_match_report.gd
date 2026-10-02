@@ -21,6 +21,8 @@ var exposed_s: PackedFloat32Array = PackedFloat32Array([0.0, 0.0])
 var ended: bool = false
 var end_tick: int = 0
 var _exposed_since: PackedFloat32Array = PackedFloat32Array([-1.0, -1.0])
+## Match time each team's Uplink was first Exposed (-1 = never).
+var first_exposed_s: PackedFloat32Array = PackedFloat32Array([-1.0, -1.0])
 
 
 func _init(s: ServerWorld, d: BotDirector, seed_: int) -> void:
@@ -41,6 +43,8 @@ func _on_exposure(exposed: bool, team: int) -> void:
 	var t := server.match_flow.time_s
 	if exposed:
 		_exposed_since[team] = t
+		if first_exposed_s[team] < 0.0:
+			first_exposed_s[team] = t
 	elif _exposed_since[team] >= 0.0:
 		exposed_s[team] += t - _exposed_since[team]
 		_exposed_since[team] = -1.0
@@ -74,7 +78,7 @@ func summary() -> Dictionary:
 		var shots := 0
 		var skills := 0
 		var orders := 0
-		var gt := PackedInt32Array([0, 0, 0, 0, 0])
+		var gt := PackedInt32Array([0, 0, 0, 0, 0, 0])
 		var dec_us := 0
 		for b in director.brains:
 			dec_us += b.decide_usec
@@ -86,16 +90,54 @@ func summary() -> Dictionary:
 		d["bot_shots"] = shots
 		d["bot_skill_casts"] = skills
 		d["bot_squad_orders"] = orders
-		var total := maxf(float(gt[0] + gt[1] + gt[2] + gt[3] + gt[4]), 1.0)
+		var total := 0.0
+		for v in gt:
+			total += v
+		total = maxf(total, 1.0)
 		var share := {}
 		for k in gt.size():
 			share[BotGoal.NAMES[k]] = snappedf(gt[k] / total, 0.001)
 		d["bot_goal_share"] = share
 		d["bot_decide_ms_per_tick"] = snappedf(dec_us / 1000.0 / maxf(server.tick, 1), 0.001)
 		d["damage_to_heroes"] = {TEAM_NAMES[0]: roundi(damage[0]), TEAM_NAMES[1]: roundi(damage[1])}
+	d["tick_time"] = server.tick_time_summary()
+	d["tasks"] = _tasks()
+	d["levels"] = _levels()
+	d["uplink_first_exposed_s"] = {TEAM_NAMES[0]: snappedf(first_exposed_s[0], 0.1), TEAM_NAMES[1]: snappedf(first_exposed_s[1], 0.1)}
 	if server.wardlings != null:
 		d["wardling_step_ms_avg"] = snappedf(server.wardlings.step_usec_total / 1000.0 / maxf(server.wardlings.steps, 1), 0.001)
 	return d
+
+
+## E14: Plant / Breach counters over the match.
+func _tasks() -> Dictionary:
+	var out := {"cells_planted": 0, "cells_defused": 0, "generators_destroyed": 0, "gen_damage": 0, "gen_blocked": 0}
+	if server.objectives != null:
+		for h in server.objectives.all:
+			out["cells_planted"] += h.cells_planted
+			out["cells_defused"] += h.cells_defused
+			out["generators_destroyed"] += h.generators_destroyed
+			out["gen_damage"] += roundi(h.gen_damage)
+			out["gen_blocked"] += roundi(h.gen_blocked)
+	return out
+
+
+## Mean hero level per team at the end (E15 pacing).
+func _levels() -> Dictionary:
+	var out := {}
+	var prog = server.get("progression")
+	if prog == null:
+		return out
+	var sum := [0.0, 0.0]
+	var n := [0, 0]
+	for id in prog.progress:
+		var h := server.hero(id)
+		if h != null and h.combat != null:
+			sum[h.combat.team] += prog.progress[id].level
+			n[h.combat.team] += 1
+	for t in 2:
+		out[TEAM_NAMES[t]] = snappedf(sum[t] / maxf(n[t], 1), 0.1)
+	return out
 
 
 func to_json() -> String:

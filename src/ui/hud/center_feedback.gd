@@ -39,6 +39,8 @@ func _draw() -> void:
 	_crosshair(c)
 	if _marker_left > 0.0:
 		_marker(c, 1.0 - _marker_left / _marker_total)
+	if ctx.armory_prompt:
+		text_c(tr("HUD_ARMORY_PROMPT"), c + Vector2(0.0, 110.0), 20, HudPalette.LUMEN, ctx.font_display)
 	var input := ctx.client.player_input if ctx.client != null else null
 	if input != null and input.wheel_open:
 		_wheel(c, input)

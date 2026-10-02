@@ -92,11 +92,34 @@ func has(button: int) -> bool:
 
 ## Snaps every field to wire precision (idempotent).
 func quantize() -> void:
+	# Arithmetic twin of write_to() + read_from() (E14 bot cost: no byte buffer;
+	# ten bots quantize every tick). Must stay bit-identical to the wire round
+	# trip: tests/unit/net/input_command_quantize_test.gd checks it.
 	var smart := squad_cmd == SQUAD_SMART  # client-local; survives until resolved
-	var buf := PackedByteArray()
-	buf.resize(WIRE_SIZE)
-	write_to(buf, 0)
-	read_from(buf, 0, self)
+	seq = seq & 0xFFFFFFFF
+	var m := move.limit_length(1.0)
+	var mx := clampi(roundi(m.x * _MOVE_STEPS), -127, 127)
+	var my := clampi(roundi(m.y * _MOVE_STEPS), -127, 127)
+	while mx * mx + my * my > 16129:  # 127^2, as in write_to()
+		if absi(mx) >= absi(my):
+			mx -= signi(mx)
+		else:
+			my -= signi(my)
+	move = Vector2(mx / _MOVE_STEPS, my / _MOVE_STEPS)
+	if move.length_squared() > 1.0:
+		move = move.normalized()
+	yaw = (roundi(fposmod(yaw, TAU) / TAU * _YAW_STEPS) & 0xFFFF) * TAU / _YAW_STEPS
+	pitch = clampi(roundi(pitch / _HALF_PI * _PITCH_STEPS), -32767, 32767) * _HALF_PI / _PITCH_STEPS
+	buttons = buttons & BUTTON_MASK
+	view_tick = view_tick & 0xFFFFFFFF
+	view_alpha = clampi(roundi(view_alpha * _ALPHA_STEPS), 0, 255) / _ALPHA_STEPS
+	squad_cmd = squad_cmd if squad_cmd >= 0 and squad_cmd <= _SQUAD_MAX else SQUAD_NONE
+	squad_target = squad_target & 0xFFFF
+	squad_point = Vector3(clampi(roundi(squad_point.x * _POINT_STEPS), -32767, 32767),
+		clampi(roundi(squad_point.y * _POINT_STEPS), -32767, 32767),
+		clampi(roundi(squad_point.z * _POINT_STEPS), -32767, 32767)) / _POINT_STEPS
+	action = action if action >= 0 and action <= _ACTION_MAX else ACTION_NONE
+	action_arg = action_arg & 0xFFFF
 	if smart:
 		squad_cmd = SQUAD_SMART
 

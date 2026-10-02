@@ -61,6 +61,14 @@ func test_owner_death_holds_the_squad_10_s_then_dissolves_it() -> void:
 	var built := WardlingFixtures.slice_server(self, rules, false)
 	var server: ServerWorld = built[0]
 	auto_free(built[3])
+	# This scenario needs a respawn inside the 10 s hold: the Canon C11 timer
+	# (6 s at 0:00), not the slice's slower E14 tuning.
+	var canon := MatchRulesDef.new()
+	server.rules = server.rules.duplicate() as MatchRulesDef
+	server.rules.respawn_base_s = canon.respawn_base_s
+	server.rules.respawn_per_min_s = canon.respawn_per_min_s
+	server.rules.respawn_cap_s = canon.respawn_cap_s
+	assert_float(RespawnSystem.respawn_seconds(server.rules, 0.0)).is_less(rules.death_hold_s)
 	assert_bool(await WardlingFixtures.await_nav(get_tree(), server)).is_true()
 	var def := WardlingFixtures.map_def()
 	var cmdr := WardlingFixtures.Owner.new()

@@ -17,6 +17,12 @@ func _rules() -> MatchRulesDef:
 	return load(RULES_PATH) as MatchRulesDef
 
 
+## Uplink Integrity of the rules under test (slice data; the Canon C7 default
+## 33,000 is checked in test_uplinks_are_built_at_the_map_anchors_with_c7_integrity).
+func _integrity() -> float:
+	return _rules().uplink_integrity
+
+
 ## MatchRules on the slice map with both Uplinks (nodes freed by the suite).
 func _match(rules: MatchRulesDef = null) -> MatchRules:
 	var r := rules if rules != null else _rules()
@@ -138,7 +144,12 @@ func test_uplinks_are_built_at_the_map_anchors_with_c7_integrity() -> void:
 		var u := m.uplink_of(t)
 		assert_int(u.team).is_equal(t)
 		assert_vector(u.base).is_equal(md.hq(t).uplink)
-		assert_float(u.integrity).is_equal(33000.0)
+		assert_float(u.integrity).is_equal(_integrity())
+		assert_float(u.max_integrity).is_equal(_integrity())
+	assert_float(MatchRulesDef.new().uplink_integrity).is_equal(33000.0)  # Canon C7
+	var canon := MatchRules.new(MatchRulesDef.new(), null)
+	for u in canon.build_uplinks(md):
+		auto_free(u)
 		assert_float(u.max_integrity).is_equal(33000.0)
 
 
@@ -149,7 +160,7 @@ func test_uplink_is_invulnerable_when_not_exposed() -> void:
 	assert_bool(u.exposed).is_false()
 	assert_float(u.apply_damage(500.0)).is_equal(0.0)
 	assert_float(u.apply_damage(500.0, true)).is_equal(0.0)
-	assert_float(u.integrity).is_equal(33000.0)
+	assert_float(u.integrity).is_equal(_integrity())
 	assert_int(u.immune_hits).is_equal(2)
 
 
@@ -173,7 +184,7 @@ func test_uplink_exposed_when_an_inner_is_lost_and_seals_on_retake() -> void:
 	m.step(DT)
 	assert_bool(su.exposed).is_false()
 	assert_float(su.apply_damage(1000.0)).is_equal(0.0)
-	assert_float(su.integrity).is_equal(32000.0)
+	assert_float(su.integrity).is_equal(_integrity() - 1000.0)
 	# Mirror: Syndicate holding Concord's Inner (S-AI) exposes the Concord Uplink.
 	_owners([S, S, S, S, S])
 	m.step(DT)
@@ -200,7 +211,7 @@ func test_wardling_hits_deal_half_and_heroes_full() -> void:
 	var u := m.uplink_of(S)
 	assert_float(u.apply_damage(21.0, true)).is_equal_approx(10.5, 1e-6)
 	assert_float(u.apply_damage(29.0, false)).is_equal_approx(29.0, 1e-6)
-	assert_float(u.integrity).is_equal_approx(33000.0 - 39.5, 1e-3)
+	assert_float(u.integrity).is_equal_approx(_integrity() - 39.5, 1e-3)
 
 
 func test_damage_is_permanent_no_heal_no_regen() -> void:
@@ -214,8 +225,8 @@ func test_damage_is_permanent_no_heal_no_regen() -> void:
 	_owners([C, C, C, C, S])  # sealed again
 	for i in HZ * 30:
 		m.step(DT)
-	assert_float(u.integrity).is_equal(28000.0)
-	assert_float(u.removed_pct()).is_equal_approx(100.0 * 5000.0 / 33000.0, 1e-4)
+	assert_float(u.integrity).is_equal(_integrity() - 5000.0)
+	assert_float(u.removed_pct()).is_equal_approx(100.0 * 5000.0 / _integrity(), 1e-4)
 
 
 func test_integrity_zero_ends_the_match_with_the_attacker_winning() -> void:
@@ -228,7 +239,7 @@ func test_integrity_zero_ends_the_match_with_the_attacker_winning() -> void:
 	_owners([S, S, S, S, S])  # Syndicate pushed to Concord's Inner
 	m.step(DT)
 	var cu := m.uplink_of(C)
-	assert_float(cu.apply_damage(40000.0)).is_equal(33000.0)
+	assert_float(cu.apply_damage(_integrity() + 7000.0)).is_equal(_integrity())
 	assert_bool(cu.is_destroyed()).is_true()
 	assert_int(m.phase).is_equal(MatchRules.Phase.END)
 	assert_int(m.winner).is_equal(S)
@@ -277,10 +288,10 @@ func test_time_out_incursion_tied_decided_by_uplink_damage() -> void:
 	m.step(DT)
 	_owners([C, C, C, C, C])
 	m.step(DT)
-	m.uplink_of(S).apply_damage(33000.0 * 0.124)  # Concord dealt 12.4 %
+	m.uplink_of(S).apply_damage(_integrity() * 0.124)  # Concord dealt 12.4 %
 	_owners([S, S, S, S, S])
 	m.step(DT)
-	m.uplink_of(C).apply_damage(33000.0 * 0.05)  # Syndicate dealt 5.0 %
+	m.uplink_of(C).apply_damage(_integrity() * 0.05)  # Syndicate dealt 5.0 %
 	_owners([C, C, N, S, S])  # Incursion 0 - 0
 	m.time_s = 1800.0
 	m.step(DT)
@@ -295,10 +306,10 @@ func test_time_out_tied_within_one_point_is_a_draw() -> void:
 	m.step(DT)
 	_owners([C, C, C, C, C])
 	m.step(DT)
-	m.uplink_of(S).apply_damage(33000.0 * 0.124)
+	m.uplink_of(S).apply_damage(_integrity() * 0.124)
 	_owners([S, S, S, S, S])
 	m.step(DT)
-	m.uplink_of(C).apply_damage(33000.0 * 0.116)  # 0.8 point gap (GDD §6 example)
+	m.uplink_of(C).apply_damage(_integrity() * 0.116)  # 0.8 point gap (GDD §6 example)
 	_owners([C, C, N, S, S])
 	m.time_s = 1800.0
 	m.step(DT)
@@ -319,11 +330,15 @@ func test_time_out_with_no_damage_and_equal_fronts_is_a_draw() -> void:
 # --- Respawn (C11 on the match clock) -----------------------------------------
 
 func test_respawn_ticks_follow_match_minutes() -> void:
-	var r := _rules()
-	assert_int(RespawnSystem.respawn_ticks_at_minutes(r, 0.0, HZ)).is_equal(180)
-	assert_int(RespawnSystem.respawn_ticks_at_minutes(r, 12.0, HZ)).is_equal(324)
-	assert_int(RespawnSystem.respawn_ticks_at_minutes(r, 30.0, HZ)).is_equal(540)
-	assert_int(RespawnSystem.respawn_ticks_at_minutes(r, 60.0, HZ)).is_equal(900)
+	var c := MatchRulesDef.new()  # Canon C11 (F7 table)
+	assert_int(RespawnSystem.respawn_ticks_at_minutes(c, 0.0, HZ)).is_equal(180)
+	assert_int(RespawnSystem.respawn_ticks_at_minutes(c, 12.0, HZ)).is_equal(324)
+	assert_int(RespawnSystem.respawn_ticks_at_minutes(c, 30.0, HZ)).is_equal(540)
+	assert_int(RespawnSystem.respawn_ticks_at_minutes(c, 60.0, HZ)).is_equal(900)
+	var r := _rules()  # the slice's coefficients (E14 slice tuning), same formula
+	for m in [0.0, 12.0, 30.0, 60.0]:
+		var expect := ceili(minf(r.respawn_cap_s, r.respawn_base_s + r.respawn_per_min_s * m) * HZ - 1e-6)
+		assert_int(RespawnSystem.respawn_ticks_at_minutes(r, m, HZ)).is_equal(expect)
 	var m := _match()
 	m.debug_start_s = 720.0
 	m.step(DT)

@@ -12,7 +12,7 @@ func score(bb: BotBlackboard, p: BotProfile) -> float:
 	if bb.defend_index < 0:
 		return 0.0
 	var d := BotBlackboard.flat_dist(bb.pos, bb.defend_pos)
-	var near := clampf(1.0 - d / 200.0, 0.3, 1.0)
+	var near := clampf(1.0 - d / p.defend_falloff_m, 0.2, 1.0)  # E14: was 200 m / floor 0.3
 	return p.w_defend * (0.7 + 0.6 * bb.defend_progress) * near + 0.15
 
 

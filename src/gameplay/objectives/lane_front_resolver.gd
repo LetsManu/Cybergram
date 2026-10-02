@@ -31,8 +31,9 @@ func front_for(team: int, lane: int, for_waves: bool = false) -> int:
 	for i in order:
 		var h: HardpointSim = hps[i]
 		if h.owner != team and _sys.eligible(lane, i, team):
-			if for_waves and h.task == HardpointDef.TaskKind.PLANT and h.cell_team != team:
-				continue  # no allied Cell for it: hold the front instead
+			if for_waves and h.task == HardpointDef.TaskKind.PLANT and not (h.cell_team == team \
+					and (h.cell_state == HardpointSim.CellState.CARRIED or h.cell_state == HardpointSim.CellState.PLANTED)):
+				continue  # no allied Cell carried or planted for it: hold the front instead
 			return i
 	return _sys.held_front(team, lane)
 

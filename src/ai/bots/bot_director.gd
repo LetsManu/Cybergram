@@ -19,6 +19,7 @@ var brains: Array[BotBrain] = []
 var meter := BotCostMeter.new()
 var sources: Array[BotInputSource] = []
 var _by_hero: Dictionary = {}  # hero net id -> BotBrain
+var _claims: Dictionary = {}  # E14 Cell job claims, shared by every brain
 
 
 func setup(s: ServerWorld, r: BotRosterDef, p: BotProfile, seed_: int) -> void:
@@ -56,6 +57,8 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 	var idx := brains.size()
 	var b := BotBrain.new(server, profile, hash([seed_value, idx]), idx)
 	b.build_order = roster.build_order_for(hero_def)
+	b.team_brains = brains  # E14: shared, for Cell job claims
+	b.claims = _claims
 	var src := BotInputSource.new(b, meter)
 	sources.append(src)
 	b.hero_id = server.add_scripted_hero(src, spawn, hero_def, team)
@@ -70,6 +73,8 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 
 ## Registers a brain that drives a hero added elsewhere (debug --bot-player).
 func adopt(b: BotBrain) -> void:
+	b.team_brains = brains
+	b.claims = _claims
 	brains.append(b)
 	_by_hero[b.hero_id] = b
 

@@ -35,7 +35,7 @@ var shots_pressed: int = 0
 var skills_pressed: int = 0
 var squad_orders: int = 0
 ## Ticks alive spent in each BotGoal.Kind, and wall-clock µs spent in decide().
-var goal_ticks: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0])
+var goal_ticks: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
 var decide_usec: int = 0
 
 var _tick_hz: int = 30
@@ -55,6 +55,16 @@ var _blank := InputCommand.new()
 var build_order: PackedInt32Array = PackedInt32Array([3, 0, 1, 2, 0, 1, 2])
 var skills_learned: int = 0
 var _learn_slot: int = -1
+var _learn_key: int = -1
+var _calm_ready: bool = false
+var _calm_move: Vector2 = Vector2.ZERO
+var _calm_buttons: int = 0
+## E14: every brain of the match (BotDirector.brains, shared) and the shared Cell
+## job claims ("<team>:<hardpoint>:<job>" -> hero net id), so one bot per team
+## takes each Cell job.
+var team_brains: Array = []
+var claims: Dictionary = {}
+var interacts: int = 0
 
 
 func _init(s: ServerWorld, p: BotProfile, seed_: int, slot_: int) -> void:
@@ -91,6 +101,8 @@ func produce(tick: int, out: InputCommand) -> void:
 		aim.set_target(0, tick)
 		out.yaw = aim.yaw
 		out.pitch = aim.pitch
+		if h != null and (tick + slot) % decide_every == 0:
+			_decide_spawn(h, out)
 		out.quantize()
 		return
 	if _was_dead:
@@ -146,6 +158,7 @@ func _fill_blackboard(tick: int, h: HeroBody) -> void:
 	if md != null and md.hq(c.team) != null:
 		bb.home_pos = md.hq(c.team).sanctum
 	bb.front_index = BotBlackboard.NO_HARDPOINT
+	bb.front_task_progress = 0.0
 	bb.defend_index = BotBlackboard.NO_HARDPOINT
 	var objs := server.objectives
 	if objs != null and not objs.lanes.is_empty():
@@ -157,17 +170,21 @@ func _fill_blackboard(tick: int, h: HeroBody) -> void:
 			bb.front_pos = fh.def.position
 			bb.front_radius = fh.def.zone_radius
 			bb.front_is_own = fh.owner == c.team
+			bb.front_task_progress = _task_progress(fh, c.team)
 		var best_d := INF
 		for hp in lane:
 			var hs := hp as HardpointSim
-			if hs.owner == c.team and hs.progress > 0.0 and hs.capturing_team == 1 - c.team:
+			if hs.owner == c.team and hs.is_under_attack() and (hs.cell_state != HardpointSim.CellState.CARRIED \
+					or BotBlackboard.flat_dist(hs.cell_pos, hs.def.position) <= profile.defend_carrier_radius_m):
+				# E14: Generator hit, Cell planted, or an enemy carrier closing in
 				var d := BotBlackboard.flat_dist(bb.pos, hs.def.position)
 				if d < best_d:
 					best_d = d
 					bb.defend_index = hs.index
 					bb.defend_pos = hs.def.position
 					bb.defend_radius = hs.def.zone_radius
-					bb.defend_progress = hs.progress
+					bb.defend_progress = hs.pressure()
+		_fill_tasks(objs, lane, fi, c.team)
 	bb.enemy_uplink_exposed = false
 	var mf := server.match_flow
 	if mf != null and mf.is_live():
@@ -177,32 +194,179 @@ func _fill_blackboard(tick: int, h: HeroBody) -> void:
 			bb.enemy_uplink_id = u.net_id
 			bb.enemy_uplink_pos = u.aim_point()
 			bb.siege_pos = _siege_point(u, c.team)
+			_fill_regroup(u, c.team)
 
 
-## Where to shoot the Exposed Uplink from: inside the held enemy Inner's zone,
-## on its edge toward the Uplink (presence keeps it Exposed); else 30 m short.
+## E14: how far `team` has got with the task on hardpoint `hs` (0..~1.5).
+static func _task_progress(hs: HardpointSim, team: int) -> float:
+	if hs.owner == team:
+		return 0.0
+	var p := hs.progress if hs.capturing_team == team else 0.0
+	match hs.task:
+		HardpointDef.TaskKind.PLANT:
+			if hs.cell_team == team and hs.cell_state == HardpointSim.CellState.PLANTED:
+				return 0.3 + p
+		HardpointDef.TaskKind.BREACH:
+			if hs.owner != MapDef.TEAM_NEUTRAL and hs.eligible[team]:
+				return 0.5 + p if hs.breach_phase == 2 else 1.0 - hs.gen_frac
+	return p
+
+
+## E14: the bot's Cell job (Plant) and the enemy Generator to shoot (Breach).
+func _fill_tasks(objs: ObjectiveSystem, lane: Array, front: int, team: int) -> void:
+	bb.cell_job = BotBlackboard.CellJob.NONE
+	bb.generator_id = 0
+	var mine := objs.carried_by(hero_id)
+	bb.carrying = mine != null
+	if front >= 0:
+		var fh: HardpointSim = lane[front]
+		if fh.generator_attackable_by(team):
+			var g := server.generator_of(fh)
+			if g != null:
+				bb.generator_id = g.net_id
+				bb.generator_pos = g.global_position
+				bb.generator_zone_radius = fh.def.zone_radius
+	if mine != null:
+		_set_job(BotBlackboard.CellJob.PLANT, mine.def.position, mine.def.zone_radius * 0.45)
+		return
+	var best := BotBlackboard.CellJob.NONE
+	for hp in lane:
+		var hs := hp as HardpointSim
+		if hs.task != HardpointDef.TaskKind.PLANT or hs.owner == MapDef.TEAM_NEUTRAL:
+			continue
+		var rules := objs.rules
+		if hs.owner != team and hs.cell_team == team:
+			if hs.cell_state == HardpointSim.CellState.CRADLE and _claim(team, hs, "pickup", hs.cell_pos):
+				_set_job(BotBlackboard.CellJob.PICKUP, hs.cell_pos, rules.cell_interact_radius_m * 0.4)
+				best = BotBlackboard.CellJob.PICKUP
+			elif hs.cell_state == HardpointSim.CellState.DROPPED and _claim(team, hs, "touch", hs.cell_pos):
+				_set_job(BotBlackboard.CellJob.TOUCH, hs.cell_pos, rules.cell_touch_radius_m * 0.4)
+				best = BotBlackboard.CellJob.TOUCH
+		elif hs.owner == team and hs.cell_team == 1 - team:
+			if hs.cell_state == HardpointSim.CellState.PLANTED and _claim(team, hs, "defuse", hs.def.position):
+				_set_job(BotBlackboard.CellJob.DEFUSE, hs.def.position, hs.def.zone_radius * 0.45)
+				return  # defusing comes first
+			if hs.cell_state == HardpointSim.CellState.DROPPED and best == BotBlackboard.CellJob.NONE \
+					and BotBlackboard.flat_dist(bb.pos, hs.cell_pos) < profile.disperse_range_m and _claim(team, hs, "disperse", hs.cell_pos):
+				_set_job(BotBlackboard.CellJob.DISPERSE, hs.cell_pos, rules.cell_touch_radius_m * 0.4)
+
+
+func _set_job(job: int, at: Vector3, radius: float) -> void:
+	bb.cell_job = job
+	bb.cell_job_pos = at
+	bb.cell_job_radius = radius
+
+
+## One bot per team takes a Cell job: the live, non-carrying bot nearest to `at`
+## when the job appears; it keeps the claim while alive and no more than
+## profile.cell_claim_hysteresis_m worse off than the nearest. True if this bot holds the claim.
+func _claim(team: int, hs: HardpointSim, job: String, at: Vector3) -> bool:
+	var key := "%d:%s:%s" % [team, hs.def.id, job]
+	var best_id := 0
+	var best_d := INF
+	var holder_d := INF
+	var holder: int = claims.get(key, 0)
+	for b in team_brains:
+		var br := b as BotBrain
+		var h := br.hero()
+		if h == null or h.combat.dead or h.combat.team != team or server.objectives.carried_by(br.hero_id) != null:
+			continue
+		var d := BotBlackboard.flat_dist(h.state.position, at)
+		if br.hero_id == holder:
+			holder_d = d
+		if d < best_d:
+			best_d = d
+			best_id = br.hero_id
+	if holder != 0 and holder_d < INF and holder_d <= best_d + profile.cell_claim_hysteresis_m:
+		best_id = holder
+	claims[key] = best_id
+	return best_id == hero_id
+
+
+## Where to shoot the Exposed Uplink from (E14): inside the enemy HQ gate,
+## profile.siege_range_m from the core on the lane side, so every weapon is in
+## its damage band (the Inner zone edge was ~48 m out: shotguns barely scored).
+## The held Inner stays held (retaking it is a Breach). Without a lane, 30 m short.
 func _siege_point(u: UplinkSim, team: int) -> Vector3:
 	var objs := server.objectives
 	var mf := server.match_flow
 	if objs != null:
 		for hs in objs.all:
 			if hs.owner == team and mf.half_of(hs) == u.team and hs.def.tier == HardpointDef.Tier.INNER:
-				var to := Vector3(u.base.x - hs.def.position.x, 0.0, u.base.z - hs.def.position.z)
-				return hs.def.position + to.normalized() * hs.def.zone_radius * 0.6
+				var to := Vector3(hs.def.position.x - u.base.x, 0.0, hs.def.position.z - u.base.z)
+				return u.base + to.normalized() * profile.siege_range_m
 	var back := bb.home_pos - u.base
 	back.y = 0.0
 	return u.base + back.normalized() * 30.0
+
+
+## E14 spawn choice (match-flow §3.5 Forward Beacon, C11): while the team pushes
+## past the Mid (its front is an enemy Outer / Inner, or the enemy Uplink is
+## Exposed), respawn at the Mid Beacon (11 s from the enemy Outer instead of
+## 46 s from the Sanctum, but no squad); otherwise at the Sanctum for a squad.
+## Sent as ACTION_SPAWN_CHOICE while dead, like a player's spawn-select click.
+func _decide_spawn(h: HeroBody, out: InputCommand) -> void:
+	var prog = server.get("progression")
+	var objs := server.objectives
+	if prog == null or objs == null or objs.lanes.is_empty() or not profile.beacon_spawn:
+		return
+	var team := h.combat.team
+	var lane: Array = objs.lanes[0]
+	var mid := lane.size() / 2
+	var fi := objs.front.front_for(team, 0)
+	var past_mid := fi >= 0 and (fi > mid if team == MapDef.TEAM_CONCORD else fi < mid) \
+		and (lane[fi] as HardpointSim).owner != team
+	var mf := server.match_flow
+	if mf != null and mf.uplink_of(1 - team) != null and mf.uplink_of(1 - team).exposed:
+		past_mid = true
+	var want := HeroProgress.SPAWN_BEACON if past_mid and (lane[mid] as HardpointSim).owner == team \
+		else HeroProgress.SPAWN_SANCTUM
+	if prog.progress_of(h).spawn_choice != want:
+		out.action = InputCommand.ACTION_SPAWN_CHOICE
+		out.action_arg = want
+
+
+## E14 regroup before the siege: staging point siege_stage_m out from the enemy
+## Uplink toward the lane, the live allies there, and whether this bot is in.
+func _fill_regroup(u: UplinkSim, team: int) -> void:
+	var to := Vector3(bb.siege_pos.x - u.base.x, 0.0, bb.siege_pos.z - u.base.z).normalized()
+	bb.siege_stage_pos = u.base + to * profile.siege_stage_m
+	var n := 0
+	var inside := 0
+	var list: Array = server.wardlings.heroes() if server.wardlings != null else []
+	for item in list:
+		var a := item as HeroBody
+		if a.combat.dead or a.combat.team != team:
+			continue
+		var d := BotBlackboard.flat_dist(a.state.position, u.base)
+		if d <= profile.siege_commit_m:
+			inside += 1
+		elif BotBlackboard.flat_dist(a.state.position, bb.siege_stage_pos) <= profile.siege_stage_radius_m:
+			n += 1
+	bb.siege_allies_staged = n
+	var me_in := BotBlackboard.flat_dist(bb.pos, u.base) <= profile.siege_commit_m
+	bb.siege_committed = me_in or inside > 0 or n >= profile.siege_group_min
 
 
 ## E15 skill points: the first slot of the build order the server would accept
 ## (dry run), sent as an ACTION_LEARN command like a player's Alt + skill key.
 func _decide_learn(h: HeroBody) -> void:
 	var prog = server.get("progression")
-	if prog == null or _learn_slot >= 0 or prog.progress_of(h).skill_points() < 1:
+	if prog == null or _learn_slot >= 0:
 		return
+	var p: HeroProgress = prog.progress_of(h)
+	if p.skill_points() < 1:
+		return
+	# E14 bot cost: points stay banked once the reduced tree is full, so only
+	# re-run the dry runs when the level or the spent count changed.
+	var key := p.level * 1000 + p.spent
+	if key == _learn_key:
+		return
+	_learn_key = key
 	for s in build_order:
 		if prog.can_learn(h, s) == HeroProgress.Result.OK:
 			_learn_slot = s
+			_learn_key = -1  # re-check after this point is spent
 			return
 
 
@@ -211,8 +375,8 @@ func _decide_skill(tick: int, h: HeroBody) -> void:
 		return
 	_pending_skill = null
 	var ab := h.combat.abilities
-	if ab.is_casting() or ab.is_dashing() or rng.randf() >= profile.skill_use_chance:
-		return
+	if bb.carrying or ab.is_casting() or ab.is_dashing() or rng.randf() >= profile.skill_use_chance:
+		return  # E14: a carrier uses no skills (mobility drops the Cell)
 	var zone_c := Vector3.ZERO
 	var zone_r := 0.0
 	if goal != null and goal.kind == BotGoal.Kind.DEFEND:
@@ -250,7 +414,7 @@ func _decide_squad(tick: int, h: HeroBody) -> void:
 	if kind == BotGoal.Kind.RETREAT:
 		if sq.command != Squad.CMD_FOLLOW:
 			cmd = InputCommand.SQUAD_FOLLOW
-	elif sensor.target_visible and (bb.target_is_hero or sensor.target is UplinkSim) \
+	elif sensor.target_visible and (bb.target_is_hero or sensor.target is UplinkSim or sensor.target is GeneratorTarget) \
 			and bb.target_dist <= ww.rules.command_range_m - 2.0:
 		if sq.command != Squad.CMD_ATTACK or sq.attack_target_id != bb.target_id:
 			cmd = InputCommand.SQUAD_ATTACK
@@ -273,6 +437,20 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 	var pos := h.state.position
 	var eye := pos + Vector3(0.0, h.eye_height(), 0.0)
 	var visible := sensor.target_visible and sensor.target_alive()
+	# E14 bot cost: a calm bot (no target in sight, no skill to aim, not on a Cell
+	# job or unsticking) steers at half rate: every other tick repeats the last
+	# move / look / sprint, and only the one-tick edges (skill point, squad
+	# order) are sent. Path following at 15 Hz is ample for a 6 m/s run.
+	var calm := not visible and _pending_skill == null and not nav.unsticking(tick) \
+		and (goal == null or goal.kind != BotGoal.Kind.CELL)
+	if calm and _calm_ready and (tick + slot) % 2 == 1:
+		_calm_ready = false
+		out.yaw = aim.yaw
+		out.pitch = aim.pitch
+		out.move = _calm_move
+		out.buttons |= _calm_buttons
+		_emit_edges(out)
+		return
 	# --- movement ---
 	var dest := goal.destination(bb) if goal != null else pos
 	var arrive := goal.arrive_radius(bb) if goal != null else 2.0
@@ -302,7 +480,15 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 		var toward2 := Vector3(sensor.target.global_position.x - pos.x, 0.0, sensor.target.global_position.z - pos.z).normalized()
 		var side := Vector3(-toward2.z, 0.0, toward2.x) * _strafe
 		wish = (wish + side * 0.8).limit_length(1.0)
-	if nav.check_stuck(pos, tick, wish.length_squared() > 0.25 and not c.abilities.is_dashing(), rng):
+	# E14 Plant: on the Cell job spot, stand and hold Interact (pickup / plant / defuse).
+	if goal != null and goal.kind == BotGoal.Kind.CELL and to_dest <= arrive + 0.5:
+		wish = Vector3.ZERO
+		if bb.cell_job == BotBlackboard.CellJob.PICKUP or bb.cell_job == BotBlackboard.CellJob.PLANT \
+				or bb.cell_job == BotBlackboard.CellJob.DEFUSE:
+			out.buttons |= InputCommand.BTN_INTERACT
+			interacts += 1
+	if tick >= nav.next_check_tick() \
+			and nav.check_stuck(pos, tick, wish.length_squared() > 0.25 and not c.abilities.is_dashing(), rng):
 		out.buttons |= InputCommand.BTN_JUMP
 	if nav.unsticking(tick):
 		var side2 := Vector3(-wish.z, 0.0, wish.x) * nav.unstick_side
@@ -328,8 +514,9 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 	# --- weapon ---
 	var firing := false
 	if visible and c.weapon != null and aim.can_fire(tick) and c.can_shoot():
-		var in_range := eye.distance_to(sensor.aim_point(false)) <= c.weapon.def.range_m
-		if in_range and _resource_ok(c) and aim.on_target(sensor.aim_point(aim.aim_head), eye, sensor.target_radius()):
+		var ap := sensor.aim_point(aim.aim_head)
+		var in_range := eye.distance_to(ap) <= c.weapon.def.range_m
+		if in_range and _resource_ok(c) and aim.on_target(ap, eye, sensor.target_radius()):
 			if not c.weapon.def.semi_auto or tick % FIRE_ALT_TICKS == 0:
 				out.buttons |= InputCommand.BTN_FIRE
 				shots_pressed += 1
@@ -340,6 +527,9 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 			out.buttons |= InputCommand.BTN_RELOAD
 	if not firing and not visible and out.move.y > 0.7 and to_dest > SPRINT_MIN_M and skill == null:
 		out.buttons |= InputCommand.BTN_SPRINT
+	_calm_ready = calm
+	_calm_move = out.move
+	_calm_buttons = out.buttons & (InputCommand.BTN_SPRINT | InputCommand.BTN_RELOAD)
 	# --- skill press (edge) ---
 	if skill != null:
 		if tick >= _skill_deadline:
@@ -349,6 +539,11 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 			_skill_pressed_tick = tick
 			skills_pressed += 1
 			_pending_skill = null
+	_emit_edges(out)
+
+
+## One-tick edge events: a skill point and a squad order.
+func _emit_edges(out: InputCommand) -> void:
 	# --- skill point (one-tick action) ---
 	if _learn_slot >= 0:
 		out.action = InputCommand.ACTION_LEARN
@@ -423,8 +618,8 @@ func _new_wander() -> void:
 	if goal != null:
 		r = goal.arrive_radius(bb) * 0.8
 	var a := rng.randf() * TAU
-	_wander = Vector3(cos(a), 0.0, sin(a)) * rng.randf() * r if goal == null or goal.kind != BotGoal.Kind.SIEGE \
-		else Vector3.ZERO
+	_wander = Vector3(cos(a), 0.0, sin(a)) * rng.randf() * r \
+		if goal == null or (goal.kind != BotGoal.Kind.SIEGE and goal.kind != BotGoal.Kind.CELL) else Vector3.ZERO
 
 
 func _log_transition(tick: int, from: BotGoal, to: BotGoal) -> void:

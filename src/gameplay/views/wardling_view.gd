@@ -27,6 +27,11 @@ const ELITE_SCALE: float = 1.3
 var _elite_shell: MeshInstance3D
 var _elite: bool = false
 var _turned: bool = false
+## Art pass: the procedural Picket (WardlingModel); the greybox stays hidden
+## underneath. Tier is not replicated yet (set_tier, default I).
+var model: WardlingModel
+var tier: int = 1
+var _kind: int = 1
 
 
 func _ready() -> void:
@@ -72,6 +77,48 @@ func _ready() -> void:
 	gold.cull_mode = BaseMaterial3D.CULL_FRONT
 	_elite_shell = _box(Vector3(0.86, 1.25, 0.66), Vector3(0.0, 0.62, 0.0), gold)
 	_elite_shell.visible = false
+	if ModelCatalog.models_enabled():
+		_attach_model(null)
+
+
+## Art hook: swaps the greybox for the model `def` resolves to (null = Picket).
+func _attach_model(def: WardlingDef) -> void:
+	if model != null:
+		model.queue_free()
+	model = WardlingModelBuilder.build(ModelCatalog.wardling_key(def), tier, team)
+	model.apply_elite_scale = false
+	add_child(model)
+	for c in get_children():
+		if c is MeshInstance3D and c != _hp_fill:
+			(c as MeshInstance3D).visible = false
+	_pennant.visible = false
+	_sync_model()
+
+
+## Model for a specific WardlingDef (variants arrive with their own models).
+func set_def(def: WardlingDef) -> void:
+	if ModelCatalog.models_enabled():
+		_attach_model(def)
+
+
+## Surge tier I-III (silhouette + scale per art bible §5.3).
+func set_tier(tier_: int) -> void:
+	tier = clampi(tier_, 1, 3)
+	if model != null:
+		model.set_tier(tier)
+
+
+func _sync_model() -> void:
+	if model == null:
+		return
+	if model.team != team:
+		model.set_team(team)
+	model.set_owner_kind(_kind)
+	model.set_elite(_elite)
+	model.set_turned(_turned)
+	_sash.visible = false
+	_pennant.visible = false
+	_elite_shell.visible = false
 
 
 func apply(pos: Vector3, yaw: float) -> void:
@@ -92,6 +139,8 @@ func set_state(team_: int, hp_frac: float, owner_kind: int) -> void:
 	var f := clampf(hp_frac, 0.0, 1.0)
 	_hp_fill.scale = Vector3(maxf(f, 0.02), 1.0, 1.0)
 	_hp_mat.albedo_color = Color(1.0, 0.25, 0.2).lerp(Color(0.4, 1.0, 0.5), f)
+	_kind = owner_kind
+	_sync_model()
 
 
 ## E10: Elite / Turned (snapshot state bits 6 / 7).
@@ -104,6 +153,7 @@ func set_rewrite(elite: bool, turned: bool) -> void:
 		_sash.visible = true
 		(_sash.material_override as StandardMaterial3D).albedo_color = TURNED_VIOLET
 		(_sash.material_override as StandardMaterial3D).emission = TURNED_VIOLET
+	_sync_model()
 
 
 func is_elite() -> bool:

@@ -6,7 +6,10 @@ extends RefCounted
 ## hit the bot) and a ray to its chest is clear of map geometry. Enemy
 ## Wardlings within WARDLING_RANGE_M and an Exposed enemy Uplink in range are
 ## checked the same way. Picks the fight target: heroes, then the Uplink while
-## it is Exposed, then Wardlings. Ray count per scan is bounded (MAX_RAYS).
+## it is Exposed, then the enemy Ward Generator (E14), then Wardlings. While
+## sieging (or standing in the Breach zone) the Uplink / Generator outranks
+## heroes farther than BotProfile.objective_focus_m while the bot is not under
+## fire (E14). Ray count per scan is bounded (MAX_RAYS).
 
 const CHEST_Y: float = 1.1
 const HEAD_Y: float = 1.6
@@ -42,6 +45,7 @@ func scan(h: HeroBody, look_yaw: float, bb: BotBlackboard, prefer_uplink: bool) 
 	var half_fov := deg_to_rad(profile.fov_deg * 0.5)
 	var best: Node3D = null
 	var best_score := INF
+	var best_d := INF
 	var seen := 0
 	# Heroes (<= 5 enemies: no sorting needed). WardlingWorld's hero list is
 	# collected once per tick in registry order (deterministic, no allocation).
@@ -67,14 +71,26 @@ func scan(h: HeroBody, look_yaw: float, bb: BotBlackboard, prefer_uplink: bool) 
 		if s < best_score:
 			best_score = s
 			best = e
+			best_d = d
 	bb.enemy_heroes_seen = seen
 	var visible := best != null
+	# E14 objective focus: during a siege (or inside a Breach zone) the Uplink /
+	# Generator beats heroes farther than profile.objective_focus_m.
+	# A bot under fire fights back first (it would otherwise die to defenders at range).
+	var focus := best == null or (best_d > profile.objective_focus_m and bb.seconds_since(bb.last_damaged_tick) > 1.0)
 	# Exposed enemy Uplink.
-	if best == null and bb.enemy_uplink_exposed:
+	if focus and bb.enemy_uplink_exposed and (best == null or prefer_uplink):
 		var u := server.registry.get_node_by_id(bb.enemy_uplink_id) as UplinkSim
 		if u != null and (prefer_uplink or eye.distance_to(u.aim_point()) <= UPLINK_RANGE_M * 0.6) \
 				and eye.distance_to(u.aim_point()) <= UPLINK_RANGE_M and _los_uplink(eye, u):
 			best = u
+			visible = true
+	# E14 Breach: the enemy Generator, from inside its zone (the shield blocks the rest).
+	if focus and not (best is UplinkSim) and bb.generator_id != 0 \
+			and BotBlackboard.flat_dist(h.state.position, bb.generator_pos) <= bb.generator_zone_radius - 0.5:
+		var g := server.registry.get_node_by_id(bb.generator_id) as GeneratorTarget
+		if g != null and g.is_up() and _los_near(eye, g.aim_point(), g.global_position, g.hit_radius):
+			best = g
 			visible = true
 	# Enemy Wardlings (nearest with LOS, at most 2 rays).
 	bb.enemy_wardlings_seen = 0
@@ -132,6 +148,8 @@ func aim_point(head: bool) -> Vector3:
 		return (target as WardlingSim).chest()
 	if target is UplinkSim:
 		return (target as UplinkSim).aim_point()
+	if target is GeneratorTarget:
+		return (target as GeneratorTarget).aim_point()
 	return target.global_position if target != null else Vector3.ZERO
 
 
@@ -143,6 +161,8 @@ func target_radius() -> float:
 		return 0.3
 	if target is UplinkSim:
 		return 1.4
+	if target is GeneratorTarget:
+		return (target as GeneratorTarget).hit_radius
 	return 0.3
 
 
@@ -157,6 +177,8 @@ func target_alive() -> bool:
 	if target is UplinkSim:
 		var u := target as UplinkSim
 		return u.exposed and not u.is_destroyed()
+	if target is GeneratorTarget:
+		return (target as GeneratorTarget).is_up()
 	return false
 
 
@@ -206,6 +228,21 @@ func _los_uplink(from: Vector3, u: UplinkSim) -> bool:
 		return true
 	var p: Vector3 = r.position
 	return Vector2(p.x - u.base.x, p.z - u.base.z).length() <= u.hit_radius + 1.5
+
+
+## A static body with collision (the Generator core): a ray stopping within
+## `radius` (+ slack) of its axis counts as a clear shot.
+func _los_near(from: Vector3, to: Vector3, axis: Vector3, radius: float) -> bool:
+	if _rays_left <= 0:
+		return false
+	_rays_left -= 1
+	_ray.from = from
+	_ray.to = to
+	var r := server.get_world_3d().direct_space_state.intersect_ray(_ray)
+	if r.is_empty():
+		return true
+	var p: Vector3 = r.position
+	return Vector2(p.x - axis.x, p.z - axis.z).length() <= radius + 1.5
 
 
 func _los(from: Vector3, to: Vector3) -> bool:

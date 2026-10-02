@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 id = &"normal"
-decision_hz = 10.0
+decision_hz = 5.0
 reaction_s = 0.35
 tracking_error_deg = 0.8
 max_error_deg = 2.5

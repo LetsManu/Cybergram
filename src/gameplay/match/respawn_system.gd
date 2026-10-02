@@ -17,5 +17,8 @@ static func respawn_ticks(rules: MatchRulesDef, death_tick: int, tick_rate_hz: i
 
 ## Whole ticks until respawn for a death at `match_minutes` on the match clock
 ## (MatchRules.minutes(); E9 wires C11 to the real match time).
-static func respawn_ticks_at_minutes(rules: MatchRulesDef, match_minutes: float, tick_rate_hz: int) -> int:
-	return ceili(respawn_seconds(rules, match_minutes) * tick_rate_hz - 1e-6)
+## `exposed`: the hero's own Uplink is Exposed (slice tuning, MatchRulesDef.exposed_respawn_mult).
+static func respawn_ticks_at_minutes(rules: MatchRulesDef, match_minutes: float, tick_rate_hz: int,
+		exposed: bool = false) -> int:
+	var s := respawn_seconds(rules, match_minutes) * (rules.exposed_respawn_mult if exposed else 1.0)
+	return ceili(s * tick_rate_hz - 1e-6)

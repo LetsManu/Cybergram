@@ -66,6 +66,27 @@ Design sources: `design/gdd/game-concept.md` (Canon), `design/gdd/match-flow-and
 - [ ] Performance within budget on target hardware (see Quality Gates)
 - [ ] Build stable for 5 consecutive days (CI green on `main`, nightly soak passes)
 
+## Exit Criteria Status (E14, 2026-10-02)
+
+Evidence: `production/qa/m1-soak-report.md` and `design/balance/slice-tuning.md`. The full gdUnit4 suite passes
+(360 tests). `tools/ci/check_deps.sh` is OK.
+
+| Criterion | Status | Evidence / gap |
+| ---- | ---- | ---- |
+| Launch and look (captures 01–10 in `production/qa/evidence/m1/`) | **Not met** | The m1 capture set does not exist yet. Only the E14 task captures exist (`evidence/e14/plant.png`, `breach.png`). `scenes/slice/slice_match.tscn` was not checked |
+| Win or lose by Uplink destruction; Integrity permanent; invulnerable unless an enemy holds an Inner | **Met (scenario tests)**, with deviations | `uplink_siege_test.gd` (staged layout) and `plant_breach_server_test.gd`: the real Breach of S-BI exposes the Uplink. The slice deviates from Canon: Integrity 12,000 (not 33,000), and an Outer also exposes the Uplink from 5:00 (`slice-tuning.md`) |
+| 20 headless bot matches, 0 crashes, telemetry to `production/qa/telemetry/m1/` | **Met** | 20/20 reached End with exit 0 and no script errors. Exit-time leak report only, which predates E14 |
+| ≥15 of 20 end by Uplink kill before 30:00 | **Not met (1/20)** | 19 time-outs on Incursion. The Mid see-saws, and no Inner Generator fell in 20 matches. See slice-tuning F1–F2 |
+| Client/server separation CI check; plays to completion at 150 ms RTT / 2 % loss | **Partly met** | `check_deps.sh` is OK. The latency run was not repeated in E14; the existing net tests pass |
+| Respawn follows C11; HQ vs Mid-Beacon spawn choice | **Met, with a slice deviation** | Unit and scenario tests pass. Canon C11 is tested on the class defaults. The slice uses 10 + 1.0·m (cap 30), ×1.5 while Exposed (`slice-tuning.md`) |
+| Wardlings: follow, 4 commands, 0.5 presence capped at 3.0, dissolve 10 s, Vanguard cadence | **Met (tests)** | E8 suites green. Waves now skip Plant nodes unless an allied Cell is carried or planted |
+| Hold, Plant and Breach complete in scripted scenarios within ±1 s of F2–F4 | **Met** | `plant_breach_test.gd`: Plant 75 ± 1 s (F3), Breach 40 ± 1 s (F4), Hold (E7). `plant_breach_server_test.gd`: carry at 5.4 m/s ±2 %, plant 3 s, flip 75 ± 1 s, and the breach hold 31.25 ± 1 s |
+| Levelling and the reduced tree; mount buy / upgrade / sell / undo | **Met (E13/E15 tests)** | Unchanged by E14 |
+| `/playtest-report` from ≥3 owner sessions (go / pivot) | **Not met** | Needs the owner |
+| All S1 and S2 bugs resolved | **Not assessed** | `production/qa/bugs/` is empty. The soak found no crash |
+| Performance within budget | **Partly met** | Server tick p95 4.9 ms against an 8.3 ms budget (pass, headless). Bot cost 0.43 ms against 0.4 ms (narrow miss). FPS on the reference PC was not measured |
+| Build stable for 5 consecutive days | **Not assessed** | No nightly CI history |
+
 ## Feature List
 
 ### Must Ship (Milestone Fails Without These)

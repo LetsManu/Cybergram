@@ -87,11 +87,15 @@ var gen_idle_s: float = 0.0
 ## Phase 2 at P = 0 with no attacker present (reset after breach_reset_idle_s).
 var phase2_idle_s: float = 0.0
 var generators_destroyed: int = 0
+## Telemetry: Generator damage landed / stopped by the shield (out-numbered or from outside).
+var gen_damage: float = 0.0
+var gen_blocked: float = 0.0
 
 var _attacker_was_present: bool = false
 var _peak: float = 0.0
 var _d_s: float = 1.0
 var _regen_delay_s: float = 8.0
+var _gen_hp_mult: float = 1.0
 var _defused: bool = false
 
 
@@ -108,11 +112,13 @@ func _init(d: HardpointDef, lane_: int, index_: int, rules: MatchRulesDef) -> vo
 			base_s = rules.staged_hold_base_s[d.tier]
 	elif task == HardpointDef.TaskKind.PLANT:
 		cell_timer = 0.0  # the Cradle offers a Cell as soon as the attacker is eligible
+		base_s = d.base_duration_s * rules.plant_base_mult  # slice tuning (1.0 = map value)
+	_gen_hp_mult = rules.generator_hp_mult
 
 
-## Generator max HP at Surge scale `d_s` (F4: HP_base × D_s).
+## Generator max HP at Surge scale `d_s` (F4: HP_base × D_s; × the slice's generator_hp_mult).
 func generator_max(d_s: float = -1.0) -> float:
-	return def.generator_hp * (_d_s if d_s < 0.0 else d_s)
+	return def.generator_hp * _gen_hp_mult * (_d_s if d_s < 0.0 else d_s)
 
 
 ## Current Generator HP (Breach phase 1), else 0.
@@ -131,8 +137,12 @@ func generator_attackable_by(team: int) -> bool:
 ## damage while Pres(def) > Pres(att), and damage from outside the zone) and
 ## ignored from an ineligible team. Returns the HP removed.
 func damage_generator(amount: float, team: int, source_pos: Vector3) -> float:
-	if amount <= 0.0 or not generator_attackable_by(team) or gen_shielded or not zone_contains(source_pos):
+	if amount <= 0.0 or not generator_attackable_by(team):
 		return 0.0
+	if gen_shielded or not zone_contains(source_pos):
+		gen_blocked += amount
+		return 0.0
+	gen_damage += amount
 	var mx := maxf(generator_max(), 1.0)
 	var a := minf(amount, gen_frac * mx)
 	gen_frac -= a / mx

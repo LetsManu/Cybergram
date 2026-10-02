@@ -124,7 +124,12 @@ func test_exposed_enemy_uplink_is_sieged() -> void:
 	bb.enemy_uplink_exposed = true
 	bb.enemy_uplink_id = 9
 	bb.siege_pos = Vector3(0.0, 0.0, -342.0)
+	bb.siege_stage_pos = Vector3(0.0, 0.0, -300.0)
 	assert_int(_pick(bb)).is_equal(K.SIEGE)
+	# E14 regroup: gather at the staging point until enough allies are there...
+	assert_vector(GoalSelector.new().goal(K.SIEGE).destination(bb)).is_equal(bb.siege_stage_pos)
+	# ...then go in to the siege spot.
+	bb.siege_committed = true
 	assert_vector(GoalSelector.new().goal(K.SIEGE).destination(bb)).is_equal(bb.siege_pos)
 
 
@@ -161,3 +166,56 @@ func test_a_retreat_that_ended_hurt_is_not_restarted_during_its_cooldown() -> vo
 	assert_int(_pick(bb)).is_equal(K.FIGHT)
 	bb.retreat_block_until_tick = bb.tick - 1
 	assert_int(_pick(bb)).is_equal(K.RETREAT)
+
+
+# --- E14 Plant / Breach ----------------------------------------------------------
+
+func test_cell_job_outranks_fighting_and_names_the_job_spot() -> void:
+	var bb := _bb()
+	_see_enemy(bb, 15.0, 0.5)
+	bb.cell_job = BotBlackboard.CellJob.PICKUP
+	bb.cell_job_pos = Vector3(-5.0, 0.0, -210.0)
+	bb.cell_job_radius = 1.0
+	assert_int(_pick(bb)).is_equal(K.CELL)
+	var g := GoalSelector.new().goal(K.CELL)
+	assert_vector(g.destination(bb)).is_equal(bb.cell_job_pos)
+	assert_float(g.arrive_radius(bb)).is_equal(1.0)
+
+
+func test_a_carrier_keeps_its_cell_job_over_a_close_fight() -> void:
+	var bb := _bb()
+	_see_enemy(bb, 6.0, 0.2)
+	bb.cell_job = BotBlackboard.CellJob.PLANT
+	bb.carrying = true
+	assert_int(_pick(bb)).is_equal(K.CELL)
+	bb.cell_job = BotBlackboard.CellJob.NONE
+	bb.carrying = false
+	assert_int(_pick(bb)).is_equal(K.FIGHT)
+
+
+func test_push_commits_near_a_task_under_way() -> void:
+	var p := _profile()
+	var bb := _bb()
+	bb.pos = bb.front_pos + Vector3(0.0, 0.0, 10.0)
+	var plain := PushGoal.new().score(bb, p)
+	bb.front_task_progress = 0.4  # e.g. a planted Cell charging
+	assert_float(PushGoal.new().score(bb, p)).is_equal_approx(plain + p.w_push_commit, 1e-6)
+	bb.pos = bb.front_pos + Vector3(0.0, 0.0, p.push_commit_range_m + 5.0)  # too far: no commitment
+	assert_float(PushGoal.new().score(bb, p)).is_equal_approx(plain, 1e-6)
+
+
+func test_task_progress_reads_plant_and_breach_state() -> void:
+	var rules := MatchRulesDef.new()
+	rules.stage_all_as_hold = false
+	var sys := ObjectiveSystem.new(load("res://assets/data/match/map_slice_lane.tres") as MapDef, rules)
+	sys.debug_set_owner(&"s_mid", 0)
+	sys.debug_set_owner(&"s_bo", 0)
+	var bi := sys.find(&"s_bi")
+	assert_float(BotBrain._task_progress(bi, 0)).is_equal(0.0)
+	sys.damage_generator(bi, bi.generator_max() * 0.25, 0, bi.def.position)
+	assert_float(BotBrain._task_progress(bi, 0)).is_equal_approx(0.25, 1e-4)
+	assert_float(BotBrain._task_progress(bi, 1)).is_equal(0.0)  # own node
+	sys.debug_set_owner(&"s_bo", 1)
+	var bo := sys.find(&"s_bo")
+	sys.debug_set_cell(&"s_bo", HardpointSim.CellState.PLANTED, 0)
+	assert_float(BotBrain._task_progress(bo, 0)).is_equal_approx(0.3, 1e-6)

@@ -7,10 +7,10 @@ extends HudWidget
 ## shield appended as a white-outlined block, `LUMEN 1,240` with a gain flyout,
 ## RES %, and the violet `+N SP` badge.
 
-const W: float = 470.0
+const W: float = 424.0
 const H: float = 112.0
 const RING_R: float = 34.0
-const BAR_W: float = 330.0
+const BAR_W: float = 300.0
 const BAR_H: float = 16.0
 const STATUS := [[StatusComponent.BIT_STUN, "HUD_STATUS_STUN"], [StatusComponent.BIT_ROOT, "HUD_STATUS_ROOT"],
 	[StatusComponent.BIT_SLOW, "HUD_STATUS_SLOW"], [StatusComponent.BIT_KNOCKBACK, "HUD_STATUS_KNOCKBACK"],
@@ -63,8 +63,8 @@ func _draw() -> void:
 	draw_arc(rc, RING_R - 3.0, -PI / 2.0, -PI / 2.0 + TAU * frac, 48, HudPalette.RESONANCE, 5.0, true)
 	if _flash > 0.0:
 		draw_arc(rc, RING_R + 2.0 + (1.2 - _flash) * 12.0, 0.0, TAU, 48, Color(1, 1, 1, _flash / 1.2), 2.5, true)
-		text_c(tr("HUD_LEVEL_UP"), rc + Vector2(0.0, -RING_R - 14.0), 15, Color(1, 1, 1, minf(1.0, _flash * 2.0)),
-			ctx.font_display)
+		text(tr("HUD_LEVEL_UP"), Vector2(0.0, top + 19.0), 14, Color(HudPalette.SP.lightened(0.3), minf(1.0, _flash * 2.0)),
+			ctx.font_display, HORIZONTAL_ALIGNMENT_RIGHT, W - 12.0)
 	text_c(str(level), rc + Vector2(0.0, -2.0), 28, HudPalette.TEXT, ctx.font_numbers)
 	text_c(tr("HUD_LEVEL_SHORT"), rc + Vector2(0.0, 19.0), 11, HudPalette.TEXT_DIM, ctx.font_display)
 	var x := 2.0 * RING_R + 28.0

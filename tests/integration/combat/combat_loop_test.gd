@@ -63,7 +63,9 @@ func test_client_kills_dummy_which_respawns_with_replicated_health() -> void:
 		if not server_ticks.has("respawned"):
 			server_ticks.respawned = _server.tick)
 
-	_tick(340)
+	# ~160 ticks to the kill, then the C11 timer of the rules under test (the
+	# slice's coefficients are E14 slice tuning: design/balance/slice-tuning.md).
+	_tick(160 + RespawnSystem.respawn_ticks(_server.rules, 160, HZ))
 
 	# Died to 9 Threadcaster body shots (250 / 29), reported to the shooter.
 	assert_bool(server_ticks.has("died")).is_true()

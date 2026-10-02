@@ -214,8 +214,27 @@ func match_seconds() -> float:
 	return match_flow.time_s if match_flow != null else tick * dt
 
 
+## E14 soak telemetry: wall-clock µs of each step() (measurement only).
+var tick_usec: PackedInt32Array = PackedInt32Array()
+
+
+## {p50_ms, p95_ms, max_ms, ticks} of step() wall time so far.
+func tick_time_summary() -> Dictionary:
+	if tick_usec.is_empty():
+		return {"p50_ms": 0.0, "p95_ms": 0.0, "max_ms": 0.0, "ticks": 0}
+	var s := tick_usec.duplicate()
+	s.sort()
+	return {
+		"p50_ms": snappedf(s[s.size() / 2] / 1000.0, 0.001),
+		"p95_ms": snappedf(s[mini(s.size() - 1, int(s.size() * 0.95))] / 1000.0, 0.001),
+		"max_ms": snappedf(s[s.size() - 1] / 1000.0, 0.001),
+		"ticks": s.size(),
+	}
+
+
 ## One server tick.
 func step() -> void:
+	var t0 := Time.get_ticks_usec()
 	session.poll()
 	for peer in session.clients:
 		var h: HeroBody = _humans.get(peer)
@@ -240,6 +259,7 @@ func step() -> void:
 	_send_snapshots()
 	_flush_events()
 	tick += 1
+	tick_usec.append(Time.get_ticks_usec() - t0)
 
 
 ## E14 Plant: what this hero does for the tasks this tick (interact, CC, dash).
@@ -508,7 +528,9 @@ func _kill(victim: HeroBody, killer_id: int) -> void:
 	if killer != null:
 		killer.combat.kills += 1
 	if match_flow != null:  # C11 on the real match clock (E9)
-		c.respawn_tick = tick + RespawnSystem.respawn_ticks_at_minutes(rules, match_flow.minutes(), net.tick_rate_hz)
+		var own := match_flow.uplink_of(c.team)
+		c.respawn_tick = tick + RespawnSystem.respawn_ticks_at_minutes(rules, match_flow.minutes(), net.tick_rate_hz,
+			own != null and own.exposed)  # E14 slice: Exposed teams respawn slower
 	else:
 		c.respawn_tick = tick + RespawnSystem.respawn_ticks(rules, tick, net.tick_rate_hz)
 	victim.collision_layer = 0  # corpses do not block

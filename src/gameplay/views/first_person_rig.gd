@@ -13,6 +13,18 @@ var gun: MeshInstance3D
 var _strip: MeshInstance3D
 var _mounts: Node3D
 var _mount_key: String = ""
+## Art pass: the hero's signature weapon as a viewmodel (WeaponModel, chosen
+## by WeaponDef through ModelCatalog) + first-person forearms. When present,
+## the greybox `gun` is hidden and E13 mounts attach to its socket markers.
+const VIEWMODEL_POS := Vector3(0.15, -0.155, -0.27)
+const VIEWMODEL_SCALE: float = 0.6
+var weapon_model: WeaponModel
+var _vm: Node3D
+var _last_items: Array = []
+var _last_tiers := PackedInt32Array()
+var _last_feet := Vector3.INF
+var _bob_t: float = 0.0
+var _bob_amp: float = 0.0
 
 
 func setup(look: LookSettings) -> void:
@@ -40,6 +52,67 @@ func setup(look: LookSettings) -> void:
 	gun.add_child(strip)
 
 
+func _ready() -> void:
+	if weapon_model == null and ModelCatalog.models_enabled():
+		_weapon_from_parent()
+
+
+## Art hook: picks the viewmodel from the owning ClientWorld's hero_def.
+func _weapon_from_parent() -> void:
+	var p := get_parent()
+	if p == null:
+		return
+	var hd: Variant = p.get("hero_def")
+	if hd is HeroDef and (hd as HeroDef).weapon != null:
+		var team := int(p.call("own_team")) if p.has_method("own_team") else 0
+		set_weapon((hd as HeroDef).weapon, ModelCatalog.hero_key(hd as HeroDef), team)
+
+
+## Swaps the greybox gun for `def`'s viewmodel (null or unknown id = keep the box).
+func set_weapon(def: WeaponDef, hero_key: StringName = &"", team: int = 0) -> void:
+	var k := ModelCatalog.weapon_key(def)
+	if k == &"" or camera == null:
+		return
+	if _vm != null:
+		_vm.queue_free()
+	_vm = Node3D.new()
+	_vm.name = "Viewmodel"
+	_vm.position = VIEWMODEL_POS
+	_vm.scale = Vector3.ONE * VIEWMODEL_SCALE
+	camera.add_child(_vm)
+	weapon_model = WeaponModelBuilder.build(k, true, team)
+	weapon_model.rotation_degrees = Vector3(0.0, 4.0, 0.0)
+	_vm.add_child(weapon_model)
+	if hero_key == &"":
+		hero_key = ModelCatalog.hero_key_from_id(String(def.id))
+	if hero_key == &"":
+		for hk in ModelCatalog.HERO_WEAPON:
+			if ModelCatalog.HERO_WEAPON[hk] == k:
+				hero_key = hk
+	_add_arms(hero_key, team)
+	gun.visible = false
+	_mount_key = ""
+	if not _last_items.is_empty():
+		set_mounts(_last_items, _last_tiers)
+
+
+func _add_arms(hero_key: StringName, team: int) -> void:
+	var mat := ModelMaterials.toon(team, true)
+	var grips := {"r": Vector3.ZERO, "l": weapon_model.transform * (weapon_model.socket(&"grip_l") as Node3D).position}
+	var elbows := {"r": Vector3(0.2, -0.3, 0.18), "l": Vector3(-0.32, -0.34, -0.02)}
+	for side in ["r", "l"]:
+		var arm := MeshInstance3D.new()
+		arm.name = "FpArm_" + side
+		arm.mesh = HeroModelBuilder.fp_arm_mesh(hero_key, side)
+		arm.material_override = mat
+		arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var grip: Vector3 = grips[side]
+		var dir: Vector3 = (grip - (elbows[side] as Vector3)).normalized()
+		arm.basis = HeroModel._bone_basis(dir, Vector3(0.0, -1.0, 0.4))
+		arm.position = grip - dir * HeroModelBuilder.FP_ARM_LEN
+		_vm.add_child(arm)
+
+
 ## E13 "Power You Can See" (weapons-and-mods.md §3.6.3, §3.10 greybox): one
 ## primitive per line at its socket, scaled and brighter per tier. `items` /
 ## `tiers` follow SnapshotData.ProgressState.MOUNT_SOCKETS (Core, Frame,
@@ -52,6 +125,11 @@ func set_mounts(items: Array, tiers: PackedInt32Array) -> void:
 	if key == _mount_key or gun == null:
 		return
 	_mount_key = key
+	_last_items = items.duplicate()
+	_last_tiers = tiers.duplicate()
+	if weapon_model != null:
+		weapon_model.set_mounts(items, tiers)
+		return
 	if _mounts != null:
 		_mounts.queue_free()
 	_mounts = Node3D.new()
@@ -73,6 +151,8 @@ func set_mounts(items: Array, tiers: PackedInt32Array) -> void:
 
 ## Number of mount meshes on the gun (tests / diagnostics).
 func mount_mesh_count() -> int:
+	if weapon_model != null:
+		return weapon_model.mount_count()
 	return _mounts.get_child_count() if _mounts != null else 0
 
 
@@ -136,6 +216,21 @@ func follow(feet: Vector3, eye_height: float, yaw: float, pitch: float) -> void:
 	position = feet + Vector3(0.0, eye_height, 0.0)
 	rotation = Vector3(0.0, yaw, 0.0)
 	camera.rotation = Vector3(pitch, 0.0, 0.0)
+	if _vm != null:
+		_viewmodel_bob(feet)
+
+
+## Viewmodel walk bob / settle from the camera's ground speed (presentation).
+func _viewmodel_bob(feet: Vector3) -> void:
+	var dt := get_process_delta_time()
+	var speed := 0.0
+	if _last_feet != Vector3.INF and dt > 0.0:
+		speed = Vector2(feet.x - _last_feet.x, feet.z - _last_feet.z).length() / dt
+	_last_feet = feet
+	_bob_amp = lerpf(_bob_amp, clampf(speed / 6.0, 0.0, 1.0), clampf(dt * 8.0, 0.0, 1.0))
+	_bob_t += dt * (4.0 + 6.0 * _bob_amp)
+	_vm.position = VIEWMODEL_POS + Vector3(sin(_bob_t) * 0.008, -absf(cos(_bob_t)) * 0.01, 0.0) * _bob_amp \
+		+ Vector3(0.0, sin(_bob_t * 0.35) * 0.002, 0.0)
 
 
 func _mat(c: Color, emissive: bool, energy: float = 1.0) -> StandardMaterial3D:

@@ -61,7 +61,7 @@ func _draw() -> void:
 		draw_rect(r, border, false, 3.0 if active or (left == 0 and not locked) else 1.5)
 		_draw_tree(client, r, def, flags)
 		text_c("[%s]" % BINDS[i], r.position + Vector2(ICON * 0.5, ICON + 12.0), 13, HudPalette.TEXT_DIM, ctx.font_display)
-	_consumable(client, Rect2(Vector2(x0 + 4.0 * ICON + 3.0 * GAP + 18.0, y + 12.0), Vector2(52.0, 52.0)))
+	_consumable(client, Rect2(Vector2(x0 + 4.0 * ICON + 3.0 * GAP + 18.0, y + 12.0), Vector2(52.0, ICON - 12.0)))
 
 
 ## Med-Pack slot [4] (hud.md §3.1 bottom centre consumable).
@@ -70,14 +70,14 @@ func _consumable(client: ClientWorld, r: Rect2) -> void:
 	var count := p.medpacks if p != null else 0
 	panel(r, ctx.panel_strong)
 	var col := HudPalette.HEAL if count > 0 else HudPalette.TEXT_OFF
-	var cc := r.get_center() + Vector2(0.0, -6.0)
-	draw_rect(Rect2(cc - Vector2(9, 3), Vector2(18, 6)), col)
-	draw_rect(Rect2(cc - Vector2(3, 9), Vector2(6, 18)), col)
-	text("x%d" % count, Vector2(r.position.x, r.end.y - 5.0), 13, col, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT,
-		r.size.x - 5.0)
+	var cc := r.position + Vector2(16.0, r.size.y * 0.5)
+	draw_rect(Rect2(cc - Vector2(8, 3), Vector2(16, 6)), col)
+	draw_rect(Rect2(cc - Vector2(3, 8), Vector2(6, 16)), col)
+	text("x%d" % count, Vector2(r.position.x, cc.y + 6.0), 15, col, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT,
+		r.size.x - 6.0)
 	if p != null and (p.flags & SnapshotData.ProgressState.FLAG_HEALING) != 0:
 		draw_rect(r, HudPalette.HEAL, false, 2.0)
-	text_c("[4]", r.position + Vector2(r.size.x * 0.5, r.size.y + 0.0), 13, HudPalette.TEXT_DIM, ctx.font_display)
+	text_c("[4]", r.position + Vector2(r.size.x * 0.5, r.size.y + 12.0), 13, HudPalette.TEXT_DIM, ctx.font_display)
 
 
 func _draw_tree(client: ClientWorld, r: Rect2, def: SkillDef, flags: int) -> void:

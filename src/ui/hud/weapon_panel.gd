@@ -6,7 +6,7 @@ extends HudWidget
 ## ≤ 25% with the [R] prompt, RELOADING / DRY states; mount strip for the
 ## slice sockets (Core / Frame / Chamber) with tier pips, empty = outlined box.
 
-const W: float = 400.0
+const W: float = 360.0
 const H: float = 124.0
 const SEGMENTS: int = 20
 const SOCKET_KEYS := {1: "HUD_SOCKET_CORE", 2: "HUD_SOCKET_BARREL", 3: "HUD_SOCKET_FRAME", 4: "HUD_SOCKET_CHAMBER"}
@@ -31,14 +31,15 @@ func _draw() -> void:
 	var state_col := HudPalette.WARN
 	if c.feed_kind == WeaponDef.FeedKind.MANA:
 		var col := HudPalette.BURNOUT if burnout else HudPalette.MANA
-		var br := Rect2(x + 14.0, top + 34.0, W - 110.0, 16.0)
+		var br := Rect2(x + 14.0, top + 34.0, W - 128.0, 16.0)
 		var sw := br.size.x / SEGMENTS
 		for i in SEGMENTS:
 			var sr := Rect2(br.position.x + i * sw, br.position.y, sw - 3.0, br.size.y)
 			var on := float(i + 1) / SEGMENTS <= frac + 0.001
 			draw_rect(sr, col if on else Color(0, 0, 0, 0.55))
-		text("%d%%" % HudFormat.percent(frac), Vector2(br.end.x + 8.0, top + 54.0), 30, HudPalette.TEXT_DIM if burnout else HudPalette.TEXT,
-			ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, W - (br.end.x - x) - 22.0)
+		text("%d%%" % HudFormat.percent(frac), Vector2(br.end.x + 6.0, top + 52.0), 28,
+			HudPalette.TEXT_DIM if burnout else HudPalette.TEXT, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT,
+			x + W - 12.0 - (br.end.x + 6.0))
 		text(tr("HUD_MANA"), Vector2(x + 14.0, top + 68.0), 12, HudPalette.MANA, ctx.font_display)
 		if burnout:
 			state = tr("HUD_BURNOUT")

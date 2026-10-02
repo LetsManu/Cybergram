@@ -55,7 +55,11 @@ func _tick() -> void:
 
 func _build(clock_scale: float) -> MapDef:
 	var def := load(MAP_PATH) as MapDef
-	var rules := load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef
+	# The heroes take S-BO / S-BI by standing in them: the Hold-staged layout (§3.7 M1
+	# staging). The live Plant / Breach path is covered by plant_breach_server_test.gd.
+	var rules := (load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef).duplicate() as MatchRulesDef
+	rules.stage_all_as_hold = true
+	rules.outer_exposure_from_s = -1.0  # F6 as in Canon: only an Inner exposes (slice tuning off)
 	_net = NetFixtures.net_config()
 	_link = LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
 	var vp := SubViewport.new()
@@ -158,7 +162,7 @@ func test_capture_to_enemy_inner_exposes_and_destroys_the_uplink() -> void:
 	assert_int(ms.winner).is_equal(C)
 	assert_int(ms.end_reason).is_equal(MatchRules.EndReason.UPLINK_DESTROYED)
 	assert_float(_client.uplink_state(S).integrity).is_equal(0.0)
-	assert_float(_client.uplink_state(C).integrity).is_equal(33000.0)
+	assert_float(_client.uplink_state(C).integrity).is_equal(_server.rules.uplink_integrity)
 	assert_array(ended).is_equal([[C, MatchRules.EndReason.UPLINK_DESTROYED]])
 	assert_array(phases).contains([MatchRules.Phase.SURGE_I, MatchRules.Phase.END])
 	for v in _client.uplink_views():
@@ -178,12 +182,15 @@ func test_deploy_mid_lock_replicates_and_respawn_uses_match_minutes() -> void:
 	assert_bool(_client.hardpoints[2].locked[C]).is_true()
 	assert_bool(_client.hardpoints[2].locked[S]).is_true()
 	assert_float(_client.match_state.next_phase_s).is_equal(60.0)
-	# C11 on the match clock: a death at 12:00 match time waits 10.8 s (324 ticks).
+	# C11 on the match clock: a death at 12:00 match time waits R(12) (Canon 10.8 s =
+	# 324 ticks; the slice rules' own coefficients, E14 slice tuning).
 	m.time_s = 720.0
 	var h := _server.hero(dummy)
 	_server.damage_hero(h, DamageInfo.make(1.0e6, 0, S))
 	assert_bool(h.combat.dead).is_true()
-	assert_int(h.combat.respawn_tick - _server.tick).is_equal(324)
+	var r := _server.rules
+	var expect := ceili(minf(r.respawn_cap_s, r.respawn_base_s + r.respawn_per_min_s * 12.0) * HZ - 1e-6)
+	assert_int(h.combat.respawn_tick - _server.tick).is_equal(expect)
 	_tick()
 	assert_int(m.phase).is_equal(MatchRules.Phase.SKIRMISH)
 	for i in 3:

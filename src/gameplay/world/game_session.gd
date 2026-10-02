@@ -117,6 +117,9 @@ func _ready() -> void:
 		var source: Object
 		if launch_config != null and launch_config.debug_uplink:
 			source = DebugUplinkSiegeSource.new(client)
+		elif launch_config != null and launch_config.debug_task != "" and _debug_task_aim != Vector3.INF:
+			source = DebugTaskSource.new(client, _debug_task_aim)
+			(source as DebugTaskSource).interact = launch_config.debug_task == "plant"
 		elif launch_config != null and launch_config.autofire:
 			source = DebugAutoAimSource.new(client)
 		elif launch_config != null and launch_config.debug_skill_demo:
@@ -157,10 +160,56 @@ func _setup_match() -> void:
 		if u != null:
 			var toward := map_def.hq(ServerWorld.TEAM_PLAYERS).uplink - u.base
 			server.debug_player_spawn = u.base + Vector3(toward.x, 0.0, toward.z).normalized() * 20.0 + Vector3(0.0, 0.05, 0.0)
+	_apply_debug_task(lc)
 	if lc.debug_uplink_integrity > 0.0:
 		var e := m.uplink_of(1 - ServerWorld.TEAM_PLAYERS)
 		if e != null:
 			e.integrity = minf(lc.debug_uplink_integrity, e.max_integrity)
+
+
+## E14 --debug-task: where the debug player aims (Vector3.INF = off).
+var _debug_task_aim: Vector3 = Vector3.INF
+
+
+## E14 evidence setups (Concord = the player team):
+##   plant  - Concord holds the Mid and has a Cell planted in Scrap Bazaar (S-BO) at
+##            42 % charge; the player stands in the zone by the Socket.
+##   breach - Concord holds the Mid and S-BO; the player stands inside Furnace
+##            Gate (S-BI) and fires at its Ward Generator with a squad on Attack.
+func _apply_debug_task(lc: LaunchConfig) -> void:
+	if lc.debug_task == "" or server.objectives == null:
+		return
+	var objs := server.objectives
+	var t := ServerWorld.TEAM_PLAYERS
+	objs.debug_set_owner(&"s_mid", t)
+	if lc.debug_task == "plant":
+		var bo := objs.find(&"s_bo")
+		objs.debug_set_cell(&"s_bo", HardpointSim.CellState.PLANTED, t)
+		bo.progress = 0.42
+		bo.capturing_team = t
+		server.debug_player_spawn = bo.def.position + Vector3(2.5, 0.05, 6.0)
+		_debug_task_aim = bo.def.position + Vector3(0.0, 2.6, 0.0)
+	elif lc.debug_task == "breach":
+		objs.debug_set_owner(&"s_bo", t)
+		var bi := objs.find(&"s_bi")
+		server.debug_player_spawn = bi.def.position + Vector3(3.0, 0.05, 8.0)
+		var g := server.generator_of(bi)
+		_debug_task_aim = g.aim_point() if g != null else bi.def.position + Vector3(0.0, 1.2, 0.0)
+
+
+## --debug-task breach: once the player's hero exists, its squad attacks the Generator.
+func _debug_task_squad() -> void:
+	if launch_config == null or launch_config.debug_task != "breach" or server.wardlings == null or server.tick < 45:
+		return
+	var h := server.hero(client.session.own_net_id) if client != null else null
+	var g := server.generator_of(server.objectives.find(&"s_bi")) if server.objectives != null else null
+	if h == null or g == null or not g.is_up():
+		return
+	var sq := server.wardlings.squad_of(h.net_id)
+	if sq == null:
+		sq = server.wardlings.debug_squad_at(h)
+	if sq.command != Squad.CMD_ATTACK:
+		sq.issue(Squad.CMD_ATTACK, server.tick, Vector3.ZERO, g.net_id)
 
 
 ## --debug-uplink: once the player's hero exists, give it a squad and order it
@@ -288,6 +337,7 @@ func step_tick() -> void:
 		client.tick()
 	server.step()
 	_debug_uplink_squad()
+	_debug_task_squad()
 	_debug_progress()
 	_log_economy()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:

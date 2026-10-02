@@ -29,3 +29,10 @@ extends Resource
 @export_range(0.3, 3.0, 0.01) var height: float = 1.2
 ## PLACEHOLDER. Bolt muzzle / chest height above the feet (m).
 @export_range(0.1, 3.0, 0.01) var chest_m: float = 0.75
+
+@export_group("Art")
+## Procedural model key (ModelCatalog), e.g. &"vesper". Empty = derived from `id`.
+@export var model_id: StringName = &""
+## Optional authored model scene; when set, views instance it instead of the
+## procedural stand-in (the swap path for final art).
+@export var model_scene: PackedScene

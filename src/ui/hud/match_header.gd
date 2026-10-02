@@ -56,6 +56,8 @@ func _uplink(u: SnapshotData.UplinkState, team: int, x: float, bw: float, right:
 	var col := ctx.team_color(team)
 	var align := HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT
 	var title := tr("HUD_UPLINK_TITLE") % [tr(TEAM_KEYS[team]), HudFormat.percent(frac)]
+	if text_width(title, 15, ctx.font_display) > bw:
+		title = tr("HUD_UPLINK_TITLE_SHORT") % [tr(TEAM_KEYS[team]), HudFormat.percent(frac)]
 	text(title, Vector2(x, 21.0), 15, HudPalette.TEXT, ctx.font_display, align, bw)
 	var r := Rect2(x, 28.0, bw, BAR_H)
 	draw_rect(r, LOST)

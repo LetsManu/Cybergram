@@ -1,13 +1,14 @@
 // Hologram (art bible §10.4): unshaded, additive, fresnel edge, world-space
 // scanlines, slow flicker and an optional glitch (block jitter + RGB split
-// look via offset bands). Used for Hex's panels, rune rings, holo labels and
+// look via offset bands); alpha-blended so it reads on light and dark
+// backgrounds alike. Used for Hex's panels, rune rings, holo labels and
 // the Uplink rune bands. Emission tier per §4.6 (Accent in lanes).
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled, fog_disabled;
+render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, shadows_disabled, fog_disabled;
 
 uniform vec3 color : source_color = vec3(0.18, 0.525, 1.0);
 uniform float energy = 0.9;
-uniform float alpha = 0.55;
+uniform float alpha = 0.7;
 uniform float scan_density = 40.0;
 uniform float scan_speed = 1.5;
 uniform float flicker = 0.08;
@@ -38,13 +39,13 @@ void fragment() {
 		float row = floor(uv.y * 9.0);
 		float line_len = 0.3 + 0.6 * hash(row + floor(TIME * 2.0));
 		float code = step(0.35, fract(uv.y * 9.0)) * step(uv.x, line_len) * step(0.08, uv.x);
-		pat = max(border, code * 0.7) + 0.15;
+		pat = max(border, code * 0.8) + 0.35;
 	}
 	vec3 c = color;
 	if (glitch_amount > 0.0) {
 		float band = step(0.85, hash(floor(v_world.y * 8.0) + floor(TIME * 9.0)));
 		c = mix(c, vec3(c.b, c.r, c.g), band * glitch_amount);
 	}
-	ALBEDO = c * energy * scan * fl * (0.6 + fres) * pat;
+	ALBEDO = c * energy * scan * fl * (0.9 + fres) * pat;
 	ALPHA = clamp(alpha * scan * pat, 0.0, 1.0);
 }

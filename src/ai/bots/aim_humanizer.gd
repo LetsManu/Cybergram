@@ -108,7 +108,9 @@ func on_target(point: Vector3, eye: Vector3, radius_m: float) -> bool:
 
 
 func forward() -> Vector3:
-	return Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch) * Vector3.FORWARD
+	# = Basis(UP, yaw) * Basis(RIGHT, pitch) * FORWARD, without building two Basis (E14 bot cost).
+	var cp := cos(pitch)
+	return Vector3(-sin(yaw) * cp, sin(pitch), -cos(yaw) * cp)
 
 
 ## (yaw, pitch) looking from `from` at `to`.

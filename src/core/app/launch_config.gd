@@ -29,6 +29,10 @@ extends RefCounted
 ##   godot --headless --fixed-fps 30 --path . -- --server --bots-only --seed 3 [--match-clock 4]
 ##                                                -> E11: 10 bots play to End, JSON summary, quit
 ##   ... -- --bot-difficulty easy|normal|hard    -> E11: bot profile (default normal)
+##   ... -- --bots-only --telemetry production/qa/telemetry/m1
+##                                                -> E14: also write the match summary JSON there
+##   ... -- --debug-task plant|breach            -> debug: a Concord Cell planted at S-BO / the player
+##                                                  inside S-BI shooting its Generator (E14 evidence)
 ##   ... -- --bots --bot-player                  -> E11 debug: a bot also plays the local hero
 ##   ... -- --debug-skill-demo                   -> debug: the local hero casts its skills on a
 ##                                                  schedule (E10 evidence)
@@ -74,6 +78,10 @@ var match_seed: int = 1
 var bot_difficulty: String = ""
 ## E11 debug (evidence captures): a bot drives the local player's hero too.
 var bot_player: bool = false
+## E14: directory for the per-match telemetry JSON ("" = print only).
+var telemetry_dir: String = ""
+## E14 debug: "plant" or "breach" evidence setup ("" = off).
+var debug_task: String = ""
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -115,6 +123,14 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.match_seed = args[i].to_int()
 			"--bot-player":
 				c.bot_player = true
+			"--telemetry":
+				if i + 1 < args.size():
+					i += 1
+					c.telemetry_dir = args[i]
+			"--debug-task":
+				if i + 1 < args.size():
+					i += 1
+					c.debug_task = args[i].validate_filename()
 			"--bot-difficulty":
 				if i + 1 < args.size():
 					i += 1

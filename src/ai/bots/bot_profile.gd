@@ -10,7 +10,8 @@ extends Resource
 
 @export_group("Decisions")
 ## Brain decisions per second (aim and movement are emitted every tick).
-@export_range(1.0, 30.0, 0.5) var decision_hz: float = 10.0
+## ADR-0005 default 5 Hz (E14 bot cost pass; was 10 Hz in E11).
+@export_range(1.0, 30.0, 0.5) var decision_hz: float = 5.0
 
 @export_group("Perception")
 @export_range(5.0, 200.0, 1.0) var sight_range_m: float = 70.0
@@ -64,9 +65,36 @@ extends Resource
 @export_range(0.0, 2.0, 0.01) var w_defend: float = 0.75
 @export_range(0.0, 2.0, 0.01) var w_fight: float = 0.7
 @export_range(0.0, 2.0, 0.01) var w_retreat: float = 0.95
-@export_range(0.0, 2.0, 0.01) var w_siege: float = 0.85
+## E14: above Defend's ceiling (1.125): an Exposed Uplink wins the match.
+@export_range(0.0, 2.0, 0.01) var w_siege: float = 1.15
+## E14: Exposed Uplink siege spot, this far from the core toward the lane (inside the HQ gate).
+@export_range(5.0, 60.0, 0.5) var siege_range_m: float = 14.0
+## E14: respawn at the Mid Beacon while pushing past the Mid (else the Sanctum).
+@export var beacon_spawn: bool = true
+## E14: while sieging the Uplink or inside a Breach zone, enemy heroes farther
+## than this are ignored in favour of the objective.
+@export_range(0.0, 100.0, 1.0) var objective_focus_m: float = 12.0
+## E14 push commitment: added to Push near a front task the team has under way.
+@export_range(0.0, 2.0, 0.01) var w_push_commit: float = 0.4
+@export_range(0.0, 200.0, 1.0) var push_commit_range_m: float = 35.0
+## E14: Defend urgency falls off over this distance (bots far from a threatened
+## node leave it to nearer teammates); an enemy Cell carrier counts as a threat
+## only within defend_carrier_radius_m of the zone.
+@export_range(20.0, 400.0, 5.0) var defend_falloff_m: float = 120.0
+@export_range(0.0, 200.0, 1.0) var defend_carrier_radius_m: float = 40.0
+## E14 siege regroup: live allies needed at the staging point (siege_stage_m from
+## the enemy Uplink, toward the lane) before going in; within siege_commit_m of
+## the Uplink a bot is committed and stays.
+@export_range(1, 5) var siege_group_min: int = 3
+@export_range(10.0, 120.0, 1.0) var siege_stage_m: float = 50.0
+@export_range(5.0, 60.0, 1.0) var siege_commit_m: float = 30.0
+@export_range(5.0, 60.0, 1.0) var siege_stage_radius_m: float = 25.0
 ## E14 Plant: carry / plant / defuse / disperse a Mana Cell.
 @export_range(0.0, 2.0, 0.01) var w_cell: float = 1.0
+## A Cell job stays with its bot unless another is this much nearer (metres).
+@export_range(0.0, 100.0, 1.0) var cell_claim_hysteresis_m: float = 15.0
+## Defenders go to disperse a dropped enemy Cell within this distance.
+@export_range(0.0, 200.0, 1.0) var disperse_range_m: float = 40.0
 ## Added to the current goal's score (hysteresis against flip-flopping).
 @export_range(0.0, 1.0, 0.01) var stickiness: float = 0.08
 
