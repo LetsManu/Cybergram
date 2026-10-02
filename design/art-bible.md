@@ -5,7 +5,7 @@
 > **Last Updated**: 2026-10-02
 > **Art Director Sign-Off (AD-ART-BIBLE)**: Not yet reviewed
 > **Binding sources**: `design/gdd/game-concept.md` § Canon (C1–C18), `/ideas` (owner notes)
-> **Companion**: `design/ux/hud-design.md` (screen-space UI). This doc owns the world, characters, weapons, VFX and the art pipeline.
+> **Companion**: `design/ux/hud.md` (screen-space UI). This doc owns the world, characters, weapons, VFX and the art pipeline.
 
 This bible follows the nine-section template order (§1–§9) and adds project-specific
 sections (§10–§14) that the brief requires: weapon socket system, VFX language,
@@ -470,7 +470,7 @@ read by **size, facet/fin count, glow and idle animation**, never by colour.
 
 - Core Tier III adds a **halo-ring muzzle flash every 5th shot** (every shot on Ironmaw and Tackhammer, per GDD).
 - At > 25 m we only guarantee the read of *how many sockets are filled* and *which are Tier III*;
-  finer detail comes from the scoreboard build icons and the death recap (HUD doc §7, §11).
+  finer detail comes from the scoreboard build icons and the death recap (HUD doc §8, §9).
 - Acceptance (from GDD): QA can identify each socket's tier from 20 m in third person on a **greyscale** screenshot.
 - Cosmetic VFX unlocks may recolour Core/Barrel/Frame family hues only; tier size/glow and
   ammo-type impact VFX are gameplay information and never recolourable.
@@ -537,7 +537,7 @@ ally effects > ambient.
 
 ---
 
-## 9. UI/HUD Visual Direction (summary; spec in `design/ux/hud-design.md`)
+## 9. UI/HUD Visual Direction (summary; spec in `design/ux/hud.md`)
 
 - **Screen-space HUD** with **diegetic echoes**: ammo/mana is also shown on the gun (the core
   crystal dims as mana drains; mechanical mag has a back-counter LED); hardpoint progress is in-world.
@@ -701,7 +701,7 @@ includes a minimal read-test of the socket system.
 | 10 | Skybox: Leyfall sea, distant shards, per-phase LUTs (4) | 1 + 4 | Final |
 | 11 | VFX: 4 heroes × (weapon fire, impact, 4 skills), heal, Wardling hit/death, capture flip, Uplink damage, Surge transition | ~40 | Final for gameplay-critical, simple for ambient |
 | 12 | Shaders: toon (char/env), outline, crystal, team-tint, telegraph decal, Leyfall, LUT grading | 7 | Final |
-| 13 | UI kit (see HUD doc §16): icons for 4 heroes × 4 skills, task types, ownership patterns, Wardling states | ~45 icons | Final |
+| 13 | UI kit (scope per HUD doc §19): icons for 4 heroes × 4 skills, task types, ownership patterns, squad command states (F/H/A/C), Vanguard flag, status effects, mount/ammo icons | ~60 icons | Final |
 
 ---
 
