@@ -41,6 +41,20 @@ when a key is absent from `project.yaml`. It is no longer imported here: before
 `/setup-engine` runs it is almost entirely `[TO BE CONFIGURED]` placeholders, and
 after it runs `project.yaml` holds the real values.
 
+## Budget Rule (owner hard rule, 2026-10-02)
+
+The owner has set a **hard spending cap of $250** for Claude work on this project.
+
+- Claude cannot see the account's billing, so the cap is enforced by the
+  account's spend limit in claude.ai settings. That limit is the guarantee;
+  this rule is the courtesy layer on top of it.
+- Before starting any large phase (a multi-agent fan-out, a milestone, a long
+  autonomous run), state the planned scope and get the owner's go-ahead.
+- If the owner reports the budget is used up, or a usage/credit limit error
+  appears, stop immediately: commit and push finished work, start nothing new.
+- Prefer one focused agent over many parallel agents unless parallelism is
+  clearly worth the cost.
+
 ## Coordination Rules
 
 @.claude/docs/coordination-rules.md
