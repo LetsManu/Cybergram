@@ -5,7 +5,7 @@
 - **Version**: 1.0 (Draft, written autonomously, `modes.automation: autonomous`)
 - **Last Updated**: 2026-10-02
 - **Authors**: technical-director (owner), network-programmer, lead-programmer
-- **Implements**: `design/gdd/game-concept.md` (Canon C1–C18, Scope Tiers 0–2)
+- **Implements**: `design/gdd/game-concept.md` (Canon C1–C18 incl. the 2026-10-02 C15 revision: Vanguard waves, 4 squad commands, ~100 AI agents; Scope Tiers 0–2)
 - **ADRs**: `docs/architecture/adr/ADR-0001` … `ADR-0006`
 - **Registry**: stances mirrored in `docs/registry/architecture.yaml`
 
@@ -57,7 +57,7 @@
 │        │                                                                                                                  │
 │        ▼  TickRunner.step(N)  (fixed 30 Hz, explicit order, §8.3)                                                         │
 │  HeroSim×10 ─ AbilityRunner ─ WeaponSim ─ LagCompensator(HitboxHistory) ─ ProjectileSystem ─ EffectExecutor              │
-│  WardlingDirector (src/ai, LOD buckets) ─ WardlingSim×≤96 ─ NavigationServer3D (avoidance)                                │
+│  WardlingDirector (src/ai, LOD buckets) ─ WardlingSim×≤120 ─ NavigationServer3D (avoidance)                               │
 │  ObjectiveSystem (HardpointSim×5/15, UplinkSim×2) ─ MatchRules ─ Economy ─ SimEventQueue                                  │
 │        │                                                                                                                  │
 │        ▼                                                                                                                  │
@@ -103,15 +103,16 @@ src/
 │   ├── heroes/                   hero_sim.tscn/.gd, hero_motor.gd (HeroMotor), health_component.gd, hitbox_rig.gd
 │   ├── weapons/                  weapon_sim.gd, ammo_feed.gd (ManaPoolFeed, MagazineFeed), projectile_system.gd
 │   ├── abilities/                ability_runner.gd, skill_instance.gd, targeting/*.gd, effect_executor.gd, effects/*.gd, status_component.gd
-│   ├── wardlings/                wardling_sim.tscn/.gd, squad.gd (Squad), garrison.gd   # body + rules, NOT the brain
-│   ├── objectives/               hardpoint_sim.tscn/.gd, tasks/(hold_task, plant_task, breach_task).gd, uplink_sim.tscn/.gd, barricade.gd, supply_cache.gd
+│   ├── wardlings/                wardling_sim.tscn/.gd, squad.gd (Squad), garrison.gd, vanguard_spawner.gd (VanguardSpawner),
+│   │                             vanguard_wave.gd (VanguardWave)                        # bodies + rules, NOT the brains
+│   ├── objectives/               lane_front_resolver.gd (LaneFrontResolver), hardpoint_sim.tscn/.gd, tasks/(hold_task, plant_task, breach_task).gd, uplink_sim.tscn/.gd, barricade.gd, supply_cache.gd
 │   ├── match/                    match_rules.gd (MatchRules), respawn_system.gd, spawn_points.gd, sudden_death.gd
 │   ├── economy/                  economy.gd (Lumen, Resonance, levels), shop.gd (Armory, Foundry)
 │   └── views/                    hero_view.tscn, weapon_view.tscn, wardling_view.tscn, hardpoint_view.tscn, uplink_view.tscn
 ├── ai/
 │   ├── input/                    input_source.gd (abstract), player_input_source.gd, bot_input_source.gd
 │   ├── bots/                     bot_director.gd, bot_brain.gd, goals/*.gd, aim_humanizer.gd, bot_sensor.gd
-│   ├── wardlings/                wardling_director.gd, wardling_brain.gd (FSM), wardling_targeting.gd
+│   ├── wardlings/                wardling_director.gd, wardling_brain.gd (FSM), wardling_targeting.gd, wave_brain.gd (WaveBrain)
 │   ├── lod/                      ai_lod_scheduler.gd
 │   └── debug/                    ai_debug_draw.gd (paths, perception, FSM state)
 └── ui/
@@ -196,8 +197,11 @@ wardling_sim.tscn (WardlingSim : CharacterBody3D)     wardling_view.tscn (Wardli
 ```
 
 - `WardlingSim` exposes **intents** only: `set_move_target(pos)`, `set_attack_target(net_id)`, `stop()`. The brain lives in `src/ai/wardlings/WardlingBrain` and is held by `WardlingDirector`, not by the node (§10).
-- `Squad` (gameplay) owns membership and C15 rules: base 3, upgradable to 5, +2 for Vesper; replaced only at the Foundry; dissolves 10 s after the owner dies. Signals: `member_lost(net_id)`, `dissolved()`, `command_changed(cmd: SquadCommand)`.
+- Every `WardlingSim` has an `allegiance`: `SQUAD(owner_net_id)`, `GARRISON(hardpoint_index)` or `VANGUARD(wave_id)`. The body, stats, hitboxes and replication are identical for all three; only the brain's state table and the owning rule object differ.
+- `Squad` (gameplay) owns membership and C15 rules: base 3, upgradable to 5, +2 for Vesper; replaced only at the Foundry; dissolves 10 s after the owner dies. It holds the current `SquadCommand {kind: FOLLOW | HOLD | ATTACK_TARGET | GO_CAPTURE, pos: Vector3, target_net_id: int, hardpoint_index: int}` (4 commands, C15). `ATTACK_TARGET` is validated server-side: the target must be an enemy entity within `SquadDef.command_range_m` and in the owner's LOS at the issuing tick (rewound like a shot). Signals: `member_lost(net_id)`, `dissolved()`, `command_changed(cmd: SquadCommand)`.
 - `Garrison` spawns 2 Sentinels per held hardpoint (C5) with a respawn timer taken from `GarrisonDef`.
+- `VanguardSpawner` (one per team) runs every `VanguardDef.interval_s` (60 s) per lane. It spawns `VanguardDef.wave_size` (4) Tier-matched Wardlings at the Foundry **only if** that lane's previous `VanguardWave` has `≤ VanguardDef.respawn_threshold_alive` (1) members alive. That gives a hard cap of 1 live wave per lane per team, i.e. ≤ 24 Vanguard on the full map. Waves are ownerless and uncommandable. The exception is Vesper, whose skill effects may issue a `SquadCommand` to a wave through an `EffectDef`, never through player `Command`s. Signals: `wave_spawned(team, lane, wave_id)`, `wave_depleted(wave_id)`.
+- `LaneFrontResolver.front_for(team, lane) -> int` (hardpoint index) implements the C15 target rule: the nearest contested hardpoint, else the next enemy hardpoint attackable per C3, else the team's own front-most held hardpoint. It is recomputed only on `ownership_changed`/`contested_changed`, and waves read it each decision.
 
 ### 5.4 Hardpoint
 
@@ -237,6 +241,7 @@ Every tunable is a typed custom `Resource` (`class_name … extends Resource`, `
 | `AmmoTypeDef` | `id`, `modifiers`, `on_hit_effects`, `lumen_cost` | C14 |
 | `ModDef` | `id`, `kind` (CRYSTAL/CHIP), `modifiers`, `lumen_cost`, `visual_scene` | C14, C16, Pillar 4 |
 | `WardlingDef` / `WardlingTierDef` | variant id, base stats, attack, `presence_weight`, `uplink_damage_scale`, `tiers[3]` modifiers | C4, C15 |
+| `SquadDef` / `GarrisonDef` / `VanguardDef` | squad base/max size, command range, focus timeout; garrison size + respawn; Vanguard `interval_s` (60), `wave_size` (4), `respawn_threshold_alive` (1), `formation` offsets | C5, C15 |
 | `EconomyRewards` | Lumen/Resonance per Wardling kill, hero kill, assist, capture, defence, trickle per second, share radius 25 m, catch-up bonus per level delta | C13, C14 |
 | `LevelCurve` | `resonance_to_level: PackedInt32Array` (15), skill points per level | C12 |
 | `ShopCatalog` | Armory and Foundry entries → `ModDef`/`AmmoTypeDef`/squad upgrades/consumables | C14, C15 |
@@ -329,7 +334,7 @@ InputCommand.buttons(SKILL_n) ─► AbilityRunner.try_activate(slot, cmd, tick)
 | `Hello` | C→S | 0 | once | protocol_version, content_hash, display name, auth token (M2) |
 | `Welcome` / `Reject` | S→C | 0 | once | player slot, team, own hero NetId, server tick, match rules id |
 | `InputBatch` | C→S | 3 | every tick | `ack_snapshot_tick:u32`, the last **3** `InputCommand`s (redundancy against loss) |
-| `Command` | C→S | 1 | on demand | BUY(item idx), SELL, LEVEL_SKILL(node idx), SQUAD_CMD(follow/hold+pos), CHOOSE_SPAWN(spawn idx), PING_MARKER |
+| `Command` | C→S | 1 | on demand | BUY(item idx), SELL, LEVEL_SKILL(node idx), SQUAD_CMD(FOLLOW / HOLD+pos / ATTACK_TARGET+net_id+view_tick / GO_CAPTURE+hardpoint idx), CHOOSE_SPAWN(spawn idx), PING_MARKER |
 | `Snapshot` | S→C | 2 | every tick (§8.5) | tick, baseline_tick, last_processed_input_seq, own-hero block, entity deltas, objective block |
 | `Event` | S→C | 1 | on demand | KILL, HIT_CONFIRM, CAPTURE, OWNERSHIP, SURGE, PHASE, SHOP_RESULT, SKILL_REJECTED, MATCH_END, ENTITY_DESPAWN |
 | `Ping`/`Pong` | both | 0 | 1 Hz | RTT and clock sync |
@@ -344,7 +349,7 @@ Individual nodes do **not** use `_physics_process` for sim logic. `TickRunner` c
 2. `BotDirector.produce_inputs(tick)` → writes `InputCommand`s into bot slots' `InputBuffer` (based on state at tick−1).
 3. `CommandQueue.apply()` → shop, skill points, squad orders, spawn choice (validated against position and state).
 4. `HeroSystem.step()` → per hero: pop input → `HeroMotor.step()` (`move_and_slide`) → `AbilityRunner.step()` → `WeaponSim.step()` (hitscan via `LagCompensator`).
-5. `WardlingDirector.think(tick)` (LOD-bucketed decisions, §10.2) → `WardlingSystem.step()` (nav + avoidance + attacks).
+5. `VanguardSpawner.step()` and `Garrison.step()` (spawns) → `WardlingDirector.think(tick)` (wave brains, then LOD-bucketed member decisions, §10.2) → `WardlingSystem.step()` (nav + avoidance + attacks).
 6. `ProjectileSystem.step()` (swept ray per projectile per tick).
 7. `StatusSystem.step()` (expiry, DoT/HoT ticks), then `HealthSystem.resolve()` (deaths → `SimEventQueue`).
 8. `SimEventQueue.dispatch()` → `Economy` (Lumen, Resonance, levels), `Squad` dissolve timers, `RespawnSystem`.
@@ -368,7 +373,7 @@ Individual nodes do **not** use `_physics_process` for sim logic. `TickRunner` c
 - Entity create/destroy is part of the snapshot (a create record carries kind and def index). Despawn is also sent as a reliable `Event` so it is never missed.
 - **Budget:** `snapshot_budget_bytes = 1100` per client per tick (fits one MTU-safe packet). Overflow is handled by priority (§8.6). The target is ≤ 256 kbps down and ≤ 48 kbps up per client typical, and ≤ 2.5 Mbps total server egress for 10 clients.
 
-### 8.6 Interest management (50–100 AI agents)
+### 8.6 Interest management (~100 AI agents: squads ≤ 50, Garrisons ≤ 30, Vanguard ≤ 24)
 
 `InterestManager` runs on the server per client per tick and uses a `SpatialHash` (16 m cells) that is rebuilt each tick:
 
@@ -377,11 +382,15 @@ Individual nodes do **not** use `_physics_process` for sim logic. `TickRunner` c
 | Own hero, own squad | always | every tick |
 | Other heroes | ≤ `hero_full_radius` (80 m) **or** in LOS-revealed set **or** ally | every tick; allies beyond radius at 5 Hz (minimap) |
 | Enemy heroes not revealed | not sent (anti-wallhack). The reveal set comes from the server LOS budget (one ray per pair per 3 ticks) | — |
-| Wardlings | ≤ 60 m: full; 60–120 m: low rate; > 120 m: not sent | 30 Hz / 6 Hz |
+| Own-team squad Wardlings (others') | ≤ 60 m full; beyond: not sent | 30 Hz |
+| Wardlings (any allegiance) | ≤ 60 m: full; 60–120 m: low rate; > 120 m: not sent individually | 30 Hz / 6 Hz |
+| Vanguard waves, aggregated | every live wave as one `WaveSummary` record (team, lane, alive count, centroid, front target) for the minimap and front display. Individual members follow the Wardling rows. | 2 Hz, always |
 | Hardpoints, Uplinks, match block | always (small objective block) | on change, plus a keyframe every 1 s |
 | Projectiles / traps | ≤ 60 m; enemy traps only if revealed | every tick |
 
 **Priority accumulator.** Each (client, entity) pair accumulates `priority += base_weight × distance_factor` every tick. The builder writes entities in descending priority until the byte budget is reached, then resets those it sent. This degrades gracefully in big fights instead of exceeding the MTU. All radii and weights are in `NetConfig`.
+
+**Sizing check (worst realistic view):** 10 heroes × ~14 B + 40 Wardlings in the 60 m band × ~6 B + 30 in the 60–120 m band at 6 Hz (~1.2/tick × 6 B) + 6 `WaveSummary` × 2 Hz + objective block ≈ 450–600 B per tick, inside the 1100 B budget. A full keyframe (no baseline) of ~100 Wardlings is ~1.1 KB and is split across two ticks by the priority accumulator.
 
 ### 8.7 Lag compensation
 
@@ -417,7 +426,7 @@ ServerWorld slot (human | bot) ─► InputBuffer ─► HeroSim         (HeroSi
 ```
 
 - `InputSource` (abstract, `src/ai/input`) has implementations `PlayerInputSource` (devices → command) and `BotInputSource`. The same class can drive a **client-side** headless bot, which is how load and soak tests connect 9 fake players to a dedicated server in M2.
-- Decisions run at `BotProfile.decision_hz` (default 5 Hz, staggered). Aim and movement are emitted every tick. Bots buy, spend skill points (via `BotRoleDef.build_order`) and issue squad commands through the same `Command` messages as players.
+- Decisions run at `BotProfile.decision_hz` (default 5 Hz, staggered). Aim and movement are emitted every tick. Bots buy, spend skill points (via `BotRoleDef.build_order`) and issue all 4 squad commands (`SquadUsageRule` resources: e.g. GO_CAPTURE when the lane front is uncontested, ATTACK_TARGET on the bot's current fight target) through the same `Command` messages as players.
 - Behaviour is authored per **role** first (`BotRoleDef`: Soldier, Healer, Tank, Commander…). Per-hero skill-usage rules are `BotSkillRule` resources (condition → slot).
 - Debug: `ai_debug_draw.gd` draws path, goal, perception cone and utility scores. Every goal transition is logged on `Log.ai` (rate-limited).
 
@@ -433,8 +442,15 @@ ServerWorld slot (human | bot) ─► InputBuffer ─► HeroSim         (HeroSi
 | `HOLD` | `SquadCommand.HOLD(pos)` | ENGAGE (leash-limited), FOLLOW, DISSOLVING |
 | `ENGAGE` | target acquired (priority: whoever damaged owner < 3 s → whoever damaged me → nearest threat in aggro) | RETURN (target lost/dead or leash exceeded), DISSOLVING |
 | `RETURN` | leash exceeded | FOLLOW/HOLD on arrival |
+| `ATTACK_TARGET` | `SquadCommand.ATTACK_TARGET(net_id)` | FOLLOW when the target dies, leaves `command_range_m` × 1.5 or after `focus_timeout_s`; DISSOLVING |
+| `CAPTURE` | `SquadCommand.GO_CAPTURE(hp)`: path to the hardpoint, then work its task (presence for Hold, escort/defend for Plant, attack the Ward Generator for Breach) | ENGAGE (threat within zone), FOLLOW on a new command, DISSOLVING |
 | `GARRISONED` | spawned by `Garrison` | ENGAGE within zone radius only |
+| `MARCH` | Vanguard spawn; `LaneFrontResolver` target changed | ENGAGE (enemy within aggro), CAPTURE on arrival at the front hardpoint |
 | `DISSOLVING` | owner died (10 s hold, C15) | despawn |
+
+Squad Wardlings use FOLLOW/HOLD/ATTACK_TARGET/CAPTURE/ENGAGE/RETURN/DISSOLVING. Garrisons use GARRISONED/ENGAGE/RETURN. Vanguard members use MARCH/CAPTURE/ENGAGE/RETURN, which is selected by allegiance through a per-allegiance `WardlingAiDef.allowed_states`. Retaliation against whoever damaged the owner (C15) overrides FOLLOW/HOLD/CAPTURE but **not** ATTACK_TARGET.
+
+**Wave-level thinking.** A `WaveBrain` per `VanguardWave` makes the expensive decisions once per wave: the front target, the path (one `NavigationServer3D.query_path` shared by the 4 members, each offset by a formation slot from `VanguardDef.formation`) and the threat list. Members then only pick a target from the wave's threat list. This makes 24 Vanguard cost about as much as 6 thinkers plus 24 cheap target picks.
 
 `WardlingBrain` is a `RefCounted` struct-of-state per Wardling. It never touches the node except through intents. Transitions are table-driven (`const TRANSITIONS`) and logged.
 
@@ -444,11 +460,11 @@ ServerWorld slot (human | bot) ─► InputBuffer ─► HeroSim         (HeroSi
 |---|---|---|---|---|
 | 0 | ≤ 40 m of any hero **or** damaged in last 3 s | every 3 ticks (10 Hz) | ≤ 2 Hz | on |
 | 1 | 40–100 m | every 6 ticks (5 Hz) | 1 Hz | on |
-| 2 | > 100 m (idle garrisons) | every 30 ticks (1 Hz) | on demand | off (`avoidance_enabled=false`) |
+| 2 | > 100 m (idle garrisons, Vanguard marching through empty lanes) | every 30 ticks (1 Hz) | on demand (wave path shared) | off (`avoidance_enabled=false`) |
 
-- Staggering is by `net_id % interval`. A **deterministic cap** (`AiLodConfig.max_decisions_per_tick`, default 24) defers the overflow to the next tick. The cap is count-based, never wall-clock-based, so sims stay reproducible.
+- Staggering is by `net_id % interval`. A **deterministic cap** (`AiLodConfig.max_decisions_per_tick`, default 32 for ~100 agents) defers the overflow to the next tick. The cap is count-based, never wall-clock-based, so sims stay reproducible.
 - Movement integrates every tick for all LODs (`move_and_slide`, cheap); only *thinking* is LOD'd.
-- Perception uses `SpatialHash` queries. LOS rays are pooled under a per-tick ray budget (`max_los_rays_per_tick`, default 32).
+- Perception uses `SpatialHash` queries. LOS rays are pooled under a per-tick ray budget (`max_los_rays_per_tick`, default 40). Steady state at ~100 agents is ≈ 100/3 LOD0 worst case, but typically about 40% are LOD1/2. That gives ≈ 20–30 decisions per tick, which fits under the cap.
 
 ### 10.3 Navigation
 
@@ -474,11 +490,11 @@ ServerWorld slot (human | bot) ─► InputBuffer ─► HeroSim         (HeroSi
 | Client, recommended spec | **144 fps** (6.94 ms) at 1080p: render ≤ 4.5 ms CPU-side, scripts ≤ 1.5 ms, prediction/reconcile ≤ 0.5 ms average, UI ≤ 0.4 ms |
 | Client, minimum spec | **60 fps** (16.6 ms) at 1080p with medium preset |
 | Client AI cost | 0 ms (AI is server-only), except debug client bots |
-| Server tick (dedicated) | **≤ 8 ms per 33.3 ms tick** (24%, one core) with 10 heroes + 96 Wardlings + 9 clients |
-| ↳ breakdown | input/motor/abilities 1.0 · Wardling decisions 1.5 · Wardling movement + nav 2.0 · bots 0.5 · projectiles/effects/objectives 0.8 · hitbox history + lag comp 0.5 · snapshots (9 clients) 1.5 · slack 0.2 |
-| Listen host | server ≤ 8 ms/tick amortised = ≤ 4 ms per rendered frame at 60 fps; host hardware must hold 60 fps |
-| AI rule mapping | `.claude/rules/ai-code.md` "2 ms per frame": interpreted as **≤ 2 ms per server tick** for decisions (Wardlings 1.5 + bots 0.5). Movement is costed separately. |
-| Wardling count | design max 52 squad + 30 garrison = **82**; engineering budget **96**; M1 slice benchmark: 2 squads of 5 + 10 garrison + 5v5 duplicated-hero stress mode |
+| Server tick (dedicated) | **≤ 10 ms per 33.3 ms tick** (30%, one core) with 10 heroes + 104 Wardlings (50 squad + 30 garrison + 24 Vanguard) + 9 clients |
+| ↳ breakdown | input/motor/abilities 1.0 · Wardling + wave decisions 1.6 · Wardling movement + nav/avoidance 2.6 · bots 0.4 · projectiles/effects/objectives 0.9 · hitbox history + lag comp 0.6 · snapshots (9 clients) 1.7 · slack 1.2 |
+| Listen host | server ≤ 10 ms/tick amortised = ≤ 5 ms per rendered frame at 60 fps; host hardware must hold 60 fps (recommended spec only) |
+| AI rule mapping | `.claude/rules/ai-code.md` "2 ms per frame": interpreted as **≤ 2 ms per server tick** for decisions (Wardlings and waves 1.6 + bots 0.4). Movement is costed separately. |
+| Wardling count | canon ~100: squads ≤ 50 (52 with Vesper's +2), Garrisons ≤ 30, Vanguard ≤ 24 → design max **106**; engineering budget **120** (perf scenario spawns 120). M1 slice (1 lane): ≤ 10 squad + 10 garrison + 8 Vanguard, plus a 5v5 duplicated-hero, full-map-equivalent stress scenario of 120. |
 | Bandwidth | ≤ 256 kbps down / ≤ 48 kbps up per client typical; ≤ 512 kbps down peak |
 | Memory | client ≤ 3 GB RAM / 3 GB VRAM; dedicated server ≤ 1 GB RAM per match |
 | Load | match load ≤ 15 s on SSD (Shader Baker pre-compiled pipelines) |
@@ -531,10 +547,10 @@ Rules: no sim code reads wall-clock time; every RNG is a `SimRng` seeded from `m
 
 | # | Risk | P | I | Mitigation | Owner | Trigger to act |
 |---|---|---|---|---|---|---|
-| R1 | **GDScript server tick cost** for 10 heroes + ~80 Wardlings + 9 snapshot builds exceeds 8 ms | M | H | Count-based AI LOD, SpatialHash, packed arrays, no per-tick allocation; M1 perf sim scenario; GDExtension candidates pre-identified (snapshot encoder, hitbox rewind, spatial hash) per ADR-0001 | technical-director | p95 > 8 ms in perf scenario |
+| R1 | **GDScript server tick cost** for 10 heroes + ~100 Wardlings (squads, Garrisons, Vanguard) + 9 snapshot builds exceeds 10 ms | M | H | Count-based AI LOD, SpatialHash, packed arrays, no per-tick allocation; M1 perf sim scenario; GDExtension candidates pre-identified (snapshot encoder, hitbox rewind, spatial hash) per ADR-0001 | technical-director | p95 > 10 ms in the 120-agent perf scenario |
 | R2 | **Prediction/reconciliation jitter** with Jolt `CharacterBody3D` replay (verification item 3) | M | H | `HeroMotor` isolated as a pure step; reconciliation integration test under `net_sim`; fallback: custom kinematic motor on `PhysicsServer3D.body_test_motion` | network-programmer | reconcile corrections > 1 per second at 0% loss |
 | R3 | **30 Hz tick feels unresponsive** for a competitive FPS (hit reg, peeker's advantage) | M | M | Mouse look per render frame; lag comp; rate is data (`NetConfig`); benchmark 60 Hz after M1 | network-programmer | playtest complaints or server headroom > 50% |
-| R4 | **Bandwidth spikes in big fights** (60 Wardlings in view) | M | M | Priority accumulator under a hard byte budget; Wardling records ≤ 6 B; LOD rates | network-programmer | budget overflow > 10% of ticks |
+| R4 | **Bandwidth spikes in big fights** (60+ Wardlings in view once Vanguard waves collide with squads at a contested hardpoint) | M | M | Priority accumulator under a hard byte budget; Wardling records ≤ 6 B; LOD rates; Vanguard far-field sent as `WaveSummary` | network-programmer | budget overflow > 10% of ticks |
 | R5 | **Two worlds in one process** (listen/offline) misbehave: physics or nav separation, double cost | M | H | Verification items 2 and 4 in sprint 1; fallback: offline mode spawns a headless server **child process** (`OS.create_process`) over ENet localhost | technical-director | separation test fails |
 | R6 | **Bot quality** (bots fill PvP and future co-op) | H | M | Role-first utility AI, humanizer from data, sim harness metrics (captures/min, K/D spread) | ai-programmer | bot-vs-bot matches outside 20–45 min |
 | R7 | **Godot 4.7 deltas unknown** (reference verified for 4.6) | M | M | §15 list; ADRs stay Proposed until verified; pin the exact editor build in CI | technical-director | any verification failure |
@@ -543,6 +559,8 @@ Rules: no sim code reads wall-clock time; every RNG is a `SimRng` seeded from `m
 | R10 | **Data sprawl** (28 skills, 56 forks, mods) without validation | H | M | `ContentValidator` in CI; skill nodes restricted to Modifiers and `added_effects` | lead-programmer | validator false negatives in review |
 | R11 | **CI cannot render Forward+** for screenshot evidence | H | L | Screenshots taken locally per run-and-observe; CI capture advisory under lavapipe | qa | — |
 | R12 | **Listen-host advantage** (0 ms host) in LAN | H | L | Accepted for M1 LAN; competitive play uses a dedicated server (M2) | technical-director | — |
+| R13 | **AI population growth** (C15 revision added Vanguard; further canon creep pushes past 120 agents, plus navigation/avoidance congestion at chokepoints and Barricades) | M | H | Canon cap expressed as `VanguardDef`/`SquadDef`/`GarrisonDef` data, checked by `ContentValidator` against `AiLodConfig.max_agents`; wave-level brains; avoidance off at LOD2; `NavigationServer3D` RID fallback | technical-director | live agent count > 110 in sim telemetry, or avoidance cost > 1 ms/tick |
+| R14 | **Squad commands as an exploit surface** (ATTACK_TARGET on unseen targets = wallhack-by-proxy; GO_CAPTURE spam) | M | M | Server LOS/range validation at the rewound issuing tick; per-player command rate limit in `NetConfig` | network-programmer | M1 playtest |
 
 ---
 
@@ -550,5 +568,5 @@ Rules: no sim code reads wall-clock time; every RNG is a `SimRng` seeded from `m
 
 | Milestone | Architecture delivered |
 |---|---|
-| **M1 — offline/LAN slice** (1 lane, Ryker + Liora, bots) | All of §2–§13 in `OFFLINE`, `LISTEN_HOST`, `CLIENT` (LAN) and `SIM_TEST` modes; `LoopbackTransport` + `ENetTransport`; prediction/reconciliation; lag comp; interest management active even locally; Hold task (Plant/Breach stubbed behind `task_kind`); Wardling follow/hold; Uplink exposure; CI with unit, integration and sim suite |
+| **M1 — offline/LAN slice** (1 lane, Ryker + Liora, bots) | All of §2–§13 in `OFFLINE`, `LISTEN_HOST`, `CLIENT` (LAN) and `SIM_TEST` modes; `LoopbackTransport` + `ENetTransport`; prediction/reconciliation; lag comp; interest management active even locally; Hold task (Plant/Breach stubbed behind `task_kind`); squad with all 4 commands; Vanguard waves on the slice lane; Garrisons; Uplink exposure; CI with unit, integration and sim suite |
 | **M2 — online PvP** | `DEDICATED` export and headless server, auth token in `Hello`, reconnect, soak/load tests with client-side bots over ENet, bandwidth telemetry, NAT/hosting decision (new ADR) |

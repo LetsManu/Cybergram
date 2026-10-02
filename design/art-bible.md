@@ -261,6 +261,39 @@ its owner only, matching the HUD squad strip.
 | II | Shoulder armour plates + one head crest fin | Core ringed by a bright band | 1.08 |
 | III | Crown of three crystal shards over the head + short trailing mana ribbon | Core white-hot with team rim, faint bloom | 1.15 |
 
+### 5.4 Three Kinds of Wardling — Personal, Vanguard, Garrison
+
+C15 (revised 2026-10-02) puts up to ~100 constructs on the map: personal squads (≤ 50),
+Garrisons (≤ 30) and ownerless **Vanguard waves** (4 per lane per team every 60 s, ≤ 24 live).
+All three are team-coloured; their *ownership class* must read as fast as their team.
+
+| Class | Shell & markings | Core | Head marker | Movement read |
+| --- | --- | --- | --- | --- |
+| **Personal squad** | Faction shell + a **bright owner band** (a ribbon-sash in team colour around the torso) | Team colour, soft pulse | To the owner: number glyph 1–5. To allies: owner's hero icon (tiny). To enemies: nothing extra | Loose cluster near a hero, hover-skip |
+| **Vanguard** | Faction shell with **no sash**; instead a **tall banner-fin on the back** (a narrow pennant, 0.4 m, team colour with the faction glyph) and a single shoulder stripe | Team colour, **steady** (no pulse) | Lane-letter glyph (N / C / S) to allies only | **Marching formation**: a 2×2 block walking in step along the lane, pennants aligned — the formation itself is the read |
+| **Garrison Sentinel** | Tripod turret, no legs, anchored | Team colour, slow rotate | None | Static on hardpoint sockets |
+
+- The **pennant** is the Vanguard's silhouette hook: no personal Wardling or Sentinel ever
+  carries one, so "flag on back = wave" holds at 60 m and in CVD presets (shape, not hue).
+- Vanguard waves use the same tier rules as all Wardlings (Tier I/II/III by Surge).
+- If Vesper takes control of a Vanguard (C15 Minionmancer exception), its pennant is replaced by
+  her spindle and gains her owner band, so it visibly becomes "personal".
+- Vanguard spawn: the Foundry's outer gate opens with a horn sting and a team-coloured light
+  sweep down each lane mouth every 60 s (world tell for the wave timer on the HUD).
+
+### 5.5 Command Markers in the World (C15 commands)
+
+Each of the four squad commands leaves a world-space marker visible to the **owner** (full
+strength) and **allies** (50% opacity); enemies see none of them except Attack Target's laser
+(below).
+
+| Command | World marker | Wardling pose |
+| --- | --- | --- |
+| **Follow** (default) | No marker; Wardlings' owner band glows steadily | Trailing the owner |
+| **Hold Here** | Circular ground ring with an anchor glyph at the spot, 3 m radius, team colour; fades to a small anchor pin after 3 s | Shields up, facing outward |
+| **Attack Target** | Diamond reticle with a down-arrow over the target, in team colour; each attacking Wardling draws a thin laser thread to it for 1 s (the **target sees these threads**, a fair warning) | Lunging, eye flashes white |
+| **Go Capture** | A tall ping column at the chosen hardpoint with that task's icon (§6.3) and a dotted path ribbon on the ground from squad to node (owner only) | March pose, like a Vanguard but without pennants |
+
 **Vesper's rewritten elites:** shell gains gold thread-lines and a second floating
 spindle above the head; enemy Wardlings she turns show their original faction shell with the
 core flipped to her team colour, wrapped in a visible thread tether back to her, with a glitch
@@ -546,7 +579,8 @@ ally effects > ambient.
 | VFX texture | — | — | ≤ 512, flipbooks ≤ 1024 atlas |
 
 Scene-level: ≤ 2,000 draw calls and ≤ 3.5 M visible tris in the worst view (team fight
-at a Mid with 10 heroes + 40 Wardlings); texture memory ≤ 2.5 GB at High; VFX ≤ 1.5 ms GPU.
+at a Mid with 10 heroes + 50 Wardlings, of which up to 8 Vanguards and 4 Sentinels; the
+map-wide AI cap is ~100 per C15); texture memory ≤ 2.5 GB at High; VFX ≤ 1.5 ms GPU.
 These are art-side proposals; `technical-preferences.md` still has budgets unconfigured, so
 technical-director must ratify them.
 
@@ -607,7 +641,8 @@ crystal/chip set are Tier 2 (Alpha); the slice includes a minimal read-test of t
 | 2 | Hero weapons FP + TP with three `SOCKET_*` nodes | 4 × 2 | Final |
 | 3 | Hero animation sets (locomotion, fire, reload/vent, 4 skills, death, emote idle) | 4 | Final for FP, blockout-plus for TP |
 | 4 | Crystal read-test: Solar family T1–T3; chip read-test: Overclock T1–T3 | 6 | Final quality (validates Pillar 4 early) |
-| 5 | Wardling base form, both faction skins, Tiers I–III | 1 rig, 3 tier states | Final |
+| 5 | Wardling base form, both faction skins, Tiers I–III; owner sash + Vanguard pennant variants | 1 rig, 3 tier states, 2 class markings | Final |
+| 5b | Command world markers: Hold ring, Attack reticle + threads, Go Capture ping column + path ribbon | 4 | Final |
 | 6 | Map: 3 lanes × 5 hardpoint plazas, causeways, flank paths | 15 nodes | Stylised neutral kit + 1 faction kit each side |
 | 7 | Task objects: Holdstone, Charge Cradle + Mana Cell, Ward Generator (3 crack stages) | 3 + cell | Final |
 | 8 | HQ ×2: Uplink spire (protected/exposed/3 crack stages/destroyed), Sanctum, Foundry, Armory | 2 | Uplink final; rooms stylised kit |
@@ -665,3 +700,4 @@ Code must not wait for art. Placeholder art follows the same pipeline, naming (`
 | A3 | Crystal family names and stat mapping (Solar/Verdant/Aether/Prism; Overclock/Stabilizer/Feeder/Targeting) | Visual families fixed here; stats owned by the weapon/economy GDDs |
 | A4 | Environment outlines (post edge-detect) | None in VS; Alpha experiment with a < 0.5 ms budget |
 | A5 | Performance budgets in §10.5 | Proposed; technical-director to ratify in `technical-preferences.md` |
+| A6 | Pillar 3's design test still reads "more than two commands … cut it", but revised C15 has 4 commands | Art follows C15 (canon); creative-director should update the Pillar 3 test text |
