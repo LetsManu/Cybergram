@@ -1,0 +1,28 @@
+; Engine configuration file.
+; Cybergram — Godot 4.7, Forward+, Jolt. See docs/architecture/architecture.md.
+
+config_version=5
+
+[application]
+
+config/name="Cybergram"
+config/description="PvP first-person MOBA shooter"
+run/main_scene="res://src/core/app/app_root.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
