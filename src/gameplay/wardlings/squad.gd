@@ -125,11 +125,11 @@ func update_attack(tick: int, tick_hz: int, rules: WardlingRulesDef, target_aliv
 
 
 ## The owner died: whatever the command, the squad holds (DeathHold, §9.8).
-func on_owner_died(tick: int, centroid: Vector3) -> void:
+func on_owner_died(tick: int, at: Vector3) -> void:
 	owner_dead_tick = tick
 	pending_mints = 0
 	if command != CMD_CAPTURE:
-		hold_point = centroid
+		hold_point = at
 	attack_target_id = 0
 
 

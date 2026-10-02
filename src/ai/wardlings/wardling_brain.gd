@@ -74,14 +74,14 @@ func _init(w: WardlingSim, ww: WardlingWorld, r: WardlingRulesDef) -> void:
 
 ## Pure transition choice (no side effects). Always returns `state` or one of
 ## TRANSITIONS[state].
-static func decide(state: int, p: Percept) -> int:
-	var next := _want(state, p)
-	if next == state or TRANSITIONS[state].has(next):
+static func decide(from: int, p: Percept) -> int:
+	var next := _want(from, p)
+	if next == from or TRANSITIONS[from].has(next):
 		return next
-	return state
+	return from
 
 
-static func _want(state: int, p: Percept) -> int:
+static func _want(from: int, p: Percept) -> int:
 	if p.dissolving:
 		return State.DISSOLVING
 	if p.allegiance == Allegiance.VANGUARD:
@@ -93,7 +93,7 @@ static func _want(state: int, p: Percept) -> int:
 	# Squad. Attack Target beats retaliation (C15, §10.1).
 	if p.command == Squad.CMD_ATTACK and p.attack_valid:
 		return State.ATTACK_TARGET
-	if state == State.RETURN and not p.returned:
+	if from == State.RETURN and not p.returned:
 		return State.RETURN
 	if p.out_of_leash:
 		return State.RETURN

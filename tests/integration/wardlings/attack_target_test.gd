@@ -76,6 +76,9 @@ func test_owner_death_holds_the_squad_10_s_then_dissolves_it() -> void:
 	server.wardlings.squad_dissolved.connect(func(o: int) -> void:
 		if o == id:
 			dissolved[0] = server.tick)
+	var old_ids := []
+	for m in sq.members:
+		old_ids.append(m.net_id)
 	var killed_tick := server.tick
 	server.damage_hero(server.hero(id), DamageInfo.make(10000.0, 0, ServerWorld.TEAM_DUMMIES, 0, DamageInfo.Type.TRUE))
 	assert_bool(sq.is_dissolving()).is_true()
@@ -86,4 +89,14 @@ func test_owner_death_holds_the_squad_10_s_then_dissolves_it() -> void:
 			assert_int(sq.members.size()).is_equal(3)
 	var held := float(dissolved[0] - killed_tick) / HZ
 	assert_float(held).is_equal_approx(rules.death_hold_s, 0.1)
-	assert_int(server.wardlings.wardlings.size()).is_equal(0)
+	# The held squad is gone (dissolved: killer 0, no bounty)...
+	assert_int(sq.members.size()).is_equal(0)
+	for oid in old_ids:
+		assert_object(server.wardlings.live_entity(oid)).is_null()
+	# ...and respawning inside the hold (6 s < 10 s) did not re-bind it: the
+	# Sanctum respawn minted a fresh, separate squad (§9.8 rule 4).
+	var fresh := server.wardlings.squad_of(id)
+	assert_object(fresh).is_not_null()
+	assert_bool(fresh != sq).is_true()
+	for m in fresh.members:
+		assert_int(m.spawned_tick).is_greater(killed_tick)

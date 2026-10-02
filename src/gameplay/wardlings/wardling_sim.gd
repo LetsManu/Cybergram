@@ -56,6 +56,7 @@ var safe_velocity: Vector3 = Vector3.ZERO
 var safe_frame: int = -1
 var agent: RID
 var fire_cooldown: int = 0
+var stuck_ticks: int = 0
 
 ## Damage memory (retaliation, LOD).
 var last_attacker_id: int = 0

@@ -24,6 +24,8 @@ const REPATH_M: float = 3.0
 ## Closer than this: steer straight, no path query.
 const DIRECT_M: float = 5.0
 const WAYPOINT_M: float = 0.7
+## Ticks without progress before a Wardling re-paths from where it stands.
+const STUCK_TICKS: int = 15
 ## Personal squads keep this distance band when choosing a firing spot.
 const VANGUARD_STATE: int = 5
 const STATE_DISSOLVING_BIT: int = 1 << 5
@@ -70,6 +72,8 @@ var _nav_map: RID
 var _ray := PhysicsRayQueryParameters3D.new()
 var _rng := RandomNumberGenerator.new()
 var _frame: int = -1
+## Navmesh surface height above the floor (measured once at a Sanctum).
+var _nav_y_offset: float = NAN
 var _ticks_this_frame: int = 0
 
 
@@ -196,11 +200,18 @@ func has_los(from: Vector3, to: Vector3) -> bool:
 	return space.intersect_ray(_ray).is_empty()
 
 
-## Closest navmesh point (identity until the navigation map is synced).
+## Closest navmesh point, on the floor (identity until the navigation map is synced).
 func snap(p: Vector3) -> Vector3:
 	if not nav_ready():
 		return p
-	return NavigationServer3D.map_get_closest_point(nav_map(), p)
+	return NavigationServer3D.map_get_closest_point(nav_map(), p) - Vector3(0.0, _nav_offset(), 0.0)
+
+
+func _nav_offset() -> float:
+	if is_nan(_nav_y_offset):
+		var ref := map_def.hq(MapDef.TEAM_CONCORD).sanctum if map_def != null else Vector3.ZERO
+		_nav_y_offset = clampf(NavigationServer3D.map_get_closest_point(nav_map(), ref).y - ref.y, 0.0, 1.0)
+	return _nav_y_offset
 
 
 ## One navmesh path query (counted). Brains use it for shared wave paths.
@@ -346,11 +357,8 @@ func debug_spawn(n: int) -> void:
 		var ahead := -1.0 if team == MapDef.TEAM_CONCORD else 1.0
 		var base := hq.lane_gate + Vector3(0.0, 0.0, ahead * (6.0 + (k / 2) * 5.0))
 		for i in mini(4, n - made):
-			var w := _mint(picket, team, base + _block_offset(i, ahead), 0)
-			if w == null:
+			if _mint(picket, team, base + _block_offset(i, ahead), 0, null, wave) == null:
 				return
-			w.wave = wave
-			wave.members.append(w)
 			made += 1
 		waves.append(wave)
 		k += 1
@@ -399,12 +407,9 @@ func _squad_rules(t: int) -> void:
 		var sq: Squad = squads[owner_id]
 		while sq.pending_mints > 0 and t >= sq.next_mint_tick:
 			var hq := map_def.hq(sq.team)
-			var w := _mint(picket, sq.team, snap(hq.foundry + _ring_offset(sq.alive_count(), 1.5)), owner_id)
+			_mint(picket, sq.team, snap(hq.foundry + _ring_offset(sq.alive_count(), 1.5)), owner_id, sq)
 			sq.pending_mints -= 1
 			sq.next_mint_tick += interval
-			if w != null:
-				w.squad = sq
-				sq.members.append(w)
 		if sq.command == Squad.CMD_ATTACK:
 			var target := live_entity(sq.attack_target_id)
 			var owner := server.hero(owner_id)
@@ -444,10 +449,7 @@ func _vanguard_rules(t: int) -> void:
 				waves.erase(old)
 			var ahead := -1.0 if team == MapDef.TEAM_CONCORD else 1.0
 			for i in n:
-				var w := _mint(picket, team, hq.lane_gate + _block_offset(i + alive, ahead), 0)
-				if w != null:
-					w.wave = wave
-					wave.members.append(w)
+				_mint(picket, team, hq.lane_gate + _block_offset(i + alive, ahead), 0, null, wave)
 			waves.append(wave)
 			_current_wave[key] = wave
 			vanguard_wave_spawned.emit(team, lane, n)
@@ -455,7 +457,8 @@ func _vanguard_rules(t: int) -> void:
 
 # --- Bodies -----------------------------------------------------------------
 
-func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int) -> WardlingSim:
+func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int, squad: Squad = null,
+		wave: VanguardWave = null) -> WardlingSim:
 	var w := WardlingSim.new()
 	w.setup(def, team, snap(pos))
 	server.add_child(w)
@@ -465,6 +468,12 @@ func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int) -> Wardling
 		return null
 	w.name = "Wardling%d" % w.net_id
 	w.owner_net_id = owner_id
+	w.squad = squad
+	w.wave = wave
+	if squad != null:
+		squad.members.append(w)
+	if wave != null:
+		wave.members.append(w)
 	w.spawned_tick = server.tick
 	w.yaw = 0.0 if team == MapDef.TEAM_CONCORD else PI
 	var a := NavigationServer3D.agent_create()
@@ -551,7 +560,7 @@ func _move(w: WardlingSim) -> void:
 				_path_queue.append(w)
 			var steer := goal
 			if not w.path.is_empty():
-				while w.path_index < w.path.size() - 1 and _flat(pos, w.path[w.path_index]) < WAYPOINT_M:
+				while w.path_index < w.path.size() - 1 and _passed(pos, w.path, w.path_index):
 					w.path_index += 1
 				if not (w.path_index == w.path.size() - 1 and _flat(pos, w.path[w.path_index]) < WAYPOINT_M):
 					steer = w.path[w.path_index]
@@ -570,12 +579,23 @@ func _move(w: WardlingSim) -> void:
 		NavigationServer3D.agent_set_position(w.agent, pos)
 		NavigationServer3D.agent_set_velocity(w.agent, desired)
 	if v == Vector3.ZERO:
+		w.stuck_ticks = 0
 		return
 	var np := pos + v * dt
 	if nav_ready():
-		var s := NavigationServer3D.map_get_closest_point(nav_map(), np)
+		var s := snap(np)
 		if absf(s.y - np.y) < 2.0:
 			np = s
+	# Stuck (pinned against the mesh edge): re-path from here.
+	if _flat(np, pos) < v.length() * dt * 0.2:
+		w.stuck_ticks += 1
+		if w.stuck_ticks > STUCK_TICKS and not w.path_pending:
+			w.stuck_ticks = 0
+			w.path = PackedVector3Array()
+			w.path_pending = true
+			_path_queue.append(w)
+	else:
+		w.stuck_ticks = 0
 	w.global_position = np
 	w.yaw = atan2(-v.x, -v.z)
 
@@ -713,6 +733,17 @@ func write_snapshot(s: SnapshotData) -> void:
 
 static func _flat(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Waypoint i is reached when close, or when `pos` is past the plane through it
+## perpendicular to the next segment (robust to waypoints offset off the mesh).
+static func _passed(pos: Vector3, path: PackedVector3Array, i: int) -> bool:
+	var wp := path[i]
+	if _flat(pos, wp) < WAYPOINT_M:
+		return true
+	var nxt := path[i + 1]
+	var seg := Vector2(nxt.x - wp.x, nxt.z - wp.z)
+	return seg.dot(Vector2(pos.x - wp.x, pos.z - wp.z)) > 0.0
 
 
 static func _cell(p: Vector3) -> Vector2i:
