@@ -8,6 +8,15 @@ extends Node
 ## issues ticks; each tick runs client then server in a fixed order.
 
 const NET_SIM_PATH := "res://assets/data/net/net_sim_%s.tres"
+## `--map <name>` selects a MapDef; its scene replaces map_scene.
+const MAP_DEF_PATH := "res://assets/data/match/map_%s_lane.tres"
+const HERO_PATH := "res://assets/data/heroes/hero_%s.tres"
+const DEFAULT_PLAYER_HERO := "res://assets/data/heroes/hero_vesper_loom.tres"
+const DEFAULT_DUMMY_HEROES: Array[String] = [
+	"res://assets/data/heroes/hero_brannoc.tres",
+	"res://assets/data/heroes/hero_vesper_loom.tres",
+]
+const DEFAULT_MATCH_RULES := "res://assets/data/match/match_rules_slice.tres"
 const SERVER_PEER: int = 1
 const LOCAL_CLIENT_PEER: int = 2
 
@@ -18,6 +27,12 @@ const LOCAL_CLIENT_PEER: int = 2
 @export var net_sim: NetSimProfile
 ## ScriptedInputDef resources, one dummy hero each (typed as Resource for .tscn compatibility).
 @export var dummy_inputs: Array[Resource] = []
+## Hero for the local player (null = DEFAULT_PLAYER_HERO).
+@export var player_hero: HeroDef
+## HeroDef per dummy, cycled (empty = DEFAULT_DUMMY_HEROES).
+@export var dummy_heroes: Array[Resource] = []
+## Respawn rules (null = DEFAULT_MATCH_RULES).
+@export var match_rules: MatchRulesDef
 
 ## Set by AppRoot before _ready (core LaunchConfig; duck-typed fields used).
 var launch_config: LaunchConfig
@@ -36,6 +51,19 @@ func _ready() -> void:
 		_quit_after_ticks = launch_config.quit_after_ticks
 		if launch_config.net_sim_name != "":
 			net_sim = load(NET_SIM_PATH % launch_config.net_sim_name) as NetSimProfile
+		if launch_config.map_name != "":
+			var map_def := load(MAP_DEF_PATH % launch_config.map_name) as MapDef
+			if map_def != null and map_def.scene != null:
+				map_scene = map_def.scene
+		if launch_config.hero_id != "" and ResourceLoader.exists(HERO_PATH % launch_config.hero_id):
+			player_hero = load(HERO_PATH % launch_config.hero_id) as HeroDef
+	if player_hero == null:
+		player_hero = load(DEFAULT_PLAYER_HERO) as HeroDef
+	if dummy_heroes.is_empty():
+		for path in DEFAULT_DUMMY_HEROES:
+			dummy_heroes.append(load(path))
+	if match_rules == null:
+		match_rules = load(DEFAULT_MATCH_RULES) as MatchRulesDef
 	Engine.physics_ticks_per_second = net_config.tick_rate_hz
 	clock = SimClock.new(net_config.tick_rate_hz)
 	link = LoopbackLink.new(net_sim)
@@ -50,16 +78,23 @@ func _ready() -> void:
 		vp.size = Vector2i(2, 2)
 		add_child(vp)
 		vp.add_child(server)
-	server.setup(net_config, movement, map_scene, link.create_endpoint(SERVER_PEER))
+	server.setup(net_config, movement, map_scene, link.create_endpoint(SERVER_PEER), player_hero, match_rules)
 	for i in dummy_inputs.size():
-		server.add_scripted_hero(ScriptedInputSource.new(dummy_inputs[i]), server.spawn_point("DummySpawn%d" % (i + 1)))
+		server.add_scripted_hero(ScriptedInputSource.new(dummy_inputs[i]), server.spawn_point("DummySpawn%d" % (i + 1)),
+			dummy_heroes[i % dummy_heroes.size()] as HeroDef)
 	if not dedicated:
-		var input := PlayerInputSource.new()
-		input.setup(look, movement)
-		add_child(input)
 		client = ClientWorld.new()
 		add_child(client)
-		client.setup(net_config, movement, look, map_scene, link.create_endpoint(LOCAL_CLIENT_PEER), input)
+		var source: Object
+		if launch_config != null and launch_config.autofire:
+			source = DebugAutoAimSource.new(client)
+		else:
+			var input := PlayerInputSource.new()
+			input.setup(look, movement)
+			add_child(input)
+			source = input
+		client.setup(net_config, movement, look, map_scene, link.create_endpoint(LOCAL_CLIENT_PEER), source,
+			player_hero)
 
 
 func _physics_process(delta: float) -> void:
@@ -96,4 +131,7 @@ func debug_text() -> String:
 		t += "\nseq %d acked %d | pred err %.4f m (max %.4f) | corrections %d | remotes %d" % [
 			pr.latest_seq, server.session.clients.get(LOCAL_CLIENT_PEER).inputs.last_processed_seq,
 			pr.last_error_m, pr.max_error_m, pr.corrections, client.view_count()]
+	var own := server.hero(client.session.own_net_id) if client != null else null
+	if own != null:
+		t += "\nhero %s | kills %d deaths %d" % [own.combat.def.display_name, own.combat.kills, own.combat.deaths]
 	return t

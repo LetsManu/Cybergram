@@ -6,6 +6,8 @@ extends RefCounted
 signal welcomed(own_net_id: int, server_tick: int)
 signal rejected(reason: int)
 signal snapshot_received(snap: SnapshotData)
+## A reliable gameplay event (hit confirm, kill).
+signal event_received(event: GameEvent, server_tick: int)
 
 const SERVER_PEER: int = 1
 
@@ -69,5 +71,13 @@ func _handle(pkt: Transport.Packet) -> void:
 				return  # stale or duplicate (unreliable channel may reorder)
 			latest_snapshot_tick = s.tick
 			snapshot_received.emit(s)
+		MsgType.EVENT:
+			var events: Array[GameEvent] = []
+			var t := EventCodec.decode(pkt.data, events)
+			if t < 0:
+				malformed_packets += 1
+				return
+			for e in events:
+				event_received.emit(e, t)
 		_:
 			malformed_packets += 1

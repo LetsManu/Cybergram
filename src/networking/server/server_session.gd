@@ -52,6 +52,13 @@ func send_snapshot(peer_id: int, snap: SnapshotData) -> void:
 	transport.send(peer_id, Transport.CH_SNAPSHOT, SnapshotCodec.encode(snap))
 
 
+## Sends a reliable batch of gameplay events (no-op when empty).
+func send_events(peer_id: int, tick: int, events: Array[GameEvent]) -> void:
+	if events.is_empty():
+		return
+	transport.send(peer_id, Transport.CH_EVENTS, EventCodec.encode(tick, events))
+
+
 func _handle(pkt: Transport.Packet) -> void:
 	if pkt.data.is_empty() or pkt.data.size() > net.max_packet_bytes:
 		_violation(pkt.from_peer)

@@ -45,4 +45,16 @@ func sample(seq: int, out: InputCommand) -> void:
 		out.buttons |= InputCommand.BTN_CROUCH
 	if Input.is_action_pressed("sprint"):
 		out.buttons |= InputCommand.BTN_SPRINT
+	# Fire only while the mouse is captured (the capturing click never shoots).
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		out.buttons |= InputCommand.BTN_FIRE
+	if _pressed("reload", KEY_R):
+		out.buttons |= InputCommand.BTN_RELOAD
 	out.quantize()
+
+
+## Input-map action if defined, else the physical key (no project.godot edit needed).
+func _pressed(action: StringName, fallback: Key) -> bool:
+	if InputMap.has_action(action):
+		return Input.is_action_pressed(action)
+	return Input.is_physical_key_pressed(fallback)

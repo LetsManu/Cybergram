@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="MatchRulesDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/match_rules_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+respawn_base_s = 6.0
+respawn_per_min_s = 0.4
+respawn_cap_s = 30.0

@@ -17,7 +17,7 @@ func sample(seq: int, out: InputCommand) -> void:
 	out.seq = seq
 	out.move = def.segments[seg] if not def.segments.is_empty() else Vector2.ZERO
 	out.yaw = deg_to_rad(def.start_yaw_deg + def.yaw_deg_per_tick * seq)
-	out.pitch = 0.0
+	out.pitch = deg_to_rad(def.pitch_deg)
 	out.buttons = 0
 	if def.sprint:
 		out.buttons |= InputCommand.BTN_SPRINT
@@ -25,4 +25,6 @@ func sample(seq: int, out: InputCommand) -> void:
 		out.buttons |= InputCommand.BTN_JUMP
 	if seg in def.crouch_segments:
 		out.buttons |= InputCommand.BTN_CROUCH
+	if def.fire_period_ticks > 0 and seq % def.fire_period_ticks < def.fire_hold_ticks:
+		out.buttons |= InputCommand.BTN_FIRE
 	out.quantize()

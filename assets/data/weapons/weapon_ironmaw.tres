@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/weapon_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weapon_ironmaw"
+display_name = "Ironmaw"
+feed_kind = 1
+damage = 15.0
+pellets = 10
+fire_rate = 1.25
+semi_auto = false
+headshot_mult = 1.25
+falloff_start_m = 8.0
+falloff_end_m = 15.0
+falloff_min = 0.55
+spread_base_deg = 5.5
+spread_bloom_deg = 0.0
+spread_max_deg = 5.5
+spread_recovery_deg_s = 6.0
+spread_recovery_delay_s = 0.15
+range_m = 60.0
+burnout_delay_mult = 1.5
+magazine = 6
+reserve = 30
+reload_s = 0.45
+reload_empty_s = 0.0
+reload_per_round = true

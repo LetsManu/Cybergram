@@ -4,22 +4,27 @@ extends RefCounted
 ## (architecture.md §8.5) replace the entity block in a later epic.
 ##
 ## Layout: u8 type, u32 tick, u32 last_processed_seq, u16 own_net_id,
-##   u8 has_own, [own block 27 B], u16 entity count, count x entity (36 B).
+##   u8 has_own, [own block 27 B + own combat 19 B], u16 entity count, count x entity (41 B).
 ## Own block: pos f32x3, vel f32x3, u8 flags, u8 coyote ticks, u8 jump buffer ticks.
-## Entity: u16 net_id, u8 kind, pos f32x3, vel f32x3, yaw f32, pitch f32, u8 flags.
+## Own combat: u16 hp, u16 max_hp, u8 dead, u32 respawn_tick, u8 feed_kind,
+##   f32 ammo, u16 ammo_capacity, u16 reserve, u8 ammo_flags.
+## Entity: u16 net_id, u8 kind, pos f32x3, vel f32x3, yaw f32, pitch f32, u8 flags,
+##   u8 team, u16 hp, u16 max_hp.
 
 const _HEADER: int = 12
 const _OWN: int = 27
-const _ENTITY: int = 2 + 1 + 12 + 12 + 4 + 4 + 1
+const _OWN_COMBAT: int = 19
+const _ENTITY: int = 2 + 1 + 12 + 12 + 4 + 4 + 1 + 1 + 2 + 2
 const _F_GROUNDED: int = 1
 const _F_CROUCH: int = 2
 const _F_JUMP_HELD: int = 4
+const _F_DEAD: int = 8
 
 
 static func encode(s: SnapshotData) -> PackedByteArray:
 	var has_own := s.own_state != null
 	var b := PackedByteArray()
-	b.resize(_HEADER + (_OWN if has_own else 0) + 2 + s.entities.size() * _ENTITY)
+	b.resize(_HEADER + (_OWN + _OWN_COMBAT if has_own else 0) + 2 + s.entities.size() * _ENTITY)
 	b.encode_u8(0, MsgType.SNAPSHOT)
 	b.encode_u32(1, s.tick)
 	b.encode_u32(5, s.last_processed_seq)
@@ -36,6 +41,17 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 		b.encode_u8(off + 1, clampi(m.coyote_ticks, 0, 255))
 		b.encode_u8(off + 2, clampi(m.jump_buffer_ticks, 0, 255))
 		off += 3
+		var c := s.own_combat if s.own_combat != null else SnapshotData.OwnCombat.new()
+		b.encode_u16(off, clampi(c.hp, 0, 65535))
+		b.encode_u16(off + 2, clampi(c.max_hp, 0, 65535))
+		b.encode_u8(off + 4, 1 if c.dead else 0)
+		b.encode_u32(off + 5, c.respawn_tick & 0xFFFFFFFF)
+		b.encode_u8(off + 9, c.feed_kind)
+		b.encode_float(off + 10, c.ammo)
+		b.encode_u16(off + 14, clampi(c.ammo_capacity, 0, 65535))
+		b.encode_u16(off + 16, clampi(c.reserve, 0, 65535))
+		b.encode_u8(off + 18, c.ammo_flags & 0xFF)
+		off += _OWN_COMBAT
 	b.encode_u16(off, s.entities.size())
 	off += 2
 	for e in s.entities:
@@ -45,8 +61,12 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 		off = _put_v3(b, off, e.velocity)
 		b.encode_float(off, e.yaw)
 		b.encode_float(off + 4, e.pitch)
-		b.encode_u8(off + 8, (_F_GROUNDED if e.grounded else 0) | (_F_CROUCH if e.crouching else 0))
-		off += 9
+		b.encode_u8(off + 8, (_F_GROUNDED if e.grounded else 0) | (_F_CROUCH if e.crouching else 0)
+			| (_F_DEAD if e.dead else 0))
+		b.encode_u8(off + 9, e.team & 0xFF)
+		b.encode_u16(off + 10, clampi(e.hp, 0, 65535))
+		b.encode_u16(off + 12, clampi(e.max_hp, 0, 65535))
+		off += 14
 	return b
 
 
@@ -60,7 +80,7 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 	s.own_net_id = b.decode_u16(9)
 	var off := _HEADER
 	if b.decode_u8(11) == 1:
-		if b.size() < _HEADER + _OWN + 2:
+		if b.size() < _HEADER + _OWN + _OWN_COMBAT + 2:
 			return null
 		var m := MotorState.new()
 		m.position = _get_v3(b, off)
@@ -73,6 +93,18 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		m.jump_buffer_ticks = b.decode_u8(off + 26)
 		s.own_state = m
 		off += _OWN
+		var c := SnapshotData.OwnCombat.new()
+		c.hp = b.decode_u16(off)
+		c.max_hp = b.decode_u16(off + 2)
+		c.dead = b.decode_u8(off + 4) != 0
+		c.respawn_tick = b.decode_u32(off + 5)
+		c.feed_kind = b.decode_u8(off + 9)
+		c.ammo = b.decode_float(off + 10)
+		c.ammo_capacity = b.decode_u16(off + 14)
+		c.reserve = b.decode_u16(off + 16)
+		c.ammo_flags = b.decode_u8(off + 18)
+		s.own_combat = c
+		off += _OWN_COMBAT
 	var count := b.decode_u16(off)
 	off += 2
 	if b.size() != off + count * _ENTITY:
@@ -88,6 +120,10 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		var f := b.decode_u8(off + 35)
 		e.grounded = (f & _F_GROUNDED) != 0
 		e.crouching = (f & _F_CROUCH) != 0
+		e.dead = (f & _F_DEAD) != 0
+		e.team = b.decode_u8(off + 36)
+		e.hp = b.decode_u16(off + 37)
+		e.max_hp = b.decode_u16(off + 39)
 		s.entities.append(e)
 		off += _ENTITY
 	return s

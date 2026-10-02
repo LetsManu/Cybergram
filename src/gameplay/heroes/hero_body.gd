@@ -14,6 +14,8 @@ var motor: HeroMotor
 ## Last applied command's look direction (replicated for views).
 var look_yaw: float = 0.0
 var look_pitch: float = 0.0
+## Server-side combat state (null on the client's predicted body).
+var combat: HeroCombat
 
 var _def: MovementDef
 var _shape: CollisionShape3D
@@ -50,6 +52,10 @@ func step(cmd: InputCommand, dt: float) -> void:
 	motor.step(state, cmd, dt)
 	look_yaw = cmd.yaw
 	look_pitch = clampf(cmd.pitch, -deg_to_rad(_def.max_pitch_deg), deg_to_rad(_def.max_pitch_deg))
+
+
+func movement_def() -> MovementDef:
+	return _def
 
 
 ## Eye height above the feet for the current stance.

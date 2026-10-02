@@ -3,9 +3,19 @@ extends Node3D
 ## Client presentation world (architecture.md §2, §8.4): the client copy of the
 ## map, the predicted own hero (HeroBody + Predictor), interpolated remote
 ## HeroViews and the first-person rig. It never simulates authoritative state.
+## Combat (E4/E5): the own hero's replicated health/feed (`combat`, read by the
+## HUD), remote health on the views, and hit confirms / kills as signals.
+
+## The server confirmed a hit by this client (hit marker, damage number).
+signal hit_confirmed(event: GameEvent)
+## Someone died (kill feed later; HUD uses it for the own death).
+signal kill_received(event: GameEvent)
 
 var net: NetConfig
 var movement: MovementDef
+var hero_def: HeroDef
+## Latest replicated combat state of the own hero (null until the first snapshot).
+var combat: SnapshotData.OwnCombat
 var session: ClientSession
 var predictor: Predictor
 var body: HeroBody
@@ -26,15 +36,17 @@ var _look: LookSettings
 
 
 func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
-		map_scene: PackedScene, transport: Transport, source: Object) -> void:
+		map_scene: PackedScene, transport: Transport, source: Object, hero: HeroDef = null) -> void:
 	net = net_config
 	movement = movement_def
+	hero_def = hero if hero != null else HeroDef.new()
 	_look = look
 	input_source = source
 	player_input = source as PlayerInputSource
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
 	session.snapshot_received.connect(_on_snapshot)
+	session.event_received.connect(_on_event)
 	session.connect_to_server()
 
 
@@ -45,6 +57,9 @@ func tick() -> void:
 	client_seq += 1
 	_prev_pos = body.state.position
 	input_source.sample(client_seq, _cmd)
+	if is_dead():
+		_cmd.move = Vector2.ZERO  # mirrors ServerWorld._step_hero for the dead
+		_cmd.buttons = 0
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -71,9 +86,25 @@ func render(delta: float) -> void:
 	rig.follow(feet, body.eye_height(), yaw, pitch)
 
 
+func is_dead() -> bool:
+	return combat != null and combat.dead
+
+
+## Seconds until the own hero respawns (0 when alive).
+func respawn_seconds_left() -> float:
+	if not is_dead():
+		return 0.0
+	return maxf(0.0, (combat.respawn_tick - server_tick_estimate) / net.tick_rate_hz)
+
+
 ## Number of remote entity views (tests/diagnostics).
 func view_count() -> int:
 	return _views.size()
+
+
+## Remote hero views by net id (read-only use).
+func remote_views() -> Dictionary:
+	return _views
 
 
 func view(net_id: int) -> HeroView:
@@ -83,6 +114,8 @@ func view(net_id: int) -> HeroView:
 func _on_snapshot(s: SnapshotData) -> void:
 	if server_tick_estimate < s.tick - 1:
 		server_tick_estimate = s.tick
+	if s.own_combat != null:
+		combat = s.own_combat
 	if s.own_state != null:
 		if body == null:
 			_spawn_own(s.own_state)
@@ -99,6 +132,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_views[e.net_id] = v
 			_buffers[e.net_id] = InterpolationBuffer.new(net.extrapolation_cap_ticks)
 		_buffers[e.net_id].push(s.tick, e.position, e.yaw, e.crouching)
+		_views[e.net_id].set_health(e.hp, e.max_hp, e.dead)
 	for id in _views.keys():
 		if not seen.has(id):
 			_views[id].queue_free()
@@ -108,7 +142,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 
 func _spawn_own(state: MotorState) -> void:
 	body = HeroBody.new()
-	body.setup(movement, state.position, false)
+	body.setup(hero_def.movement_for(movement), state.position, false)
 	add_child(body)
 	body.state.copy_from(state)
 	body.place()
@@ -118,3 +152,11 @@ func _spawn_own(state: MotorState) -> void:
 	rig = FirstPersonRig.new()
 	rig.setup(_look)
 	add_child(rig)
+
+
+func _on_event(e: GameEvent, _server_tick: int) -> void:
+	match e.kind:
+		GameEvent.HIT_CONFIRM:
+			hit_confirmed.emit(e)
+		GameEvent.KILL:
+			kill_received.emit(e)

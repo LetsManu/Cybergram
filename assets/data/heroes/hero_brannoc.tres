@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="HeroDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="1"]
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_ironmaw.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"hero_brannoc"
+display_name = "Brannoc"
+max_hp = 550
+armor = 0.2
+move_speed = 5.4
+weapon = ExtResource("2")
+hitbox_scale = 1.077
