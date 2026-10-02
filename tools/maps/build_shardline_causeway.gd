@@ -142,24 +142,24 @@ func _mat(c: Color, emissive: float = 0.0, alpha: float = 1.0, unshaded: bool = 
 
 
 func _build_materials() -> void:
-	mats.floor_a = _mat(Color(0.46, 0.5, 0.58))
-	mats.floor_b = _mat(Color(0.5, 0.45, 0.43))
-	mats.floor_hq_a = _mat(Color(0.62, 0.66, 0.74))
-	mats.floor_hq_b = _mat(Color(0.3, 0.27, 0.28))
-	mats.floor_mid = _mat(Color(0.5, 0.49, 0.54))
-	mats.floor_loop = _mat(Color(0.36, 0.33, 0.44))
-	mats.wall_a = _mat(Color(0.85, 0.88, 0.94))
+	mats.floor_a = _mat(Color(0.3, 0.33, 0.4))
+	mats.floor_b = _mat(Color(0.36, 0.31, 0.29))
+	mats.floor_hq_a = _mat(Color(0.4, 0.43, 0.5))
+	mats.floor_hq_b = _mat(Color(0.2, 0.18, 0.19))
+	mats.floor_mid = _mat(Color(0.34, 0.33, 0.37))
+	mats.floor_loop = _mat(Color(0.26, 0.22, 0.34))
+	mats.wall_a = _mat(Color(0.62, 0.65, 0.72))
 	mats.wall_b = _mat(Color(0.2, 0.18, 0.19))
 	mats.rail = _mat(Color(0.3, 0.31, 0.36))
-	mats.cover_low = _mat(Color(0.72, 0.66, 0.52))
-	mats.cover_tall = _mat(Color(0.56, 0.52, 0.62))
+	mats.cover_low = _mat(Color(0.58, 0.5, 0.36))
+	mats.cover_tall = _mat(Color(0.42, 0.38, 0.5))
 	mats.strip = _mat(Color(0.3, 0.32, 0.38))
 	mats.socket = _mat(Color(0.95, 0.8, 0.25), 0.4, 0.55, true)
 	for key in ["a", "b", "n"]:
 		var c: Color = AZURE if key == "a" else (EMBER if key == "b" else NEUTRAL)
 		mats["team_" + key] = _mat(c, 1.5)
 		mats["glow_" + key] = _mat(c, 2.5, 0.55, true)
-		mats["decal_" + key] = _mat(c, 0.6, 0.35, true)
+		mats["decal_" + key] = _mat(c, 0.0, 0.25)
 
 
 ## Solid box with collision (center = box centre).
@@ -245,7 +245,7 @@ func _env() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.55, 0.57, 0.7)
-	env.ambient_light_energy = 0.75
+	env.ambient_light_energy = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.55, 0.5, 0.7)
@@ -257,7 +257,7 @@ func _env() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-52.0, -35.0, 0.0)
-	sun.light_energy = 1.15
+	sun.light_energy = 0.9
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 250.0
 	_add(map_root, sun)
@@ -541,7 +541,9 @@ func _spawns() -> void:
 		sd.position = P(0, _half_l(half, 185.0), 0.05)
 		_add(team, sd)
 	# Session hooks used by GameSession / ServerWorld (same names as the test course).
-	var named := {"PlayerSpawn": _spawn_points(0)[0], "DummySpawn1": P(-3, 19, 0.05), "DummySpawn2": P(4, 21, 0.05)}
+	# TeamSpawn0/1: ServerWorld respawn points (team 0 = Concord, 1 = Syndicate Sanctum).
+	var named := {"PlayerSpawn": _spawn_points(0)[0], "DummySpawn1": P(-3, 19, 0.05), "DummySpawn2": P(4, 21, 0.05),
+		"TeamSpawn0": _spawn_points(0)[2], "TeamSpawn1": _spawn_points(1)[2]}
 	for n in named:
 		var m := Marker3D.new()
 		m.name = n
@@ -601,7 +603,7 @@ func _save_overview(nm: NavigationMesh) -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "NavmeshOverlay"
 	mi.mesh = am
-	mi.material_override = _mat(Color(0.2, 1.0, 0.45), 0.3, 0.35, true)
+	mi.material_override = _mat(Color(0.2, 1.0, 0.45), 0.0, 0.18, true)
 	ov.add_child(mi)
 	mi.owner = ov
 	var cam := Camera3D.new()
@@ -615,6 +617,8 @@ func _save_overview(nm: NavigationMesh) -> void:
 	# Same look as the map, minus distance fog (the camera sits 300 m up).
 	var env: Environment = (map.get_node("Env") as WorldEnvironment).environment.duplicate()
 	env.fog_enabled = false
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.13, 0.1, 0.2)
 	cam.environment = env
 	# Screen right = -Z (toward the Syndicate), screen up = -X (north), looking down.
 	cam.transform = Transform3D(Basis(Vector3(0, 0, -1), Vector3(-1, 0, 0), Vector3(0, 1, 0)), Vector3(-8, 300, -LANE_LEN * 0.5))

@@ -133,8 +133,12 @@ func test_scene_anchors_match_map_def() -> void:
 			var m := team.get_node("Spawn%d" % (i + 1)) as Marker3D
 			assert_vector(m.position).is_equal_approx(q.spawn_points[i], Vector3.ONE * 0.01)
 	# Session hooks (same marker names as the test course).
-	for n in ["PlayerSpawn", "DummySpawn1", "DummySpawn2"]:
+	for n in ["PlayerSpawn", "DummySpawn1", "DummySpawn2", "TeamSpawn0", "TeamSpawn1"]:
 		assert_object(scene.get_node_or_null(n)).is_not_null()
+	for t in 2:
+		var m := scene.get_node("TeamSpawn%d" % t) as Marker3D
+		var q := _def.hq(t)
+		assert_float(_flat(m.position, q.sanctum)).is_less(q.sanctum_radius)
 	assert_object(scene.get_node_or_null("NavRegion")).is_not_null()
 
 

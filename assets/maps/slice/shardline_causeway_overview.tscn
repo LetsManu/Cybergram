@@ -6,7 +6,7 @@
 transparency = 1
 cull_mode = 2
 shading_mode = 0
-albedo_color = Color(0.2, 1, 0.45, 0.35)
+albedo_color = Color(0.2, 1, 0.45, 0.18)
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_ehteb"]
 _surfaces = [{
@@ -28,24 +28,25 @@ ground_horizon_color = Color(0.5, 0.42, 0.66, 1)
 sky_material = SubResource("ProceduralSkyMaterial_wva4q")
 
 [sub_resource type="Environment" id="Environment_qmw6i"]
-background_mode = 2
+background_mode = 1
+background_color = Color(0.13, 0.1, 0.2, 1)
 sky = SubResource("Sky_kr8a4")
 ambient_light_source = 2
 ambient_light_color = Color(0.55, 0.57, 0.7, 1)
-ambient_light_energy = 0.75
+ambient_light_energy = 0.45
 tonemap_mode = 2
 fog_light_color = Color(0.55, 0.5, 0.7, 1)
 fog_density = 0.0015
 
-[node name="ShardlineCausewayOverview" type="Node3D" unique_id=732324335]
+[node name="ShardlineCausewayOverview" type="Node3D" unique_id=631021554]
 
-[node name="ShardlineCauseway" type="Node3D" parent="." unique_id=24426909 instance=ExtResource("1_cayd1")]
+[node name="ShardlineCauseway" type="Node3D" parent="." unique_id=742362829 instance=ExtResource("1_cayd1")]
 
-[node name="NavmeshOverlay" type="MeshInstance3D" parent="." unique_id=73936689]
+[node name="NavmeshOverlay" type="MeshInstance3D" parent="." unique_id=114604981]
 material_override = SubResource("StandardMaterial3D_de3ve")
 mesh = SubResource("ArrayMesh_ehteb")
 
-[node name="OverviewCamera" type="Camera3D" parent="." unique_id=1539598053]
+[node name="OverviewCamera" type="Camera3D" parent="." unique_id=297960301]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -8, 300, -210)
 keep_aspect = 0
 environment = SubResource("Environment_qmw6i")
