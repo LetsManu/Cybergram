@@ -1,64 +1,95 @@
-MAYBE PvE Shooter
+CYBERGRAM — IDEAS (updated 2026-10-02)
 
-Style: 
-    Design: Anime/Cartoon
+This is the owner's original idea list, updated with every decision made
+since. The binding details live in the design docs (design/gdd/*.md); the
+"Canon" table in design/gdd/game-concept.md wins if anything here disagrees.
+The original notes are in git history (commit 300baf5).
+
+Mode: PvP, 5v5, first person. Bots fill empty slots and replace disconnects.
+    A co-op mode against bots (PvE) can come later; the bots are needed anyway.
+
+Style:
+    Design: Anime/Cartoon, cel-shaded (see design/art-bible.md)
     Theme: Futuristic Fantasy
+    World: Halcyra. Teams: Azure Concord (blue) vs Ember Syndicate (red).
 
-Weapons: 
-    Main: Ammo/Mana Based Guns
-    Upgradability: With Crystals, Chips and similar things
-        Uprades: Should be visible like adding Crystals as Mounts into a Gun.
-    Ammo: Different Types of Ammo wich can also be modded in specific ways.
+Weapons:
+    Main: one signature gun per hero, Mana-based or Mechanical
+    Upgrades: bought in-match only (no pay-to-win, nothing carries over)
+        Visible on the gun: every gun has Core, Barrel and Frame sockets.
+        Mana guns take Crystals, Mechanical guns take Chips, each in 3 tiers.
+        Each mount changes the gun's model, glow and sound.
+    Ammo: 6 ammo types (Piercing, Incendiary, Shock, Siphon, Cryo, Sunder)
+        that go in a 4th "Chamber" socket, plus 5 ammo mods that change
+        how they behave.
 
-Characters: Like in LoL/Dota with Legends/Heros with special abilities and Power which can be upgraded during the game.
-    Types: Mechanical and Mana
-    Mana: Recharable Ammonition
-    Mechanical: Magazines to reload Ammonition
-    
+Characters: Heroes like LoL/Dota with 4 skills, upgraded during the match.
+    Types: Mana and Mechanical (4 Mana heroes, 3 Mechanical)
+    Mana: gun fires from a recharging pool; emptying it causes "Burnout"
+    Mechanical: magazines + reserve ammo, refilled at the Armory, Supply
+        Caches and from enemy Wardling drops
+    Skills use cooldowns for every hero; the type only affects the gun.
+
 Maps:
-    War like, Tasks to be done at Hardpoints to push the oponnent back.
-    
+    War-like front line. One map, 3 lanes, 5 hardpoints per lane (15 total).
+    Each hardpoint is a task: Hold (outnumber in the zone), Plant (carry a
+    Mana Cell in and defend it), or Breach (destroy a shield generator).
+    You can only attack the next hardpoint along your lane, so the front
+    moves step by step toward the enemy HQ.
+    First playable map: "Shardline Causeway", 1 lane, 5 hardpoints.
 
-Mobs:
-    AI wich follow the Players, more on the defending side as offensive, allthought there can be specific vartions of the Mobs during the game.
-    To be picked up at spawn.
-    Maybe buyable or progression
-    Money given through the Mobs.
-    
+Mobs = "Wardlings":
+    Personal squad: 3 free at your HQ Foundry when you spawn, buy up to 5.
+        Variants to buy: Shieldling, Striker, Seeker, Mender, Sapper.
+        They follow you and help defend more than attack (middle-ground
+        strength: a base squad does ~30% of the Soldier's damage).
+        4 commands: Follow, Hold Here, Attack Target, Go Capture.
+        If you die they hold position 10 s, then dissolve.
+    Vanguard waves: every 60 s each team sends 4 Wardlings per lane to
+        the front. Small, capped, objective-driven; no last-hitting.
+    Money (Lumen) comes mainly from killing enemy Wardlings, shared by
+        everyone nearby.
+
 Skills:
-    Minimal Skilltree pro Skill
-    4 fixed Skills pro Char
-    Skillpoints though EXP.
-    
-    
-UI/UX:
-    Visualisation of Progression on the Map
-    Visualisation of Health/Mana or Ammo
-    Visualisation of Mobs folowing
+    Minimal skill tree per skill: Unlock -> Boost -> Fork (pick A or B)
+        -> Mastery (level 9+)
+    4 fixed skills per hero (3 basic + 1 ultimate with 3 ranks)
+    Skill points from EXP ("Resonance"); level cap 15 = everything unlocked
 
-EXP:
-    Killing Mobs
-    Killing Players
-    Capturing Hardpoint
+UI/UX (see design/ux/hud.md):
+    Front-line bar and objective strip showing who holds each hardpoint
+    Health and Mana bar, or magazine + reserve
+    Squad strip showing each Wardling's health and current command
+    Minimap and tactical map with the front line and Uplink state
 
-Legend/Heros:
+EXP ("Resonance"):
+    Killing Wardlings, killing heroes and assists, capturing and defending
+    hardpoints. Killing a higher-level hero pays a catch-up bonus.
 
-1. Minionmancer: Char who controlls the Mobs and can change them with his ult.
-2. Stealth/Ninja/Assasin: Can get behind opponents barricades to infiltrate or plant traps.
-3. Trapier: Can plant complicated Traps, ...
-4. Soldier: DD Char with no big deffense ability
-5. Tank: Lot of HP, rather defensive skills and weapons.
-6. Healer: Defensive Weapons, can Heal Teammates with Mana or Med-Packs
-7. "Hacker": Can hack into all kinds of gadgets of opponents and can get them to malfunction.
+Heroes:
+1. Vesper Loom - Minionmancer: controls and empowers Wardlings; her ult
+   upgrades them and can take over enemy waves.
+2. Sable - Infiltrator: phases through Barricades, plants sabotage charges.
+3. Juniper Quill - Trapper: chainable snares, tripwires and mines.
+4. Ryker Vance - Soldier: highest damage, no big defensive ability.
+5. Brannoc - Tank: lots of HP, shield wall, short-range heavy weapon.
+6. Liora Vale - Healer: heals with her gun's mana alt-fire and Med-Packs.
+7. Hex - Hacker: makes enemy traps, turrets, Barricades and Wardlings
+   malfunction.
 
 Rounds:
-    Duration: Max 60Min
-    Win Conditions: Deactivate the Opponents "Mana Uplink"
-    After 60Min "Mana Uplink" runs out of Mana resources, Team wich is futher into the Opponents HQ wins
-    Tie: Sudden Death till one Team is last on Map
-    If last to Fighters kill each other SuddenDeath will reset in the Mid Map and the fight will start agan
-    
-    
+    Duration: max 60 min; target 25-35 min. The match escalates at 15:00
+        and 30:00 (Surges) and at 45:00 (Mana Drought).
+    Win: destroy the enemy "Mana Uplink" (33,000 Integrity). It can only
+        be damaged once you hold one of the enemy's Inner hardpoints, and
+        damage never heals.
+    At 60:00: the team further into the enemy side wins (points per lane);
+        if equal, whoever did more damage to the enemy Uplink wins.
+    Tie: Sudden Death at the Mid Plaza until one team is the last on the
+        map. If the last two fighters kill each other, it resets and starts
+        again (after 3 resets the next round is final; see
+        design/open-questions.md).
+
 Mana Uplink:
-    Gives "normal Humans" the abbility to use Mana and Magic.
-    If destroied those Humand can no longer use Mana and therefore loose the round.
+    Broadcasts "the Cybergram", the signal that lets normal humans use
+    mana and magic. Destroyed = that team can no longer use mana and loses.
