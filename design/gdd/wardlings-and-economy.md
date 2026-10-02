@@ -1,24 +1,32 @@
 # Wardlings & Economy
 
-*Created: 2026-10-02*
+*Created: 2026-10-02 · Revised 2026-10-02 for the owner's C15 decision (4 commands, middle-ground strength, Vanguard waves)*
 *Status: Draft. Authored autonomously by economy-designer and ai-programmer (modes.automation: autonomous).*
-*Canon source: `design/gdd/game-concept.md` § Canon (C4, C5, C7, C10–C16). Where this doc gives a number that Canon marks as tunable, the Canon range still applies.*
-*Sibling docs (written in parallel): `weapons-and-mods.md` (owns Crystals, Chips, ammo types and their prices), `heroes.md` (owns hero HP, speed, skills, including Vesper Loom's kit), `match-flow-and-map.md` (owns hardpoint tasks, Surges, Barricades, Beacons, the HUD minimap).*
+*Canon source: `design/gdd/game-concept.md` § Canon (C3–C7, C10–C16). This doc obeys Canon; any disagreement is listed under "Canon Concerns" at the end.*
+*Sibling docs:*
+- *`weapons-and-mods.md` owns weapons, Crystals, Chips, ammo, Ammo Sparks and gun prices. Reference used here: Ryker's AR-7 at 260 body DPS.*
+- *`match-flow-and-map.md` owns presence and capture formulas, capture and defence Lumen, the 500 purse and the 40/min trickle.*
+- *`heroes.md` owns hero HP and armor and Vesper's kit.*
+- *Values this doc borrows from a sibling are marked **[sibling]**.*
 
 ---
 
 ## 1. Overview
 
-This doc covers two linked systems.
+This doc covers two systems.
 
-- **Wardlings.** These are the player-carried mana-constructs: how a squad is picked up, what each variant does, how a squad is commanded and drawn, and the AI that drives them. It also covers the map-owned **Garrison Sentinels**.
-- **Economy & Progression.** This covers **Resonance** (EXP, levels 1–15) and **Lumen** (the per-match currency): where each one comes from, what the Armory sells outside the weapon catalog, and the rules against snowballing and exploits.
+**Wardlings** are mana-constructs, and they come in three populations:
+1. **Personal squads.** Each is bound to one player, picked up free at the Foundry, and takes 4 commands.
+2. **Vanguard waves.** These are ownerless. Every 60 s, 4 Wardlings march into each lane and work that lane's front.
+3. **Garrison Sentinels.** These are static defenders of held hardpoints.
 
-The two systems share one link. Enemy Wardlings are the main source of both currencies (C13, C14), so every rule about how Wardlings live and die is also an economy rule.
+**Economy & Progression** covers **Resonance** (EXP, levels 1–15) and **Lumen** (the per-match currency): their sources, the formulas behind them, the Armory's non-weapon items, and the rules against snowballing and exploits.
+
+The two systems are coupled. Enemy Wardlings, with Vanguard waves the steadiest of them, are the main source of both currencies (C13, C14). That makes every Wardling life-and-death rule an economy rule as well.
 
 ## 2. Player Fantasy
 
-*"I'm a small commander with shooter hands."* You leave the Foundry with three little constructs at your heels. They step into a sniper's line of fire for you, shoot back at whoever hurts you, and stand on the point when you tell them to hold it. You never micro them. One key says "stay here" and the same key held down says "with me". Across the match your squad gets visibly tougher (Tier pips, plating, variant silhouettes) and your Resonance glyph climbs toward 15. Your money comes from breaking the enemy's squads and taking ground, never from farming.
+*"I'm a small commander with shooter hands."* Three constructs leave the Foundry at your heels. They step into a sniper's line of fire for you and shoot back at whoever hurts you. Point at a wounded enemy and press a key, and they finish them off. Point at a hardpoint and they go and work it while you flank. They are not strong enough to win a duel for you. But as you invest Lumen, a squad of five with Strikers and Overclocked emitters becomes a threat the enemy has to answer. Meanwhile small Vanguard waves keep every lane moving, so there is always a fight at the front worth joining.
 
 ---
 
@@ -28,483 +36,564 @@ The two systems share one link. Enemy Wardlings are the main source of both curr
 
 | Rule | Value |
 | ---- | ---- |
-| Where | Foundry zone in your HQ (C6). It is a 6 m radius pad next to the Sanctum. |
-| When | Spawning at the Sanctum mints a full squad automatically. Walking into the Foundry zone at any time **tops up** empty slots. |
-| Mint time | 0.5 s per Wardling, staggered. A full squad of 5 appears in 2.5 s. The *Quick Mint* upgrade makes this 0.1 s. |
-| Squad size | Base **3**. *Squad Expansion I/II* raises it to **4/5** (C15). Vesper Loom gets **+2** on top of that, for a base of 5 and a maximum of 7. |
-| Slot contents | Each slot holds a **Picket** (the free default) or a **licensed variant** (§5). The Foundry fills slots in this order: licensed variants first (Shieldling, Mender, Striker, Sapper, Seeker), then Pickets. |
-| Replacement | A dead Wardling's slot stays empty until you re-enter the Foundry (C15). There is no other way to replace one. |
-| Spawning at a Forward Beacon | You get no squad (C5). Any squad you already had has dissolved (see §8.7). |
-| Recall to HQ | Recalling dissolves your current squad at the moment you depart, the same as dying (Core Loop step 5). A fresh squad is minted at the Sanctum. |
-| Cost | Pickets and re-mints are **free**. You pay Lumen only for licences and upgrades. Rationale: Pillar 3 says the squad is a resource you *spend*, and making each re-mint cost money would punish the HQ choice twice. |
+| Where | The Foundry zone (6 m radius) next to your HQ Sanctum (C6). |
+| When | Spawning at the Sanctum mints a full squad automatically. Walking into the Foundry at any time **tops up** empty slots (C15). |
+| Mint time | 0.5 s per Wardling, staggered (0.1 s with *Quick Mint*). |
+| Squad size | Base **3**. *Squad Expansion I/II* (Lumen) raises it to **4/5**. Vesper Loom gets **+2** (see Canon Concerns). |
+| Slot contents | Each slot holds a **Picket** (free) or a **licensed variant** (§6). Licensed variants fill first, then Pickets. |
+| Replacement | A lost Wardling is replaced only at the Foundry (C15). |
+| Forward Beacon spawn | No squad. Any squad you had has already dissolved. |
+| Recall to HQ | Dissolves the squad on departure (Core Loop step 5). You get a fresh mint at the Sanctum. |
+| Cost | Pickets and re-mints are **free** (C15). Lumen buys licences and upgrades only. |
 
-## 4. Tier Stats
+## 4. Tier Stats (all Wardlings)
 
-Tier follows the Surges (C15): **Tier I** from 0:00, **Tier II** from 15:00, **Tier III** from 30:00. At a Surge, every Wardling and Sentinel alive upgrades on the spot. It keeps its current HP percentage, plays a 0.6 s crystal-bloom VFX and grows one extra tier pip on its back fin (Pillar 4).
+Tier follows the Surges: **Tier I** at 0:00, **Tier II** at 15:00, **Tier III** at 30:00 (C15). At a Surge, every living Wardling and Sentinel morphs in place over **3 s while invulnerable** [sibling: match-flow], keeps its HP fraction and grows one tier pip on its back fin (Pillar 4).
 
 **Picket (the baseline every variant multiplies):**
 
 | Stat | Tier I | Tier II | Tier III | Notes |
 | ---- | ---- | ---- | ---- | ---- |
-| HP | 150 | 200 | 260 | Assumes hero HP of about 250–600 (heroes.md). A Tier I Picket dies to about 1.5 s of focused rifle fire. |
-| Damage per shot | 6 | 8 | 10 | Mana bolt, projectile at 60 m/s. |
-| Fire interval | 0.5 s | 0.5 s | 0.5 s | 12 / 16 / 20 DPS at 100% hit rate. |
-| Accuracy (cone) | 4° | 3.5° | 3° | Hits about 60% of shots on a strafing hero at 15 m. |
-| Engage range | 20 m | 22 m | 24 m | |
-| Move speed | 6.2 m/s | 6.2 m/s | 6.4 m/s | Catch-up sprint to 8.5 m/s when more than 10 m from its formation slot. |
-| Damage vs. Uplink | ×0.5 | ×0.5 | ×0.5 | Canon C7. |
-| Hold presence | 0.5 | 0.5 | 0.5 | Canon C4. |
-| Collision radius | 0.45 m | 0.45 m | 0.5 m | |
-| Bounty (Lumen / Resonance) | 60 / 45 | 75 / 60 | 90 / 75 | See §13 and §14. |
+| HP | 180 | 235 | 300 | 0 armor. Ryker (260 DPS) kills a Tier I Picket in about 0.7 s of hits. |
+| Damage per bolt | 9 | 11 | 13 | Mana bolt, **projectile at 55 m/s**: dodgeable, no hitscan. |
+| Fire interval | 0.30 s | 0.30 s | 0.30 s | Nominal 30 / 37 / 43 DPS. |
+| Accuracy vs. a strafing hero at 15 m | 87% focused / 70% retaliation | same | same | Spread cone of 2.5° focused and 4° otherwise. |
+| Effective DPS vs. a hero | **26** / 21 | 32 / 26 | 38 / 30 | Focused / retaliation. |
+| Range | 22 m | 24 m | 26 m | |
+| Move speed | 6.5 m/s [sibling] | 6.5 | 6.7 | Catch-up sprint 8.5 m/s. |
+| Structure damage | ×0.5 vs. Uplink (C7), Barricades and Ward Generators [sibling] | | | |
+| Hold presence | 0.5 (C4) | 0.5 | 0.5 | |
 
-## 5. Variant Catalog
+**Tier scaling (×1.2 / ×1.4 damage, ×1.3 / ×1.65 HP)** is chosen to track hero growth: hero levels plus a Tier I–II gun build (+15–25% damage per weapons-and-mods). The ratio of squad to Soldier stays near 30%.
 
-A **licence** is bought at the Armory (shown at the Foundry kiosk as well). It turns **one** squad slot into that variant for the rest of the match, and the Foundry re-mints it for free. Limits: at most **2 licences per variant** and **1 Mender**.
+## 5. Squad Strength: The Middle Ground (C15)
 
-| Variant | Price (band) | HP × | DPS × | Range | Trait | Silhouette tell |
+**Target.** A **focused base squad of 3 ≈ 30% of a Soldier's DPS**. It can finish a wounded hero but cannot beat a healthy one alone. Lumen pushes it toward a genuine threat.
+
+```
+SquadDPS_focus = Σ_i ( eDPS_T × V_dps(i) ) × (1 + U_dmg)
+Ratio          = SquadDPS_focus / DPS_soldier_ref           DPS_soldier_ref = 260 (Ryker AR-7 body, unmodded) [sibling]
+```
+- eDPS_T is the focused effective DPS per Picket (26 / 32 / 38).
+- V_dps is the variant multiplier (§6).
+- U_dmg is the sum of squad damage upgrades: Overclock +0.20, capped at +0.40 including Vesper.
+
+**Duel check: 3 Tier I Pickets vs. a healthy Ryker** (300 HP, 10 armor, so ×0.909 [sibling]; Ryker hits 80%):
+- Ryker needs about 1.0 s per Picket, including retargeting.
+- The damage he takes is 0.909 × (78·1.0 + 52·1.0 + 26·1.0) = **142**.
+- Ryker survives with about 158 HP. **The squad wins only if the hero starts below ~140 HP**, which makes it a finisher, as Canon intends.
+
+**Upgrade curve** (Tier I focused DPS as a percentage of 260):
+
+| Squad build | Approx. Lumen | Squad DPS | % of Soldier | Read |
+| ---- | ---- | ---- | ---- | ---- |
+| 3 Pickets (base) | 0 | 78 | **30%** | Finisher, body-blocker |
+| 3 Pickets + Overclock | 700 | 94 | 36% | |
+| 4 Pickets + Overclock (Exp I) | 1,500 | 125 | 48% | Punishes a hero who ignores it |
+| 5 Pickets + Overclock (Exp II) | 3,000 | 156 | 60% | Duels a hero at half HP |
+| 5 incl. 2 Strikers + Overclock | 3,800 | 193 | **74%** | **Genuine threat.** Beats a healthy Light hero who fights it alone |
+| Same + Reinforced Cores II | 4,550 | 193 | 74% | Also survives about 1.6× longer |
+
+**Design cap:** 80% from items alone (enforced by the 2-Striker licence limit and the U_dmg cap). Vesper buffs can exceed this briefly; heroes.md owns that.
+
+## 6. Variant Catalog
+
+A **licence** (bought at the Armory and mirrored at the Foundry kiosk) turns one slot into that variant for the rest of the match, and the Foundry re-mints it for free. Limits: **2 per variant**, and **1 Mender**.
+
+| Variant | Price (band) | HP × | DPS × | Range | Trait | Silhouette |
 | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
-| **Picket** | free | 1.0 | 1.0 | 20 m | None. | Small biped with a single crystal eye. |
-| **Shieldling** | 350 (Minor) | 1.6 | 0.4 | 15 m | **Aegis plate:** takes −40% damage from a 120° frontal arc. Gets top priority for the body-block slot (§8.3). | Large front shield and a hunched stance. |
-| **Striker** | 400 (Minor) | 0.8 | 1.6 | 25 m | **Focus:** +25% damage to a target its owner hit in the last 2 s. It stays defensive (§8.4) and never starts fights against heroes. | Long barrel arm and a forward lean. |
-| **Seeker** | 300 (Minor) | 0.8 | 0.6 | 20 m | **Sense:** reveals stealthed heroes and armed traps within **12 m** to its team for 1.5 s, re-checked every 0.5 s. This is the counter to Sable and Juniper (heroes.md owns the stealth rules). | Antenna crest and a sweeping scan light. |
-| **Mender** | 700 (Standard) | 0.9 | 0.3 | 15 m | **Mend beam:** heals its owner by 8 / 11 / 14 HP/s (Tier I/II/III), or the most-damaged squadmate when the owner is full, soft-targeted within 10 m. Heal is halved for 2 s after the owner takes hero damage. | Floating halo and a green tether beam. |
-| **Sapper** | 650 (Standard) | 1.0 | 0.8 | 18 m | **Breacher:** ×3 damage vs. Barricades and Ward Generators. No bonus vs. the Uplink (C7's ×0.5 still applies). | Backpack charge and drill arm. |
+| **Picket** | free | 1.0 | 1.0 | 22 m | None. | Small biped, one crystal eye |
+| **Shieldling** | 350 (Minor) | 1.6 | 0.4 | 15 m | **Aegis plate:** −40% damage taken from a 120° frontal arc. First choice as blocker (§9.3). | Big front shield, hunched |
+| **Striker** | 400 (Minor) | 0.8 | 1.6 | 26 m | **Focus:** +15% damage while executing Attack Target. | Long barrel arm |
+| **Seeker** | 300 (Minor) | 0.8 | 0.6 | 22 m | **Sense:** reveals stealthed heroes and armed traps within 12 m to its team, for 1.5 s, re-checked every 0.5 s. Counters Sable and Juniper. | Antenna crest, scan light |
+| **Mender** | 700 (Standard) | 0.9 | 0.3 | 15 m | **Mend beam:** heals its owner 8 / 11 / 14 HP/s, or the most-damaged squadmate when the owner is at full HP. Soft-target within 10 m (allowed by Pillar 2). Heal is halved for 2 s after the owner takes hero damage. | Halo, green tether |
+| **Sapper** | 650 (Standard) | 1.0 | 0.8 | 18 m | **Breacher:** ×3 vs. Barricades and Ward Generators, applied *before* the ×0.5 structure rule. No bonus vs. the Uplink. | Backpack charge, drill arm |
 
-Rationale. Every variant except the Sapper is defensive or a support (Pillar 3, owner note "more on the defending side"). The Sapper is the one "specific variation" for offence, and it is gated behind the Standard band. A full licensed 5-squad costs between about 1,400 and 2,300 Lumen, which is 15–25% of the 30-minute budget.
-
-## 6. Squad Upgrades
-
-These are bought at the Armory, last for the match and apply to every Wardling in the owner's squad.
+## 7. Squad Upgrades (Armory, last for the match)
 
 | Upgrade | Price (band) | Effect | Visible tell |
 | ---- | ---- | ---- | ---- |
-| **Squad Expansion I** | 800 (Standard) | Squad size +1, to 4. | Extra slot lit on the HUD strip. |
-| **Squad Expansion II** | 1,500 (Major) | Squad size +1, to 5. Requires Expansion I. | Same as above. |
-| **Reinforced Cores I** | 350 (Minor) | Wardling HP +20%. | Plating rim on the body. |
-| **Reinforced Cores II** | 750 (Standard) | Wardling HP +40% in total. Requires I. | Full plating. |
-| **Overclock Emitters** | 700 (Standard) | Wardling damage +20%. | Brighter muzzle glow. |
-| **Harmonic Tether** | 300 (Minor) | Move speed +12%. Follow leash 30 → 40 m. | Owner-colour trail. |
-| **Quick Mint** | 250 (Minor) | Foundry mint time 0.5 s → 0.1 s per Wardling. Wardlings get +25% damage resistance for 5 s after they are minted. | Mint VFX in gold. |
-| **Bulwark Protocol** | 1,400 (Major) | Wardlings in **Hold** mode take −30% damage and get +25% body-block radius. Their Hold presence stays 0.5 (C4). | Wardlings in Hold plant a small ground shield. |
+| **Squad Expansion I** | 800 (Standard) | Squad size 4. | New slot lit on the HUD |
+| **Squad Expansion II** | 1,500 (Major) | Squad size 5. Requires I. | Same |
+| **Reinforced Cores I / II** | 350 (Minor) / 750 (Standard) | Wardling HP +20% / +40% total. | Plating rim → full plating |
+| **Overclock Emitters** | 700 (Standard) | Wardling damage +20%. | Brighter muzzle glow |
+| **Harmonic Tether** | 300 (Minor) | Move speed +12%. Follow leash 30 → 40 m. | Owner-colour trail |
+| **Quick Mint** | 250 (Minor) | Mint 0.1 s per Wardling, and +25% damage resistance for 5 s after minting. | Gold mint VFX |
+| **Bulwark Protocol** | 1,400 (Major) | In Hold or Go Capture: −30% damage taken and +25% body-block radius. | Ground shield under each Wardling |
 
-The squad sink capacity is about 6,050 Lumen of upgrades plus up to about 2,300 of licences. No player can buy all of it alongside a weapon build, so the choice of what to skip is real.
+Squad sink capacity is **6,050** in upgrades plus up to **~2,300** in licences.
 
-## 7. Commands, UX and Owner Visualization
+## 8. Commands and UX (C15: 4 commands, radial wheel + quick keys)
 
-**Two commands, one key** (Pillar 3). The default bind is `Z`, and it can be rebound.
+| Command | Quick key (default, rebindable) | Radial slot | Targeting |
+| ---- | ---- | ---- | ---- |
+| **Follow** | `X` tap | Up | Always valid. Recalls the squad to its formation. |
+| **Hold Here** | `Z` tap on ground | Down | Crosshair ground hit within 25 m, projected to the navmesh. If none, the owner's feet. |
+| **Attack Target** | `Z` tap on an enemy | Left | Enemy hero, Wardling, Sentinel, trap, turret, drone, Barricade, Ward Generator, or an Exposed Uplink. Must be under the crosshair (3° snap cone), within **50 m**, and in the owner's line of sight. |
+| **Go Capture** | `Z` tap on a hardpoint | Right | Crosshair over a hardpoint's zone, or over its world-space HUD diamond (3° cone), at any distance. |
 
-| Input | Command | Behaviour |
-| ---- | ---- | ---- |
-| **Tap `Z`** | **Hold Here** | Sets a Hold point at the crosshair's ground hit (projected onto the navmesh, at most **25 m** away). If nothing valid is under the crosshair, the point is set at the owner's feet. Tapping again while already holding *moves* the Hold point. |
-| **Press `Z` ≥ 0.35 s** | **Follow** (default state) | The squad comes back to the owner's formation. |
+- **`Z` is context-sensitive.** The priority order is: enemy under crosshair, then hardpoint diamond or zone, then ground. The crosshair shows a **command preview glyph** (sword, flag or pin) while `Z` is held, so the result is never ambiguous.
+- **Radial wheel.** Hold `Z` for ≥ 0.25 s, flick the mouse toward a slot and release. The target is resolved from the crosshair at the moment the wheel opened. Time does not slow. Releasing in the centre dead zone cancels. The wheel exists for players who want an explicit choice. The quick keys cover 95% of uses.
+- **Feedback.** Each order plays a 40 ms acknowledgement chirp, a world decal (a pin for Hold, a red reticle ring on the target for Attack, a flag pulse on the hardpoint for Go Capture) and a state badge on the squad strip.
+- **Rejected orders** play an error chirp and a one-word reason ("Out of range", "Locked", "No path"). Examples: Go Capture on a hardpoint your team cannot attack (C3), or an Attack Target beyond 50 m.
+- **Teammates** see your Hold pin and Go Capture flag dimly, within 40 m and on the minimap. Your Attack reticle is visible only to you.
 
-There is no per-unit selection, no split squads and no attack-move.
+**Owner visualization:**
+- **Squad strip** (HUD, bottom-left, above health). One icon per slot: variant glyph, HP bar, tier pips and a state badge (`F` Follow, `H` Hold, `A` Attack, `C` Capture, `!` in combat, `↻` returning, `⚠` stranded). Empty slots show a grey Foundry glyph. During the death-hold, a 10 s ring.
+- **In the world.** Your Wardlings get a 1 px personal-accent outline inside the team colour and a 0.6 m ground ring. They are visible through walls within 30 m as faint silhouettes, for you only.
+- **Off-screen.** A screen-edge chevron points to any owned Wardling that is under fire or more than 20 m away. A **detached squad** (Hold, Go Capture) shows one grouped chevron with a count and its state badge, and a squad pip on the minimap.
+- **Line-of-fire courtesy.** Allied bullets pass through allied Wardlings. Wardlings also steer out of a 1.2 m corridor along the owner's aim ray.
 
-- **Feedback.** Each order plays an acknowledgement chirp (about 40 ms). A 0.4 s ground decal pulses at the Hold point. The squad strip flashes the new state.
-- **Hold marker.** A thin owner-colour light pillar stands at the Hold point, visible to the owner at any range. Teammates see a dim version within 40 m, plus a minimap tick (a hook into match-flow-and-map.md's HUD).
+## 9. Behaviour Design (personal squads)
 
-**Squad strip (HUD, bottom-left, above the health bar).** It shows one icon per slot: the variant glyph, a small HP bar, 1–3 tier pips and a state badge (`F` for Follow, `H` for Hold, `!` for in combat, `↻` for returning). An empty slot shows a grey Foundry glyph. During the death-hold, the strip shows a 10 s ring timer.
+### 9.1 Architecture
 
-**In the world:**
-- The owner's own Wardlings get a 1 px owner-accent outline (the player's personal colour inside the team colour) and a 0.6 m ground ring. Other allies' Wardlings show only the team colour.
-- When an owned Wardling is off-screen and either under fire or more than 20 m away, a screen-edge chevron points to it. Within 30 m it is visible through walls as a faint silhouette, for the owner only.
-- **Line-of-fire courtesy.** Allied bullets pass through allied Wardlings. Wardlings also steer out of a 1.2 m-wide corridor along the owner's aim ray (§8.3), so they never visually block the owner's sights.
-
-## 8. Behaviour Design
-
-### 8.1 Architecture
-
-Each Wardling runs a **behaviour tree whose combat branches are chosen by utility scores**. A **Squad Brain** (one per owner) computes the shared data: the formation frame, the current threat list, the Hold point and the slot assignment. Individual Wardlings read that data through blackboard keys and do not repeat the work.
-
-- The server runs the BT at **10 Hz**, staggered across agents. Steering and avoidance run at **30 Hz**.
-- Perception is read only through condition nodes (`HasThreat`, `OwnerAlive`, `InLeash`). Movement code never queries perception directly.
+- **Squad Brain** (one per owner, 5 Hz). It holds the command state, the formation frame, the threat list (shared perception), slot assignment and one path request to the squad's anchor.
+- **Per-Wardling BT** (10 Hz, bucketed). It picks its combat target using **utility scoring** and reads the Brain's blackboard.
+- **Steering and avoidance** run at 30 Hz.
+- Perception is read only through condition nodes.
 
 ```
 Root (Selector)
-├─ [OwnerDead] → DeathHold          (§8.7)
-├─ [Stranded]  → HoldAtCurrent       (§8.6)
-├─ [OutOfLeash] → ReturnToLeash      (ignore targets, sprint, no firing)
-├─ [Mode == Hold]
-│   └─ Selector
-│       ├─ [ThreatInHoldRadius] → UtilityCombat(HoldScoring)
-│       └─ MoveTo(HoldSlot) → Idle(scan)
-└─ [Mode == Follow]
-    └─ Selector
-        ├─ [OwnerUnderFire && Variant==Shieldling|best blocker] → BodyBlock
-        ├─ [HasThreat] → UtilityCombat(FollowScoring)
-        └─ MoveTo(FormationSlot) → MatchOwnerFacing
-UtilityCombat: pick target = argmax Score(t); if Score < 0.25 → no target;
-               strafe ±2 m around the slot; fire when LOS && inCone
+├─ [OwnerDead]   → DeathHold                                   (§9.8)
+├─ [OutOfLeash]  → ReturnToAnchor (drop target, sprint, no fire)
+├─ [Stranded]    → HoldAtCurrent                               (§9.6)
+├─ [OwnerUnderFire && I am Blocker && Cmd ∈ {Follow, Attack}] → BodyBlock
+├─ [Cmd == Attack]   → Sequence: ValidTarget? → MoveToFiringSpot(≤ range, LOS) → FocusFire
+│                        └─ on invalid/timeout → revert to PrevCmd
+├─ [Cmd == Capture]  → TaskWorker(hardpoint)                   (§9.5)
+├─ [Cmd == Hold]     → Selector: [ThreatInHoldRadius] → UtilityCombat(Hold) | MoveTo(HoldSlot)
+└─ [Cmd == Follow]   → Selector: [HasThreat] → UtilityCombat(Follow) | MoveTo(FormationSlot)
+UtilityCombat: target = argmax Score(t); Score < 0.25 → none; strafe ±2 m; fire when LOS ∧ in cone
 ```
 
-### 8.2 Follow Formation
+### 9.2 Follow Formation
 
-- The formation is a **loose wedge behind the owner**. Slots sit 3–6 m away, spread across a 140° arc behind the owner's movement direction. Slot 0 (the blocker) sits 2.5 m forward-left. The Mender's slot sits 3 m directly behind the owner.
-- Slots are recomputed by the Squad Brain at 5 Hz, using the owner's **velocity** for the frame (or facing when standing still). Slots that fall off the navmesh snap to the nearest valid point within 2 m. If none is valid, the slot collapses toward the owner.
-- When the owner sprints more than 10 m away, the Wardlings switch to catch-up speed (§4). If the owner moves 2 s faster than catch-up speed (with mobility skills), the Wardlings keep pathing and the leash rules apply.
+- A loose wedge **3–6 m behind** the owner across a 140° rear arc, framed on the owner's velocity (or facing when standing).
+- The blocker slot is 2.5 m forward-left. The Mender's slot is 3 m directly behind.
+- Slots are recomputed at 5 Hz. Off-mesh slots snap within 2 m or collapse toward the owner.
+- More than 10 m from its slot, a Wardling sprints at 8.5 m/s.
 
-### 8.3 Body-Block
+### 9.3 Body-Block
 
-- **Trigger.** The owner has taken hero damage in the last 2 s, from a known source.
-- **Action.** The best blocker moves onto the line between the owner and that attacker, **2.0–3.0 m** from the owner. The best blocker is the Shieldling if there is one, otherwise the Wardling with the highest HP. If there are two attackers, the second-best blocker covers the second line.
-- **Constraints.** It must stay outside the owner's 1.2 m aim corridor: if the blocking line and the aim ray overlap within 15°, it offsets 1 m to the side. Wardlings collide with **enemy** heroes and Wardlings (they can be shot and can physically block). They do not collide with allies.
-- **Release.** The block ends 2 s after the last hit, after which the Wardling returns to its formation slot.
+- **Trigger.** The owner has taken hero damage within 2 s.
+- **Action.** The blocker moves onto the owner–attacker line, 2.0–3.0 m from the owner. The blocker is the Shieldling, otherwise the highest-HP Wardling. The second-best blocker covers a second attacker.
+- **Constraint.** It never enters the owner's aim corridor: when the lines overlap within 15° it offsets 1 m. Wardlings collide with **enemy** units, so they block movement and soak bullets, but not with allies.
+- **Release.** Two seconds after the last hit.
 
-### 8.4 Retaliation Targeting (Utility)
+### 9.4 Retaliation and Target Scoring
 
 ```
-Score(t) = 0.45·Threat(t) + 0.20·Proximity(t) + 0.15·Objective(t) + 0.10·Focus(t) + 0.10·Stickiness(t)
-Threat     = clamp(damage t dealt to [owner ×1.0, this Wardling ×0.7, squadmates ×0.5] in last 3 s / 60, 0, 1)
-Proximity  = 1 − clamp(dist(t, owner) / 25 m, 0, 1)
-Objective  = 1 if t is inside the hardpoint zone the squad is in or holding, else 0
-Focus      = 1 if owner hit t in last 2 s, else 0      (Striker weights this ×2)
-Stickiness = 1 if t is current target, else 0          (prevents twitching)
-Gate: an enemy HERO with Threat == 0 and Objective == 0 is scored 0 (never initiate on heroes).
-Gate: enemy Wardlings / Sentinels within 10 m are always valid (mob-vs-mob fighting is allowed).
+Score(t) = 0.40·Threat + 0.20·Proximity + 0.15·Objective + 0.15·Command + 0.10·Stickiness
+Threat     = clamp(dmg t dealt in last 3 s to [owner ×1.0, self ×0.7, squadmates ×0.5] / 60, 0, 1)
+Proximity  = 1 − clamp(dist(t, anchor) / 25 m, 0, 1)        anchor = owner (Follow) or Hold/zone point
+Objective  = 1 if t is inside the hardpoint zone the squad is working/holding
+Command    = 1 if t is the Attack Target (forces top priority: a valid Attack target always wins)
+Stickiness = 1 if t is the current target
+Gate (Follow/Hold): an enemy HERO with Threat = 0 and Objective = 0 scores 0 → squads never start hero fights on their own;
+                   the owner starts them with Attack Target.
+Enemy Wardlings/Sentinels within 10 m are always valid.
 ```
 
-Example. An enemy hero who dealt 40 damage to the owner 1 s ago, standing 10 m from the owner, outside any zone, and not hit by the owner:
-`0.45·0.667 + 0.20·0.6 + 0 + 0 + 0 = 0.42`, which is above the 0.25 threshold, so the Wardling engages.
+Example. An enemy hero dealt 40 damage to the owner 1 s ago, 10 m away, outside any zone:
+`0.40·0.667 + 0.20·0.6 = 0.39`, which is ≥ 0.25, so the squad retaliates (at retaliation accuracy).
 
-### 8.5 Hold Mode and Hold-Zone Contribution
+### 9.5 Per-Command Behaviour
 
-- **Hold radius** is **8 m** around the Hold point. Wardlings take slots in a ring around it, facing the nearest enemy-side lane direction. They engage enemies inside the hold radius plus 12 m, and never chase further than **12 m** from the Hold point.
-- **Inside a Hold-task zone**, each Wardling counts **0.5 presence** (C4). Two extra rules apply (they extend C4; see Canon Concerns):
-  - (a) Wardling presence **contests** a zone, stalling progress, but only **advances** capture while at least one allied hero is in the zone.
-  - (b) Wardling plus Sentinel presence per team per zone is capped at **3.0** (tunable 2.0–4.0).
-- In a Plant or Breach zone, held Wardlings defend the zone and damage Ward Generators (the Sapper deals ×3), but have no presence value.
+**Attack Target.**
+- The whole squad focuses one target at **focused accuracy**. The blocker keeps body-blocking if the owner is under fire.
+- Each Wardling moves to a firing spot within range and with LOS, but never further than the owner leash (30 m) from the owner. If the order was issued from Hold, the limit is **20 m** from the Hold point.
+- The order **ends** when any of these happens: the target dies; the target is out of LOS for **4 s**; the target leaves leash range; **12 s** pass; or a new command is given. The squad then **reverts to its previous command**.
+- Stealthed targets: Attack ends when stealth breaks LOS. A Seeker can keep it alive by revealing the target.
 
-### 8.6 Leash Distances
+**Go Capture.**
+- The squad **detaches**: the owner leash is suspended and it paths to the hardpoint by the lane route (flanks allowed when the detour ≤ 2.5×).
+- On arrival it works the task, with a zone leash of **15 m**:
+  - **Hold:** take ring slots inside the zone (0.5 presence each).
+  - **Plant:** guard the socket and escort an allied Cell carrier within 15 m. Wardlings can **never carry** a Cell.
+  - **Breach:** move inside the 12 m zone (the shield blocks fire from outside [sibling]), shoot the Generator, then hold.
+  - **Own hardpoint:** act as defenders, the same as Hold Here at the zone centre.
+- On **task completion** the squad converts to Hold Here at the zone centre.
+- The order is **rejected** if the hardpoint is Locked for your team (C3).
+- In Go Capture the gate in §9.4 is lifted inside the zone: the squad engages any enemy in the zone.
 
-| Situation | Leash | On break |
+**Hold Here.**
+- Ring slots around an 8 m radius, facing the enemy side of the lane.
+- Engagement extends 12 m beyond the ring. There is no chase beyond 12 m from the point.
+
+### 9.6 Leash and Stranding
+
+| Mode | Leash | On break |
 | ---- | ---- | ---- |
-| Follow mode | 30 m from the owner (40 m with Harmonic Tether) | `ReturnToLeash`: drop the target, sprint, hold fire until back within 20 m. |
-| Hold mode | 12 m from the Hold point | Return to the Hold slot. |
-| Owner unreachable (no path, or more than 60 m away for 20 s) | — | **Stranded.** The squad auto-switches to Hold at its current position, and the HUD shows "Squad stranded". It resumes Follow when the owner comes back within 30 m or issues Follow and a path exists. There are no teleports, so movement stays honest and readable. |
+| Follow | 30 m from the owner (40 m with Tether) | Drop target, sprint back, hold fire until within 20 m |
+| Attack (from Follow / Hold) | 30 m from the owner / 20 m from the Hold point | End the Attack and revert |
+| Hold / Go Capture | 12 m from the Hold point / 15 m from the zone | Return to slot |
+| Owner unreachable for 20 s (Follow only) | — | **Stranded.** The squad switches to Hold at its current position with a `⚠` badge. It resumes Follow when the owner comes within 30 m or presses Follow and a path exists. There are no teleports. |
 
-### 8.7 Pathing Around Barricades
+### 9.7 Pathing Around Barricades
 
-- Barricades (C5) are navmesh obstacles. They are passable (via a nav layer bit) for the owning team and blocked for the enemy. Each squad's path is requested once by the Squad Brain to the formation centroid. Individual Wardlings use local steering.
-- If the owner crosses an enemy Barricade (Sable phasing, a broken gap, or a jump), the squad re-paths around it through flank routes, but only when the detour is no more than **2.5×** the direct distance. Otherwise the squad waits at the Barricade, holding with a 6 m radius, until the owner is back on their side, or the Barricade breaks, or the stranded rule applies.
-- When an allied Barricade is breached and destroyed, the nav layer is updated and squads re-path within 0.5 s.
-- Hacked Barricades or gadgets (Hex) change their nav layer for as long as the hack lasts (heroes.md defines the duration).
+- Barricades are nav obstacles on a per-team layer: passable for the owner team, blocked for the enemy (C5). One path request goes out per squad, and Wardlings use local steering.
+- If the owner crosses an enemy Barricade (Sable phase, a gap, a jump), the squad re-paths by flank if the detour is ≤ 2.5×. Otherwise it waits at the Barricade, and the stranding rule applies.
+- Under **Attack Target** on a Barricade, the squad shoots it (×0.5, or ×1.5 for a Sapper).
+- Nav layers update within 0.5 s of a Barricade breaking, rebuilding or being hacked by Hex.
 
-### 8.8 Death of the Owner (Canon C15: 10 s hold)
+### 9.8 Death of the Owner (C15)
 
-1. When the owner dies, the squad enters **DeathHold**: Hold mode at the squad's centroid snapped to the navmesh, radius 8 m. It still contests zones and retaliates.
-2. After 10 s, the squad **dissolves** with a 1 s fade. Dissolved Wardlings pay **no bounty** and drop **no Core**.
-3. Wardlings killed by enemies **during** DeathHold pay normal bounties.
-4. If the owner respawns before the 10 s are up (respawn at 0:00 is 6 s, C11), the old squad still dissolves on schedule. The respawned owner gets a fresh squad from the Foundry. There is no re-binding, because the rule must stay readable.
+1. When the owner dies, whatever the command, the squad enters **DeathHold**: Hold at its current centroid (or keeps its zone, if it was on Go Capture). It still retaliates and still counts for presence.
+2. After **10 s** the squad dissolves (1 s fade). **Dissolved units pay no bounty and drop no Core.**
+3. Units killed during DeathHold pay normally.
+4. Respawning within those 10 s (respawn is 6 s at 0:00, C11) does not re-bind the squad. The fresh mint comes from the Foundry.
 
-## 9. Garrison Sentinels (Canon C5)
+## 10. Vanguard Waves (C15)
 
 | Rule | Value |
 | ---- | ---- |
-| Count | **2 per held hardpoint.** The maximum is 15 × 2 = **30**. At the start there are 24 (Mids begin neutral and have no Garrison). |
-| Spawn | 15 s after a capture (the first spawn). After that, each Sentinel respawns **45 s** after it dies (C5), for as long as its team holds the hardpoint. When the hardpoint flips, the existing Sentinels dissolve (no bounty). |
-| Stats (I / II / III) | HP 400 / 550 / 700. DPS 20 / 26 / 32. Range 25 m. Speed 4 m/s. Tiered by Surge. |
-| Behaviour | Hold-mode BT anchored to the zone centre. Leash **15 m**. Targeting uses §8.4 with `Objective` weighted ×2 and with the hero-initiation gate **removed**: Sentinels shoot any enemy within range. |
-| Presence | 0.5 in Hold zones (counted inside the 3.0 cap). |
-| Bounty | ×1.5 the Picket bounty for that tier. There is a *Repeat decay* (§16): each Sentinel death at the same hardpoint within 180 s of the previous one pays 50%. |
-| Exclusions | Not affected by owner commands, squad upgrades or the death-hold. **Hex** and **Vesper** can still affect them through the hooks in §12. |
+| Cadence | Each team, each lane, has its own **60 s** timer, starting at **1:00** (Veil drop [sibling]). |
+| Size and makeup | **4 Pickets** at the current tier. From Surge II, 1 of the 4 is a **Shieldling** (a visible escalation). They have no upgrades. |
+| Gate | A wave spawns only when the previous wave of that lane and team has **≤ 1 alive**. If the timer expires while the gate is closed, the wave waits and spawns the instant the gate opens. The timer restarts at the spawn. A **survivor merges** into the new wave, and only `4 − survivors` are minted, so a lane never holds more than 4 per team. |
+| Cap | 3 lanes × 4 × 2 teams = **24** (C15 budget). |
+| Spawn point | The Foundry's lane gate for that lane. |
+| Target (re-evaluated every 2 s and on any hardpoint state change) | 1. the **nearest contested hardpoint** in the lane, counted from its own HQ. A hardpoint is contested when progress P > 0 for either team, or an enemy hero or Wardling is in its zone. 2. Otherwise, the **next enemy hardpoint it may attack** under C3. 3. Otherwise, its own **front-most** held hardpoint. |
+| Behaviour | A **Wave Brain** (1 per wave, 2 Hz) drives a column march along the lane spline at 6.5 m/s. On arrival it runs the same `TaskWorker` as Go Capture (§9.5). Vanguard Wardlings never take flank tunnels. An enemy Barricade on the route is **attacked**, which makes waves natural siege fodder. They deviate at most 12 m off the spline. They engage enemy Wardlings within 15 m and any enemy that damages them. In their target zone they engage any enemy. Outside it, the hero gate of §9.4 applies (Threat only). |
+| Commands | **None.** They are ownerless, and only Vesper can redirect them (§13). |
+| Rewards | Bounty per §15 and §17. No owner, so there is no owner-death dissolve. They dissolve only at Sudden Death (C10). |
 
-## 10. Wardling Drops: the Wardling Core
+*Why the gate matters.* A lane where nobody fights gets one wave at a time that works the front slowly. A contested lane recycles its waves quickly, because they die quickly. The supply of mobs (and income) follows the fighting, not the clock (Pillar 1).
 
-When an enemy Wardling or Sentinel is killed by the other team, it drops a **Wardling Core**. This is a glowing pickup that lasts 10 s and has a 1.2 m auto-collect radius.
+## 11. Garrison Sentinels (C5)
 
-- **Lumen Mote.** 75% of the Lumen bounty is paid **instantly** to the share list (§13). The remaining **25%** sits in the Core. When any allied hero on the share list touches it, that 25% is paid to **everyone on the share list**. This rewards stepping forward onto the ground just won, without creating a last-hit race between allies.
-- **Mechanical ammo.** A **Mechanical** hero who collects the Core regains **20%** of their weapon's maximum reserve (**35%** from a Sentinel Core). It is capped at the maximum, and weapons-and-mods.md owns the reserve sizes. Mana heroes get no ammo from it.
-- **Denial.** An enemy hero (that is, the Wardling's own team) who touches the Core destroys it. The Mote and the ammo are both lost.
-
-## 11. Performance and Network Budget
-
-**Agent count.** At most 8 heroes × 5 + 2 Vesper × 7 = **54 squad Wardlings**, plus **30 Sentinels**, for **84 AI** in the worst case. A typical match has about 35–50. Sudden Death drops this to 0 (C10).
-
-| Budget | Target |
+| Rule | Value |
 | ---- | ---- |
-| Server AI update (all 84 agents) | ≤ **2.0 ms** per frame on average, ≤ 3.0 ms at peak. BT at 10 Hz across 3 staggered buckets. Squad Brain at 5 Hz. |
-| Path requests | ≤ **8 per server tick**, queued. One per squad (to the formation centroid), not one per Wardling. Re-paths happen only on a Barricade change or a slot jump of more than 5 m. |
-| Perception | Shared per squad. Uses a spatial hash (8 m cells) with no per-agent raycasts. LOS raycasts are limited to the current target, at most 1 per agent per 0.2 s. |
-| Client render | Animation LOD: full rate within 30 m, 15 fps from 30–60 m, and a pose-baked impostor beyond 60 m. Wardling total ≤ **1.5 ms** GPU at 1080p on the min-spec target. |
-| Snapshot size | About **11 bytes per agent**: position quantised to 3×16 bits, yaw 8, HP% 8, state/variant/tier 8, target id 8, owner id 8. |
+| Count | **2 per held hardpoint**, for a maximum of **30**. At the start there are 24: the Mids are neutral and have none. |
+| Spawn | **10 s** after a capture [sibling], then a **45 s** respawn per Sentinel while the hardpoint is held (C5). When the hardpoint flips, they dissolve over 2 s and pay no bounty. |
+| Stats (I / II / III) | HP 450 / 590 / 740. Effective DPS vs. heroes 30 / 37 / 44. Range 26 m. They never leave the zone [sibling]. |
+| Behaviour | A Hold BT anchored at the zone centre. `Objective` is weighted ×2 and the hero gate is removed: Sentinels shoot any eligible enemy in range. |
+| Presence | 0.5 each (C4, [sibling]). |
+| Bounty | 1.5 × the squad-Wardling bounty, with RepeatDecay (§17). |
 
-**Network relevance (interest management):**
-- Your own squad is **always relevant** to you, at 20 Hz, and includes exact HP for the squad strip.
-- Other agents within **60 m** or inside your view frustum up to 120 m are sent at 20 Hz.
-- Agents between 60 and 120 m and out of view are sent at 5 Hz.
-- Agents beyond 120 m are not sent, except as minimap dots (owned by match-flow-and-map.md) at 1 Hz in aggregated form.
-- The worst-case downstream cost is about 84 × 11 B × 20 Hz ≈ 18.5 KB/s. With relevance applied the expected cost is about 6–9 KB/s per client.
-- Damage from Wardlings is **server-authoritative** without lag compensation, because AI projectiles are simulated on the server. Hero shots *at* Wardlings use the same lag-compensated hit registration as shots at heroes.
+## 12. Wardling Drops: the Wardling Core
 
-## 12. Minionmancer (Vesper Loom) Hooks
+When a Wardling is killed by the opposing team, it drops a **Core**: a pickup that lasts 10 s with a 1.2 m auto-collect radius.
+
+- **Lumen Mote.** 75% of the Lumen bounty is paid **instantly** to the share list (§15.1). The remaining **25%** sits in the Core and is paid to **the whole share list** when any one of them touches it. This rewards stepping onto the ground just won, without a last-hit race.
+- **Ammo Sparks** for Mechanical heroes only: **+1 magazine of reserve** each, capped at the maximum [sibling: weapons-and-mods]. The collector gets them.
+
+| Killed unit | Sparks in Core | Spark drop rate |
+| ---- | ---- | ---- |
+| Squad Wardling | 1 | 100% |
+| Vanguard Wardling | 1 | 50% |
+| Sentinel | 2 | 100% |
+
+- **Denial.** An enemy of the collector's team (that is, a hero from the Wardling's own side) touching the Core destroys it, Mote and Sparks included.
+- **Unwitnessed kills.** If the share list is empty (the kill was made only by AI, with no allied hero within 25 m and no hero contribution), the instant 75% is **not paid**. The Core still drops. If an allied hero touches it within 10 s, that hero gets the 25% Mote. This ties income to presence at the front (Pillar 1).
+
+## 13. Minionmancer (Vesper Loom) Hooks
 
 heroes.md designs the kit. This system exposes the following hooks, all server-side and data-driven:
 
 | Hook | Contract |
 | ---- | ---- |
-| `squad_capacity_bonus: int` | Per hero. Vesper = +2. Added after the Expansion upgrades. |
-| `apply_squad_modifier(target_owner, stat, mult, duration)` | Stat buckets: `hp`, `damage`, `move_speed`, `damage_taken`, `heal_out`. Same-source modifiers do not stack; different sources multiply. Lets Vesper buff *allied* players' squads (C17: "empowers allies' squads"). |
-| `rewrite_to_elite(wardling, duration)` | **Elite overlay:** tier +1 (Tier III becomes "Tier IV" = Tier III × 1.25 HP and damage), a gold outline and a scale of 1.15. The variant stays the same. Works on any allied Wardling within the radius heroes.md defines. |
-| `subvert(enemy_wardling, new_owner, duration)` | Temporarily switches the team and owner. It joins the new owner's squad as an **overflow** unit that does not count against capacity and has no HUD slot; it appears only with a purple-ringed icon. While subverted it pays **no bounty** to anyone. When the effect ends it returns to its original team, and to Hold-at-current if its original owner is dead or out of leash. Sentinels **cannot** be subverted (they are only rewritten to elite). |
-| `issue_command(owner, cmd)` | Lets a skill issue Follow or Hold on behalf of an owner. Used by Vesper's own kit only. |
-| Signals | `wardling_minted(w)`, `wardling_died(w, killer, share_list)`, `squad_command_issued(owner, cmd, point)`, `squad_dissolved(owner, reason)`. |
+| `squad_capacity_bonus` | Vesper +2, added after the Expansions. |
+| `apply_squad_modifier(owner\|wave, stat, mult, dur)` | Buckets: `hp`, `damage`, `move_speed`, `damage_taken`, `heal_out`. The same source refreshes; different sources multiply. Works on allies' squads and own-team Vanguard. Note the U_dmg cap in §5. |
+| `rewrite_to_elite(w, dur)` | Tier +1. Tier III goes to "IV" = Tier III ×1.25 HP and damage. Adds a gold outline and ×1.15 scale. Valid on any allied Wardling, Vanguard or Sentinel. |
+| `subvert(enemy_w, new_owner, dur)` | A temporary team and owner swap. The unit joins as an overflow unit (no slot, purple icon). It pays **no bounty** while subverted. When it reverts, it returns to its wave or squad, or to Hold-at-current if its original owner is dead or out of leash. **Sentinels cannot be subverted.** |
+| `command_vanguard(wave, cmd, target, dur)` | The only way to command a Vanguard wave. Vesper may issue Hold Here, Attack Target or Go Capture to an own-team wave within the radius heroes.md sets, for `dur`. After that the Wave Brain resumes the §10 target rule. |
+| `issue_command(owner, cmd, target)` | Skill-driven commands on a player squad. |
+| Signals | `wardling_minted`, `wardling_died(w, killer, share_list)`, `squad_command_issued(owner, cmd, target)`, `squad_dissolved(owner, reason)`, `vanguard_wave_spawned(team, lane, n)`. |
 
-Hex uses the same `subvert`-style status channel with `cmd = malfunction`: the target stops firing and wanders back toward its owner. heroes.md sets the durations.
+Hex uses the same status channel with `malfunction`: the target ceases fire and wanders back toward its anchor. heroes.md sets the duration.
+
+## 14. Performance and Network Budget
+
+**Agent counts (worst case):**
+
+| Population | Count |
+| ---- | ---- |
+| Squads | ≤ 50 (C15 budget), or 54 with two Vespers at maximum (see Canon Concerns) |
+| Garrisons | ≤ 30 |
+| Vanguard | ≤ 24 |
+| **Total** | **≤ 104–108** |
+
+Typical is about 60–75.
+
+| Budget | Target |
+| ---- | ---- |
+| Server AI (all agents) | ≤ **2.0 ms** per frame average, ≤ 3.0 ms peak. BT at 10 Hz in 3 buckets. Squad Brains at 5 Hz. 6 Wave Brains at 2 Hz. |
+| Path requests | ≤ 8 per tick, queued. One per squad or wave, not per agent. Re-path only on a nav-layer change, a command change, or an anchor jump of more than 5 m. |
+| Perception | Shared per squad or wave via a spatial hash (8 m cells). LOS raycasts only for the current target, ≤ 1 per agent per 0.2 s. |
+| Client render | Animation LOD: full rate within 30 m, 15 fps from 30–60 m, pose-baked impostor beyond 60 m. Wardlings ≤ **1.5 ms** GPU at 1080p on min-spec. |
+| Snapshot size | About **11 B per agent**: position 3×16 bits, yaw 8, HP% 8, state/variant/tier 8, target id 8, owner id 8. |
+
+**Relevance (interest management):**
+- Your own squad is always relevant at 20 Hz, with exact HP.
+- Other agents within 60 m, or in the view frustum up to 120 m, at 20 Hz.
+- Agents from 60–120 m that are out of view, at 5 Hz.
+- Beyond 120 m: not sent. They appear only as aggregated minimap pips at 1 Hz (one pip per wave or squad).
+- Worst-case downstream is 108 × 11 B × 20 Hz ≈ **23.8 KB/s**. With relevance applied, about 8–12 KB/s per client.
+- AI projectiles are simulated on the server. Hero shots *at* Wardlings use the same lag-compensated hit registration as shots at heroes.
 
 ---
 
 # PART 2 — ECONOMY & PROGRESSION
 
-## 13. Shared Concept: Share List and Share Factor
+## 15. Shared Rule: Share List and Share Factor
 
-When an enemy Wardling, Sentinel or hero dies, the **share list** is every hero on the killing team who is:
-- within **25 m** of the death position (C13), **or**
-- dealt damage or healing that counted toward the kill in the last **5 s** (heroes) or **3 s** (Wardlings).
+### 15.1 Share List
 
-The killing blow gets no special treatment for Wardling bounties, by design: there is **no last-hitting** (Anti-Pillar).
+When an enemy unit dies, the **share list** is every hero on the killing team who is:
+- within **25 m** of the death (C13), or
+- dealt damage or healing that contributed to the kill within the last 5 s (for a hero victim) or 3 s (for a Wardling victim).
 
-```
-S(n) = min(1, 1.2 / √n)        n = size of share list (1..5)
-n:      1     2     3     4     5
-S(n): 1.00  0.85  0.69  0.60  0.54     → team total grows 1.0 → 2.7× with n (grouping pays, leeching does not)
-```
-
-## 14. Resonance (EXP) — Levels 1–15 (Canon C12)
+**There is no killing-blow privilege for mob bounties** (Anti-Pillar: no last-hitting).
 
 ```
-inc(L) = 140 + 50·L            for L = 1..5     (EXP from level L to L+1)
-inc(L) = 500 + 60·(L − 6)      for L = 6..14
+S(n) = min(1, 1.2 / √n)      n = share-list size
+n:     1     2     3     4     5
+S:   1.00  0.85  0.69  0.60  0.54      team total = n·S(n): 1.0, 1.7, 2.1, 2.4, 2.7
 ```
 
-| Level | EXP to next | Cumulative to reach | Avg-player minute | Unlocks (C12) |
+## 16. Resonance (EXP): Levels 1–15 (C12)
+
+```
+inc(L) = 140 + 50·L            L = 1..5      (EXP needed from L to L+1)
+inc(L) = 520 + 60·(L − 6)      L = 6..14
+```
+
+| Lv | To next | Cumulative | Avg-player minute | Unlock (C12) |
 | ---- | ---- | ---- | ---- | ---- |
-| 1 | 190 | 0 | 0:00 | 1 skill point |
+| 1 | 190 | 0 | 0:00 | 1 point |
 | 2 | 240 | 190 | ~2 | |
 | 3 | 290 | 430 | ~3 | |
 | 4 | 340 | 720 | ~4 | |
-| 5 | 390 | 1,060 | ~5.5 | |
-| 6 | 500 | 1,450 | **~7** | Ultimate rank 1 |
-| 7 | 560 | 1,950 | ~9 | |
-| 8 | 620 | 2,510 | ~11 | |
-| 9 | 680 | 3,130 | ~13 | Mastery nodes |
-| 10 | 740 | 3,810 | **~16** | Ultimate rank 2 |
-| 11 | 800 | 4,550 | ~18 | |
-| 12 | 860 | 5,350 | ~21 | |
-| 13 | 920 | 6,210 | ~24 | |
-| 14 | 980 | 7,130 | ~27 | Ultimate rank 3 |
-| 15 | — | **8,110** | **~31** | Cap (15 points) |
+| 5 | 390 | 1,060 | ~5 | |
+| 6 | 520 | 1,450 | **~7** | Ult rank 1 |
+| 7 | 580 | 1,970 | ~8.5 | |
+| 8 | 640 | 2,550 | ~10.5 | |
+| 9 | 700 | 3,190 | ~12.5 | Mastery |
+| 10 | 760 | 3,890 | **~16** | Ult rank 2 |
+| 11 | 820 | 4,650 | ~18 | |
+| 12 | 880 | 5,470 | ~21 | |
+| 13 | 940 | 6,350 | ~24 | |
+| 14 | 1,000 | 7,290 | ~27 | Ult rank 3 |
+| 15 | — | **8,290** | **~30** | Cap |
 
-These meet the C12 targets: L6 at about 7 minutes (target 6–8) and L15 at about 31 minutes (target 30–35). Strong players hit L15 at about 22 minutes and weak players reach about L11–12 by 30:00 (§17). There is **no passive EXP**, because C13 lists the sources.
+These meet C12: L6 in 6–8 minutes and L15 in 30–35 minutes for the average player. The strong profile caps at about 22 minutes. The weak profile is about L11–12 at 30:00 (§18). There is **no passive EXP** (C13 lists the sources).
 
-### 14.1 EXP Sources
+### 16.1 EXP Sources
 
-| Source | Formula (per recipient) | Typical value |
+| Source | Formula (per recipient) | Range |
 | ---- | ---- | ---- |
-| Enemy Wardling death | `R_T × S(n)`, with R_T = 45 / 60 / 75 by tier | 31–75 |
-| Enemy Sentinel death | `1.5 × R_T × S(n) × RepeatDecay` | 47–112 |
-| Enemy hero kill (killer) | `P = (200 + 20·Lv_victim) × C × D` | 240–700 |
-| Assist / ally within 25 m | `0.5 × P` | 120–350 |
-| Capture (whole team) | `100 × D` to every teammate, anywhere | 100–125 |
-| Capture (participant bonus) | `+250 × D`. A participant is in the zone ≥ 10 s during the task, or carried/planted the Mana Cell, or damaged the Ward Generator | 250–312 |
-| Defence (participant) | `150`, when attacker progress was ≥ 25% and is driven to 0 or the task fails | 150 |
-| Individual catch-up | `×1.2` on all Resonance while `Lv ≤ team_avg_Lv − 2` | — |
+| Enemy **Vanguard** Wardling | `RV_T × S(n)`, RV_T = 20 / 30 / 40 | 11–40 |
+| Enemy **squad** Wardling | `RS_T × S(n)`, RS_T = 45 / 60 / 75 | 24–75 |
+| Enemy **Sentinel** | `1.5 × RS_T × S(n) × RepeatDecay` | 18–112 |
+| Hero kill: the killer | `P = (200 + 20·Lv_victim) × C × D` | 220–720 |
+| Hero kill: assisters and allies within 25 m | `0.5 × P` | 110–360 |
+| Capture: every teammate | `100 × D` | 100–125 |
+| Capture: participant bonus | `+250 × D` (in the zone within the last 10 s [sibling], or planted the Cell, or damaged the Generator) | 250–312 |
+| Defence: each defender in the zone [sibling trigger] | `150` | 150 |
+| Individual catch-up | All Resonance **×1.2** while `Lv ≤ team_avg_Lv − 2` | — |
 
-**Catch-up kill bonus (C13):**
+**Catch-up (C13):**
 ```
 C = min(1.6, 1 + 0.15 × max(0, Lv_victim − Lv_killer))
 ```
-Example: an L8 Ryker kills an L12 Brannoc, with one assister nearby and no team deficit (D = 1).
-P = (200 + 240) × min(1.6, 1 + 0.6) = 440 × 1.6 = **704** to Ryker, and **352** to the assister.
 
-**Team deficit multiplier** (applies to hero-kill and capture rewards only, never to Wardling rewards, so a team cannot farm it):
+**Team deficit** (applies to kills and captures only, never to mobs):
 ```
-gap = (Res_leader − Res_team) / Res_leader      (team-total Resonance; 0 for the leading team)
+gap = (Res_leader − Res_team) / Res_leader        (0 for the leader)
 D   = 1 + min(0.25, 0.5 × gap)
 ```
-Example: the trailing team has 18,000 Resonance and the leader has 24,000. gap = 0.25, so D = 1.125.
 
-## 15. Lumen Income Sources (Canon C14)
+Worked example. An L8 Ryker kills an L12 Brannoc. His team trails 18k to 24k Resonance, so gap = 0.25 and D = 1.125.
+P = (200 + 240) × 1.6 × 1.125 = **792** to Ryker, and **396** to an assister.
+
+## 17. Lumen Income (C14)
 
 | Source | Formula (per recipient) | Avg 30-min total |
 | ---- | ---- | ---- |
-| **Starting purse** | 500 at 0:00 | 500 |
-| **Passive trickle** | 60 / min from 1:00 | 1,740 |
-| **Enemy Wardlings (primary)** | `L_T × S(n)`, L_T = 60 / 75 / 90. Paid 75% instantly and 25% through the Core Mote (§10) | 2,790 |
-| **Enemy Sentinels** | `1.5 × L_T × S(n) × RepeatDecay`, same split | 670 |
-| **Hero kill** | `K = (200 + Shutdown) × D`, with `Shutdown = min(300, 50 × max(0, streak_victim − 2))` | 990 |
-| **Hero assist** | `0.5 × 200 × D` to every assister (Shutdown not shared) | 700 |
-| **Capture** | Participant `200 × D × Recap`. Rest of team `75 × D`. `Recap = 1.25` when retaking a hardpoint your team started with | 1,250 |
-| **Defence** | Participant `120` (same trigger as EXP) | 480 |
-| **Total** | | **≈ 9,120** |
+| Starting purse | 500 [sibling] | 500 |
+| Passive trickle | 40 / min from 1:00 [sibling] | 1,160 |
+| **Vanguard Wardlings** | `LV_T × S(n)`, LV_T = **35 / 45 / 55**. 75% instant, 25% as Mote | **2,900** |
+| **Squad Wardlings** | `LS_T × S(n)`, LS_T = **60 / 75 / 90**, same split | 1,045 |
+| **Sentinels** | `1.5 × LS_T × S(n) × RepeatDecay` | 560 |
+| Hero kill | `K = (200 + Shutdown) × D`, with `Shutdown = min(300, 50 × max(0, streak − 2))` | 985 |
+| Hero assist | `100 × D` each | 695 |
+| Capture | Participant `120 × D × Recap`, plus every teammate `40 × D` [sibling base]. Recap ×1.25 for retaking one of your starting hardpoints | 880 |
+| Defence | `60` per defender [sibling] | 240 |
+| **Total** | | **≈ 8,965** |
 
-Enemy Wardlings and Sentinels together make up **38%** of income, the largest single source, which satisfies C14's "primary". Front-tied sources (Wardlings, captures and defences) make up **57%**, which meets Pillar 1's design test.
+- **Mob kills make up 50%** (4,505), and Vanguard alone is 32%, the largest single source. This satisfies C14 ("primary") and C15 ("main steady source").
+- **Front-tied income** (mobs, captures and defences) is **63%** (Pillar 1).
+- Squad Wardlings pay more than Vanguard because they are rarer and carry their owner's investment. Killing an upgraded squad is a worthwhile target.
 
-## 16. Repeat-Farm Guards
+**Repeat-farm guards:**
+- **RepeatDecay.** A Sentinel death at hardpoint *h* within 180 s of the previous Sentinel death at *h* pays ×0.5.
+- **Capture cooldown.** A team recapturing the same hardpoint within 180 s of its own previous capture of it gets ×0.25 (Lumen and EXP).
+- **Defence cooldown.** At most one defence payout per hardpoint per 90 s.
 
-- **RepeatDecay (Sentinels).** A Sentinel death at hardpoint *h* within 180 s of the last Sentinel death at *h* pays ×0.5.
-- **Capture cooldown.** A team capturing the same hardpoint again within **180 s** of its own previous capture of it gets ×0.25 Lumen and Resonance.
-- **Defence cooldown.** Defence rewards at a given hardpoint pay at most once per 90 s.
+## 18. 30-Minute Simulation
 
-## 17. 30-Minute Income Simulation
-
-Model assumptions (scratch model, average player):
-- 1.6 × (1 + 0.01·min) enemy Wardling deaths credited per minute, at a mean S(n) of 0.8 and 80% Mote collection.
-- 0.3 Sentinel deaths per minute.
+Model (a scratch per-minute model; average player):
+- 2.8 × (1 + 0.01·min) enemy Vanguard deaths credited per minute.
+- 0.7 squad-Wardling and 0.25 Sentinel deaths credited per minute.
+- Mean S(n) of 0.8, and 80% of Motes collected.
 - 0.17 kills and 0.24 assists per minute.
-- 4 captures participated in and 10 team captures over 30 minutes.
+- 4 captures participated in, 10 team captures and 4 defences over 30 minutes.
 
-The strong profile multiplies activity ×1.4 (kills ×1.96). The weak profile multiplies it ×0.65. Purse and trickle are the same for everyone. Comeback multipliers are **excluded**, so the weak column is a floor.
+The strong profile is ×1.4 activity (kills ×1.96). The weak profile is ×0.65. Comeback multipliers are excluded, so the weak column is a floor.
 
-| Minute | Weak — Lumen / EXP (Lv) | **Average — Lumen / EXP (Lv)** | Strong — Lumen / EXP (Lv) |
+| Minute | Weak: Lumen / EXP (Lv) | **Average: Lumen / EXP (Lv)** | Strong: Lumen / EXP (Lv) |
 | ---- | ---- | ---- | ---- |
-| 5 | 1,300 / 660 (3) | **1,600 / 1,010 (4)** | 1,970 / 1,470 (6) |
-| 10 | 2,310 / 1,490 (6) | **2,980 / 2,290 (7)** | 3,830 / 3,330 (9) |
-| 20 | 4,460 / 3,270 (9) | **5,940 / 5,020 (11)** | 7,820 / 7,310 (14) |
-| 30 | 6,750 / 5,190 (11) | **9,120 / 7,970 (14)** | 12,120 / 11,580 (15) |
+| 5 | 1,230 / 680 (3) | **1,550 / 1,050 (4)** | 1,960 / 1,530 (6) |
+| 10 | 2,150 / 1,540 (6) | **2,880 / 2,370 (7)** | 3,810 / 3,450 (9) |
+| 20 | 4,150 / 3,410 (9) | **5,790 / 5,230 (11)** | 7,850 / 7,610 (14) |
+| 30 | 6,320 / 5,450 (11) | **8,970 / 8,360 (15)** | 12,280 / 12,130 (15) |
 
-Reading the table:
-- The strong-to-weak Lumen ratio at 30:00 is **1.8×**. That is enough to reward skill, but the weak player still affords about two full Major purchases.
-- The trickle plus purse (2,240) is a guaranteed floor of about 25%, so a struggling player always reaches a Standard item every ~10 min.
-- With the individual EXP catch-up (×1.2) and the D multiplier, the weak player's level at 30:00 rises to about 12.
+**Health checks:**
+- Strong-to-weak Lumen at 30:00 is **1.9×**.
+- Purse plus trickle (1,660) is a floor of about 18%.
+- With the catch-up multipliers, the weak player reaches about L12 by 30:00.
+- **Sink check.** At 30:00 the average player holds about 9,000. weapons-and-mods plans a gun of 5,250–6,200, and the squad sink is about 8,350, so the shop cannot be exhausted before about minute 45. Med-Packs are an unlimited sink beyond that.
+- **Intended spend split:** ~60% gun, ~30% squad, ~10% consumables and utility.
 
-**Sink check.** At 30:00 an average player has about 9,100 Lumen. The intended split is ~55% weapon (weapons-and-mods.md), ~30% squad, ~15% consumables and utility. The total catalog (weapon + squad about 8,350 + utility about 2,900) is well above 9,000, so the shop cannot be exhausted before about minute 45. After that, Med-Packs (an infinite consumable sink) absorb any surplus. Mana Drought and late matches are therefore not flooded with unspendable money.
+## 19. Armory: Non-Weapon Items
 
-## 18. Armory Catalog — Non-Weapon Items
-
-Purchases happen at the HQ Armory only (C14). Prices follow the bands: Minor 250–400, Standard 600–900, Major 1,400–1,800. **Consumables** sit below the bands, anchored by the Med-Pack at 100. Wardling licences and upgrades are listed in §5–§6.
+Purchases are at the HQ Armory only (C14). Bands: Minor 250–400, Standard 600–900, Major 1,400–1,800. **Consumables** sit below the bands and are anchored by the Med-Pack at 100. Squad items are in §6–§7.
 
 | Item | Type | Price | Effect | Limit |
 | ---- | ---- | ---- | ---- | ---- |
-| **Med-Pack** | Consumable | 100 | Use (key `4`): heal 40% of max HP over 3 s. The heal is cancelled if you fire your weapon. Liora's drones are separate (heroes.md). | Carry 3 |
-| **Recall Shard** | Consumable | 150 | 6 s channel, then teleport to the Sanctum. Dissolves your squad on departure. Taking hero damage cancels it. | Carry 1 |
-| **Scan Flare** | Consumable | 150 | Thrown. Reveals enemies, traps and stealth within 15 m for 3 s to your team. | Carry 2 |
-| **Mana Cell Harness** | Utility | 300 (Minor) | +15% move speed while carrying a Plant-task Mana Cell. | Permanent |
-| **Stride Rig** | Utility | 750 (Standard) | +8% move speed out of combat (no hero damage dealt or taken for 4 s). Visible as glowing calf rigs. | Permanent |
-| **Barrier Lattice** | Utility | 800 (Standard) | +75 overshield that regenerates after 6 s out of combat. Shown as a hex shimmer on the body. | Permanent |
-| **Uplink Breaker** | Utility | 1,600 (Major) | +15% weapon damage vs. Ward Generators and an **Exposed** Uplink. Shown as a red sigil on the gun. | Permanent |
+| **Med-Pack** | Consumable | 100 | Heal 40% of max HP over 3 s. Cancelled by firing. | Carry 3 |
+| **Recall Shard** | Consumable | 150 | 6 s channel to the Sanctum, cancelled by hero damage. Dissolves the squad. | Carry 1 |
+| **Scan Flare** | Consumable | 150 | Thrown. Reveals enemies, traps and stealth within 15 m for 3 s. | Carry 2 |
+| **Cell Harness** | Utility | 300 (Minor) | +15% move speed while carrying a Mana Cell. | Permanent |
+| **Stride Rig** | Utility | 750 (Standard) | +8% move speed after 4 s out of combat. Glowing calf rigs. | Permanent |
+| **Barrier Lattice** | Utility | 800 (Standard) | +75 overshield, regenerating after 6 s out of combat. Hex shimmer. | Permanent |
+| **Uplink Breaker** | Utility | 1,600 (Major) | +15% weapon damage vs. Ward Generators and an Exposed Uplink. Red gun sigil. Not an ammo effect, so the Uplink rule [sibling] is untouched. | Permanent |
 
-Utility total is about 3,450, plus consumables. Every permanent item has a visible tell (Pillar 4).
+## 20. Comeback and Anti-Snowball
 
-## 19. Comeback and Anti-Snowball Mechanics
-
-| # | Mechanic | Where it lives |
+| # | Mechanic | Ref |
 | ---- | ---- | ---- |
-| 1 | **Catch-up kill EXP** `C` (≤ ×1.6) for killing a higher-level hero (C13). | §14.1 |
-| 2 | **Shutdown bounty**: up to +300 Lumen for ending a streak. | §15 |
-| 3 | **Team deficit multiplier** `D` (≤ ×1.25) on kill and capture rewards for the trailing team. | §14.1 / §15 |
-| 4 | **Individual EXP catch-up** ×1.2 while 2+ levels below the team average. | §14.1 |
-| 5 | **Recapture bonus** ×1.25 Lumen for retaking an original hardpoint. | §15 |
-| 6 | **Floor income**: 500 purse plus 60/min trickle, independent of performance. | §15 |
-| 7 | **Defender geometry**: Garrisons, Barricades and short walks to the Foundry near home. The losing team fights closer to its free squads. | §3, §9, C5 |
-| 8 | **Sublinear sharing** `S(n)`: deathballing five heroes onto one squad yields 2.7×, not 5×, per kill. | §13 |
-| 9 | **No Wardling-reward multipliers**: the leading team cannot amplify farming. | §14.1 |
+| 1 | Catch-up kill EXP `C`, up to ×1.6 (C13) | §16.1 |
+| 2 | Shutdown bounty, up to +300 Lumen | §17 |
+| 3 | Team deficit `D`, up to ×1.25, on kills and captures | §16.1 |
+| 4 | Individual EXP ×1.2 while 2+ levels below the team average | §16.1 |
+| 5 | Recapture ×1.25 Lumen | §17 |
+| 6 | Floor income (purse plus trickle) | §17 |
+| 7 | **Vanguard self-balance.** A losing team's front sits closer to its Foundry, so its waves arrive sooner and work defended ground (Garrisons, Barricades). The winner's waves walk further into Sentinels. | §10 |
+| 8 | Sublinear sharing S(n): deathballing pays 2.7×, not 5× | §15.1 |
+| 9 | No leader-side multipliers on mob income | §16.1 |
 
-## 20. Exploit Risks
+## 21. Exploit Risks
 
 | Exploit | Risk | Mitigation |
 | ---- | ---- | ---- |
-| Feeding your own squads to an ally on the enemy team (win-trading) | Medium in customs, high in ranked | No friendly fire on Wardlings. Bounties only from the opposing team. Ranked telemetry flags lopsided Core-denial and feed patterns. |
-| Capture ping-pong (two teams trading a node to farm) | Medium | Capture cooldown ×0.25 within 180 s (§16). |
-| Sentinel farming at an unattackable node | Medium | RepeatDecay ×0.5. Sentinels only respawn every 45 s. |
-| Defence-reward farming by stopping attacks at 25% | Low | 90 s defence cooldown. Participation is required. |
-| Leeching by standing in the 25 m radius | Low | S(n) is sublinear. The share list is open to anyone, but each share shrinks as it grows. |
-| Wardling-only Hold capture while the owner farms elsewhere | High | Wardlings contest but do not advance capture without an allied hero in the zone, and presence is capped at 3.0 (§8.5). |
-| Recall Shard / suicide to dodge kill bounty | Low | A death within 10 s of hero damage credits the last damager and its share list in full, including falls into the Leyfall. A Recall channel is cancelled by damage. |
-| Mote sniping by enemies to deny income | Intended | Denial costs the 25% Mote only. Counterplay is to walk forward. |
-| Subverted Wardlings fed for bounty | Medium | Subverted units pay no bounty (§12). |
-| Bot backfill farming | Low | Bots follow the same rules. Bot slots are not exempt from the guards. |
+| Win-trading by feeding squads to the other team | Medium (ranked) | Bounties only from the opposing team. Telemetry flags feed and denial anomalies. |
+| Capture ping-pong | Medium | 180 s capture cooldown at ×0.25. |
+| Sentinel farming at a node you will not take | Medium | RepeatDecay ×0.5. 45 s respawn. |
+| Parking at the Vanguard spawn lane to farm waves | Medium | Waves spawn inside the Sanctum's 10 m anti-entry zone (C6) and lane gates are covered by Garrisons. Spawn rate is gated by the ≤1-alive rule, so farming faster than one wave per ~15 s is impossible. |
+| AFK income from detached squads (Go Capture while away) | Low | Squad kills with no hero on the share list pay only the Mote (§12). Presence still helps the team, which is intended play. |
+| Stacking AI presence on Hold (Vesper squad + Vanguard + Go Capture) | Medium | Recommend that match-flow's "Wardling presence cap per team" knob default to **3.0** at the first playtest (see Dependencies). |
+| Attack Target as an aimbot | Medium | Bolts are slow, dodgeable projectiles. A base squad is only 30% of Soldier DPS. LOS and 50 m required. Ends after 12 s. |
+| Suicide or Recall to dodge a bounty | Low | A death within 10 s of hero damage credits the last damager's share list. Damage cancels the Recall channel. |
+| Subverted Wardlings fed for bounty | Medium | Subverted units pay nothing. |
+| Leeching in the 25 m radius | Low | S(n) is sublinear. |
 
-## 21. Edge Cases
+## 22. Edge Cases
 
-- **Squad at the moment of a Surge while in DeathHold.** It upgrades on the spot and still dissolves at 10 s.
-- **Owner disconnects.** The bot takes over the hero and its squad keeps its state (C1). There is no dissolve.
-- **Squad Expansion bought while away from HQ.** Not possible (HQ-only shop). The new slot is filled the next time you enter the Foundry.
-- **Licence bought with a full squad of Pickets.** The next Foundry entry replaces a Picket with the variant: the Picket despawns and the variant mints.
-- **Hold point set on an enemy-only nav layer** (behind an enemy Barricade). It is projected to the nearest point reachable by the squad. If none exists within 10 m, the command is rejected with an error chirp.
-- **Sudden Death begins.** All Wardlings and Sentinels are removed (C10) with no bounty and no Cores. Lumen is kept but unspendable (the shop is disabled).
-- **Hero killed by a Wardling with no hero damage in the last 10 s.** The kill is credited to the Wardling's owner, and the share list is built around the death position.
-- **Tie in the utility score.** The closer target wins, then the lower entity id.
-- **Mote collected after the share-list member dies.** Dead members still receive their Mote share. This is the rule because the share list is frozen at the moment of the kill.
-- **Two Seekers revealing.** Reveals do not stack. A reveal refreshes its timer only.
-- **Elite rewrite on a subverted Wardling.** Allowed. Both effects run independently and expire separately.
+- **Owner dies during Go Capture.** The squad keeps the zone for 10 s, then dissolves (C15).
+- **Attack Target on a unit that becomes subverted, malfunctions or goes stealthed.** The order ends immediately and the squad reverts. The squad never shoots a unit that is now on its own team.
+- **Go Capture on a hardpoint that becomes Locked en route** (the prerequisite is lost). The squad converts to Hold at its current position, and the HUD shows "Locked".
+- **Vanguard target flips mid-march.** The 2 s re-evaluation picks a new target. There is no backtracking past the wave's own front-most held hardpoint.
+- **Wave survivor merge across a Surge.** The survivor morphs with the Surge. The new mints are at the new tier.
+- **Expansion bought away from HQ.** Impossible (HQ-only shop). The slot is filled on the next Foundry entry.
+- **Licence bought with a full squad of Pickets.** On the next Foundry entry, a Picket despawns and the variant mints.
+- **Sudden Death.** All Wardlings are removed (C10) with no bounty and no Cores. The Vanguard timer stops. The shop is disabled.
+- **Hero killed only by Wardlings.** It credits the Wardling's owner (squad) or, for Vanguard, the allied heroes within 25 m. If neither applies, no hero bounty is paid, but the death still counts for streaks.
+- **Mote collected after a share-list member dies.** The member is still paid, because the share list is frozen at the kill.
+- **Utility score tie.** The closer target wins, then the lower entity id.
+- **Two Seekers.** Reveals do not stack. They only refresh.
 
-## 22. Dependencies
+## 23. Dependencies
 
-| System | This doc needs | That doc should reference |
+| System | This doc needs | That doc must reflect |
 | ---- | ---- | ---- |
-| `heroes.md` | Hero HP and speed (for Wardling tuning), Vesper's kit (§12 hooks), Hex malfunction, Sable stealth (Seeker), Liora drones | Squad size +2, `apply_squad_modifier`, `rewrite_to_elite`, `subvert` |
-| `weapons-and-mods.md` | Reserve sizes (Core ammo %), weapon price total (sink split) | Lumen budget ≈ 9,000 per 30 min. Core gives 20% / 35% reserve. |
-| `match-flow-and-map.md` | Hardpoint zones, task presence rules, Barricade nav layers, Surge times, Foundry and Armory placement, minimap | 0.5 presence, the 3.0 cap and hero-required advance (§8.5). Capture and defence reward triggers. Sentinel spawn rules. |
-| HUD / UX (future `design/ux/hud.md`) | — | Squad strip, Hold marker, edge chevrons, Lumen/Resonance readouts |
-| Networking (future ADR) | Interest management, snapshot format | §11 budget |
-| Bot AI (future) | — | Bots use the same `Z` command API and buy from the §18 priorities |
+| `match-flow-and-map.md` | Presence F1, capture rates F2–F4, capture and defence Lumen (120 / 40 / 60), purse 500, trickle 40, Garrison 10 s delay, 3 s Surge morph, lane splines, Foundry lane gates | **Wardling raw DPS** rises from the reference 14 to **30 at Tier I** (C15 middle ground). F4 and F9 Uplink time-to-kill drop to about 50 s for the reference team, so their Uplink Integrity or reference team needs a retune. Also: Vanguard waves (24 agents, §10), the D and Recap multipliers on capture Lumen, a presence-cap default of 3.0, and Go Capture as a presence source. |
+| `weapons-and-mods.md` | Soldier reference DPS 260, armor formula, Ammo Spark size, gun price total | Spark drop rates (§12). The Lumen curve: 1,550 at 5:00, 2,880 at 10:00, 5,790 at 20:00, 8,970 at 30:00. |
+| `heroes.md` | Hero HP and armor, Vesper's kit (§13 hooks), Hex malfunction, Sable stealth (Seeker) | Squad +2 for Vesper. `command_vanguard`, `rewrite_to_elite`, `subvert`, the U_dmg cap. |
+| HUD / UX (future) | — | Squad strip, radial wheel, command preview glyph, detached-squad chevron |
+| Bot AI (future) | — | Bots issue commands via the same API. Buy priorities follow the §18 spend split and the §19 catalog. |
 
-## 23. Tuning Knobs
+## 24. Tuning Knobs
 
 | Knob | Default | Safe range | Affects |
 | ---- | ---- | ---- | ---- |
-| `wardling_bounty_lumen[T]` | 60 / 75 / 90 | ±25% | Share of income from Wardlings (keep ≥ 35%) |
-| `wardling_bounty_res[T]` | 45 / 60 / 75 | ±25% | L6 and L15 timing |
-| `sentinel_bounty_mult` | 1.5 | 1.0–2.0 | Attacking-node value |
-| `share_k` in S(n) | 1.2 | 1.0–1.5 | Group vs. solo pay |
-| `share_radius_m` | 25 | 20–30 (C13 says 25; changing it needs Canon) | — |
-| `mote_fraction` | 0.25 | 0.0–0.4 | Reward for advancing |
-| `trickle_per_min` | 60 | 40–90 | Floor income |
-| `starting_purse` | 500 | 400–800 | Deploy-phase buys |
-| `kill_lumen_base` / `assist_ratio` | 200 / 0.5 | 150–300 / 0.3–0.6 | Fight vs. objective pay |
-| `catchup_per_level` / `cap` | 0.15 / 1.6 | 0.1–0.25 / 1.4–2.0 | Comeback strength |
-| `deficit_D_cap` | 1.25 | 1.0–1.4 | Comeback strength |
-| `xp_inc_early` (140 + 50L) | — | ±15% | L6 time (keep 6–8 min) |
-| `xp_inc_late` (500 + 60·(L−6)) | — | ±15% | L15 time (keep 30–35 min) |
-| `wardling_hp[T]`, `dps[T]` | §4 | ±30% | Wardling relevance vs. noise |
-| `follow_leash_m` / `hold_leash_m` | 30 / 12 | 20–45 / 8–18 | Squad cohesion |
-| `wardling_presence_cap` | 3.0 | 2.0–4.0 | Squad dominance in Hold |
-| `death_hold_s` | 10 | Canon (fixed) | — |
-| `sentinel_first_spawn_s` | 15 | 5–30 | Post-capture safety window |
-| Item prices | §5, §6, §18 | Must stay inside their band | Build pacing |
+| `picket_dmg_per_bolt[T]` | 9 / 11 / 13 | ±20% | Keep the base-squad ratio in 25–35% |
+| `picket_hp[T]` | 180 / 235 / 300 | ±25% | Squad survivability |
+| `focus_accuracy` / `retaliate_accuracy` | 0.87 / 0.70 | 0.7–0.95 / 0.5–0.8 | Attack Target value |
+| `attack_timeout_s` / `attack_los_loss_s` | 12 / 4 | 8–20 / 2–6 | Command persistence |
+| `vanguard_interval_s` | 60 | Canon (fixed) | — |
+| `vanguard_size` | 4 | Canon (fixed) | — |
+| `vanguard_bounty_lumen[T]` | 35 / 45 / 55 | ±25% | Main steady income |
+| `vanguard_bounty_res[T]` | 20 / 30 / 40 | ±25% | L15 timing |
+| `squad_bounty_lumen[T]` / `_res[T]` | 60/75/90 · 45/60/75 | ±25% | Value of hunting squads |
+| `sentinel_bounty_mult` | 1.5 | 1.0–2.0 | Value of attacking nodes |
+| `share_k` | 1.2 | 1.0–1.5 | Group vs. solo pay |
+| `mote_fraction` | 0.25 | 0–0.4 | Reward for advancing |
+| `kill_lumen_base` / `assist_lumen` | 200 / 100 | 150–300 / 60–150 | Fight vs. objective pay |
+| `catchup_per_level` / `catchup_cap` | 0.15 / 1.6 | 0.10–0.25 / 1.4–2.0 | Comeback |
+| `deficit_D_cap` | 1.25 | 1.0–1.4 | Comeback |
+| `xp_inc_early` / `xp_inc_late` | 140 + 50L / 520 + 60(L−6) | ±15% | L6 time (6–8 min) / L15 time (30–35 min) |
+| `follow_leash_m` / `hold_leash_m` / `zone_leash_m` | 30 / 12 / 15 | 20–45 / 8–18 / 12–20 | Cohesion |
+| `squad_dmg_cap` (U_dmg) | 0.40 | 0.3–0.6 | Ceiling on squad threat |
+| Prices | §6, §7, §19 | Within their band | Build pacing |
 
-## 24. Acceptance Criteria
+## 25. Acceptance Criteria
 
-1. **Income.** In 10 bot-filled full matches, the median player's earned Lumen at 30:00 is **8,000–10,000**. Wardling plus Sentinel bounties make up ≥ 35% of each player's income.
-2. **Pacing.** In the same matches, the median player reaches L6 between 6:00 and 8:00 and L15 between 28:00 and 36:00.
-3. **Spread.** The ratio of the top-quartile to bottom-quartile player's Lumen at 30:00 is ≤ 2.2×.
-4. **Commands.** Tapping `Z` sets a Hold within 25 m and the squad arrives within 3 s on open ground. Holding `Z` for ≥ 0.35 s returns Follow. No third command exists.
-5. **Death-hold.** After the owner dies, the squad holds for 10.0 ± 0.1 s and then dissolves. Dissolved units grant 0 Lumen and 0 Resonance (check the server log).
-6. **Body-block.** With a Shieldling in the squad and the owner shot from a fixed turret, the Shieldling is on the attack line within 2.5 s and never inside the owner's aim corridor (debug draw).
-7. **No hero initiation.** A squad in Follow next to an enemy hero who never deals damage, outside any objective zone, fires 0 shots at that hero over 30 s.
-8. **Leash.** A Wardling never ends more than 30 m (Follow) or 12 m (Hold) from its anchor for longer than 3 s, except while stranded.
-9. **Barricade.** With the owner on the far side of an enemy Barricade and no detour within 2.5×, the squad holds at the Barricade and the HUD shows "Squad stranded" within 20 s.
-10. **Performance.** With 84 agents active in a load-test scene, the server AI frame cost is ≤ 2.0 ms on average and the downstream per client is ≤ 12 KB/s.
-11. **Drops.** A Mechanical hero collecting a Picket Core regains exactly 20% of max reserve. An enemy touching a Core destroys it with no payout.
-12. **Prices.** Every Armory item listed in §5, §6 and §18 is priced inside its band (or is a consumable at ≤ 200).
+1. **Income.** Across 10 bot-filled matches, the median player's Lumen at 30:00 is 8,000–10,000. Mob bounties make up ≥ 40% of it, and Vanguard is the largest single source.
+2. **Pacing.** The median player reaches L6 in 6:00–8:00 and L15 in 28:00–36:00.
+3. **Spread.** Top-quartile to bottom-quartile Lumen at 30:00 is ≤ 2.2×.
+4. **Strength.** In a test range, 3 Tier I Pickets on Attack Target against a strafing dummy deal 70–86 DPS (27–33% of 260). A healthy, unmodded Ryker (80% accuracy) beats them with ≥ 100 HP left. A Ryker starting at 120 HP loses.
+5. **Upgrade curve.** 5 Wardlings including 2 Strikers with Overclock deal 180–205 DPS under the same test.
+6. **Commands.** `Z` on an enemy, a hardpoint and the ground issues Attack, Go Capture and Hold respectively. `X` issues Follow. The radial wheel issues all four. A Locked hardpoint is rejected with "Locked".
+7. **Attack.** The order ends and the squad reverts within 0.2 s after the target dies, after 4 s out of LOS, or after 12 s.
+8. **Go Capture.** A squad of 3 sent to a free neutral Mid Hold reaches it and holds 1.5 presence. On completion it switches to Hold at the zone centre.
+9. **Vanguard.** Each lane and team never has more than 4 Vanguard units. A new wave spawns only when the previous wave has ≤ 1 alive. With no players, waves alternate target selection exactly per the §10 rule (checked on the debug overlay).
+10. **Death-hold.** After the owner dies, the squad holds for 10.0 ± 0.1 s, dissolves, and pays 0 Lumen and 0 Resonance.
+11. **No hero initiation.** A Follow squad beside a passive enemy hero, outside any zone, fires 0 shots over 30 s.
+12. **Performance.** 108 agents in a load scene: server AI ≤ 2.0 ms average, downstream ≤ 12 KB/s per client.
+13. **Drops.** A Mechanical hero collecting a squad Core gains exactly 1 magazine of reserve. An enemy touching a Core destroys it with no payout.
+14. **Prices.** Every item in §6, §7 and §19 is inside its band, or is a consumable at ≤ 200.
 
-## 25. Vertical-Slice Subset (Scope Tier 1)
+## 26. Vertical-Slice Subset (Scope Tier 1)
 
-The Tier 1 scope puts Garrisons, Barricades, Beacons and Wardling variants in Alpha. The slice therefore ships:
+The slice ships Vesper and a 3-lane map. Variants, Garrisons and Barricades are Alpha (Tier 2).
 
 - **In.**
-  - Foundry pickup, Picket only, squad 3 → 5 (Expansion I/II).
-  - Tier I/II/III via Surges.
-  - Follow/Hold on `Z`, the squad strip and the Hold marker.
-  - BT nodes: formation, body-block (best blocker = highest HP), retaliation utility, Hold presence with cap and hero gate, leash/stranded, death-hold.
-  - Wardling Core (Mote and ammo).
-  - Vesper hooks: `squad_capacity_bonus`, `apply_squad_modifier`, `rewrite_to_elite` (Vesper is in the slice). `subvert` is **in** only if Vesper's ult needs it in the slice.
-  - The full Resonance table and every EXP source.
-  - Lumen purse, trickle, Wardling, kill, assist, capture and defence income.
-  - Med-Pack, Reinforced Cores I/II, Overclock Emitters.
-  - The deficit multiplier, the catch-up bonus and the capture cooldown.
-- **Out.** Variants, Sentinels, Barricade pathing, Bulwark Protocol, Harmonic Tether, Quick Mint, utility items other than the Med-Pack, Recall Shard and Scan Flare.
-- **Slice re-tune.** With no Sentinels the average player loses about 670 Lumen, so **`trickle_per_min` is raised to 80** (+580) for the slice only. Check criteria 1–2 at the slice gate.
+  - Foundry pickup with Pickets, squad 3 → 5.
+  - Tiers via Surges.
+  - **All 4 commands** (quick keys and the radial wheel), the squad strip and the chevrons.
+  - Full BT: formation, body-block (highest-HP blocker), scoring, Attack, Go Capture TaskWorker, leash and stranding, death-hold.
+  - **Vanguard waves** (in the slice, because they carry 32% of income and keep bot lanes alive).
+  - The Core with Mote and Sparks.
+  - Vesper hooks: capacity, modifier, elite, `command_vanguard`. `subvert` only if his slice ult uses it.
+  - The full Resonance table and sources.
+  - All Lumen sources except Sentinels.
+  - Med-Pack, Squad Expansion I/II, Reinforced Cores I/II, Overclock Emitters.
+  - D, C, Shutdown and the capture cooldown.
+- **Out.** Variants (including the Surge II Vanguard Shieldling, which is replaced by a Picket), Sentinels, Barricade pathing, Harmonic Tether, Quick Mint, Bulwark, utility items other than the Med-Pack.
+- **Slice re-tune.** With no Sentinels the average player loses about 560 Lumen, so `trickle_per_min` is raised to **60** for the slice. The model gives about 8,990 Lumen and L14–15 at 30:00. Check criteria 1–2 at the slice gate.
 
 ---
 
 ## Canon Concerns
 
-These items are followed as written. Each row records a concern for the creative director.
+These items are followed as written. Each row is a note for the creative director.
 
 | Canon | Concern | What this doc does |
 | ---- | ---- | ---- |
-| C1 (rationale "~60 AI") vs. C5/C15 | 30 Garrison Sentinels plus up to 54 squad Wardlings (two Vespers at 7) gives **84** AI in the worst case, not about 60. | Budgets for 84 (§11) and asks that the C1 rationale be updated to "≤ 84 AI (typically 35–50)". |
-| C15 "base 3, upgradeable to 5 (Minionmancer +2 more)" | It is ambiguous whether Vesper's +2 is on top of the maximum of 5 (giving 7) or within it. | Reads it as base 5, maximum 7 (consistent with C17 "carries +2 Wardlings"). heroes.md should confirm. |
-| C4 "Wardlings contribute to Hold presence at 0.5" | Taken alone, this allows capture by Wardlings only (an AFK exploit) and lets a Vesper squad (3.5 presence) dominate zones. | Keeps 0.5 per Wardling but adds the **hero-required-to-advance** gate and a **3.0 per-team cap** (§8.5). This needs a Canon footnote or the match-flow doc to accept it. |
-| C14 "Lumen sources … small passive trickle" | At about 19% of income (1,740 of 9,120), the trickle is larger than "small" might suggest. It is needed to give weak players a floor without breaking the 9,000 target. | Keeps it at 60/min (tunable 40–90). Flagged for the owner. |
+| Pillar 3 design test ("more than two commands … cut it") vs. C15 (4 commands) | The pillar text predates the owner's decision, and the two now contradict each other. | Follows C15 (4 commands). Keeps the "one key" spirit through the context-sensitive `Z` plus `X`. Asks that the Pillar 3 test be updated to "more than four commands". |
+| Pillar 2 ("no point-and-click lock-on damage") vs. C15 Attack Target | Attack Target is a point-to-designate damage command. | Mitigates by making all Wardling fire slow, dodgeable projectiles at 30% of Soldier DPS, with LOS required and a 12 s timeout. Asks that Pillar 2 exempt AI-unit designation explicitly. |
+| C15 "upgradeable to 5 (Minionmancer +2 more)" vs. the "squads ≤ 50" budget | Two Vespers (one per team) at 7 gives 54 squad agents, which exceeds 50. | Budgets 108 in total (§14). Asks the owner either to accept "≤ 54 squad" or to count Vesper's +2 inside the 5 cap (base 5, max 5). |
+| C15 middle-ground strength vs. the match-flow / C7 Uplink target (~60 s) | Wardling raw DPS rises from about 14 to about 30, which shortens the reference Uplink time-to-kill to about 50 s. | Keeps C15's strength. Flags the issue for match-flow to retune the reference team or Integrity (C7 is tunable 20k–40k; about 35k restores 60 s). |
+| C4 presence 0.5, uncapped | Go Capture plus Vanguard plus Vesper can stack AI presence well beyond what heroes provide. | Follows C4. Recommends match-flow's cap knob default to 3.0 AI presence per team per zone. |
