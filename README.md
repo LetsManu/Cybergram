@@ -6,7 +6,7 @@ over a war-like front line, each player leading their own squad of minions
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
 > Status: **pre-alpha, playable.** Latest release:
-> [**v0.1.0**](https://github.com/LetsManu/Cybergram/releases/latest) for
+> [**v0.1.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.1.0) for
 > Windows and Linux. The offline vertical slice (M1) is a 3v3 match against
 > bots on a 1-lane map. Its balance target (most matches ending by Uplink
 > kill) is not met yet; see `production/qa/m1-soak-report.md`.
@@ -64,7 +64,7 @@ The roadmap is in [`production/milestones/roadmap.md`](production/milestones/roa
 ## Playing it
 
 **Download:** get the latest build from
-[**Releases**](https://github.com/LetsManu/Cybergram/releases/latest):
+[**Releases**](https://github.com/LetsManu/Cybergram/releases):
 
 | Platform | File | How to start |
 |---|---|---|
