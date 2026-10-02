@@ -5,10 +5,11 @@ over a war-like front line, each player leading their own squad of minions
 ("Wardlings"). The goal is to push into the enemy base and destroy their
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
-> Status: **pre-alpha, playable.** The offline vertical slice (M1) is
-> playable: a 3v3 match against bots on a 1-lane map. Its balance target
-> (most matches ending by Uplink kill) is not met yet; see
-> `production/qa/m1-soak-report.md`.
+> Status: **pre-alpha, playable.** Latest release:
+> [**v0.1.0**](https://github.com/LetsManu/Cybergram/releases/latest) for
+> Windows and Linux. The offline vertical slice (M1) is a 3v3 match against
+> bots on a 1-lane map. Its balance target (most matches ending by Uplink
+> kill) is not met yet; see `production/qa/m1-soak-report.md`.
 
 ## The game in short
 
@@ -31,35 +32,49 @@ over a war-like front line, each player leading their own squad of minions
 The owner's idea list is in [`ideas`](ideas). The full design is in
 [`design/`](design/).
 
-## What works today (M1 so far)
+## What works today (M1 vertical slice)
+
+All 15 M1 epics are built:
 
 | Epic | Feature |
 |---|---|
-| E1 | Godot project, test framework (gdUnit4), CI on GitHub Actions |
+| E1 | Godot project, test framework (gdUnit4), CI and release builds on GitHub Actions |
 | E2 | First-person controller: walk, sprint, jump, crouch |
 | E3 | Local authoritative game server (30 Hz) with client prediction; the same message path will carry online play |
 | E4 | Combat: hitscan, falloff, headshots, armor, death and respawn |
 | E5 | Mana guns (pool + Burnout) and Mechanical guns (magazine + reload) |
 | E6 | Slice map "Shardline Causeway" (1 lane, 5 hardpoints, both HQs) |
-| E7 | Hardpoint capture (Hold), lane front, objective strip |
+| E7 | Hardpoint tasks (Hold, Plant, Breach), lane front, objective strip |
 | E8 | Wardling squads with 4 commands, Vanguard waves |
+| E9 | Mana Uplink and match flow (phases, Sudden Death, time-out) |
+| E10 | Hero kits: Vesper Loom and Brannoc |
+| E11 | Hero bots for every empty slot |
+| E12 | Full HUD with accessibility toggles |
+| E13 | Spawn choice and Armory (Lumen, squad upgrades, Med-Pack, gun mounts) |
+| E14 | Integration, soak and playtest (balance target still open) |
+| E15 | Levels and a reduced skill tree |
 
-Still to come in M1:
-- Uplink and match flow
-- Hero skills
-- Hero bots
-- Full HUD
-- Shop and spawn choice
-- Levels and skill trees
-- Integration and soak testing
+Next up:
+- Balance pass so most matches end by Uplink kill
+- Close the map's collision holes
+- Real art and audio
 
 The roadmap is in [`production/milestones/roadmap.md`](production/milestones/roadmap.md).
 
 ## Playing it
 
-**Download:** open the latest successful **Build** run under the repo's
-*Actions* tab and download **Cybergram-Windows** (or **Cybergram-Linux**).
-Unzip it and run `Cybergram.exe`. No install is needed.
+**Download:** get the latest build from
+[**Releases**](https://github.com/LetsManu/Cybergram/releases/latest):
+
+| Platform | File | How to start |
+|---|---|---|
+| Windows 10/11 (x86_64) | `Cybergram-<version>-windows-x86_64.zip` | Unzip, run `Cybergram.exe` |
+| Linux (x86_64) | `Cybergram-<version>-linux-x86_64.tar.gz` | Extract, run `./Cybergram.x86_64` |
+
+No install is needed, but a Vulkan-capable GPU is. The Windows build isn't
+code-signed, so SmartScreen may warn: choose *More info → Run anyway*.
+Builds for every commit are also attached to each **Build** run under the
+*Actions* tab.
 
 The game starts straight into a **3v3 match on the slice map** with you as
 Vesper Loom and bots filling the other slots. Destroy the enemy Mana Uplink
@@ -89,6 +104,18 @@ godot --headless --path . -- --server --bots-only --seed 3   # all-bot match, pr
 Tests: `GODOT=/path/to/godot tools/ci/run_tests.sh` (gdUnit4) and
 `tools/ci/check_deps.sh`.
 
+## Making a release
+
+1. Set the version in `project.godot` (`config/version`) and in
+   `export_presets.cfg` (`file_version` / `product_version`).
+2. Write the player-facing notes in `production/releases/vX.Y.Z.md`.
+3. Push a tag `vX.Y.Z` to `main`, or run the **Build** workflow manually
+   with `release_version` set.
+
+The workflow exports both platforms, packages them with `SHA256SUMS.txt`
+and publishes the GitHub release. A tag with a `-` (e.g. `v0.2.0-beta`) is
+marked as a pre-release.
+
 ## Project layout
 
 | Path | What |
@@ -101,7 +128,7 @@ Tests: `GODOT=/path/to/godot tools/ci/run_tests.sh` (gdUnit4) and
 | `assets/data/` | All gameplay numbers as Godot Resources (`.tres`) |
 | `assets/maps/` | Maps (greybox) |
 | `tests/` | Unit and integration tests |
-| `production/` | Milestones and QA screenshot evidence |
+| `production/` | Milestones, release notes and QA screenshot evidence |
 | `.claude/` | [Claude Code Game Studios](https://github.com/donchitos/claude-code-game-studios) agent framework |
 
 ## How it's built

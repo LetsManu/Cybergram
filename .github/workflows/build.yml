@@ -1,10 +1,23 @@
 name: Build
 
 # Exports playable Windows and Linux builds as downloadable artifacts.
+# Publishing a release: push a tag `vX.Y.Z`, or run this workflow manually
+# with `release_version` set. The release body comes from
+# production/releases/<version>.md when that file exists.
 on:
   push:
     branches: [main, "claude/**"]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release tag to publish (e.g. v0.1.0). Empty = build only."
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark the release as a pre-release"
+        type: boolean
+        default: true
 
 env:
   GODOT_VERSION: 4.7-stable
@@ -71,3 +84,45 @@ jobs:
         with:
           name: Cybergram-Linux
           path: build/linux/
+
+  release:
+    needs: export
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_version != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.release_version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Package
+        run: |
+          cd dist
+          chmod +x Cybergram-Linux/Cybergram.x86_64
+          (cd Cybergram-Windows && zip -q -r "../Cybergram-$VERSION-windows-x86_64.zip" .)
+          tar -czf "Cybergram-$VERSION-linux-x86_64.tar.gz" -C Cybergram-Linux .
+          sha256sum Cybergram-*.zip Cybergram-*.tar.gz > SHA256SUMS.txt
+          ls -la
+
+      - name: Release notes
+        run: |
+          notes="production/releases/$VERSION.md"
+          if [[ -f "$notes" ]]; then cp "$notes" notes.md; else echo "Cybergram $VERSION" > notes.md; fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: Cybergram ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          body_path: notes.md
+          prerelease: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-') || inputs.prerelease }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/Cybergram-*.zip
+            dist/Cybergram-*.tar.gz
+            dist/SHA256SUMS.txt
