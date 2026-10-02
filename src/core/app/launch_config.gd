@@ -10,6 +10,11 @@ extends RefCounted
 ##   ... -- --hero brannoc                       -> play hero_brannoc.tres (also --hero=brannoc)
 ##   ... -- --autofire                           -> debug: the local client aims and fires at
 ##                                                  the nearest enemy (evidence captures)
+##   ... -- --map slice --spawn-wardlings 80     -> debug: 80 extra ownerless Wardlings (E8 perf)
+##   ... -- --map slice --wave-clock 30         -> debug: Vanguard cadence 30x faster
+##   ... -- --debug-camera vanguard             -> debug: overview camera on the Concord wave
+##   ... -- --debug-squad-demo                  -> debug: the local hero backs down the lane
+##                                                  facing its squad (E8 evidence)
 ##   ... -- --map slice --debug-capture s_mid    -> debug: spawn inside that hardpoint's zone,
 ##                                                  which starts mid-capture (E7 evidence)
 
@@ -26,6 +31,11 @@ var autofire: bool = false
 ## Debug: hardpoint id to start in, mid-capture ("" = off).
 var debug_capture: String = ""
 var debug_capture_progress: float = 0.45
+## E8 debug: extra Wardlings to spawn, Vanguard clock scale, camera mode, demo input.
+var spawn_wardlings: int = 0
+var wave_clock: float = 1.0
+var debug_camera: String = ""
+var debug_squad_demo: bool = false
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -43,6 +53,20 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.net_sim_name = args[i].validate_filename()
 			"--autofire":
 				c.autofire = true
+			"--spawn-wardlings":
+				if i + 1 < args.size():
+					i += 1
+					c.spawn_wardlings = clampi(args[i].to_int(), 0, 512)
+			"--wave-clock":
+				if i + 1 < args.size():
+					i += 1
+					c.wave_clock = clampf(args[i].to_float(), 0.01, 1000.0)
+			"--debug-camera":
+				if i + 1 < args.size():
+					i += 1
+					c.debug_camera = args[i].validate_filename()
+			"--debug-squad-demo":
+				c.debug_squad_demo = true
 			"--debug-capture":
 				if i + 1 < args.size():
 					i += 1

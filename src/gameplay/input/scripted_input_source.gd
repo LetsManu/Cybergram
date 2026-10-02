@@ -31,4 +31,5 @@ func sample(seq: int, out: InputCommand) -> void:
 		out.buttons |= InputCommand.BTN_CROUCH
 	if def.fire_period_ticks > 0 and seq % def.fire_period_ticks < def.fire_hold_ticks:
 		out.buttons |= InputCommand.BTN_FIRE
+	out.squad_cmd = InputCommand.SQUAD_NONE
 	out.quantize()

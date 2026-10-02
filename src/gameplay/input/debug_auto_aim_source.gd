@@ -21,6 +21,7 @@ func sample(seq: int, out: InputCommand) -> void:
 	out.seq = seq
 	out.move = Vector2.ZERO
 	out.buttons = 0
+	out.squad_cmd = InputCommand.SQUAD_NONE
 	var body := client.body
 	if body != null:
 		var eye := body.state.position + Vector3(0.0, body.eye_height(), 0.0)

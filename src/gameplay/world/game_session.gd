@@ -17,6 +17,9 @@ const DEFAULT_DUMMY_HEROES: Array[String] = [
 	"res://assets/data/heroes/hero_vesper_loom.tres",
 ]
 const DEFAULT_MATCH_RULES := "res://assets/data/match/match_rules_slice.tres"
+## E8 Wardling data (squads + Vanguard on maps with HQs).
+const WARDLING_RULES := "res://assets/data/wardlings/wardling_rules_slice.tres"
+const WARDLING_PICKET := "res://assets/data/wardlings/wardling_picket.tres"
 const SERVER_PEER: int = 1
 const LOCAL_CLIENT_PEER: int = 2
 
@@ -85,6 +88,12 @@ func _ready() -> void:
 	server.setup(net_config, movement, map_scene, link.create_endpoint(SERVER_PEER), player_hero, match_rules)
 	server.setup_objectives(map_def)
 	_apply_debug_capture()
+	var wardling_rules := load(WARDLING_RULES) as WardlingRulesDef
+	if server.enable_wardlings(map_def, wardling_rules, load(WARDLING_PICKET) as WardlingDef) != null \
+			and launch_config != null:
+		server.wardlings.clock_scale = launch_config.wave_clock
+		if launch_config.spawn_wardlings > 0:
+			server.wardlings.debug_spawn(launch_config.spawn_wardlings)
 	for i in dummy_inputs.size():
 		server.add_scripted_hero(ScriptedInputSource.new(dummy_inputs[i]), server.spawn_point("DummySpawn%d" % (i + 1)),
 			dummy_heroes[i % dummy_heroes.size()] as HeroDef)
@@ -94,6 +103,8 @@ func _ready() -> void:
 		var source: Object
 		if launch_config != null and launch_config.autofire:
 			source = DebugAutoAimSource.new(client)
+		elif launch_config != null and launch_config.debug_squad_demo:
+			source = DebugSquadDemoSource.new(client)
 		else:
 			var input := PlayerInputSource.new()
 			input.setup(look, movement)
@@ -102,6 +113,10 @@ func _ready() -> void:
 		client.setup(net_config, movement, look, map_scene, link.create_endpoint(LOCAL_CLIENT_PEER), source,
 			player_hero)
 		client.setup_objectives(map_def)
+		if wardling_rules != null:
+			client.wardlings.rules = wardling_rules
+		if launch_config != null:
+			client.wardlings.debug_camera = launch_config.debug_camera
 
 
 ## --debug-capture <hardpoint id>: the local player spawns inside that zone and
@@ -136,6 +151,11 @@ func step_tick() -> void:
 	server.step()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:
 		print("[server] tick=%d entities=%d" % [server.tick, server.registry.count()])
+		if server.wardlings != null and server.wardlings.steps > 0:
+			var w := server.wardlings
+			print("[server] wardlings=%d step avg %.3f ms (last %.3f) | AI think avg %.3f ms (last %.3f) | paths %d" % [
+				w.wardlings.size(), w.step_usec_total / 1000.0 / w.steps, w.last_step_usec / 1000.0,
+				w.think_usec_total / 1000.0 / w.steps, w.last_think_usec / 1000.0, w.path_queries])
 	if _quit_after_ticks > 0 and server.tick >= _quit_after_ticks:
 		print("[server] quit after %d ticks, entities=%d" % [server.tick, server.registry.count()])
 		get_tree().quit()

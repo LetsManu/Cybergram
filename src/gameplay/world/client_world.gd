@@ -37,6 +37,9 @@ var fronts: PackedInt32Array = PackedInt32Array()
 var _hp_defs: Array[HardpointDef] = []
 var _hp_views: Array[HardpointView] = []
 
+## E8: Wardling views, bolt tracers, own squad strip and squad-order resolution.
+var wardlings: WardlingPresenter
+
 var _views: Dictionary = {}  # net id -> HeroView
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
@@ -57,6 +60,9 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	session = ClientSession.new(transport, net)
 	session.snapshot_received.connect(_on_snapshot)
 	session.event_received.connect(_on_event)
+	wardlings = WardlingPresenter.new()
+	wardlings.client = self
+	add_child(wardlings)
 	session.connect_to_server()
 
 
@@ -103,9 +109,16 @@ func tick() -> void:
 	client_seq += 1
 	_prev_pos = body.state.position
 	input_source.sample(client_seq, _cmd)
+	if player_input != null and player_input.wheel_capture:
+		player_input.wheel_capture = false  # radial: targets fixed when the wheel opens
+		wardlings.wheel_targets = wardlings.crosshair_targets(_cmd.yaw, _cmd.pitch)
 	if is_dead():
 		_cmd.move = Vector2.ZERO  # mirrors ServerWorld._step_hero for the dead
 		_cmd.buttons = 0
+		_cmd.squad_cmd = InputCommand.SQUAD_NONE
+	if _cmd.squad_cmd != InputCommand.SQUAD_NONE:
+		wardlings.resolve(_cmd)
+		_cmd.quantize()
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -119,6 +132,7 @@ func render(delta: float) -> void:
 		var buf: InterpolationBuffer = _buffers[id]
 		if buf.sample(render_tick):
 			_views[id].apply(buf.position, buf.yaw, buf.crouching)
+	wardlings.render(render_tick, delta)
 	if body == null:
 		return
 	if net.error_smoothing_s > 0.0:
@@ -130,6 +144,7 @@ func render(delta: float) -> void:
 	var yaw := player_input.live_yaw if player_input != null else _cmd.yaw
 	var pitch := player_input.live_pitch if player_input != null else _cmd.pitch
 	rig.follow(feet, body.eye_height(), yaw, pitch)
+	wardlings.apply_debug_camera()
 
 
 func is_dead() -> bool:
@@ -168,6 +183,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 		else:
 			_visual_offset += predictor.reconcile(s.own_state, s.last_processed_seq)
 	_apply_objectives(s)
+	wardlings.apply_snapshot(s)
 	var seen := {}
 	for e in s.entities:
 		if e.net_id == s.own_net_id:

@@ -85,6 +85,7 @@ func _init(world: ServerWorld, map: MapDef, rules_: WardlingRulesDef, picket_: W
 	server.hero_died.connect(_on_hero_died)
 	server.hero_respawned.connect(_on_hero_respawned)
 	server.hero_damaged.connect(_on_hero_damaged)
+	server.tree_exiting.connect(_free_agents)
 
 
 func tick() -> int:
@@ -502,6 +503,13 @@ func _despawn(w: WardlingSim, killer_id: int) -> void:
 	server.registry.release(w.net_id, server.tick)
 	wardling_removed.emit(w, killer_id)
 	w.queue_free()
+
+
+func _free_agents() -> void:
+	for w in wardlings:
+		if w.agent.is_valid():
+			NavigationServer3D.free_rid(w.agent)
+			w.agent = RID()
 
 
 func _despawn_dead() -> void:

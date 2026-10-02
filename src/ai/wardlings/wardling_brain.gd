@@ -244,7 +244,7 @@ func _engage(tick: int, focused: bool) -> void:
 func _fire_at(tick: int, focused: bool, report: bool) -> bool:
 	var from := body.chest()
 	var to := WardlingWorld.chest_of(_target)
-	var clear := body.fire_clear and body.attack_target_id == _target.get("net_id")
+	var clear: bool = body.fire_clear and body.attack_target_id == int(_target.get("net_id"))
 	if from.distance_to(to) <= body.def.range_m + 2.0:
 		var r: int = los_probe.call(from, to) if los_probe.is_valid() else (1 if world.has_los(from, to) else 0)
 		if r >= 0:

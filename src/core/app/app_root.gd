@@ -13,6 +13,10 @@ func _ready() -> void:
 	var session := cfg.session_scene.instantiate()
 	session.set("launch_config", launch)
 	add_child(session)
+	for scene in cfg.sim_plugin_scenes:
+		var plugin := scene.instantiate()
+		plugin.set("session", session)
+		add_child(plugin)
 	if launch.mode == LaunchConfig.Mode.DEDICATED:
 		return
 	for scene in cfg.overlay_scenes:

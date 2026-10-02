@@ -74,10 +74,13 @@ func has(button: int) -> bool:
 
 ## Snaps every field to wire precision (idempotent).
 func quantize() -> void:
+	var smart := squad_cmd == SQUAD_SMART  # client-local; survives until resolved
 	var buf := PackedByteArray()
 	buf.resize(WIRE_SIZE)
 	write_to(buf, 0)
 	read_from(buf, 0, self)
+	if smart:
+		squad_cmd = SQUAD_SMART
 
 
 func copy_from(other: InputCommand) -> void:

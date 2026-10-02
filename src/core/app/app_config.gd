@@ -7,3 +7,6 @@ extends Resource
 @export var session_scene: PackedScene
 ## Debug overlays added in non-headless runs (each receives `session`).
 @export var overlay_scenes: Array[PackedScene] = []
+## Simulation plugins added in EVERY mode, dedicated included (each receives
+## `session`), e.g. the Wardling AI installer (src/ai), so gameplay never names AI.
+@export var sim_plugin_scenes: Array[PackedScene] = []
