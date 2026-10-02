@@ -283,7 +283,7 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 		var keep := _preferred_range(c)
 		var d := bb.target_dist
 		var toward := Vector3(sensor.target.global_position.x - pos.x, 0.0, sensor.target.global_position.z - pos.z).normalized()
-		if d > keep * 1.2:
+		if d > keep * 1.2 and not _in_objective_zone(pos):
 			nav.set_goal(dest, pos, tick)
 			wish = _nav_dir(pos, dest)
 		elif d < keep * 0.6:
@@ -361,6 +361,16 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 		out.squad_target = _squad_target
 		_squad_cmd = InputCommand.SQUAD_NONE
 		squad_orders += 1
+
+
+## Inside the zone of the hardpoint being worked (defend, else the front): a
+## fighting bot holds its presence there instead of chasing out of the zone.
+func _in_objective_zone(pos: Vector3) -> bool:
+	if bb.defend_index >= 0:
+		return BotBlackboard.flat_dist(pos, bb.defend_pos) < bb.defend_radius * 0.9
+	if bb.front_index >= 0 and not bb.front_is_own:
+		return BotBlackboard.flat_dist(pos, bb.front_pos) < bb.front_radius * 0.9
+	return false
 
 
 func _skill_aim_ok(skill: BotSkillRules.SkillUse, eye: Vector3) -> bool:

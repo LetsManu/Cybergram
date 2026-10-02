@@ -45,7 +45,7 @@ func _check(_hero_id: int, cmd: InputCommand) -> void:
 
 
 func test_ten_bots_flip_a_hardpoint_and_score_kills() -> void:
-	var b := _build(10.0, 11)
+	var b := _build(1.0, 11)  # real cadence (a 10x clock floods the Mid with Vanguard waves)
 	var server: ServerWorld = b[0]
 	var director: BotDirector = b[1]
 	assert_bool(await WardlingFixtures.await_nav(get_tree(), server)).is_true()
@@ -60,7 +60,7 @@ func test_ten_bots_flip_a_hardpoint_and_score_kills() -> void:
 	server.objectives.hardpoint_flipped.connect(func(h: HardpointSim, _o: int, n: int) -> void: flips.append([h.def.id, n]))
 	var kills := [0]
 	server.hero_died.connect(func(_v: int, _k: int) -> void: kills[0] += 1)
-	var cap := 300 * HZ
+	var cap := 600 * HZ  # 10:00 of match time; slice matches flip the Mid around 2:00-4:30
 	while server.tick < cap and (flips.is_empty() or kills[0] == 0):
 		server.step()
 	var s := director.meter.summary()

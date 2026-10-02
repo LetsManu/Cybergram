@@ -68,6 +68,12 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 	return b
 
 
+## Registers a brain that drives a hero added elsewhere (debug --bot-player).
+func adopt(b: BotBrain) -> void:
+	brains.append(b)
+	_by_hero[b.hero_id] = b
+
+
 func brain_of(hero_id: int) -> BotBrain:
 	return _by_hero.get(hero_id)
 

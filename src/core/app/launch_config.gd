@@ -29,6 +29,7 @@ extends RefCounted
 ##   godot --headless --fixed-fps 30 --path . -- --server --bots-only --seed 3 [--match-clock 4]
 ##                                                -> E11: 10 bots play to End, JSON summary, quit
 ##   ... -- --bot-difficulty easy|normal|hard    -> E11: bot profile (default normal)
+##   ... -- --bots --bot-player                  -> E11 debug: a bot also plays the local hero
 ##   ... -- --debug-skill-demo                   -> debug: the local hero casts its skills on a
 ##                                                  schedule (E10 evidence)
 ##   ... -- --map slice --debug-level 7          -> debug: the local hero starts at level 7 with
@@ -71,6 +72,8 @@ var bots: bool = false
 var bots_only: bool = false
 var match_seed: int = 1
 var bot_difficulty: String = ""
+## E11 debug (evidence captures): a bot drives the local player's hero too.
+var bot_player: bool = false
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -110,6 +113,8 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if i + 1 < args.size():
 					i += 1
 					c.match_seed = args[i].to_int()
+			"--bot-player":
+				c.bot_player = true
 			"--bot-difficulty":
 				if i + 1 < args.size():
 					i += 1
