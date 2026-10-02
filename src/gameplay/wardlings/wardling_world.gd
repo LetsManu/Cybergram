@@ -147,6 +147,8 @@ func live_entity(net_id: int) -> Node3D:
 	if n is UplinkSim:  # E9: targetable while Exposed (Squad Attack, bolts)
 		var u := n as UplinkSim
 		return u if u.exposed and not u.is_destroyed() else null
+	if n is GeneratorTarget:  # E14: a standing Ward Generator (Breach phase 1)
+		return n if (n as GeneratorTarget).is_up() else null
 	return null
 
 
@@ -157,6 +159,8 @@ static func team_of(n: Node3D) -> int:
 		return (n as WardlingSim).team
 	if n is UplinkSim:
 		return (n as UplinkSim).team
+	if n is GeneratorTarget:
+		return (n as GeneratorTarget).team
 	return -1
 
 
@@ -173,6 +177,8 @@ func chest_of(n: Node3D) -> Vector3:
 		return (n as WardlingSim).chest()
 	if n is UplinkSim:
 		return (n as UplinkSim).aim_point()
+	if n is GeneratorTarget:
+		return (n as GeneratorTarget).aim_point()
 	return n.global_position
 
 
@@ -192,6 +198,10 @@ func enemies_near(pos: Vector3, radius: float, team: int) -> Array[Node3D]:
 				var p := feet_of(n)
 				if (p.x - pos.x) * (p.x - pos.x) + (p.z - pos.z) * (p.z - pos.z) <= r2 and live_entity(n.get("net_id")) != null:
 					out.append(n)
+	for g in server.generators:  # E14: Generators this team may damage (Breach phase 1)
+		var gp := g.global_position
+		if g.attackable_by(team) and (gp.x - pos.x) * (gp.x - pos.x) + (gp.z - pos.z) * (gp.z - pos.z) <= r2:
+			out.append(g)
 	return out
 
 
@@ -235,7 +245,7 @@ func hardpoint_owner(lane: int, index: int) -> int:
 ## progress, so step 1 never fires).
 func front_index(team: int, lane: int) -> int:
 	if server.objectives != null:
-		return server.objectives.front.front_for(team, lane)
+		return server.objectives.front.front_for(team, lane, true)  # waves: Plant needs an allied Cell
 	var hps := map_def.lanes[lane].hardpoints
 	var order := range(hps.size())
 	if team == MapDef.TEAM_SYNDICATE:
@@ -713,6 +723,10 @@ func _candidates(pos: Vector3, team: int) -> Array:
 			if u.team != team and not u.is_destroyed() \
 					and Vector2(u.base.x - pos.x, u.base.z - pos.z).length() <= reach + u.hit_radius:
 				out.append(u.bolt_capsule())
+	for g in server.generators:  # E14: Ward Generators near the bolt
+		if g.is_up() and g.team != team \
+				and Vector2(g.global_position.x - pos.x, g.global_position.z - pos.z).length() <= rules.spatial_cell_m * 1.5 + g.hit_radius:
+			out.append(g.bolt_capsule())
 	return out
 
 
@@ -724,6 +738,9 @@ func _on_bolt_hit(target: Object, b: ProjectileSystem.Bolt) -> void:
 		damage_wardling(target as WardlingSim, info)
 	elif target is UplinkSim:
 		server.damage_uplink(target as UplinkSim, b.damage, true)  # C7: Wardlings deal 50%
+	elif target is GeneratorTarget:  # E14: 50%, and only from inside the zone (shield)
+		var src := server.registry.get_node_by_id(b.source_id) as Node3D
+		server.damage_generator(target as GeneratorTarget, b.damage, b.team, src.global_position if src != null else b.pos, true)
 
 
 func _on_hero_died(victim_id: int, _killer_id: int) -> void:

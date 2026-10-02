@@ -7,6 +7,8 @@ extends RefCounted
 ##   3. HardpointSim.step() in lane / index order (flips resolve first, then
 ##      eligibility is re-evaluated next tick: a same-tick flip stands, §6);
 ##   4. ObjectiveEvents (flip / defence) for this tick in `events`.
+## Plant and Breach (E14) read TaskActors (heroes: interact, channel, mobility)
+## and Generator hits arriving through damage_generator() between steps.
 
 signal hardpoint_flipped(hp: HardpointSim, old_team: int, new_team: int)
 
@@ -25,7 +27,11 @@ var front: LaneFrontResolver
 ## Events produced by the last step() (cleared at the start of each step).
 var events: Array[ObjectiveEvent] = []
 
+## Plant: hero net id -> HardpointSim whose Cell it carries (one Cell per hero).
+var carriers: Dictionary = {}
+
 var _time_s: float = 0.0
+var _actors: Dictionary = {}
 
 
 func _init(map: MapDef, match_rules: MatchRulesDef) -> void:
@@ -97,22 +103,51 @@ func zone_at(pos: Vector3) -> HardpointSim:
 
 
 ## One server tick. `sources`: heroes and registered Wardlings (PresenceSource
-## or duck-typed objects, see PresenceSource).
-func step(dt: float, sources: Array, tick: int = 0) -> void:
+## or duck-typed objects, see PresenceSource). `actors`: TaskActors (heroes) for
+## Plant; empty = nobody interacts.
+func step(dt: float, sources: Array, tick: int = 0, actors: Array = []) -> void:
 	events.clear()
 	_time_s += dt
 	_refresh_eligibility()
 	_count_presence(sources)
+	_actors.clear()
+	for a in actors:
+		_actors[(a as TaskActor).net_id] = a
 	for h in all:
 		var old_owner := h.owner
-		var r := h.step(dt, duration_scale, rules)
+		var r := h.step(dt, duration_scale, rules, _actors, carriers)
 		if r == HardpointSim.StepResult.FLIPPED:
 			events.append(_flip_event(h, tick, old_owner))
 		elif r == HardpointSim.StepResult.DEFENDED:
 			events.append(_defence_event(h, tick))
+	for id in carriers.keys():
+		if (carriers[id] as HardpointSim).carrier_id != id:
+			carriers.erase(id)
 	for ev in events:
 		if ev.kind == ObjectiveEvent.Kind.FLIP:
 			hardpoint_flipped.emit(find(ev.hardpoint_id), ev.old_team, ev.new_team)
+
+
+## Plant: the hardpoint whose Cell hero `net_id` carries, or null.
+func carried_by(net_id: int) -> HardpointSim:
+	return carriers.get(net_id)
+
+
+## Move speed multiplier for hero `net_id` (§3.4 Plant 2: a carrier moves at 90%).
+func move_speed_mult(net_id: int) -> float:
+	return rules.cell_carrier_speed_mult if carriers.has(net_id) else 1.0
+
+
+## Breach: routes a hit on hardpoint `h`'s Generator (see HardpointSim.damage_generator).
+func damage_generator(h: HardpointSim, amount: float, team: int, source_pos: Vector3) -> float:
+	return h.damage_generator(amount, team, source_pos) if h != null else 0.0
+
+
+## Debug / tests / evidence: sets a Plant node's Cell state (HardpointSim.debug_set_cell).
+func debug_set_cell(id: StringName, state: HardpointSim.CellState, team: int, hero_id: int = 0) -> void:
+	var h := find(id)
+	if h != null and h.task == HardpointDef.TaskKind.PLANT:
+		h.debug_set_cell(state, team, carriers, hero_id)
 
 
 ## Debug / evidence: sets a hardpoint mid-capture by `team`.
@@ -168,6 +203,9 @@ func _flip_event(h: HardpointSim, tick: int, old_owner: int) -> ObjectiveEvent:
 	ev.new_team = h.owner
 	ev.old_team = old_owner
 	ev.participants = _recent(h, h.owner, rules.participant_window_s)
+	if h.planter_id != 0 and not ev.participants.has(h.planter_id):
+		ev.participants.append(h.planter_id)  # §16.1: planting the Cell counts
+	h.planter_id = 0
 	ev.lumen_each = rules.lumen_capture_participant
 	ev.lumen_team = rules.lumen_capture_team
 	ev.exp_each = rules.exp_capture_placeholder

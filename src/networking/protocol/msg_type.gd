@@ -3,7 +3,7 @@ extends RefCounted
 ## Message type ids (first byte of every packet) and the protocol version
 ## (architecture.md §8.2). Bump PROTOCOL_VERSION on any layout change.
 
-const PROTOCOL_VERSION: int = 6  # v6: E13/E15 input actions, progress block
+const PROTOCOL_VERSION: int = 7  # v7: E14 Plant/Breach task state in the hardpoint block (v6: E13/E15)
 
 const HELLO: int = 1        ## C->S ch0: u16 protocol_version
 const WELCOME: int = 2      ## S->C ch0: u16 own net id, u32 server tick, u16 tick rate

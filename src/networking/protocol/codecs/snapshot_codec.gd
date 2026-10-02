@@ -23,7 +23,10 @@ extends RefCounted
 ##   fx (20 B: u16 id, u8 kind, u8 team, pos i16x3, pos2 i16x3 (1/32 m), u8 yaw,
 ##   u8 param (1/255), u16 ticks left).
 ## Hardpoint: i8 owner, i8 capturing team, u8 flags (contested, overtime, severed,
-##   locked0, locked1), u16 progress (P x 65535).
+##   locked0, locked1), u16 progress (P x 65535); E14 tasks: u8 task, u8 task flags
+##   (bit 0 Breach phase 2, bit 1 shielded), u8 Generator HP (1/255), u8 cell state,
+##   i8 cell team, i16x3 cell position (1/32 m), u16 carrier net id, u8 channel,
+##   u8 channel done (1/255).
 ## Progress (E13/E15, after the objectives): u8 present; if 1: u8 level, u32 exp,
 ##   u8 skill points, u32 lumen, u8 medpacks, u8 flags, u32 owned bits, 3 x mount
 ##   (i8 item, u8 tier, u16 paid, u16 paid this visit), u8 mote count, count x i16x3.
@@ -41,7 +44,7 @@ const _F_GROUNDED: int = 1
 const _F_CROUCH: int = 2
 const _F_JUMP_HELD: int = 4
 const _F_DEAD: int = 8
-const _HARDPOINT: int = 5
+const _HARDPOINT: int = 5 + 15
 const _WARDLING: int = 14
 const _BOLT: int = 12
 const _POS_STEPS: float = 32.0
@@ -250,6 +253,15 @@ static func _encode_objectives(b: PackedByteArray, off: int, s: SnapshotData) ->
 			| (_HF_SEVERED if h.severed else 0) | (_HF_LOCKED0 if h.locked[0] else 0) | (_HF_LOCKED1 if h.locked[1] else 0)
 		b.encode_u8(off + 2, f)
 		b.encode_u16(off + 3, roundi(clampf(h.progress, 0.0, 1.0) * 65535.0))
+		b.encode_u8(off + 5, h.task & 0xFF)
+		b.encode_u8(off + 6, (1 if h.breach_phase2 else 0) | (2 if h.shielded else 0))
+		b.encode_u8(off + 7, roundi(clampf(h.gen_frac, 0.0, 1.0) * 255.0))
+		b.encode_u8(off + 8, h.cell_state & 0xFF)
+		b.encode_s8(off + 9, clampi(h.cell_team, -1, 1))
+		_put_q3(b, off + 10, h.cell_pos)
+		b.encode_u16(off + 16, h.carrier_id & 0xFFFF)
+		b.encode_u8(off + 18, h.channel & 0xFF)
+		b.encode_u8(off + 19, roundi(clampf(h.channel_frac, 0.0, 1.0) * 255.0))
 		off += _HARDPOINT
 	b.encode_u8(off, s.fronts.size())
 	off += 1
@@ -391,6 +403,17 @@ static func _decode_objectives(b: PackedByteArray, off: int, s: SnapshotData) ->
 		h.severed = (f & _HF_SEVERED) != 0
 		h.locked = [(f & _HF_LOCKED0) != 0, (f & _HF_LOCKED1) != 0]
 		h.progress = b.decode_u16(off + 3) / 65535.0
+		h.task = b.decode_u8(off + 5)
+		var tf := b.decode_u8(off + 6)
+		h.breach_phase2 = (tf & 1) != 0
+		h.shielded = (tf & 2) != 0
+		h.gen_frac = b.decode_u8(off + 7) / 255.0
+		h.cell_state = b.decode_u8(off + 8)
+		h.cell_team = b.decode_s8(off + 9)
+		h.cell_pos = _get_q3(b, off + 10)
+		h.carrier_id = b.decode_u16(off + 16)
+		h.channel = b.decode_u8(off + 18)
+		h.channel_frac = b.decode_u8(off + 19) / 255.0
 		s.hardpoints.append(h)
 		off += _HARDPOINT
 	var nf := b.decode_u8(off)

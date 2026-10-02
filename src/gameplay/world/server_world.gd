@@ -42,6 +42,10 @@ var _presence_sources: Array = []
 ## E7 hardpoints (null on maps without a MapDef).
 var objectives: ObjectiveSystem
 var _hero_presence: Dictionary = {}  # hero net id -> PresenceSource
+## E14 Breach: one targetable body per Ward Generator (Breach hardpoints).
+var generators: Array[GeneratorTarget] = []
+## E14 Plant: hero net id -> TaskActor, refreshed every tick (interact held, CC, dash).
+var _task_actors: Dictionary = {}
 ## Debug (--debug-capture): where joining clients spawn instead of PlayerSpawn.
 var debug_player_spawn: Variant = null
 ## E8 Wardlings (squads, Vanguard, bolts); null on maps without a MapDef.
@@ -75,6 +79,31 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 func setup_objectives(map_def: MapDef) -> void:
 	if map_def != null and not map_def.lanes.is_empty():
 		objectives = ObjectiveSystem.new(map_def, rules)
+		for h in objectives.all:
+			if h.task == HardpointDef.TaskKind.BREACH:
+				var g := GeneratorTarget.new()
+				g.setup(h, rules)
+				add_child(g)
+				g.net_id = registry.register(g, GeneratorTarget.KIND_GENERATOR, tick)
+				generators.append(g)
+
+
+## E14: the Generator body of Breach hardpoint `h`, or null.
+func generator_of(h: HardpointSim) -> GeneratorTarget:
+	for g in generators:
+		if g.hp_sim == h:
+			return g
+	return null
+
+
+## E14 Breach: a hit on a Generator from `team`, fired from `source_pos`
+## (Wardling bolts are scaled by generator_wardling_damage_scale). Counts only
+## while the match is live. Returns the HP removed.
+func damage_generator(g: GeneratorTarget, amount: float, team: int, source_pos: Vector3, from_wardling: bool) -> float:
+	if objectives == null or g == null or (match_flow != null and not match_flow.is_live()):
+		return 0.0
+	var a := amount * (rules.generator_wardling_damage_scale if from_wardling else 1.0)
+	return objectives.damage_generator(g.hp_sim, a, team, source_pos)
 
 
 ## E9: match state machine and one UplinkSim per HQ (call after
@@ -213,10 +242,26 @@ func step() -> void:
 	tick += 1
 
 
+## E14 Plant: what this hero does for the tasks this tick (interact, CC, dash).
+func _note_actor(h: HeroBody, cmd: InputCommand) -> void:
+	var a: TaskActor = _task_actors.get(h.net_id)
+	if a == null:
+		a = TaskActor.new()
+		a.net_id = h.net_id
+		_task_actors[h.net_id] = a
+	var c := h.combat
+	a.team = c.team
+	a.alive = not c.dead
+	a.interact = not c.dead and cmd.has(InputCommand.BTN_INTERACT)
+	a.can_channel = not (c.status.is_stunned() or c.status.is_immobile())
+	a.mobility = c.abilities.is_dashing()
+
+
 ## Stage 9 (architecture.md §8.3): hardpoint presence, tasks and ownership.
 func _step_objectives() -> void:
 	if objectives == null:
 		return
+	var actors: Array = []
 	var sources: Array = []
 	for id in registry.ids():
 		var h := registry.get_node_by_id(id) as HeroBody
@@ -229,8 +274,13 @@ func _step_objectives() -> void:
 			src.net_id = id
 			_hero_presence[id] = src
 		sources.append(src)
+		var a: TaskActor = _task_actors.get(id)
+		if a != null:
+			a.position = h.state.position
+			a.alive = not h.combat.dead
+			actors.append(a)
 	sources.append_array(_presence_sources)
-	objectives.step(dt, sources, tick)
+	objectives.step(dt, sources, tick, actors)
 	for ev in objectives.events:
 		objective_event.emit(ev)
 
@@ -287,6 +337,9 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		cmd.move = Vector2.ZERO
 		cmd.buttons = 0
 	abilities.pre_move(h)  # E10: stat/status expiry, move-speed scale
+	if objectives != null:
+		h.state.speed_scale *= objectives.move_speed_mult(h.net_id)  # E14: Cell carrier 90%
+		_note_actor(h, cmd)
 	h.step(cmd, dt)
 	abilities.post_move(h, cmd)  # E10: charge contact, skill casts
 	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
@@ -314,6 +367,8 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var per_wardling := {}  # WardlingSim -> [raw damage, first point]
 	var per_uplink := {}  # E9: UplinkSim -> [raw damage, first point]
 	var uplinks := _enemy_uplinks(c.team)
+	var gens := _enemy_generators(c.team)  # E14 Breach
+	var per_gen := {}  # GeneratorTarget -> [raw damage, first point]
 	var dealt := c.stats.get_value(StatCatalog.DAMAGE_DEALT)  # E10
 	var wm := c.weapon_damage_mult()  # E15 level L + E13 mod M_dmg
 	var ammo := c.ammo_type  # E13 Chamber
@@ -329,6 +384,8 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT)
 				continue
 		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, wm):
+			continue
+		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, w.def, wm):
 			continue
 		if hit.target == null:
 			if clip[1] != null and _tracer.last_limit >= clip[0] - 1e-3:
@@ -363,6 +420,11 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		var wapplied := wardlings.damage_wardling(wd, DamageInfo.make(wrec[0] * dealt, h.net_id, c.team))
 		var wflags: int = GameEvent.FLAG_KILL if wd.dead else 0
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(wd.net_id, h.net_id, wapplied, wflags, wrec[1]))
+	for g in per_gen:
+		var grec: Array = per_gen[g]
+		var gapplied := damage_generator(g, grec[0], c.team, h.state.position, false)
+		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(g.net_id, h.net_id, gapplied,
+			0 if gapplied > 0.0 else GameEvent.FLAG_IMMUNE, grec[1]))
 	for u in per_uplink:
 		var urec: Array = per_uplink[u]
 		var uapplied := damage_uplink(u, urec[0], false)
@@ -381,6 +443,30 @@ func _pellet_hits_uplink(uplinks: Array[UplinkSim], origin: Vector3, dir: Vector
 			if not acc.has(u):
 				acc[u] = [0.0, origin + dir * t]
 			acc[u][0] += DamageMath.hit_damage(wdef, t, false) * mult  # no ammo effects (C7)
+			return true
+	return false
+
+
+## E14: enemy Generators standing (phase 1) that a pellet from `team` can hit.
+func _enemy_generators(team: int) -> Array[GeneratorTarget]:
+	var out: Array[GeneratorTarget] = []
+	if match_flow == null or match_flow.is_live():
+		for g in generators:
+			if g.is_up() and g.team != team:
+				out.append(g)
+	return out
+
+
+## E14: like _pellet_hits_uplink, for Ward Generators (weapon damage, no ammo effects).
+func _pellet_hits_generator(gens: Array[GeneratorTarget], origin: Vector3, dir: Vector3, hit: HitscanTracer.Hit,
+		acc: Dictionary, wdef: WeaponDef, mult: float) -> bool:
+	var limit := hit.distance if hit.target != null else _tracer.last_limit + 0.5
+	for g in gens:
+		var t := g.ray_hit(origin, dir)
+		if t >= 0.0 and t <= limit:
+			if not acc.has(g):
+				acc[g] = [0.0, origin + dir * t]
+			acc[g][0] += DamageMath.hit_damage(wdef, t, false) * mult
 			return true
 	return false
 
@@ -549,6 +635,28 @@ func _fill_objectives(s: SnapshotData) -> void:
 		st.overtime = h.overtime_left > 0.0
 		st.severed = h.severed
 		st.locked = [h.locked_for(0), h.locked_for(1)]
+		st.task = h.task  # E14 Plant / Breach
+		if h.task == HardpointDef.TaskKind.BREACH:
+			st.breach_phase2 = h.breach_phase == 2
+			st.gen_frac = h.gen_frac if h.breach_phase == 1 else 0.0
+			st.shielded = h.gen_shielded and h.breach_phase == 1
+		elif h.task == HardpointDef.TaskKind.PLANT:
+			st.cell_state = h.cell_state
+			st.cell_team = h.cell_team
+			st.cell_pos = h.cell_pos
+			st.carrier_id = h.carrier_id
+			st.channel = h.channel
+			var need := 0.0
+			match h.channel:
+				HardpointSim.Channel.PICKUP:
+					need = rules.cell_pickup_s
+				HardpointSim.Channel.PLANT:
+					need = rules.plant_channel_s
+				HardpointSim.Channel.DEFUSE:
+					need = rules.defuse_channel_s
+				HardpointSim.Channel.DISPERSE:
+					need = rules.cell_disperse_s
+			st.channel_frac = clampf(h.channel_t / need, 0.0, 1.0) if need > 0.0 else 0.0
 		s.hardpoints.append(st)
 	for lane in objectives.lanes.size():
 		for team in 2:

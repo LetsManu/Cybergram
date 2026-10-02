@@ -87,6 +87,20 @@ class HardpointState:
 	var severed: bool = false
 	## Locked (C3-ineligible) for team 0 / team 1.
 	var locked: Array[bool] = [false, false]
+	## E14: effective task (HardpointDef.TaskKind) this match runs.
+	var task: int = 0
+	## Breach: Generator HP fraction (phase 1, quantised to 1/255), phase 2 flag, shield.
+	var gen_frac: float = 0.0
+	var breach_phase2: bool = false
+	var shielded: bool = false
+	## Plant: HardpointSim.CellState, the Cell's team (-1 none), position, carrier
+	## net id (0 none), and the interact channel (HardpointSim.Channel, 0..1 done).
+	var cell_state: int = 0
+	var cell_team: int = -1
+	var cell_pos: Vector3 = Vector3.ZERO
+	var carrier_id: int = 0
+	var channel: int = 0
+	var channel_frac: float = 0.0
 
 ## Replicated state of one Uplink (E9).
 class UplinkState:
