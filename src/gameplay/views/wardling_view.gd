@@ -11,6 +11,8 @@ const SASH_OWN := Color(1.0, 0.86, 0.25)
 const SASH_OTHER := Color(0.85, 0.85, 0.9)
 const PENNANT := Color(0.96, 0.96, 1.0)
 const _H: float = 1.2
+## HP bar (M1 clutter fix): a small billboard strip, shown only once damaged.
+const HP_BAR_SIZE := Vector2(0.42, 0.045)
 
 var net_id: int = 0
 var team: int = -1
@@ -28,7 +30,7 @@ var _elite_shell: MeshInstance3D
 var _elite: bool = false
 var _turned: bool = false
 ## Art pass: the procedural Picket (WardlingModel); the greybox stays hidden
-## underneath. Tier is not replicated yet (set_tier, default I).
+## underneath. Tier is replicated (WardlingState.tier, protocol v8; set_tier).
 var model: WardlingModel
 var tier: int = 1
 var _kind: int = 1
@@ -65,11 +67,13 @@ func _ready() -> void:
 	_hp_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_hp_fill = MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(0.8, 0.08)
+	q.size = HP_BAR_SIZE
 	_hp_fill.mesh = q
 	_hp_fill.material_override = _hp_mat
 	_hp_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	_hp_fill.position = Vector3(0.0, _H + 0.3, 0.0)
+	_hp_fill.position = Vector3(0.0, _H + 0.25, 0.0)
+	_hp_fill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_hp_fill.visible = false
 	add_child(_hp_fill)
 	var gold := _mat(ELITE_GOLD, true)
 	gold.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -137,6 +141,7 @@ func set_state(team_: int, hp_frac: float, owner_kind: int) -> void:
 		(_sash.material_override as StandardMaterial3D).albedo_color = SASH_OWN if owner_kind == 2 else SASH_OTHER
 		(_sash.material_override as StandardMaterial3D).emission = SASH_OWN if owner_kind == 2 else SASH_OTHER
 	var f := clampf(hp_frac, 0.0, 1.0)
+	_hp_fill.visible = f < 0.995
 	_hp_fill.scale = Vector3(maxf(f, 0.02), 1.0, 1.0)
 	_hp_mat.albedo_color = Color(1.0, 0.25, 0.2).lerp(Color(0.4, 1.0, 0.5), f)
 	_kind = owner_kind

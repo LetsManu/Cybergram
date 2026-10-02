@@ -60,7 +60,9 @@ static func rules() -> WardlingRulesDef:
 
 
 ## Builds the server under `parent` (own World3D) and returns [server, link, director].
-static func slice_server(parent: Node, rules_: WardlingRulesDef, vanguard: bool) -> Array:
+## `match_rules` null = the slice .tres (3v3 since M1); pass own rules for 5v5.
+static func slice_server(parent: Node, rules_: WardlingRulesDef, vanguard: bool,
+		match_rules: MatchRulesDef = null) -> Array:
 	var net := NetFixtures.net_config()
 	var link := LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
 	var vp := SubViewport.new()
@@ -71,7 +73,8 @@ static func slice_server(parent: Node, rules_: WardlingRulesDef, vanguard: bool)
 	vp.add_child(server)
 	var def := map_def()
 	server.setup(net, load("res://assets/data/movement/movement_default.tres") as MovementDef, def.scene,
-		link.create_endpoint(1), CombatFixtures.vesper(), load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef)
+		link.create_endpoint(1), CombatFixtures.vesper(),
+		match_rules if match_rules != null else load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef)
 	server.setup_objectives(def)
 	server.enable_wardlings(def, rules_, load(PICKET) as WardlingDef)
 	server.wardlings.vanguard_enabled = vanguard

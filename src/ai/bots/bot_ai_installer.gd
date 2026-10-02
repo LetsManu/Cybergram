@@ -3,8 +3,8 @@ extends Node
 ## Wires hero bots into a running session (AppConfig.sim_plugin_scenes), like
 ## WardlingAiInstaller: gameplay never names src/ai. Active only for bot
 ## matches (LaunchConfig.bots / bots_only) on a map with hardpoints and HQs.
-##   --bots       the local player (team 0, slot 0) + 9 bots.
-##   --bots-only  10 bots. In DEDICATED mode the match runs to End, then the
+##   --bots       the local player (team 0, slot 0) + bots (MatchRulesDef.team_size per team).
+##   --bots-only  bots only (2 x team_size). In DEDICATED mode the match runs to End, then the
 ##                JSON summary is printed ("[bots] summary {...}") and the app quits.
 
 const ROSTER_PATH := "res://assets/data/ai/bot_roster_slice.tres"

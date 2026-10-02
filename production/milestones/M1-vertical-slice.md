@@ -10,7 +10,7 @@
 ## Milestone Goal
 
 Answer the concept's Tier 0 question offline: *is the gun + squad + front loop fun?* A human plays
-**Vesper Loom** (Mana, commander) or **Brannoc** (Mechanical, tank) in a bot-filled 5v5 on the 1-lane Slice
+**Vesper Loom** (Mana, commander) or **Brannoc** (Mechanical, tank) in a bot-filled **3v3** on the 1-lane Slice
 Map **"Shardline Causeway"** (`design/gdd/match-flow-and-map.md` §3.7): S-AI Breach, S-AO Plant, S-MID Hold,
 S-BO Plant, S-BI Breach. They pick up a Wardling squad at the Foundry, command it with the 4 squad commands,
 level up, buy at the Armory, and push the front until an Uplink is Exposed and destroyed. Everything runs on a
@@ -21,6 +21,9 @@ snapshots only, so M2 replaces the transport and does not rewrite the game.
 slice exception; `heroes.md` §11; `weapons-and-mods.md` §3.10; `wardlings-and-economy.md` §26).*
 
 **Slice overrides of Canon** (slice-only flags; the C1 duplicate exception is itself Canon):
+- **3v3, not 5v5** (owner decision 2026-10-02, Canon C1 slice exception): `match_rules_slice.tres` sets
+  `team_size = 3`, read by `GameSession` and `BotDirector`. Ten heroes in one lane tripled the full game's lane
+  density (~3.3 heroes per lane). Each team is a Vesper Loom / Brannoc mix. The full game stays 5v5.
 - Duplicate heroes are allowed per team (`slice.allow_duplicate_heroes`, Canon C1 slice exception), because there are
   only 2 heroes for 10 slots.
 - **Task staging:** the slice may start with all 5 hardpoints running **Hold** (`slice.tasks = hold_only`, sprint 2);
@@ -40,7 +43,7 @@ Design sources: `design/gdd/game-concept.md` (Canon), `design/gdd/match-flow-and
 
 ## Success Criteria
 
-- [ ] **Launch and look:** `godot --path . res://scenes/slice/slice_match.tscn` starts a 5v5 bot match
+- [ ] **Launch and look:** `godot --path .` (no arguments) starts a 3v3 bot match on the slice
       with the player as Vesper Loom. Captures are saved to `production/qa/evidence/m1/`:
       `01-spawn-sanctum.png`, `02-squad-following.png`, `03-hold-contested.png`,
       `04-uplink-exposed.png` and `05-victory-screen.png`. Repeat with `--hero=brannoc` for

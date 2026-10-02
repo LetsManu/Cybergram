@@ -12,7 +12,8 @@ extends Resource
 ## HeroDef.id -> PackedInt32Array of skill slots in learning order (E15
 ## points; 3 = ultimate, learned as soon as its level allows).
 @export var build_orders: Dictionary = {}
-## 5v5 (Canon C1).
+## Fallback heroes per team when no MatchRulesDef is set; the match format
+## itself is data on MatchRulesDef.team_size (Canon C1 5v5, slice 3v3).
 @export_range(1, 5) var team_size: int = 5
 
 

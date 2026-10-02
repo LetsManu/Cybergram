@@ -9,11 +9,11 @@ extends RefCounted
 ## Own combat: u16 hp, u16 max_hp, u8 dead, u32 respawn_tick, u8 feed_kind,
 ##   f32 ammo, u16 ammo_capacity, u16 reserve, u8 ammo_flags.
 ## Entity: u16 net_id, u8 kind, pos f32x3, vel f32x3, yaw f32, pitch f32, u8 flags,
-##   u8 team, u16 hp, u16 max_hp.
-## Wardlings (E8, after the entities): u16 count, count x wardling (14 B), then
+##   u8 team, u16 hp, u16 max_hp. M1 (v8): + u16 hero index (ContentDB, 0 = unknown).
+## Wardlings (E8, after the entities): u16 count, count x wardling (15 B), then
 ##   u16 bolt count, count x bolt (12 B: from i16x3, to i16x3; 1/32 m).
 ## Wardling: u16 net_id, pos i16x3 (1/32 m), u8 yaw, u8 hp (1/255), u8 team (bit 7 =
-##   Vanguard), u8 state, u16 owner net id.
+##   Vanguard), u8 state, u16 owner net id; M1 (v8): u8 tier (1-3).
 ## Objectives (E7, after the Wardlings): u8 hardpoint count, count x hardpoint (5 B),
 ##   u8 front count, count x i8 front index.
 ## E10: own block +17 B (f32 speed scale, u8 dash ticks, f32x3 dash velocity;
@@ -37,7 +37,7 @@ extends RefCounted
 const _HEADER: int = 12
 const _OWN: int = 27 + 17
 const _OWN_COMBAT: int = 19 + 25
-const _ENTITY: int = 2 + 1 + 12 + 12 + 4 + 4 + 1 + 1 + 2 + 2 + 2
+const _ENTITY: int = 2 + 1 + 12 + 12 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 2
 const _F_DASH_LAUNCH: int = 16
 const _FX: int = 20
 const _F_GROUNDED: int = 1
@@ -45,7 +45,7 @@ const _F_CROUCH: int = 2
 const _F_JUMP_HELD: int = 4
 const _F_DEAD: int = 8
 const _HARDPOINT: int = 5 + 15
-const _WARDLING: int = 14
+const _WARDLING: int = 15
 const _BOLT: int = 12
 const _POS_STEPS: float = 32.0
 const _HF_CONTESTED: int = 1
@@ -113,7 +113,8 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 		b.encode_u16(off + 10, clampi(e.hp, 0, 65535))
 		b.encode_u16(off + 12, clampi(e.max_hp, 0, 65535))
 		b.encode_u16(off + 14, e.status & 0xFFFF)
-		off += 16
+		b.encode_u16(off + 16, clampi(e.hero_index, 0, 65535))
+		off += 18
 	off = _encode_wardlings(b, off, s)
 	off = _encode_fx(b, off, s)
 	off = _encode_objectives(b, off, s)
@@ -133,6 +134,7 @@ static func _encode_wardlings(b: PackedByteArray, off: int, s: SnapshotData) -> 
 		b.encode_u8(off + 10, (w.team & 0x7F) | (0x80 if w.vanguard else 0))
 		b.encode_u8(off + 11, w.state & 0xFF)
 		b.encode_u16(off + 12, w.owner_net_id & 0xFFFF)
+		b.encode_u8(off + 14, clampi(w.tier, 0, 255))
 		off += _WARDLING
 	b.encode_u16(off, s.bolts.size())
 	off += 2
@@ -162,6 +164,7 @@ static func _decode_wardlings(b: PackedByteArray, off: int, s: SnapshotData) -> 
 		w.vanguard = (t & 0x80) != 0
 		w.state = b.decode_u8(off + 11)
 		w.owner_net_id = b.decode_u16(off + 12)
+		w.tier = b.decode_u8(off + 14)
 		s.wardlings.append(w)
 		off += _WARDLING
 	var nb := b.decode_u16(off)
@@ -485,6 +488,7 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		e.hp = b.decode_u16(off + 37)
 		e.max_hp = b.decode_u16(off + 39)
 		e.status = b.decode_u16(off + 41)
+		e.hero_index = b.decode_u16(off + 43)
 		s.entities.append(e)
 		off += _ENTITY
 	off = _decode_wardlings(b, off, s)

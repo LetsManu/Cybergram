@@ -3,8 +3,9 @@ extends Node3D
 ## Client-side greybox of one Mana Uplink (E9; match-flow-and-map.md §3.6,
 ## design/ux/hud.md §4.8). Sealed: a translucent team-coloured shell closes over
 ## the map's core. Exposed: the shell opens (hidden), a hot pulsing core and
-## "EXPOSED" label appear. Destroyed: the core goes dark. A billboard shows the
-## Integrity %. Reads replicated SnapshotData.UplinkState only.
+## "EXPOSED" label appear. Destroyed: the core goes dark. A compact billboard
+## shows the Integrity % within HardpointView.LABEL_NEAR_M, or at any range
+## while Exposed / destroyed (the objective). Reads SnapshotData.UplinkState only.
 
 const SHELL_RADIUS: float = 2.4
 const SHELL_HEIGHT: float = 4.2
@@ -22,6 +23,8 @@ var _core: MeshInstance3D
 var _core_mat: StandardMaterial3D
 var _label: Label3D
 var _t: float = 0.0
+var _text: String = ""
+var _label_color := Color.WHITE
 ## Art pass: the 45 m neon mana spire (UplinkModel); null = greybox only.
 var model: UplinkModel
 
@@ -60,14 +63,8 @@ func setup(hq: HqDef) -> void:
 	_core.visible = false
 	_core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_core)
-	_label = Label3D.new()
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.no_depth_test = true
-	_label.fixed_size = true
-	_label.pixel_size = 0.0016
-	_label.font_size = 28
-	_label.outline_size = 8
-	_label.modulate = col.lightened(0.3)
+	_label = HardpointView.make_world_label()
+	_label_color = col.lightened(0.3)
 	_label.position.y = CORE_Y + 4.5
 	add_child(_label)
 	if ModelCatalog.models_enabled():
@@ -106,16 +103,26 @@ func apply(st: SnapshotData.UplinkState) -> void:
 		model.set_state(exposed, destroyed, st.integrity / maxf(st.max_integrity, 1.0))
 	if destroyed:
 		_core_mat.albedo_color = DEAD_COLOR
-		_label.text = "UPLINK DESTROYED"
+		_text = "UPLINK DESTROYED"
 	elif exposed:
-		_label.text = "EXPOSED  %d%%" % ceili(pct)
-		_label.modulate = EXPOSED_COLOR.lightened(0.3)
+		_text = "EXPOSED  %d%%" % ceili(pct)
+		_label_color = EXPOSED_COLOR.lightened(0.3)
 	else:
-		_label.text = "UPLINK  %d%%" % ceili(pct)
-		_label.modulate = HardpointView.team_color(team).lightened(0.3)
+		_text = "UPLINK  %d%%" % ceili(pct)
+		_label_color = HardpointView.team_color(team).lightened(0.3)
+	_update_label()
+
+
+func _update_label() -> void:
+	if _label == null or not is_inside_tree():
+		return
+	var cam := get_viewport().get_camera_3d()
+	var dist := cam.global_position.distance_to(_label.global_position) if cam != null else 0.0
+	HardpointView.apply_label(_label, dist, exposed or destroyed, _text, _text, _label_color)
 
 
 func _process(delta: float) -> void:
+	_update_label()
 	if not exposed or destroyed:
 		return
 	_t += delta

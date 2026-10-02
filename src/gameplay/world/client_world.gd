@@ -58,6 +58,9 @@ var own_speed_scale: float = 1.0
 var progress: SnapshotData.ProgressState
 var catalog: ArmoryCatalogDef
 var _mote_views: Array[MeshInstance3D] = []
+## Stable content indices (hero identity of remote views).
+var content: ContentDB = ContentDB.shared()
+var _hero_index: Dictionary = {}  # net id -> replicated hero index
 
 var _views: Dictionary = {}  # net id -> HeroView
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
@@ -225,9 +228,13 @@ func _on_snapshot(s: SnapshotData) -> void:
 		seen[e.net_id] = true
 		if not _views.has(e.net_id):
 			var v := HeroView.new()
+			v.team = e.team
+			_apply_hero(v, e)  # before _ready: the right model is built once
 			add_child(v)
 			_views[e.net_id] = v
 			_buffers[e.net_id] = InterpolationBuffer.new(net.extrapolation_cap_ticks)
+		elif _hero_index.get(e.net_id, -1) != e.hero_index:
+			_apply_hero(_views[e.net_id], e)
 		_buffers[e.net_id].push(s.tick, e.position, e.yaw, e.crouching)
 		_views[e.net_id].set_health(e.hp, e.max_hp, e.dead)
 		_views[e.net_id].set_status(e.status)  # E10
@@ -236,6 +243,15 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_views[id].queue_free()
 			_views.erase(id)
 			_buffers.erase(id)
+			_hero_index.erase(id)
+
+
+## Replicated hero identity -> the view's model (ContentDB index -> HeroDef id).
+func _apply_hero(v: HeroView, e: SnapshotData.EntityState) -> void:
+	_hero_index[e.net_id] = e.hero_index
+	var id := content.id_at(ContentDB.HERO, e.hero_index)
+	if id != &"":
+		v.set_hero(id, e.team)
 
 
 ## E13/E15: own progress, the FP gun's mounts and the Lumen Motes.
@@ -287,6 +303,23 @@ func _apply_objectives(s: SnapshotData) -> void:
 		if i < _hp_views.size():
 			_hp_views[i].apply(st)
 	hardpoints = s.hardpoints
+	_mark_objectives()
+
+
+## The own team's lane fronts (C15, replicated `fronts`) are the current
+## objectives: their world labels stay up at any range (clutter fix).
+func _mark_objectives() -> void:
+	if map_def == null:
+		return
+	var base := 0
+	var team := own_team()
+	for lane in map_def.lanes.size():
+		var n := map_def.lanes[lane].hardpoints.size()
+		var front := fronts[lane * 2 + team] if lane * 2 + team < fronts.size() else -1
+		for k in n:
+			if base + k < _hp_views.size():
+				_hp_views[base + k].set_objective(k == front)
+		base += n
 
 
 func _apply_match(s: SnapshotData) -> void:

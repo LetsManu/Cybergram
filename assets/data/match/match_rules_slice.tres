@@ -21,3 +21,4 @@ stage_all_as_hold = false
 plant_base_mult = 0.8
 generator_hp_mult = 0.6
 outer_exposure_from_s = 300.0
+team_size = 3

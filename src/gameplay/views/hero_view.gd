@@ -22,8 +22,9 @@ var _halo: MeshInstance3D
 var _cast_ring: MeshInstance3D
 var _status: int = 0
 ## Art pass: procedural stand-in model (HeroModel) replacing the capsule.
-## Hero identity is not replicated yet: set_hero() picks the model, and
-## until it is called the baseline hero (Ryker) is shown. Team, velocity and
+## ClientWorld calls set_hero() from the replicated hero index
+## (EntityState.hero_index -> ContentDB -> HeroDef id, protocol v8); the
+## baseline hero (Ryker) is shown only for an unknown index. Team, velocity and
 ## pitch are read from the replicated snapshot entity of this view.
 const DEFAULT_MODEL_ID: StringName = &"ryker"
 var model: HeroModel

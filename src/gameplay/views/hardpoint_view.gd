@@ -15,6 +15,18 @@ const COLOR_CONCORD := Color("#2E86FF")
 const COLOR_SYNDICATE := Color("#FF5A1F")
 const COLOR_NEUTRAL := Color(0.92, 0.9, 1.0)
 const COLOR_EMPTY := Color(0.1, 0.1, 0.14, 0.6)
+## World label LOD (M1 clutter fix, see production/qa/evidence/e12/hud_1080p.png):
+## a label shows only within LABEL_NEAR_M of the camera, or while its node is the
+## team's current objective; it fades out over LABEL_FADE_M past that range.
+## No-depth billboard at a fixed, small on-screen size (LABEL_PIXEL_SIZE x
+## LABEL_FONT_SIZE is about 18 px at 1080p). Shared by UplinkView.
+const LABEL_NEAR_M: float = 40.0
+const LABEL_FADE_M: float = 12.0
+const LABEL_PIXEL_SIZE: float = 0.00065
+const LABEL_FONT_SIZE: int = 28
+const LABEL_OUTLINE: int = 8
+## Far objective labels are dimmed to this alpha.
+const LABEL_OBJECTIVE_ALPHA: float = 0.85
 
 var def: HardpointDef
 var _ring_mat: StandardMaterial3D
@@ -33,6 +45,47 @@ var _cell: MeshInstance3D
 var _cell_mat: StandardMaterial3D
 var _beam: MeshInstance3D
 var _channel_ring: MeshInstance3D
+## The own team's current objective (ClientWorld: the lane front, C15).
+var objective: bool = false
+var _near_text: String = ""
+var _far_text: String = ""
+var _label_color := Color.WHITE
+
+
+## A compact world label: no-depth billboard, fixed small on-screen size.
+static func make_world_label() -> Label3D:
+	var l := Label3D.new()
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.fixed_size = true
+	l.pixel_size = LABEL_PIXEL_SIZE
+	l.font_size = LABEL_FONT_SIZE
+	l.outline_size = LABEL_OUTLINE
+	l.line_spacing = -4.0
+	l.render_priority = 2
+	l.outline_render_priority = 1
+	l.visible = false
+	return l
+
+
+## Label alpha at `dist` metres from the camera: 1 within LABEL_NEAR_M, a
+## linear fade to 0 over LABEL_FADE_M; an objective never drops below
+## LABEL_OBJECTIVE_ALPHA.
+static func label_alpha(dist: float, is_objective: bool) -> float:
+	var a := clampf(1.0 - (dist - LABEL_NEAR_M) / LABEL_FADE_M, 0.0, 1.0)
+	return maxf(a, LABEL_OBJECTIVE_ALPHA) if is_objective else a
+
+
+## Shows `label` with the near or far text and the distance fade (camera-relative).
+static func apply_label(label: Label3D, dist: float, is_objective: bool, near_text: String, far_text: String,
+		color: Color) -> void:
+	var a := label_alpha(dist, is_objective)
+	label.visible = a > 0.01
+	if not label.visible:
+		return
+	label.text = near_text if dist <= LABEL_NEAR_M else far_text
+	label.modulate = Color(color, a)
+	label.outline_modulate = Color(0.0, 0.0, 0.0, a * 0.85)
 
 
 static func team_color(team: int) -> Color:
@@ -77,13 +130,7 @@ func setup(d: HardpointDef) -> void:
 		m.rotation.y = a
 		add_child(m)
 		_segments.append(m)
-	_label = Label3D.new()
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.no_depth_test = true
-	_label.fixed_size = true
-	_label.pixel_size = 0.0015
-	_label.font_size = 28
-	_label.outline_size = 8
+	_label = make_world_label()
 	_label.position = Vector3(0.0, d.zone_height + 1.0, 0.0)
 	# Hidden from inside the zone (the HUD objective strip shows it there).
 	_label.visibility_range_begin = d.zone_radius + 2.0
@@ -109,13 +156,13 @@ func _build_breach(d: HardpointDef) -> void:
 	_shield.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_shield)
 	# Generator HP bar: a billboard strip above the core.
-	_gen_bar_bg = _bar(Color(0.08, 0.08, 0.1, 0.8), 3.0)
+	_gen_bar_bg = _bar(Color(0.08, 0.08, 0.1, 0.8), 2.0)
 	_gen_bar_mat = _unshaded(team_color(d.initial_owner))
 	_gen_bar_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	_gen_bar_mat.billboard_keep_scale = true
 	_gen_bar_mat.no_depth_test = true
 	_gen_bar_mat.render_priority = 1
-	_gen_bar = _bar(_gen_bar_mat.albedo_color, 3.0)
+	_gen_bar = _bar(_gen_bar_mat.albedo_color, 2.0)
 	_gen_bar.material_override = _gen_bar_mat
 	_gen_bar.position.z = 0.01
 
@@ -123,7 +170,7 @@ func _build_breach(d: HardpointDef) -> void:
 func _bar(c: Color, width: float) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(width, 0.28)
+	q.size = Vector2(width, 0.16)
 	var mat := _unshaded(c)
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.billboard_keep_scale = true
@@ -180,16 +227,35 @@ func apply(st: SnapshotData.HardpointState) -> void:
 		_lit = lit
 		for i in SEGMENTS:
 			_segments[i].material_override = _seg_on if i < lit else _seg_off
-	var txt := def.display_name
-	txt += _apply_task(st)
-	if st.progress > 0.0:
-		txt += "\n%d%%" % floori(st.progress * 100.0)
-	if st.contested:
-		txt += "  CONTESTED"
-	elif st.overtime:
-		txt += "  OVERTIME"
-	_label.text = txt
-	_label.modulate = team_color(st.owner)
+	# Compact: one line far away (name + %), the task state underneath up close.
+	var pct := "  %d%%" % floori(st.progress * 100.0) if st.progress > 0.0 else ""
+	var flag := "  CONTESTED" if st.contested else ("  OVERTIME" if st.overtime else "")
+	_far_text = def.display_name + pct
+	_near_text = def.display_name + pct + flag + _apply_task(st)
+	_label_color = team_color(st.owner)
+	_update_label()
+
+
+## The own team's current objective (label stays up at any range).
+func set_objective(on: bool) -> void:
+	if on != objective:
+		objective = on
+		_update_label()
+
+
+func _process(_delta: float) -> void:
+	_update_label()
+
+
+func _update_label() -> void:
+	if _label == null or not is_inside_tree():
+		return
+	var cam := get_viewport().get_camera_3d()
+	var dist := cam.global_position.distance_to(_label.global_position) if cam != null else 0.0
+	apply_label(_label, dist, objective, _near_text, _far_text, _label_color)
+	if _gen_bar != null and _gen_bar.visible and dist > LABEL_NEAR_M and not objective:
+		_gen_bar.visible = false
+		_gen_bar_bg.visible = false
 
 
 ## E14 task visuals; returns extra label text.

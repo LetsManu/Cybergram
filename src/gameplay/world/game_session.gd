@@ -64,6 +64,10 @@ func _ready() -> void:
 			if md != null and md.scene != null:
 				map_def = md
 				map_scene = md.scene
+		if launch_config.match_rules_path != "":
+			match_rules = load(launch_config.match_rules_path) as MatchRulesDef
+			if match_rules == null:
+				push_warning("GameSession: cannot load match rules %s" % launch_config.match_rules_path)
 		if launch_config.hero_id != "" and ResourceLoader.exists(HERO_PATH % launch_config.hero_id):
 			player_hero = load(HERO_PATH % launch_config.hero_id) as HeroDef
 	if player_hero == null:
@@ -140,6 +144,12 @@ func _ready() -> void:
 			client.wardlings.debug_camera = launch_config.debug_camera
 
 
+## Heroes per team for this session's match (MatchRulesDef.team_size: Canon C1
+## 5v5; the M1 slice plays 3v3). Bot fill (BotDirector) uses the same value.
+func team_size() -> int:
+	return match_rules.team_size if match_rules != null else 5
+
+
 ## E9: match flow (phases, clock, Uplinks) on maps with hardpoints and HQs.
 func _setup_match() -> void:
 	if map_def == null or server.objectives == null or map_def.hqs.is_empty():
@@ -148,6 +158,7 @@ func _setup_match() -> void:
 	var m := server.setup_match(map_def, lc.match_clock if lc != null else 1.0)
 	if lc == null:
 		return
+	print("[match] format %dv%d (MatchRulesDef.team_size)" % [team_size(), team_size()])
 	m.debug_start_s = lc.debug_match_time
 	m.phase_changed.connect(func(_old: int, p: int) -> void:
 		print("[match] tick %d  %s  at %s" % [server.tick, MatchRules.PHASE_NAMES[p], MatchRules.format_clock(m.time_s)]))
@@ -331,6 +342,12 @@ func _process(delta: float) -> void:
 
 ## One fixed tick of the whole session (also called directly by tests).
 func step_tick() -> void:
+	if server == null or not is_instance_valid(server):
+		# A failed server build (e.g. a script parse error) must not loop an error per tick.
+		push_error("GameSession: no ServerWorld (script error at boot?); quitting")
+		set_physics_process(false)
+		get_tree().quit(1)
+		return
 	link.advance(net_config.tick_dt())
 	if client != null:
 		client.session.poll()

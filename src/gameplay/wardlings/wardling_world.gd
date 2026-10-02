@@ -509,6 +509,7 @@ func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int, squad: Squa
 	if wave != null:
 		wave.members.append(w)
 	w.spawned_tick = server.tick
+	w.tier = tier
 	w.yaw = 0.0 if team == MapDef.TEAM_CONCORD else PI
 	var a := NavigationServer3D.agent_create()
 	NavigationServer3D.agent_set_map(a, nav_map())
@@ -775,6 +776,7 @@ func write_snapshot(s: SnapshotData) -> void:
 		e.team = w.team
 		e.vanguard = w.wave != null
 		e.owner_net_id = w.owner_net_id
+		e.tier = w.tier
 		var st := VANGUARD_STATE if w.wave != null else (w.squad.command if w.squad != null else 0)
 		st |= (w.display_flags & 3) << 3
 		st |= MinionmancerHooks.state_bits(w, server.tick)  # E10: Elite / Turned

@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## E11 integration: 10 bots (BotDirector, BotInputSource) on the slice map with
-## Wardlings, hardpoints and match flow, through the real server tick.
+## Wardlings, hardpoints and match flow, through the real server tick. The
+## 10-bot cases build their own 5v5 rules (Canon C1); the slice data plays 3v3.
 ##   1. Within a capped number of ticks a hardpoint flips and heroes die, and
 ##      every command the bots emit is a valid InputCommand.
 ##   2. A whole bot match reaches End (Uplink kill or Time-out) with a summary.
@@ -12,8 +13,15 @@ var _invalid: Array = []
 var _commands: int = 0
 
 
-func _build(clock_scale: float, seed_: int) -> Array:
-	var built := WardlingFixtures.slice_server(self, WardlingFixtures.rules(), true)
+## Slice rules with `team_size` heroes per team (5 = Canon C1; the slice .tres is 3).
+static func rules_with_team_size(team_size: int) -> MatchRulesDef:
+	var r := (load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef).duplicate() as MatchRulesDef
+	r.team_size = team_size
+	return r
+
+
+func _build(clock_scale: float, seed_: int, team_size: int = 5) -> Array:
+	var built := WardlingFixtures.slice_server(self, WardlingFixtures.rules(), true, rules_with_team_size(team_size))
 	var server: ServerWorld = built[0]
 	auto_free(built[3])
 	var def := WardlingFixtures.map_def()
@@ -89,6 +97,34 @@ func test_ten_bots_flip_a_hardpoint_and_score_kills() -> void:
 		for sk in h.combat.abilities.skills:
 			learned_any = learned_any or sk.unlocked
 		assert_bool(learned_any).is_true()
+
+
+func test_slice_data_fills_three_v_three_with_a_hero_mix() -> void:
+	var slice := load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef
+	assert_int(slice.team_size).is_equal(3)  # M1 owner decision: the 1-lane slice plays 3v3
+	assert_int(MatchRulesDef.new().team_size).is_equal(5)  # Canon C1
+	var built := WardlingFixtures.slice_server(self, WardlingFixtures.rules(), false)
+	var server: ServerWorld = built[0]
+	auto_free(built[3])
+	var roster := load(ROSTER) as BotRosterDef
+	var director := BotDirector.new()
+	director.setup(server, roster, roster.profile("normal"), 1)
+	assert_int(director.team_size()).is_equal(3)
+	assert_int(director.fill(false)).is_equal(6)
+	var per_team := {0: {}, 1: {}}
+	for br in director.brains:
+		var h := server.hero(br.hero_id)
+		var ids: Dictionary = per_team[h.combat.team]
+		ids[h.combat.def.id] = int(ids.get(h.combat.def.id, 0)) + 1
+	for t in 2:
+		var ids: Dictionary = per_team[t]
+		assert_int(ids.get(&"hero_vesper_loom", 0) + ids.get(&"hero_brannoc", 0)).is_equal(3)
+		assert_int(ids.get(&"hero_vesper_loom", 0)).is_greater(0)
+		assert_int(ids.get(&"hero_brannoc", 0)).is_greater(0)
+	# With the local player in team 0 slot 0, the bots fill the other 5 slots.
+	var d2 := BotDirector.new()
+	d2.setup(server, roster, roster.profile("normal"), 2)
+	assert_int(d2.fill(true)).is_equal(5)
 
 
 func test_bot_match_reaches_end_with_a_summary() -> void:

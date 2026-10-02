@@ -79,6 +79,7 @@ func apply_snapshot(s: SnapshotData) -> void:
 		if v == null:
 			v = WardlingView.new()
 			v.net_id = w.net_id
+			v.tier = clampi(w.tier, 1, 3)  # before _ready: the model is built at this tier
 			add_child(v)
 			v.apply(w.position, w.yaw)
 			_views[w.net_id] = v
@@ -86,6 +87,8 @@ func apply_snapshot(s: SnapshotData) -> void:
 		_buffers[w.net_id].push(s.tick, w.position, w.yaw, false)
 		var kind := 0 if w.vanguard else (2 if w.owner_net_id == s.own_net_id and s.own_net_id != 0 else 1)
 		v.set_state(w.team, w.hp_frac, kind)
+		if clampi(w.tier, 1, 3) != v.tier:
+			v.set_tier(w.tier)
 		v.set_rewrite((w.state & (1 << 6)) != 0, (w.state & (1 << 7)) != 0)  # E10
 		if kind == 2:
 			var p := SquadPip.new()

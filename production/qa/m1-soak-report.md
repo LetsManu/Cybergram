@@ -82,6 +82,29 @@ ownership changes. Bot ms/tick is the average of `BotCostMeter`.
    2,880. This is the E13/E15 finding again, with tasks live. A slice-only rescale that matched the GDD curve
    within 20 % was tried (i3), did not change outcomes, and was reverted. The decision is open (slice-tuning F3).
 
+## Update 2026-10-02 (late): 3v3 slice, short check only
+
+*The owner's budget was nearly spent, so the 20-match soak was **not** re-run at 3v3. The table above is still the
+5v5 E14 soak.*
+
+- **Format:** the slice now plays **3v3** through data (`match_rules_slice.tres` `team_size = 3`; Canon C1 slice
+  exception). Slice tuning values are unchanged from E14 (Integrity 12,000, respawn 10 + 1.0/min, ×1.5 while
+  Exposed, Outer exposes from 5:00, Plant ×0.8, Generator ×0.6). The walk back toward Canon was not done.
+- **Short check** (seeds 1–3, `--match-clock 4`, headless): **0 / 3 Uplink kills**. All three ended on Time-out →
+  Incursion (Concord 2, Syndicate 1), 4–7 flips each, no Uplink damage. Tick p50 ≈ 2.1 ms, p95 5.5–6.8 ms.
+  The match clock ×4 also shortens respawns, so this check says nothing about tempo; it shows the 3v3 build plays to
+  End without errors.
+- **3v3 at real clock** (6 matches, seeds 201–206, E14 values): **0 / 6 Uplink kills**, all Time-out. The Mid still
+  flips 15–22 times per match. Lumen per hero is still far above the GDD curve: ≈3,200 at 5:00, ≈6,050 at 10:00,
+  ≈11,200 at 20:00, ≈16,300 at 30:00 (GDD 1,550 / 2,880 / 5,790 / 8,970). Level ≈9 at 5:00 and 15 by ~10:00.
+  Lane density alone did not fix the end-by-Uplink target.
+- **New finding (S2): heroes fall through the map.** In a diagnostic of 3 real-clock 3v3 matches, 4 bots fell below
+  the floor at about z = −104 and z = −237…−254, roughly x = 11–17 and x = −11 (next to the Outer plazas), and kept
+  falling with no kill plane. They stay "alive" for the rest of the match: a 3v3 team plays a hero short, and a
+  fallen Cell carrier keeps the Cell (it reads "carried" forever). One fallen defender sat on a Defuse job and never
+  defused because the zone height check fails. This probably explains part of the stall in both the 5v5 and 3v3
+  soaks. Needed: a fix to the map collision gap, and a kill plane (`y < map floor − N` → death and respawn).
+
 ## Evidence
 
 - Telemetry: `production/qa/telemetry/m1/match_seed1.json` … `match_seed20.json`

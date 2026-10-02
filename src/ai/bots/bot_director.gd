@@ -37,7 +37,7 @@ func fill(human_on_team0: bool) -> int:
 	var md := server.wardlings.map_def if server.wardlings != null else null
 	var n := 0
 	for team in 2:
-		for s in roster.team_size:
+		for s in team_size():
 			if team == 0 and s == 0 and human_on_team0:
 				continue
 			var hq := md.hq(team) if md != null else null
@@ -50,6 +50,14 @@ func fill(human_on_team0: bool) -> int:
 			add_bot(team, roster.hero_for(s), spawn, yaw)
 			n += 1
 	return n
+
+
+## Heroes per team: the match rules' format (MatchRulesDef.team_size, Canon C1
+## 5v5, slice 3v3), else the roster's fallback.
+func team_size() -> int:
+	if server != null and server.rules != null:
+		return server.rules.team_size
+	return roster.team_size if roster != null else 5
 
 
 ## Adds one bot hero. Returns its brain.

@@ -11,6 +11,11 @@ extends Resource
 ## Exposed when the hero dies respawns this much slower (1.0 = C11 as is).
 @export_range(1.0, 4.0, 0.05) var exposed_respawn_mult: float = 1.0
 
+## Heroes per team (Canon C1: 5v5). The M1 1-lane slice plays 3v3 so its lane
+## density (heroes per lane) matches the full game's ~3.3 (game-concept.md C1,
+## design/balance/slice-tuning.md). Read by GameSession and BotDirector.
+@export_range(1, 5) var team_size: int = 5
+
 ## ---- Hardpoint capture (E7; match-flow-and-map.md §3.4, F1-F3, §8 knobs) ----
 ## C4: AI (Wardling) presence cap per team per hardpoint; heroes are uncapped.
 @export_range(0.0, 10.0, 0.1) var ai_presence_cap: float = 3.0

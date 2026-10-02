@@ -20,4 +20,3 @@ build_orders = {
 &"hero_vesper_loom": PackedInt32Array(3, 0, 1, 2, 0, 1, 2)
 }
 default_difficulty = &"normal"
-team_size = 5

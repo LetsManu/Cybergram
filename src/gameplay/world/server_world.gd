@@ -56,6 +56,8 @@ var match_flow: MatchRules
 var abilities: AbilityWorld
 ## E13/E15 Lumen, Armory, Resonance, levels, skill tree; null until enable_progression().
 var progression: ProgressionSystem
+## Stable content indices for the wire (hero identity in snapshots).
+var content: ContentDB = ContentDB.shared()
 
 
 ## Builds the map and session. Call after the node is in the tree.
@@ -622,6 +624,8 @@ func _send_snapshots() -> void:
 		e.hp = ceili(h.combat.health.hp)
 		e.max_hp = ceili(h.combat.health.max_hp)  # E15 level scaling
 		e.status = abilities.status_bits(h)  # E10
+		if h.combat.def != null:
+			e.hero_index = content.index_of(ContentDB.HERO, h.combat.def.id)  # M1 remote hero models
 		entities.append(e)
 	for peer in session.clients:
 		var c: ServerSession.ClientConnection = session.clients[peer]

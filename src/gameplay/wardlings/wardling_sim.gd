@@ -26,6 +26,8 @@ var dead: bool = false
 ## Net id of the killer (0 = dissolved / unknown).
 var killer_id: int = 0
 var spawned_tick: int = 0
+## Surge tier I-III at mint time (WardlingWorld.tier; replicated for the model).
+var tier: int = 1
 var yaw: float = 0.0
 ## Presence seam (E7 PresenceSource duck typing: team, presence_weight,
 ## global_position, is_alive()). Registered by WardlingWorld while alive.

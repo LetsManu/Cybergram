@@ -22,3 +22,21 @@ func test_launch_config_parses_server_and_net_sim() -> void:
 	assert_int(c.quit_after_ticks).is_equal(90)
 	assert_int(LaunchConfig.parse(PackedStringArray(), true).mode).is_equal(LaunchConfig.Mode.DEDICATED)
 	assert_int(LaunchConfig.parse(PackedStringArray(["--server"]), false).mode).is_equal(LaunchConfig.Mode.DEDICATED)
+
+
+func test_no_argument_launch_is_a_playable_slice_match_vs_bots() -> void:
+	var c := LaunchConfig.parse(PackedStringArray(), false)
+	assert_int(c.mode).is_equal(LaunchConfig.Mode.OFFLINE)
+	assert_str(c.map_name).is_equal("slice")
+	assert_bool(c.bots).is_true()
+	assert_bool(c.bots_only).is_false()
+	assert_str(c.hero_id).is_equal("")  # GameSession.DEFAULT_PLAYER_HERO = Vesper Loom
+	var b := LaunchConfig.parse(PackedStringArray(["--hero", "brannoc"]), false)
+	assert_str(b.hero_id).is_equal("brannoc")
+	assert_bool(b.bots).is_true()
+	# The movement test course stays reachable, without bots.
+	var t := LaunchConfig.parse(PackedStringArray(["--map", "test_course"]), false)
+	assert_str(t.map_name).is_equal("")
+	assert_bool(t.bots).is_false()
+	# An explicit --map slice keeps the bot-free debug / evidence setups.
+	assert_bool(LaunchConfig.parse(PackedStringArray(["--map", "slice"]), false).bots).is_false()

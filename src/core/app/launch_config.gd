@@ -2,7 +2,11 @@ class_name LaunchConfig
 extends RefCounted
 ## Parsed command line (architecture.md §2.1). Only AppRoot builds one; nothing
 ## else reads OS arguments.
-##   godot --path .                              -> OFFLINE
+##   godot --path .                              -> OFFLINE playable match: the slice map, 3v3
+##                                                  (MatchRulesDef.team_size) vs normal bots,
+##                                                  as Vesper Loom (--hero brannoc for Brannoc)
+##   godot --path . -- --map test_course         -> OFFLINE movement test course (dummies, no bots)
+##   godot --path . -- --map slice               -> the slice without bots (evidence / debug setups)
 ##   godot --path . -- --net-sim 100ms_2pct      -> OFFLINE through a conditioned loopback
 ##   godot --headless --path . [-- --server]     -> DEDICATED (server only)
 ##   ... -- --server --quit-after-ticks 900      -> soak run that exits
@@ -25,12 +29,14 @@ extends RefCounted
 ##                                                  fires at it with its squad (E9 evidence)
 ##   ... -- --debug-uplink-integrity 2000       -> debug: Syndicate Uplink starts at 2000
 ##   ... -- --grant-ult                          -> debug: ultimates usable below level 6 (E10)
-##   ... -- --bots                               -> E11: player + 9 bots, 5v5 on the slice map
+##   ... -- --bots                               -> E11: player + bots filling MatchRulesDef.team_size
+##                                                  per team (slice: 3v3, player + 5 bots)
 ##   godot --headless --fixed-fps 30 --path . -- --server --bots-only --seed 3 [--match-clock 4]
-##                                                -> E11: 10 bots play to End, JSON summary, quit
+##                                                -> E11: 2 x team_size bots play to End, JSON summary, quit
 ##   ... -- --bot-difficulty easy|normal|hard    -> E11: bot profile (default normal)
 ##   ... -- --bots-only --telemetry production/qa/telemetry/m1
 ##                                                -> E14: also write the match summary JSON there
+##   ... -- --match-rules /abs/or/res/path.tres  -> tuning: MatchRulesDef replacing the slice rules
 ##   ... -- --debug-task plant|breach            -> debug: a Concord Cell planted at S-BO / the player
 ##                                                  inside S-BI shooting its Generator (E14 evidence)
 ##   ... -- --bots --bot-player                  -> E11 debug: a bot also plays the local hero
@@ -82,6 +88,12 @@ var bot_player: bool = false
 var telemetry_dir: String = ""
 ## E14 debug: "plant" or "breach" evidence setup ("" = off).
 var debug_task: String = ""
+## Tuning runs: a MatchRulesDef .tres path replacing the slice rules ("" = default).
+var match_rules_path: String = ""
+
+
+## `--map test_course` selects the movement test course (no MapDef).
+const TEST_COURSE := "test_course"
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -127,6 +139,10 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if i + 1 < args.size():
 					i += 1
 					c.telemetry_dir = args[i]
+			"--match-rules":
+				if i + 1 < args.size():
+					i += 1
+					c.match_rules_path = args[i]
 			"--debug-task":
 				if i + 1 < args.size():
 					i += 1
@@ -179,6 +195,14 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if args[i].begins_with("--hero="):
 					c.hero_id = args[i].trim_prefix("--hero=").validate_filename()
 		i += 1
-	if (c.bots or c.bots_only) and c.map_name == "":
+	var map_given := c.map_name != ""
+	if c.map_name == TEST_COURSE:
+		c.map_name = ""  # the session scene's default map (movement test course)
+	elif (c.bots or c.bots_only) and c.map_name == "":
 		c.map_name = "slice"  # E11: bot matches run on the slice map
+	elif not map_given and c.mode == Mode.OFFLINE \
+			and not (c.autofire or c.debug_skill_demo or c.debug_squad_demo):
+		# M1 default launch (no arguments): a playable 3v3 slice match vs bots.
+		c.map_name = "slice"
+		c.bots = true
 	return c

@@ -19,6 +19,9 @@ class EntityState:
 	var max_hp: int = 0
 	## E10: StatusComponent.BIT_* (slow, stun, Fortify DR, casting, dashing...).
 	var status: int = 0
+	## M1: hero identity, ContentDB.index_of(ContentDB.HERO, HeroDef.id)
+	## (0 = unknown). Drives the remote HeroView model.
+	var hero_index: int = 0
 
 ## Combat state of the receiving client's own hero (health, feed, respawn).
 class OwnCombat:
@@ -59,6 +62,8 @@ class WardlingState:
 	var owner_net_id: int = 0
 	## bits 0-2: Squad.CMD_* (5 = Vanguard); bits 3-4: WardlingSim.FLAG_*; bit 5: dissolving.
 	var state: int = 0
+	## M1: Surge tier I-III the Wardling was minted at (WardlingSim.tier).
+	var tier: int = 1
 
 ## Replicated skill FX / deployable (E10, AbilityWorld.FX_*): walls, beacons,
 ## zones, thread projectiles, telegraphs. Everyone sees them (enemy telegraphs).
