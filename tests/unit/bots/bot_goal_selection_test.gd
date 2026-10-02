@@ -143,3 +143,21 @@ func test_current_goal_gets_hysteresis() -> void:
 	assert_int(sel.pick(bb, p2).kind).is_equal(K.FIGHT)
 	bb.current_goal = K.PUSH
 	assert_int(sel.pick(bb, p2).kind).is_equal(K.PUSH)
+
+
+func test_low_hp_bot_finishes_a_weaker_hero_instead_of_retreating() -> void:
+	var bb := _bb()
+	_see_enemy(bb, 12.0, 0.2)
+	bb.hp_frac = 0.2
+	bb.target_hp_frac = 0.1
+	assert_int(_pick(bb)).is_equal(K.FIGHT)
+
+
+func test_a_retreat_that_ended_hurt_is_not_restarted_during_its_cooldown() -> void:
+	var bb := _bb()
+	_see_enemy(bb, 15.0, 0.2)
+	bb.hp_frac = 0.2
+	bb.retreat_block_until_tick = bb.tick + 10 * HZ
+	assert_int(_pick(bb)).is_equal(K.FIGHT)
+	bb.retreat_block_until_tick = bb.tick - 1
+	assert_int(_pick(bb)).is_equal(K.RETREAT)

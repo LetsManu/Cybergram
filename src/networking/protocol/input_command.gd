@@ -134,8 +134,18 @@ func equals(other: InputCommand) -> bool:
 func write_to(buf: PackedByteArray, offset: int) -> int:
 	var m := move.limit_length(1.0)
 	buf.encode_u32(offset, seq & 0xFFFFFFFF)
-	buf.encode_s8(offset + 4, clampi(roundi(m.x * _MOVE_STEPS), -127, 127))
-	buf.encode_s8(offset + 5, clampi(roundi(m.y * _MOVE_STEPS), -127, 127))
+	var mx := clampi(roundi(m.x * _MOVE_STEPS), -127, 127)
+	var my := clampi(roundi(m.y * _MOVE_STEPS), -127, 127)
+	# Rounding can push a unit vector just past length 1; read_from would then
+	# renormalise to off-grid floats and quantize() would stop being idempotent.
+	# Step the larger component toward 0 until the encoded vector fits (E11).
+	while mx * mx + my * my > 16129:  # 127^2
+		if absi(mx) >= absi(my):
+			mx -= signi(mx)
+		else:
+			my -= signi(my)
+	buf.encode_s8(offset + 4, mx)
+	buf.encode_s8(offset + 5, my)
 	buf.encode_u16(offset + 6, roundi(fposmod(yaw, TAU) / TAU * _YAW_STEPS) & 0xFFFF)
 	buf.encode_s16(offset + 8, clampi(roundi(pitch / _HALF_PI * _PITCH_STEPS), -32767, 32767))
 	buf.encode_u16(offset + 10, buttons & BUTTON_MASK)

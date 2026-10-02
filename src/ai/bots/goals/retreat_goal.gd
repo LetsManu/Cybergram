@@ -16,6 +16,9 @@ func score(bb: BotBlackboard, p: BotProfile) -> float:
 	var limit := p.return_hp_frac if retreating else p.retreat_hp_frac
 	if bb.hp_frac >= limit or not bb.threatened(p.retreat_calm_s if retreating else 1.5):
 		return 0.0
+	# Finishing a visibly weaker hero beats turning one's back on it.
+	if not retreating and bb.target_is_hero and bb.target_dist < p.engage_range_m and bb.target_hp_frac < bb.hp_frac:
+		return 0.0
 	return p.w_retreat * (1.0 + 0.5 * (1.0 - bb.hp_frac / maxf(limit, 0.01)))
 
 

@@ -107,3 +107,19 @@ func test_snapshot_round_trip_preserves_own_state_and_entities() -> void:
 	assert_int(d.entities.size()).is_equal(1)
 	assert_vector(d.entities[0].position).is_equal(e.position)
 	assert_bool(d.entities[0].crouching).is_true()
+
+
+func test_quantize_is_idempotent_for_diagonal_and_near_unit_moves() -> void:
+	# E11: bots emit arbitrary unit vectors; rounding must not leave a length > 1
+	# that read_from renormalises off the wire grid.
+	for i in 720:
+		var a := deg_to_rad(i * 0.5)
+		var c := InputCommand.new()
+		c.move = Vector2(cos(a), sin(a))
+		c.yaw = a * 3.0
+		c.pitch = sin(a) * 1.4
+		c.quantize()
+		var once := c.duplicate_command()
+		c.quantize()
+		assert_bool(c.equals(once)).is_true()
+		assert_float(c.move.length()).is_less_equal(1.0)

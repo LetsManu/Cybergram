@@ -31,6 +31,8 @@ var target_id: int = 0
 var target_is_hero: bool = false
 var target_dist: float = INF
 var target_pos: Vector3 = Vector3.ZERO
+## Target hero's HP fraction (1 for non-heroes).
+var target_hp_frac: float = 1.0
 ## Visible enemy heroes / Wardlings within engage range.
 var enemy_heroes_seen: int = 0
 var enemy_wardlings_seen: int = 0

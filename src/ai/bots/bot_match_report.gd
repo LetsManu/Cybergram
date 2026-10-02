@@ -13,6 +13,8 @@ var seed_value: int = 0
 var captures: PackedInt32Array = PackedInt32Array([0, 0])
 var kills: PackedInt32Array = PackedInt32Array([0, 0])
 var first_capture_s: float = -1.0
+## Ownership changes: "m:ss id C|S" (compact timeline).
+var flips: PackedStringArray = PackedStringArray()
 ## Damage dealt to enemy heroes per attacking team (heroes only).
 var damage: PackedFloat32Array = PackedFloat32Array([0.0, 0.0])
 var exposed_s: PackedFloat32Array = PackedFloat32Array([0.0, 0.0])
@@ -60,6 +62,7 @@ func summary() -> Dictionary:
 		"uplink_pct_dealt": {},
 		"uplink_exposed_s": {TEAM_NAMES[0]: snappedf(exposed_s[0], 0.1), TEAM_NAMES[1]: snappedf(exposed_s[1], 0.1)},
 		"ownership": _ownership(),
+		"flips": flips,
 	}
 	if mf != null:
 		d["uplink_pct_dealt"] = {TEAM_NAMES[0]: snappedf(mf.uplink_pct_dealt(0), 0.01),
@@ -68,7 +71,6 @@ func summary() -> Dictionary:
 	if director != null:
 		d["bots"] = director.brains.size()
 		d["bot_cost"] = director.meter.summary()
-		var goals := {}
 		var shots := 0
 		var skills := 0
 		var orders := 0
@@ -122,9 +124,11 @@ func _on_hero_damaged(_victim: int, attacker: int, amount: float) -> void:
 		damage[a.combat.team] += amount
 
 
-func _on_flipped(_hp: HardpointSim, _old: int, new_team: int) -> void:
+func _on_flipped(hp: HardpointSim, _old: int, new_team: int) -> void:
 	if new_team >= 0 and new_team <= 1:
 		captures[new_team] += 1
+		if server.match_flow != null and flips.size() < 200:
+			flips.append("%s %s %s" % [MatchRules.format_clock(server.match_flow.time_s), hp.def.id, "C" if new_team == 0 else "S"])
 		if first_capture_s < 0.0 and server.match_flow != null:
 			first_capture_s = server.match_flow.time_s
 

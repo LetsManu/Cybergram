@@ -73,7 +73,7 @@ func scan(h: HeroBody, look_yaw: float, bb: BotBlackboard, prefer_uplink: bool) 
 	if best == null and bb.enemy_uplink_exposed:
 		var u := server.registry.get_node_by_id(bb.enemy_uplink_id) as UplinkSim
 		if u != null and (prefer_uplink or eye.distance_to(u.aim_point()) <= UPLINK_RANGE_M * 0.6) \
-				and eye.distance_to(u.aim_point()) <= UPLINK_RANGE_M and _los(eye, u.aim_point()):
+				and eye.distance_to(u.aim_point()) <= UPLINK_RANGE_M and _los_uplink(eye, u):
 			best = u
 			visible = true
 	# Enemy Wardlings (nearest with LOS, at most 2 rays).
@@ -168,6 +168,10 @@ func _fill(bb: BotBlackboard, eye: Vector3) -> void:
 		return
 	bb.target_id = int(target.get("net_id"))
 	bb.target_is_hero = target is HeroBody
+	bb.target_hp_frac = 1.0
+	if target is HeroBody:
+		var th := target as HeroBody
+		bb.target_hp_frac = th.combat.health.hp / maxf(th.combat.def.max_hp, 1.0)
 	bb.target_pos = memory[bb.target_id][0] if (not target_visible and memory.has(bb.target_id)) \
 		else WardlingWorld.feet_of(target) if not (target is UplinkSim) else (target as UplinkSim).base
 	bb.target_dist = eye.distance_to(bb.target_pos)
@@ -187,6 +191,21 @@ func _forget(tick: int) -> void:
 	for id in memory.keys():
 		if tick - int(memory[id][1]) > limit:
 			memory.erase(id)
+
+
+## The Uplink has its own static collision: a ray that stops on its surface
+## (within the hit radius of the core axis, plus slack) counts as a clear shot.
+func _los_uplink(from: Vector3, u: UplinkSim) -> bool:
+	if _rays_left <= 0:
+		return false
+	_rays_left -= 1
+	_ray.from = from
+	_ray.to = u.aim_point()
+	var r := server.get_world_3d().direct_space_state.intersect_ray(_ray)
+	if r.is_empty():
+		return true
+	var p: Vector3 = r.position
+	return Vector2(p.x - u.base.x, p.z - u.base.z).length() <= u.hit_radius + 1.5
 
 
 func _los(from: Vector3, to: Vector3) -> bool:

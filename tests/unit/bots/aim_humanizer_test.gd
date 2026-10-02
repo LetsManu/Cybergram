@@ -20,7 +20,7 @@ func test_error_stays_within_profile_bounds_for_every_tier() -> void:
 		var max_seen := 0.0
 		for t in 3000:
 			if t % 45 == 0:
-				a.set_target(1 + (t / 45) % 3, t)
+				a.set_target(1 + floori(t / 45.0) % 3, t)
 			var target := Vector3(20.0 * sin(t * 0.01), 1.1, -25.0 + 5.0 * cos(t * 0.013))
 			a.track(target, eye, t)
 			var e := a.error_deg(t)

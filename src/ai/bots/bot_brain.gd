@@ -198,7 +198,7 @@ func _siege_point(u: UplinkSim, team: int) -> Vector3:
 ## (dry run), sent as an ACTION_LEARN command like a player's Alt + skill key.
 func _decide_learn(h: HeroBody) -> void:
 	var prog = server.get("progression")
-	if prog == null or _learn_slot >= 0:
+	if prog == null or _learn_slot >= 0 or prog.progress_of(h).skill_points() < 1:
 		return
 	for s in build_order:
 		if prog.can_learn(h, s) == HeroProgress.Result.OK:
