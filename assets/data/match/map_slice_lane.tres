@@ -55,6 +55,7 @@ initial_owner = 0
 position = Vector3(0, 0, -85)
 base_duration_s = 20.0
 generator_hp = 6000.0
+cell_cradles = PackedVector3Array()
 barricade_sockets = PackedVector3Array(0, 0, -58, 0, 0, -112)
 
 [sub_resource type="Resource" id="Resource_p0mah"]
@@ -68,6 +69,7 @@ initial_owner = 0
 position = Vector3(0, 0, -145)
 zone_radius = 10.0
 base_duration_s = 75.0
+cell_cradles = PackedVector3Array(-5, 0, -85, -5, 0, -210)
 barricade_sockets = PackedVector3Array(0, 0, -120, 0, 0, -170)
 
 [sub_resource type="Resource" id="Resource_tmbmg"]
@@ -76,6 +78,7 @@ id = &"s_mid"
 display_name = "The Spindle"
 lane_index = 2
 position = Vector3(0, 0, -210)
+cell_cradles = PackedVector3Array()
 barricade_sockets = PackedVector3Array(0, 0, -183, 0, 0, -237)
 
 [sub_resource type="Resource" id="Resource_pmkjg"]
@@ -89,6 +92,7 @@ initial_owner = 1
 position = Vector3(0, 0, -275)
 zone_radius = 10.0
 base_duration_s = 75.0
+cell_cradles = PackedVector3Array(-5, 0, -210, -5, 0, -335)
 barricade_sockets = PackedVector3Array(0, 0, -250, 0, 0, -300)
 
 [sub_resource type="Resource" id="Resource_inw7b"]
@@ -102,6 +106,7 @@ initial_owner = 1
 position = Vector3(0, 0, -335)
 base_duration_s = 20.0
 generator_hp = 6000.0
+cell_cradles = PackedVector3Array()
 barricade_sockets = PackedVector3Array(0, 0, -308, 0, 0, -362)
 
 [sub_resource type="Resource" id="Resource_7od80"]

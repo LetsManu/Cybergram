@@ -6,8 +6,8 @@ extends RefCounted
 ## Goals never write inputs: BotBrain turns the winner into movement, and the
 ## combat layer shoots whatever target the sensor picked in every goal.
 
-enum Kind { PUSH, DEFEND, FIGHT, RETREAT, SIEGE }
-const NAMES: Array[String] = ["push", "defend", "fight", "retreat", "siege"]
+enum Kind { PUSH, DEFEND, FIGHT, RETREAT, SIEGE, CELL }
+const NAMES: Array[String] = ["push", "defend", "fight", "retreat", "siege", "cell"]
 
 var kind: int = Kind.PUSH
 

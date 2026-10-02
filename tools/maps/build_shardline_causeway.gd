@@ -33,6 +33,7 @@ const UPLINK_L := 30.0
 const MID_L := 210.0
 const PLAZA_R := 25.0
 const SOCKET_GAP := 15.0          # Barricade socket distance outside the zone edge
+const CRADLE_X := -5.0            # E14 Cell Cradles: lateral offset from the adjacent node (north side)
 
 const AZURE := Color("#2E86FF")
 const EMBER := Color("#FF5A1F")
@@ -442,6 +443,44 @@ func _hardpoints(anchors: Node3D) -> void:
 			_sockets(anchors, _hp_id(hp, half), l, hp[5])
 	_hardpoint(anchors, &"s_mid", HardpointDef.TaskKind.HOLD, P(0, MID_L), 12.0, "n")
 	_sockets(anchors, &"s_mid", MID_L, 12.0)
+	_cradles(anchors)
+
+
+## E14: lane distance L of each hardpoint in lane order (Concord Inner first).
+func _lane_ls() -> Array[float]:
+	return [HP_A[0][4], HP_A[1][4], MID_L, mirror_l(HP_A[1][4]), mirror_l(HP_A[0][4])]
+
+
+## E14 Cell Cradles (§3.4 Plant 1) for the Plant node at lane index `i`: [0] =
+## Concord's (at the adjacent node toward the Concord HQ, else its lane gate),
+## [1] = Syndicate's. CRADLE_X metres to the side of the node centre.
+func _cradle_points(i: int) -> PackedVector3Array:
+	var ls := _lane_ls()
+	var c := P(CRADLE_X, ls[i - 1]) if i - 1 >= 0 else P(CRADLE_X, HQ_FRONT)
+	var sy := P(CRADLE_X, ls[i + 1]) if i + 1 < ls.size() else P(CRADLE_X, mirror_l(HQ_FRONT))
+	return PackedVector3Array([c, sy])
+
+
+func _plant_indices() -> Array[int]:
+	return [1, 3]  # s_ao, s_bo
+
+
+func _cradles(anchors: Node3D) -> void:
+	for i in _plant_indices():
+		var id: StringName = HP_A[1][0] if i == 1 else HP_B_NAMES[HP_A[1][0]][0]
+		var pts := _cradle_points(i)
+		for team in 2:
+			var a := CellCradleAnchor.new()
+			a.name = "Cradle_%s_%s" % [String(id).to_upper(), "C" if team == 0 else "S"]
+			a.hardpoint_id = id
+			a.team = team
+			a.position = pts[team]
+			a.gizmo_extents = 1.0
+			_add(anchors, a)
+			# Greybox: a low Cradle pedestal with a socket ring (no collision, nav unchanged).
+			var k := "a" if team == 0 else "b"
+			_cyl(geo, "CellCradle_%s_%d" % [String(id).to_upper(), team], 0.9, 0.7, 0.5, pts[team], mats["team_" + k], false, 8)
+			_cyl(geo, "CellCradleGlow_%s_%d" % [String(id).to_upper(), team], 0.35, 0.35, 0.3, pts[team] + Vector3(0, 0.5, 0), mats["glow_" + k], false, 12)
 
 
 func _hardpoint(anchors: Node3D, id: StringName, task: int, pos: Vector3, r: float, k: String) -> void:
@@ -677,6 +716,8 @@ func _save_map_def() -> void:
 			h.initial_owner = MapDef.TEAM_CONCORD if half == 0 else MapDef.TEAM_SYNDICATE
 		h.lane_index = i
 		h.zone_height = 6.0
+		if h.task == HardpointDef.TaskKind.PLANT:
+			h.cell_cradles = _cradle_points(i)
 		var l := -h.position.z
 		h.barricade_sockets = PackedVector3Array([P(0, l - h.zone_radius - SOCKET_GAP), P(0, l + h.zone_radius + SOCKET_GAP)])
 		hps.append(h)

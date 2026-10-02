@@ -65,6 +65,8 @@ extends Resource
 @export_range(0.0, 2.0, 0.01) var w_fight: float = 0.7
 @export_range(0.0, 2.0, 0.01) var w_retreat: float = 0.95
 @export_range(0.0, 2.0, 0.01) var w_siege: float = 0.85
+## E14 Plant: carry / plant / defuse / disperse a Mana Cell.
+@export_range(0.0, 2.0, 0.01) var w_cell: float = 1.0
 ## Added to the current goal's score (hysteresis against flip-flopping).
 @export_range(0.0, 1.0, 0.01) var stickiness: float = 0.08
 

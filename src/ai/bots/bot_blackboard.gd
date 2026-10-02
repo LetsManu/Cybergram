@@ -47,6 +47,20 @@ var enemy_uplink_id: int = 0
 var enemy_uplink_pos: Vector3 = Vector3.ZERO
 var siege_pos: Vector3 = Vector3.ZERO
 
+## E14 Plant: a Cell job for this bot (carry from the Cradle, pick up a dropped
+## Cell, plant it, defuse an enemy Cell, disperse a dropped enemy Cell).
+enum CellJob { NONE, PICKUP, TOUCH, PLANT, DEFUSE, DISPERSE }
+var cell_job: int = CellJob.NONE
+## Where the job is (Cradle, dropped Cell, or the Socket zone centre).
+var cell_job_pos: Vector3 = Vector3.ZERO
+var cell_job_radius: float = 1.0
+## The bot carries a Cell (no mobility skills).
+var carrying: bool = false
+## E14 Breach: the enemy Generator this bot's team may damage (0 = none).
+var generator_id: int = 0
+var generator_pos: Vector3 = Vector3.ZERO
+var generator_zone_radius: float = 12.0
+
 ## HQ (Sanctum) of the bot's team: retreat target.
 var home_pos: Vector3 = Vector3.ZERO
 ## Goal chosen at the previous decision (BotGoal.Kind) and when it started.

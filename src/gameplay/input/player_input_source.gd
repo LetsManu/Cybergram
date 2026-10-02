@@ -122,6 +122,9 @@ func sample(seq: int, out: InputCommand) -> void:
 		out.buttons |= InputCommand.BTN_FIRE
 	if _pressed("reload", KEY_R):
 		out.buttons |= InputCommand.BTN_RELOAD
+	# E14 (hud.md §13 binds: Interact F, hold): Cell pickup, plant, defuse.
+	if not ui_captured and _pressed("interact", KEY_F):
+		out.buttons |= InputCommand.BTN_INTERACT
 	# E10 skills (hud.md §4.4 / §13 binds: S1 Q, S2 E, S3 C, Ult G). Alt held =
 	# quick spend (E15): the keys learn instead of cast.
 	var cast := not quick_spend and not ui_captured

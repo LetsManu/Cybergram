@@ -4,9 +4,10 @@ extends RefCounted
 ## score wins, the current goal gets BotProfile.stickiness on top. Pure: same
 ## blackboard and profile give the same answer.
 
-var goals: Array[BotGoal] = [PushGoal.new(), DefendGoal.new(), FightGoal.new(), RetreatGoal.new(), SiegeGoal.new()]
+var goals: Array[BotGoal] = [PushGoal.new(), DefendGoal.new(), FightGoal.new(), RetreatGoal.new(), SiegeGoal.new(),
+	CellGoal.new()]
 ## Scores of the last pick, indexed by BotGoal.Kind (debug / tests).
-var last_scores: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
+var last_scores: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0, 0])
 
 
 func pick(bb: BotBlackboard, p: BotProfile) -> BotGoal:
