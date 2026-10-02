@@ -285,7 +285,7 @@ func _march() -> void:
 	if _plan_seen != wv.plans:
 		_plan_seen = wv.plans
 		var i := wv.members.find(body)
-		_march_offset = Vector2((float(i % 2) - 0.5) * rules.wave_spacing_m, float((i / 2) % 2) * rules.wave_spacing_m)
+		_march_offset = Vector2((float(i % 2) - 0.5) * rules.wave_spacing_m, float((i >> 1) % 2) * rules.wave_spacing_m)
 		body.set_path(_offset_path(wv.path, _march_offset), rules.wave_march_speed, rules.arrive_march_m)
 	elif not body.has_move_target:
 		body.set_path(_offset_path(wv.path, _march_offset), rules.wave_march_speed, rules.arrive_march_m)

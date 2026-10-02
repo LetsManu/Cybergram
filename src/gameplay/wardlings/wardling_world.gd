@@ -344,7 +344,7 @@ func debug_spawn(n: int) -> void:
 		var wave := VanguardWave.new(_next_wave_id, team, 0, server.tick)
 		_next_wave_id += 1
 		var ahead := -1.0 if team == MapDef.TEAM_CONCORD else 1.0
-		var base := hq.lane_gate + Vector3(0.0, 0.0, ahead * (6.0 + (k / 2) * 5.0))
+		var base := hq.lane_gate + Vector3(0.0, 0.0, ahead * (6.0 + float(k >> 1) * 5.0))
 		for i in mini(4, n - made):
 			if _mint(picket, team, base + _block_offset(i, ahead), 0, null, wave) == null:
 				return
@@ -747,4 +747,4 @@ static func _ring_offset(i: int, r: float) -> Vector3:
 ## 2 x 2 march block slot `i` (ahead = -1 marches toward -Z).
 func _block_offset(i: int, ahead: float) -> Vector3:
 	var s := rules.wave_spacing_m
-	return Vector3((float(i % 2) - 0.5) * s, 0.0, -ahead * float((i / 2) % 2) * s)
+	return Vector3((float(i % 2) - 0.5) * s, 0.0, -ahead * float((i >> 1) % 2) * s)

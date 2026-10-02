@@ -20,16 +20,16 @@ func test_squad_follows_owner_across_the_slice_map() -> void:
 	var id := server.add_scripted_hero(walker, def.hq(MapDef.TEAM_CONCORD).spawn_points[2], CombatFixtures.vesper(),
 		ServerWorld.TEAM_PLAYERS)
 	walker.hero_id = id
-	var owner := server.hero(id)
+	var hero := server.hero(id)
 	var max_d := 0.0
 	var ticks := 0
 	while not walker.arrived and ticks < 60 * HZ:
 		server.step()
 		ticks += 1
-		var sq := server.wardlings.squad_of(id)
-		if ticks > walker.wait_ticks and sq != null:
-			for m in sq.members:
-				max_d = maxf(max_d, _flat(m.global_position, owner.state.position))
+		var live := server.wardlings.squad_of(id)
+		if ticks > walker.wait_ticks and live != null:
+			for m in live.members:
+				max_d = maxf(max_d, _flat(m.global_position, hero.state.position))
 	for i in 4 * HZ:  # settle into formation
 		server.step()
 	var sq := server.wardlings.squad_of(id)
@@ -40,7 +40,7 @@ func test_squad_follows_owner_across_the_slice_map() -> void:
 	assert_int(sq.command).is_equal(Squad.CMD_FOLLOW)
 	assert_float(max_d).is_less(rules.follow_leash_m)
 	for m in sq.members:
-		var d := _flat(m.global_position, owner.state.position)
+		var d := _flat(m.global_position, hero.state.position)
 		assert_float(d).is_less_equal(rules.follow_back_max_m + 3.0)
 		assert_float(m.global_position.y).is_between(-0.5, 2.0)
 	# Nothing replaced away from the Foundry; the minting stayed at 3.
