@@ -46,7 +46,7 @@ Cybergram needs one engine and language for client, listen server, dedicated ser
 ## Context
 
 ### Problem Statement
-The owner fixed the stack (Godot 4.7, GDScript, Forward+, Jolt). This ADR records **where the boundaries of that choice are**: typed GDScript conventions, when native code is justified, and how we keep a team without C++ specialists productive while a ~100-agent server sim runs at 30 Hz.
+The owner fixed the stack (Godot 4.7, GDScript, Forward+, Jolt). This ADR records **where the boundaries of that choice are**: typed GDScript conventions, when native code is justified, and how we keep a team without C++ specialists productive while a ≤110-agent server sim runs at 30 Hz.
 
 ### Constraints
 - PC first; Linux CI runners; no paid engine.
@@ -84,7 +84,7 @@ The owner fixed the stack (Godot 4.7, GDScript, Forward+, Jolt). This ADR record
 - **Rejection Reason**: Not needed before measurement. GDExtension covers the narrow hot paths.
 
 ### Alternative 2: Server core entirely in C++ GDExtension from day 1
-- **Pros**: maximum headroom for ~100 agents.
+- **Pros**: maximum headroom for ≤110 agents.
 - **Cons**: slow iteration on rules that the design will churn; specialist bottleneck; harder testing.
 - **Rejection Reason**: Premature. The ≤ 10 ms tick budget looks achievable in GDScript with LOD (to be proven in the M1 perf scenario).
 
@@ -123,7 +123,7 @@ The owner fixed the stack (Godot 4.7, GDScript, Forward+, Jolt). This ADR record
 | GDD Document | System | Requirement | How This ADR Satisfies It |
 |-------------|--------|-------------|--------------------------|
 | `design/gdd/game-concept.md` | Core Identity | Godot 4.7, GDScript, Forward+, Jolt | Adopted as the stack, with a GDExtension escape hatch |
-| `design/gdd/game-concept.md` | Top Risks | Netcode for ~10 heroes + ~100 AI | Performance discipline + measured native fallback |
+| `design/gdd/game-concept.md` | Top Risks | Netcode for 10 heroes + ≤110 AI (C1) | Performance discipline + measured native fallback |
 
 ## Related
 

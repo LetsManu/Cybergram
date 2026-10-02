@@ -20,7 +20,7 @@ network-programmer (author), technical-director, lead-programmer. Written autono
 
 ## Summary
 
-A 5v5 FPS-MOBA with ~100 AI agents needs cheat-resistant, lag-compensated netcode. The owner requires that it is never retrofitted, even though M1 is offline/LAN only. **Every mode runs the same `ServerWorld` at a fixed 30 Hz tick.** Clients talk to it only through versioned binary messages over a `Transport`: in-memory `LoopbackTransport` offline, `ENetMultiplayerPeer` used as a raw packet peer on LAN/online. The design uses client-side prediction for movement, snapshot interpolation, delta-compressed per-client snapshots with interest management, and lag-compensated hitscan.
+A 5v5 FPS-MOBA with ≤110 AI agents (Canon C1) needs cheat-resistant, lag-compensated netcode. The owner requires that it is never retrofitted, even though M1 is offline only. **Every mode runs the same `ServerWorld` at a fixed 30 Hz tick.** Clients talk to it only through versioned binary messages over a `Transport`: in-memory `LoopbackTransport` offline, `ENetMultiplayerPeer` used as a raw packet peer on LAN/online. The design uses client-side prediction for movement, snapshot interpolation, delta-compressed per-client snapshots with interest management, and lag-compensated hitscan.
 
 ## Engine Compatibility
 
@@ -46,7 +46,7 @@ A 5v5 FPS-MOBA with ~100 AI agents needs cheat-resistant, lag-compensated netcod
 ## Context
 
 ### Problem Statement
-If M1 is built as a single-player game with "local" state, M2 online play would require rewriting every system's authority and replication. The concept's top technical risk is netcode for 10 heroes plus ~100 Wardlings (squads ≤ 50, Garrisons ≤ 30, Vanguard ≤ 24).
+If M1 is built as a single-player game with "local" state, M2 online play would require rewriting every system's authority and replication. The concept's top technical risk is netcode for 10 heroes plus ≤110 Wardlings (Canon C1: squads ≤ 54, Garrisons ≤ 30, Vanguard ≤ 24).
 
 ### Constraints
 - First-person aiming needs < 1 frame of perceived input latency for movement and look, and fair hit registration up to ~150 ms RTT.
@@ -92,7 +92,7 @@ func trace(shooter_net_id: int, origin: Vector3, dir: Vector3, range_m: float,
 
 ### Alternative 2: Deterministic lockstep / rollback of the whole sim
 - **Pros**: tiny bandwidth (inputs only).
-- **Cons**: Jolt and GDScript floats are not guaranteed cross-machine deterministic; 100 AI agents make full rollback expensive; late-join and reconnect are hard.
+- **Cons**: Jolt and GDScript floats are not guaranteed cross-machine deterministic; ≤110 AI agents make full rollback expensive; late-join and reconnect are hard.
 - **Rejection Reason**: Determinism cannot be guaranteed on this stack.
 
 ### Alternative 3: Build M1 single-player and add networking in M2
@@ -142,7 +142,7 @@ func trace(shooter_net_id: int, origin: Vector3, dir: Vector3, range_m: float,
 | GDD Document | System | Requirement | How This ADR Satisfies It |
 |-------------|--------|-------------|--------------------------|
 | `design/gdd/game-concept.md` | C1 | 5v5; bots replace disconnected players | Slot-based `InputBuffer`; a bot takes the slot on disconnect |
-| `design/gdd/game-concept.md` | C15, Top Risks | ~10 heroes + ~100 AI replicated | Interest management, priority budget, `WaveSummary` |
+| `design/gdd/game-concept.md` | C1, C15, Top Risks | 10 heroes + ≤110 AI replicated | Interest management, priority budget, `WaveSummary` |
 | `design/gdd/game-concept.md` | Pillar 2 | Shooter hands: aim decides fights | Prediction + lag-compensated hitscan |
 | `design/gdd/game-concept.md` | Scope Tiers | Offline/LAN M1, online M2 | One server path in all modes |
 

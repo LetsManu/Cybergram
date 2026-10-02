@@ -5,7 +5,7 @@
 - **Version**: 1.0 (Draft, written autonomously, `modes.automation: autonomous`)
 - **Last Updated**: 2026-10-02
 - **Authors**: technical-director (owner), network-programmer, lead-programmer
-- **Implements**: `design/gdd/game-concept.md` (Canon C1–C18 incl. the 2026-10-02 C15 revision: Vanguard waves, 4 squad commands, ~100 AI agents; Scope Tiers 0–2)
+- **Implements**: `design/gdd/game-concept.md` (Canon C1–C18 incl. the 2026-10-02 C15 revision: Vanguard waves, 4 squad commands; C1 AI budget ≤110 agents after the 2026-10-02 consistency pass; Scope Tiers 0–2)
 - **ADRs**: `docs/architecture/adr/ADR-0001` … `ADR-0006`
 - **Registry**: stances mirrored in `docs/registry/architecture.yaml`
 
@@ -71,8 +71,8 @@
 | Mode | Launch | Processes | Transport for the local player | Milestone |
 |---|---|---|---|---|
 | `OFFLINE` | `godot --path .` → Practice | 1: `ServerWorld` in a `SubViewport(own_world_3d)` plus `ClientWorld` | `LoopbackTransport` (optional `--net-sim` latency/loss) | M1 |
-| `LISTEN_HOST` | Host LAN game | 1: the same, plus ENet for remote peers | Loopback for host, ENet for others | M1 (LAN) |
-| `CLIENT` | `--connect ip:port` | 1: `ClientWorld` only | `ENetTransport` | M1 (LAN), M2 (online) |
+| `LISTEN_HOST` | Host LAN game | 1: the same, plus ENet for remote peers | Loopback for host, ENet for others | M2 (M1 is offline only, per the owner decision in the roadmap) |
+| `CLIENT` | `--connect ip:port` | 1: `ClientWorld` only | `ENetTransport` | M2 (LAN and online) |
 | `DEDICATED` | `godot --headless --path . -- --server --port 7777` (later a dedicated-server export) | 1: `ServerWorld` only, as the root world | none | M2 |
 | `SIM_TEST` | `godot --headless --path . -- --sim-test <scenario.tres>` | 1: `ServerWorld` plus N headless bot clients over loopback, stepped as fast as possible | Loopback | M1 (CI) |
 
@@ -216,7 +216,7 @@ hardpoint_sim.tscn (HardpointSim : Node3D)
 
 - Signals: `task_progressed(team: int, progress: float)`, `ownership_changed(old_team: int, new_team: int)`, `contested_changed(is_contested: bool)`.
 - `HardpointSim.can_be_attacked_by(team)` asks `ObjectiveSystem.lane_prereq_held(lane, index, team)` (C3 adjacency rule). Ownership flips straight to the capturing team.
-- Presence weights come from `HardpointDef`/`MatchRulesDef` (C4: Wardling = 0.5 player). Surge scaling of task duration is read from `MatchRules.current_task_duration_scale()`.
+- Presence weights come from `HardpointDef`/`MatchRulesDef` (C4: Wardling = 0.5 player, AI presence capped at 3.0 per team per hardpoint; heroes uncapped). Surge scaling of task duration is read from `MatchRules.current_task_duration_scale()`.
 
 ### 5.5 Uplink
 
@@ -245,7 +245,7 @@ Every tunable is a typed custom `Resource` (`class_name … extends Resource`, `
 | `EconomyRewards` | Lumen/Resonance per Wardling kill, hero kill, assist, capture, defence, trickle per second, share radius 25 m, catch-up bonus per level delta | C13, C14 |
 | `LevelCurve` | `resonance_to_level: PackedInt32Array` (15), skill points per level | C12 |
 | `ShopCatalog` | Armory and Foundry entries → `ModDef`/`AmmoTypeDef`/squad upgrades/consumables | C14, C15 |
-| `MatchRulesDef` | `time_cap_s` 3600, `surge_times_s`, `surge_task_scale`, `drought_time_s`, respawn `base`/`per_min`/`cap`, `sudden_death_*`, incursion table | C7–C11 |
+| `MatchRulesDef` | `time_cap_s` 3600, `capture_overtime_s` 30 (C8), `ai_presence_cap` 3.0 (C4), `surge_times_s`, `surge_task_scale`, `drought_time_s`, respawn `base`/`per_min`/`cap`, `sudden_death_*` (incl. `sudden_death_max_restarts` 3, C10), incursion table | C7–C11 |
 | `MapDef` | lanes → ordered `HardpointDef`s (task kind, base duration, lane, index), HQ spawn data | C2–C6 |
 | `NetConfig` | `tick_rate_hz` 30, `interp_delay_ticks` 3, `max_rewind_ms` 200, `snapshot_budget_bytes`, quantisation steps, relevancy radii | ADR-0002 |
 | `BotProfile` / `BotRoleDef` | reaction ms, aim error curves, decision hz, goal weights | ADR-0005 |
@@ -255,7 +255,7 @@ Rules:
 - **Defs are immutable at runtime.** Per-instance state lives in runtime objects (`SkillInstance`, `StatBlock`, `Squad`). If a Def must be mutated per instance, use `duplicate_deep()` (4.5+), but the design never needs it.
 - **Ids** are `StringName`s equal to the file stem. `ContentDB` sorts all ids per type → stable uint16 net index. The handshake compares `content_hash` (a hash of sorted ids plus each file's content), and a mismatch refuses the connection (`Reject(CONTENT_MISMATCH)`).
 - **Formulas are code, coefficients are data.** For example, `RespawnSystem.respawn_seconds(minutes) = min(rules.respawn_cap, rules.respawn_base + rules.respawn_per_min * minutes)` (C11). The design doc owns the formula and the `.tres` owns the numbers.
-- A `ContentValidator` (`tools/ci/validate_content.gd`, run in CI) loads every `.tres` and checks: required fields present, ranges valid, every skill has an UNLOCK and MASTERY node, FORK_A/B exclude each other, ultimate ranks at levels 6/10/14, no orphan defs.
+- A `ContentValidator` (`tools/ci/validate_content.gd`, run in CI) loads every `.tres` and checks: required fields present, ranges valid, every skill has an UNLOCK node and, outside the M1 reduced-tree content set (UNLOCK/BOOST/ULT_RANK only, `heroes.md` §11), BOOST, FORK_A/B and MASTERY nodes; FORK_A/B exclude each other, ultimate ranks at levels 6/10/14, no orphan defs.
 
 ---
 
@@ -373,7 +373,7 @@ Individual nodes do **not** use `_physics_process` for sim logic. `TickRunner` c
 - Entity create/destroy is part of the snapshot (a create record carries kind and def index). Despawn is also sent as a reliable `Event` so it is never missed.
 - **Budget:** `snapshot_budget_bytes = 1100` per client per tick (fits one MTU-safe packet). Overflow is handled by priority (§8.6). The target is ≤ 256 kbps down and ≤ 48 kbps up per client typical, and ≤ 2.5 Mbps total server egress for 10 clients.
 
-### 8.6 Interest management (~100 AI agents: squads ≤ 50, Garrisons ≤ 30, Vanguard ≤ 24)
+### 8.6 Interest management (≤110 AI agents, Canon C1: squads ≤ 54 incl. 2 Vespers, Garrisons ≤ 30, Vanguard ≤ 24)
 
 `InterestManager` runs on the server per client per tick and uses a `SpatialHash` (16 m cells) that is rebuilt each tick:
 
@@ -390,7 +390,7 @@ Individual nodes do **not** use `_physics_process` for sim logic. `TickRunner` c
 
 **Priority accumulator.** Each (client, entity) pair accumulates `priority += base_weight × distance_factor` every tick. The builder writes entities in descending priority until the byte budget is reached, then resets those it sent. This degrades gracefully in big fights instead of exceeding the MTU. All radii and weights are in `NetConfig`.
 
-**Sizing check (worst realistic view):** 10 heroes × ~14 B + 40 Wardlings in the 60 m band × ~6 B + 30 in the 60–120 m band at 6 Hz (~1.2/tick × 6 B) + 6 `WaveSummary` × 2 Hz + objective block ≈ 450–600 B per tick, inside the 1100 B budget. A full keyframe (no baseline) of ~100 Wardlings is ~1.1 KB and is split across two ticks by the priority accumulator.
+**Sizing check (worst realistic view):** 10 heroes × ~14 B + 40 Wardlings in the 60 m band × ~6 B + 30 in the 60–120 m band at 6 Hz (~1.2/tick × 6 B) + 6 `WaveSummary` × 2 Hz + objective block ≈ 450–600 B per tick, inside the 1100 B budget. A full keyframe (no baseline) of ~110 Wardlings is ~1.2 KB and is split across two ticks by the priority accumulator.
 
 ### 8.7 Lag compensation
 
@@ -462,9 +462,9 @@ Squad Wardlings use FOLLOW/HOLD/ATTACK_TARGET/CAPTURE/ENGAGE/RETURN/DISSOLVING. 
 | 1 | 40–100 m | every 6 ticks (5 Hz) | 1 Hz | on |
 | 2 | > 100 m (idle garrisons, Vanguard marching through empty lanes) | every 30 ticks (1 Hz) | on demand (wave path shared) | off (`avoidance_enabled=false`) |
 
-- Staggering is by `net_id % interval`. A **deterministic cap** (`AiLodConfig.max_decisions_per_tick`, default 32 for ~100 agents) defers the overflow to the next tick. The cap is count-based, never wall-clock-based, so sims stay reproducible.
+- Staggering is by `net_id % interval`. A **deterministic cap** (`AiLodConfig.max_decisions_per_tick`, default 32 for ≤110 agents) defers the overflow to the next tick. The cap is count-based, never wall-clock-based, so sims stay reproducible.
 - Movement integrates every tick for all LODs (`move_and_slide`, cheap); only *thinking* is LOD'd.
-- Perception uses `SpatialHash` queries. LOS rays are pooled under a per-tick ray budget (`max_los_rays_per_tick`, default 40). Steady state at ~100 agents is ≈ 100/3 LOD0 worst case, but typically about 40% are LOD1/2. That gives ≈ 20–30 decisions per tick, which fits under the cap.
+- Perception uses `SpatialHash` queries. LOS rays are pooled under a per-tick ray budget (`max_los_rays_per_tick`, default 40). Steady state at ≤110 agents is ≈ 110/3 ≈ 37 LOD0 worst case, but typically about 40% are LOD1/2. That gives ≈ 20–30 decisions per tick, which fits under the cap.
 
 ### 10.3 Navigation
 
@@ -490,11 +490,11 @@ Squad Wardlings use FOLLOW/HOLD/ATTACK_TARGET/CAPTURE/ENGAGE/RETURN/DISSOLVING. 
 | Client, recommended spec | **144 fps** (6.94 ms) at 1080p: render ≤ 4.5 ms CPU-side, scripts ≤ 1.5 ms, prediction/reconcile ≤ 0.5 ms average, UI ≤ 0.4 ms |
 | Client, minimum spec | **60 fps** (16.6 ms) at 1080p with medium preset |
 | Client AI cost | 0 ms (AI is server-only), except debug client bots |
-| Server tick (dedicated) | **≤ 10 ms per 33.3 ms tick** (30%, one core) with 10 heroes + 104 Wardlings (50 squad + 30 garrison + 24 Vanguard) + 9 clients |
+| Server tick (dedicated) | **≤ 10 ms per 33.3 ms tick** (30%, one core) with 10 heroes + 108 Wardlings (54 squad + 30 garrison + 24 Vanguard; Canon C1 budget ≤110) + 9 clients |
 | ↳ breakdown | input/motor/abilities 1.0 · Wardling + wave decisions 1.6 · Wardling movement + nav/avoidance 2.6 · bots 0.4 · projectiles/effects/objectives 0.9 · hitbox history + lag comp 0.6 · snapshots (9 clients) 1.7 · slack 1.2 |
 | Listen host | server ≤ 10 ms/tick amortised = ≤ 5 ms per rendered frame at 60 fps; host hardware must hold 60 fps (recommended spec only) |
 | AI rule mapping | `.claude/rules/ai-code.md` "2 ms per frame": interpreted as **≤ 2 ms per server tick** for decisions (Wardlings and waves 1.6 + bots 0.4). Movement is costed separately. |
-| Wardling count | canon ~100: squads ≤ 50 (52 with Vesper's +2), Garrisons ≤ 30, Vanguard ≤ 24 → design max **106**; engineering budget **120** (perf scenario spawns 120). M1 slice (1 lane): ≤ 10 squad + 10 garrison + 8 Vanguard, plus a 5v5 duplicated-hero, full-map-equivalent stress scenario of 120. |
+| Wardling count | Canon C1 budget **≤110**: squads ≤ 54 (8 × 5 + 2 Vespers × 7), Garrisons ≤ 30, Vanguard ≤ 24 → design max **108**; engineering headroom **120** (perf scenario spawns 120). M1 slice (1 lane, Vesper + Brannoc with duplicates, no Garrisons): squads typically 30–40, worst case 70 (10 Vespers at squad 7) + ≤ 8 Vanguard = **≤ 78**, plus the 120-agent stress scenario. |
 | Bandwidth | ≤ 256 kbps down / ≤ 48 kbps up per client typical; ≤ 512 kbps down peak |
 | Memory | client ≤ 3 GB RAM / 3 GB VRAM; dedicated server ≤ 1 GB RAM per match |
 | Load | match load ≤ 15 s on SSD (Shader Baker pre-compiled pipelines) |
@@ -547,7 +547,7 @@ Rules: no sim code reads wall-clock time; every RNG is a `SimRng` seeded from `m
 
 | # | Risk | P | I | Mitigation | Owner | Trigger to act |
 |---|---|---|---|---|---|---|
-| R1 | **GDScript server tick cost** for 10 heroes + ~100 Wardlings (squads, Garrisons, Vanguard) + 9 snapshot builds exceeds 10 ms | M | H | Count-based AI LOD, SpatialHash, packed arrays, no per-tick allocation; M1 perf sim scenario; GDExtension candidates pre-identified (snapshot encoder, hitbox rewind, spatial hash) per ADR-0001 | technical-director | p95 > 10 ms in the 120-agent perf scenario |
+| R1 | **GDScript server tick cost** for 10 heroes + ≤110 Wardlings (squads, Garrisons, Vanguard) + 9 snapshot builds exceeds 10 ms | M | H | Count-based AI LOD, SpatialHash, packed arrays, no per-tick allocation; M1 perf sim scenario; GDExtension candidates pre-identified (snapshot encoder, hitbox rewind, spatial hash) per ADR-0001 | technical-director | p95 > 10 ms in the 120-agent perf scenario |
 | R2 | **Prediction/reconciliation jitter** with Jolt `CharacterBody3D` replay (verification item 3) | M | H | `HeroMotor` isolated as a pure step; reconciliation integration test under `net_sim`; fallback: custom kinematic motor on `PhysicsServer3D.body_test_motion` | network-programmer | reconcile corrections > 1 per second at 0% loss |
 | R3 | **30 Hz tick feels unresponsive** for a competitive FPS (hit reg, peeker's advantage) | M | M | Mouse look per render frame; lag comp; rate is data (`NetConfig`); benchmark 60 Hz after M1 | network-programmer | playtest complaints or server headroom > 50% |
 | R4 | **Bandwidth spikes in big fights** (60+ Wardlings in view once Vanguard waves collide with squads at a contested hardpoint) | M | M | Priority accumulator under a hard byte budget; Wardling records ≤ 6 B; LOD rates; Vanguard far-field sent as `WaveSummary` | network-programmer | budget overflow > 10% of ticks |
@@ -568,5 +568,5 @@ Rules: no sim code reads wall-clock time; every RNG is a `SimRng` seeded from `m
 
 | Milestone | Architecture delivered |
 |---|---|
-| **M1 — offline/LAN slice** (1 lane, Ryker + Liora, bots) | All of §2–§13 in `OFFLINE`, `LISTEN_HOST`, `CLIENT` (LAN) and `SIM_TEST` modes; `LoopbackTransport` + `ENetTransport`; prediction/reconciliation; lag comp; interest management active even locally; Hold task (Plant/Breach stubbed behind `task_kind`); squad with all 4 commands; Vanguard waves on the slice lane; Garrisons; Uplink exposure; CI with unit, integration and sim suite |
-| **M2 — online PvP** | `DEDICATED` export and headless server, auth token in `Hello`, reconnect, soak/load tests with client-side bots over ENet, bandwidth telemetry, NAT/hosting decision (new ADR) |
+| **M1 — offline slice** (1 lane "Shardline Causeway", Vesper Loom + Brannoc with duplicates, bots) | All of §2–§13 in `OFFLINE` and `SIM_TEST` modes; `LoopbackTransport` (with `--net-sim`); prediction/reconciliation; lag comp; interest management active even locally; Hold task first, then Plant and Breach behind `task_kind` within M1; squad with all 4 commands; Vanguard waves on the slice lane; levels and the reduced skill tree (UNLOCK/BOOST/ULT_RANK nodes); minimal mount shop; Uplink exposure; CI with unit, integration and sim suite. Garrisons, Barricades and Supply Caches are M3 |
+| **M2 — online PvP** | `ENetTransport`, `LISTEN_HOST` and `CLIENT` modes, `DEDICATED` export and headless server, auth token in `Hello`, reconnect, soak/load tests with client-side bots over ENet, bandwidth telemetry, NAT/hosting decision (new ADR) |

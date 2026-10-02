@@ -239,10 +239,10 @@ performance_budgets:
     status: active
     budget_ms: 10.0
     adr: docs/architecture/adr/ADR-0002-server-authoritative-networking.md
-    notes: "Per 33.3 ms tick (30 Hz), 10 heroes + 120 Wardlings + 9 clients; breakdown in architecture.md §12"
+    notes: "Per 33.3 ms tick (30 Hz), 10 heroes + 120 Wardlings (perf headroom over the Canon C1 design budget of <=110: squads <=54, Garrisons <=30, Vanguard <=24) + 9 clients; breakdown in architecture.md §12"
     referenced_by: [docs/architecture/adr/ADR-0001-engine-and-language.md, docs/architecture/adr/ADR-0002-server-authoritative-networking.md, docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md, docs/architecture/adr/ADR-0006-test-and-ci-strategy.md]
     added: 2026-10-02
-    revised: ""
+    revised: 2026-10-02   # consistency pass: design budget note (was "~100")
   - system: ai-decisions
     status: active
     budget_ms: 2.0
@@ -321,7 +321,7 @@ api_decisions:
     api: "NavigationAgent3D (avoidance) + NavigationServer3D.query_path shared per Vanguard wave"
     not: "Per-agent path query every tick"
     adr: docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md
-    reason: "Bounded cost for ~100 agents; RID-level fallback if node overhead too high"
+    reason: "Bounded cost for ≤110 agents (Canon C1); RID-level fallback if node overhead too high"
     referenced_by: [docs/architecture/adr/ADR-0005-ai-architecture-bots-and-wardlings.md]
     added: 2026-10-02
     revised: ""

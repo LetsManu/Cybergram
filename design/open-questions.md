@@ -1,0 +1,40 @@
+# Open Questions for the Owner
+
+*Created: 2026-10-02 (M0 consistency pass) · Owner: creative-director · Status: awaiting owner review*
+
+This is the **single consolidated list** of decisions that need the owner. It replaces the per-doc lists (the concept's "Open Questions for the Owner" now points here). Following the owner's instruction ("make the decisions you need to; I trust you"), it holds only items that change the game's identity or overturn an owner note. Every other question was decided by the team and is recorded in the docs and in the Decision Log below.
+
+Each item has a working default that all docs already follow. If you change a default, the listed doc and section is where the change starts (Canon changes also update `design/registry/entities.yaml`).
+
+| # | Decision | Current default (docs follow this) | Alternatives | Where it lives |
+| ---- | ---- | ---- | ---- | ---- |
+| 1 | **Sudden Death safety valve** (extends your mutual-kill rule) | Your rule stays: a mutual kill (last fighters die within 1.0 s) restarts Sudden Death. **After 3 restarts** the next round is final: if it is undecided when the ring finishes closing (90 s), the team with the higher summed remaining HP% of its living fighters wins (exact tie: more Sudden Death damage dealt). | (a) Unlimited restarts, your literal rule (risk: two healers trade forever). (b) After N restarts the match is a draw. (c) A different N (2–5). | `design/gdd/game-concept.md` Canon C10; `design/gdd/match-flow-and-map.md` §3.1 and F10 |
+| 2 | **Capture overtime past 60:00** (softens your hard cap) | A capture already in progress at 60:00 may run up to 30 s longer; nothing new can start. The snapshot is taken when those tasks finish or fail, or at 60:30. | (a) Strict 60:00: a 99% capture counts for nothing. (b) A shorter or longer window (0–45 s). | Canon C8; `match-flow-and-map.md` §3.1 (Time-out) |
+| 3 | **Time-out tie-break order** (adds a step to "the team further into the opponent's HQ wins") | Incursion score (hardpoints held per lane) first; if equal, the team that removed the larger % of the enemy Uplink wins (≥1 point difference); if still equal, Sudden Death. | (a) Incursion, then straight to Sudden Death. (b) Uplink % first, then Incursion. | Canon C9; `match-flow-and-map.md` F8 |
+| 4 | **Please sanity-check the names** | World **Halcyra**; signal **the Cybergram**; factions **Azure Concord** (blue) vs **Ember Syndicate** (red), cosmetic only (every hero on both sides); mobs **Wardlings** (Picket, Shieldling, Striker, Seeker, Mender, Sapper, Sentinel); **Vanguard waves**; EXP **Resonance**; money **Lumen**; **Integrity**, **Sanctum**, **Foundry**, **Armory**. Heroes **Vesper Loom, Sable, Juniper Quill, Ryker Vance, Brannoc, Liora Vale, Hex**. Weapons **Breakline AR-7** (renamed from "Vanguard AR-7"), Ironmaw, Tackhammer, Halo Repeater, Threadcaster, Whisperfang, Glitchcaster. Squad upgrade **Amplifier Emitters** (renamed from "Overclock Emitters"). | Any rename. Names are data keys, so changing them now is cheap; after M1 art and VO they get expensive. | Canon C17, C18; `design/gdd/heroes.md` §3.2; `design/gdd/weapons-and-mods.md` §3.3; `design/gdd/wardlings-and-economy.md` §6–§7 |
+| 5 | **Team size 5v5** | 5v5, bots fill empty slots; each hero unique within a team (the M1 slice alone allows duplicates). | 4v4: smaller map, fewer AI agents, easier netcode. | Canon C1 |
+| 6 | **Map shape: 3 lanes × 5 hardpoints**, Mid neutral at start, hardpoints are tasks (Hold / Plant / Breach) | 15 hardpoints, contiguous-front rule (attack only next to what you hold), Mid Plaza linking the 3 Mids. | 2 lanes for a tighter FPS map; capture circles only (no Plant/Breach). | Canon C2–C4; `match-flow-and-map.md` §3.2–§3.4 |
+| 7 | **Uplink siege shape** | The Uplink is damageable only while an enemy holds one of your Inner hardpoints (any Outer from 45:00); damage is permanent; ~60 s of uncontested full-team fire kills it (Integrity 33,000). | Always damageable; or damage that regenerates when the lane is retaken. | Canon C7; `match-flow-and-map.md` §3.6, F9 |
+| 8 | **Skills use cooldowns for every hero** (your two hero types only change how the gun is fed) | Mana heroes' guns fire from a recharging pool, Mechanical heroes use magazines; all skills are on cooldowns. Liora "heals with mana" through her weapon's heal-beam alt-fire. | Mana heroes also pay mana for skills (more distinct types, more complex balance). | Canon C16; `heroes.md` §3.4; `weapons-and-mods.md` §3.3.1 |
+
+---
+
+## Decision Log — M0 consistency pass, 2026-10-02
+
+Decided by the producer/director and applied across all docs by the creative-director and systems-designer:
+
+- **R1 Pillar tests.** The Pillar 3 test now cuts features needing "more than four squad commands"; Pillar 2 explicitly exempts Wardling Attack Target designation (slow, dodgeable, LOS-bound shots, 12 s timeout).
+- **R2 Wardling strength.** Pickets retuned to 18 focused DPS (3 = 54 = 30% of Ryker's 180, the `heroes.md` value); duel check (healthy Ryker keeps about half HP), upgrade curve to ~74% and the 80% cap kept; every "260" removed; Uplink Integrity 30,000 → 33,000 so the reference siege stays ~59 s.
+- **R3 Hold presence cap.** Canon C4: AI presence counts 0.5 each, capped at 3.0 per team per hardpoint; heroes uncapped; match-flow knob default 3.0.
+- **R4 AI budget.** Canon C1: ≤110 AI agents (squads ≤54 incl. 2 Vespers, Garrisons ≤30, Vanguard ≤24) plus 10 heroes; architecture, ADRs, risks and the M1 gates updated; the 120-agent perf scenario kept as headroom.
+- **R5 Vertical slice.** M1 = Vesper Loom + Brannoc (duplicates allowed in the slice only), map "Shardline Causeway" (Breach / Plant / Hold / Plant / Breach, Hold-only staging allowed), minimal mount shop (CC1 accepted), levels with a reduced skill tree (Unlock + Boost + ult ranks); Ryker and Liora move to M3.
+- **R6 Time-out and Sudden Death.** Canon C8: 30 s capture overtime for captures already in progress at 60:00. Canon C10: mutual kill still restarts; after 3 restarts the final round is decided by summed HP% at ring close (owner confirmation pending, item 1).
+- **R7 Barricades.** Canon C5: Integrity 5,000; 2,500 for an Inner hardpoint's Barricade facing the defender's own HQ.
+- **R8 Supply Caches for Mana heroes.** Canon C5: touching a held Supply Cache gives Mana heroes −50% regen delay for 10 s (8 s per-hero cooldown).
+- **R9 Liora.** The Halo Repeater has a heal-beam alt-fire on the shared mana pool (60 / 30 HP/s, 25 mana/s, 18 m); mounts affect it only through the pool and range.
+- **R10 Squad command input.** `Z` tap = Smart Command (enemy → Attack, hardpoint → Go Capture, ground → Hold); hold `Z` = 4-slice radial; `X` = Follow; optional unbound direct keys; gamepad D-pad ↓ tap / hold / double-tap; no commanding from the map.
+- **R11 Naming.** Ryker's rifle is the **Breakline AR-7**; Elite Wardling scale is ×1.3 everywhere.
+- **R12 Lumen curve.** `wardlings-and-economy.md` §18 is the single source (500 purse, 40/min, ≈1,550 / 2,880 / 5,790 / 8,970 at 5 / 10 / 20 / 30 min); weapons retuned to the `heroes.md` HP/armor and DPS bands and all "[assumed]" markers removed; TTK bands re-verified.
+- **R13 Canon Concerns.** Resolved concerns replaced by "Resolved in consistency pass 2026-10-02" lines in every doc; no open Canon concerns remain in the GDDs.
+
+**Further fixes made in the same pass** (contradictions found by the sweep): squad upgrade "Overclock Emitters" renamed **Amplifier Emitters** (clashed with the Overclock Chip); Ultimate key moved from `X` to `G` (X is now Follow); Vanguard cadence unified to the global 60 s tick with survivor merge, march speed 5.5 m/s; skill damage vs the Uplink and Ward Generators unified at 50% (`heroes.md` §3.8); weapons armor model aligned to `heroes.md` flat-% armor with a separate +80% skill clamp; build-cost arithmetic corrected (full build 5,350–6,150); Sable's ult combo floor corrected to the 0.6 s ultimate floor; M1 LAN modes moved to M2 to match "M1 is offline"; stale file paths (`design/art/`, `adr-*.md`) fixed.

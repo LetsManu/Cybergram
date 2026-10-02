@@ -65,13 +65,13 @@ The gun design, ammo types and Crystals/Chips belong to `weapons-and-mods.md`. T
 
 | Hero | Weapon archetype | Resource | DPS band (target) | Range band | Hero-specific notes |
 | ---- | ---- | ---- | ---- | ---- | ---- |
-| Vesper | Mana pulse carbine | Mana pool | Low (115) | Mid | Low DPS is paid for by +2 Wardlings |
-| Sable | Mana burst SMG | Mana pool (small) | High burst (190) for ≤3 s, then Low sustained | Close–Mid | Pool empties fast; built for 1 target, not a teamfight |
-| Juniper | Mechanical lever-action marksman | Magazine + reserve | Mid (135) | Long | High headshot reward; trap kits do the close work |
-| Ryker | Mechanical assault rifle | Magazine + reserve | High (180) | Mid–Long | Highest *sustained* DPS in roster |
-| Brannoc | Mechanical heavy scattergun | Magazine (small) + reserve | High at ≤8 m (190), Low beyond 15 m | Close | Lethal only at Hold-zone distance |
-| Liora | Mana lance (bolts + heal-beam alt-fire) | Mana pool shared by bolts **and** heal beam | Low (95) | Mid | Heal beam: 60 HP/s, 25 mana/s, 18 m |
-| Hex | Mana glitch SMG | Mana pool | Mid (145) | Close–Mid | +50% vs gadgets (passive) |
+| Vesper | Mana pulse carbine (*Threadcaster*) | Mana pool | Low (115) | Mid | Low DPS is paid for by +2 Wardlings |
+| Sable | Mana burst SMG (*Whisperfang*) | Mana pool (small) | High burst (190) for ≤3 s, then Low sustained | Close–Mid | Pool empties fast; built for 1 target, not a teamfight |
+| Juniper | Mechanical lever-action marksman (*Tackhammer*) | Magazine + reserve | Mid (135) | Long | High headshot reward; trap kits do the close work |
+| Ryker | Mechanical assault rifle (*Breakline AR-7*) | Magazine + reserve | High (180) | Mid–Long | Highest *sustained* DPS in roster |
+| Brannoc | Mechanical heavy scattergun (*Ironmaw*) | Magazine (small) + reserve | High at ≤8 m (190), Low beyond 15 m | Close | Lethal only at Hold-zone distance |
+| Liora | Mana lance, bolts + heal-beam alt-fire (*Halo Repeater*) | Mana pool shared by bolts **and** heal beam | Low (95) | Mid | Heal beam: 60 HP/s, 25 mana/s, 18 m |
+| Hex | Mana glitch beam (*Glitchcaster*) | Mana pool | Mid (145) | Close–Mid | +50% vs gadgets (passive) |
 
 ### 3.3 Level scaling
 
@@ -127,7 +127,7 @@ Durations, cooldowns, ranges and radii **do not scale** with level; they only ch
 
 | Status | Effect | Hard CC? | Max duration in roster |
 | ---- | ---- | :--: | ---- |
-| Slow | −X% move speed | No | 2 s |
+| Slow | −X% move speed. Total move-speed reduction from all sources (skills, Cryo ammo) is capped at **40%** (shared rule with `weapons-and-mods.md`). | No | 2 s |
 | Root | Cannot move; can aim, shoot, use non-movement skills | Yes | 1.5 s |
 | Stun | Cannot move, shoot or use skills | Yes | 1.6 s |
 | Silence | Cannot use skills; can move and shoot | Yes | 2.5 s |
@@ -203,7 +203,7 @@ Vesper is the only hero who can command **Vanguard waves** and take control of *
 
 **Passive — Conductor.**
 1. **Bigger squad.** Squad cap **+2** (base 5, max 7 with squad upgrades; C15). Her own Wardlings have +15% HP.
-2. **Wave command.** Any **allied Vanguard wave** whose members are within **25 m** of Vesper obeys her squad's current command: Follow, Hold Here, Attack Target or Go Capture (the same 4 commands as C15, from the same radial wheel and quick keys; no new inputs). A conducted wave keeps the command while she stays within 25 m and for **8 s** after she leaves, then resumes its own march-to-front AI. Only one wave per lane can be conducted at a time.
+2. **Wave command.** Any **allied Vanguard wave** whose members are within **25 m** of Vesper obeys her squad's current command: Follow, Hold Here, Attack Target or Go Capture (the same 4 commands as C15, issued with the same Smart Command / Follow keys and radial wheel; no new inputs). A conducted wave keeps the command while she stays within 25 m and for **8 s** after she leaves, then resumes its own march-to-front AI. Only one wave per lane can be conducted at a time.
 3. **Command aura.** Allied Wardlings of any kind (squads, waves, Sentinels) within 15 m of her deal +10% damage.
 4. **Readability.** Conducted waves and her own squad carry violet thread VFX that link them to her, so everyone can see who the commander is.
 
@@ -240,7 +240,7 @@ Vesper is the only hero who can command **Vanguard waves** and take control of *
 *Counterplay:* kill her nearby Wardlings and she has no escape; the swap leaves a 1 s thread trail pointing to where she went.
 
 **Ult — Rewrite** (centred on Vesper, 0.8 s cast, loud ring telegraph, interruptible). Rewrites every Wardling within the radius:
-- **Allied** Wardlings (her squad, allies' squads, allied Vanguard waves, allied Garrison Sentinels) become **Elite** (`rewrite_to_elite`: tier +1, gold outline, ×1.15 scale; numbers owned by `wardlings-and-economy.md`).
+- **Allied** Wardlings (her squad, allies' squads, allied Vanguard waves, allied Garrison Sentinels) become **Elite** (`rewrite_to_elite`: tier +1, gold outline, ×1.3 scale; numbers owned by `wardlings-and-economy.md`).
 - **Enemy squad and Vanguard** Wardlings are **Turned** (`subvert` to Vesper): they fight for her team, count toward *her* team's Hold presence (inside the Wardling presence cap), and pay no bounty.
 - **Enemy Garrison Sentinels** cannot be subverted (wardlings doc §12); instead they are **Stalled**: they stop firing and give 0 presence for the Turned duration.
 
@@ -657,7 +657,7 @@ TTK_real = TTK_ideal / accuracy        # accuracy assumed 0.55 (bots 0.40, good 
 | Mid DPS vs 225–250 HP | 1.6–2.0 s | Hex vs Vesper: 1.72 s | 3.1 s |
 | Low DPS vs 225–250 HP | 2.0–2.6 s | Liora vs Sable: 2.37 s | 4.3 s |
 | High DPS vs Brannoc | 3.5–4.5 s | Ryker vs Brannoc: 3.82 s | 6.9 s |
-| Sable full combo (Eclipse +50%, Shadowgraph +20%, Ambush +40%) vs 250 HP | ≥0.8 s (floor) | 190 × 2.1 = 399 DPS → 0.63 s ⚠ | see §7.3 |
+| Sable full combo (Eclipse +50%, Shadowgraph +20%, Ambush +40%) vs 250 HP | ≥0.6 s (ultimate floor; Eclipse Step is her ult) | unclamped 190 × 2.1 = 399 DPS → 0.63 s; after the +80% clamp (§5.3) 188 × 1.8 = 338 DPS → **0.74 s** ✓ | ~1.3 s |
 | Any hero vs Tier I Wardling (150 HP, `wardlings-and-economy.md` §4) | ≤1.2 s | Mid: 1.0 s | 1.9 s |
 | Focused base squad of 3 (≈54 DPS, C15) vs healthy 250 HP hero | ≥4.5 s ("cannot beat a healthy hero alone") | 4.6 s | ~7 s |
 | Vesper's 7 + aura (≈139 DPS) vs 250 HP hero | ≥1.8 s | 1.8 s | ~3 s |
@@ -781,8 +781,8 @@ Liora's net-negative row is intended: healers are judged by team impact, not due
 | Doc | This doc needs from it | This doc provides to it |
 | ---- | ---- | ---- |
 | `game-concept.md` (Canon) | C1, C4, C5, C7, C10–C17 | — |
-| `weapons-and-mods.md` | Per-hero gun stats inside the bands of §3.2; head multiplier; any CDR mods (capped 25%) | Archetype, resource, DPS/range bands per hero; additive skill-bonus clamp (+80%) |
-| `wardlings-and-economy.md` | Wardling HP/damage per tier (Picket 150 HP T1); the 4 commands and Vanguard wave AI (C15); hooks `squad_capacity_bonus`, `apply_squad_modifier`, `rewrite_to_elite`, `subvert`, `issue_command`; Med-Pack (40% over 3 s, carry 3); Seeker reveal; Wardling presence cap | Vesper +2 squad; **wave command** (Conductor), Muster Point diversion, Puppet String and Rewrite (Elite / Turned / Stalled / R3 permanent wave conversion); Malfunction durations for squads, waves and Sentinels; Liora's free and thrown Med-Packs; ×1.5 Wardling multiplier on grenades/mines; hero-only trigger rule for snares/wires/charges. **Consistency check:** C15 says a base squad of 3 ≈ 30% of a Soldier's DPS (≈54 vs Ryker's 180); the Picket's 12 DPS × 3 = 36 (20%) at 100% hit rate, so one of the two needs tuning |
+| `weapons-and-mods.md` | Per-hero gun stats inside the bands of §3.2; head multiplier; any CDR mods (capped 25%); Liora's heal-beam stats and how mounts affect it | Archetype, resource, DPS/range bands per hero; HP and armor (§3.1); additive skill-bonus clamp (+80%); 40% total slow cap |
+| `wardlings-and-economy.md` | Wardling HP/damage per tier (Picket 150 HP and 18 focused DPS at Tier I); the 4 commands and Vanguard wave AI (C15); hooks `squad_capacity_bonus`, `apply_squad_modifier`, `rewrite_to_elite`, `subvert`, `issue_command`; Med-Pack (40% over 3 s, carry 3); Seeker reveal; Wardling presence cap | Vesper +2 squad; **wave command** (Conductor), Muster Point diversion, Puppet String and Rewrite (Elite / Turned / Stalled / R3 permanent wave conversion); Malfunction durations for squads, waves and Sentinels; Liora's free and thrown Med-Packs; ×1.5 Wardling multiplier on grenades/mines; hero-only trigger rule for snares/wires/charges. Ryker's sustained 180 DPS is the reference for C15's "≈30% of a Soldier" (economy doc §5: 3 × 18 = 54) |
 | `match-flow-and-map.md` | Barricade and Ward Generator integrity; Hold presence formula; Mana Cell carry rules; Hold zone sizes | Breach Gate (Hex); Phase Shift (Sable); %-integrity effects (Sabotage, Bulldozer, Earthbreaker R3); skill damage ×0.5 vs structures; stealth-in-Hold ping; Mana Cell carrier restrictions (Sable) |
 | Bot AI (future) | — | Role order for drafting (§3.9) |
 | UX / HUD (future) | — | Status glossary (§3.6), Scramble spec, Fork tint and Mastery glyph visibility rules |
@@ -818,38 +818,42 @@ All per-node numbers live in `assets/data/heroes/<hero>.tres` (one resource per 
 
 1. With 15 points, a player can own all 3×4 basic nodes and 3 ult ranks; the UI refuses Boost before L3, Fork before L5, Mastery before L9, ult ranks before L6/10/14, and a second Fork on the same skill.
 2. Every Fork choice is visible to all players (VFX tint + scoreboard); every Mastery adds a level-ring glyph.
-3. In a bot test, level-matched unmodded TTK_ideal for every pair in §5.2 is within its target band ±10%, except Sable's combo which must be ≥0.8 s after the +80% clamp.
+3. In a bot test, level-matched unmodded TTK_ideal for every pair in §5.2 is within its target band ±10%, except Sable's Eclipse Step combo, which must be ≥0.6 s (the ultimate floor) after the +80% clamp.
 4. Hex's basic skills cannot re-hack a gadget during its post-hack immunity; Zero Day can.
 5. Hex skills have no effect on heroes' guns, the Uplink, Ward Generators, Mana Cells or HQ buildings.
 6. Sable cannot Veilwalk or Phase through a Barricade while carrying a Mana Cell.
 7. No hard CC in the roster exceeds 1.6 s (Silence 2.5 s); a third same-type hard CC within 4 s has 0 duration.
 8. Respawning at HQ Sanctum resets basic cooldowns; respawning at a Forward Beacon does not.
-9. Playtest (Tier 1): ≥70% of testers can name what killed them when killed by Sable or Juniper (readability check).
+9. Playtest (M4, once Sable and Juniper exist): ≥70% of testers can name what killed them when killed by Sable or Juniper (readability check).
 10. An allied Vanguard wave within 25 m of Vesper executes her current squad command (Follow / Hold Here / Attack Target / Go Capture) within 0.5 s, and resumes its march AI 8 s after she leaves; no other hero can command a wave.
 11. Rewrite R3 leaves enemy Vanguard Wardlings in its radius permanently on Vesper's team; enemy squad Wardlings return to their owners; enemy Sentinels are Stalled, never subverted.
 12. A Vanguard wave walking across Juniper's Snare Coil or Tripwire does not trigger it; a Pressure Mine does trigger.
 
 ---
 
-## 11. Vertical Slice Recommendation
+## 11. Vertical Slice (M1)
 
-Canon's Scope Tiers fix the prototype pair (**Ryker + Liora**) and add **Vesper Loom + Brannoc** at the Vertical Slice. **Recommendation: keep Vesper Loom and Brannoc as the 2 heroes added for the slice.**
+**Decided (consistency pass 2026-10-02, R5):** the M1 offline vertical slice ships **Vesper Loom + Brannoc** only. Ryker and Liora follow in M3 (full match), Sable, Juniper and Hex in M4 (Alpha). Because 2 heroes cannot fill 10 slots, **duplicate heroes on a team are allowed in the slice only** (Canon C1 exception; bots fill all empty slots).
 
 | Hero | Why it belongs in the slice | What it proves |
 | ---- | ---- | ---- |
-| **Vesper Loom** | She *is* the Unique Hook ("every player carries their own minions") turned up to maximum: +2 squad, conducting Vanguard waves, Puppet String, Rewrite. If Vesper is fun and readable, Wardlings work; if she is noise, the concept's top design risk shows early. | Pillar 3; all 4 squad commands plus the Vanguard wave AI (she drives both); Wardling netcode at worst case (7 per Vesper + overflow); Hold presence cap; Surge tier scaling |
-| **Brannoc** | The slice must test all 3 task types; Hold and Breach need a frontline anchor, and he is the simplest new kit (difficulty 2) using only shared systems (deployable wall, dash, self-buff). | Pillar 1 (Hold anchoring), deployables pipeline (reused later by Juniper/Hex), Mechanical ammo vs Supply Caches |
+| **Vesper Loom** | She *is* the Unique Hook ("every player carries their own minions") turned up to maximum: +2 squad, conducting Vanguard waves, Puppet String, Rewrite. If Vesper is fun and readable, Wardlings work; if she is noise, the concept's top design risk shows early. | Pillar 3; all 4 squad commands plus the Vanguard wave AI (she drives both); Wardling netcode at worst case (7 per Vesper + overflow, duplicated Vespers); Hold presence cap (C4); Surge tier scaling |
+| **Brannoc** | The slice tests all 3 task types; Hold and Breach need a frontline anchor, and he is the simplest new kit (difficulty 2) using only shared systems (deployable wall, dash, self-buff). | Pillar 1 (Hold anchoring), deployables pipeline (reused later by Juniper/Hex), Mechanical ammo (Armory and Ammo Sparks; Supply Caches arrive in M3) |
 
-Together with Ryker (damage) and Liora (healer), the slice covers damage / sustain / frontline / commander, and both resource types twice (2 Mana, 2 Mechanical). Sable, Juniper and Hex all depend on systems that arrive in Alpha (Barricades, Garrisons, gadget categories), so building them earlier would mean designing against placeholder systems.
+Together they cover commander + frontline and both resource types (Vesper Mana, Brannoc Mechanical).
+
+**Slice progression (reduced skill tree).** Levels 1–15 and the §3.3 level scaling ship in M1, because in-match growth is core to the pitch. The tree is reduced to **Unlock (L1) and Boost (L3)** for each basic skill plus **Ultimate ranks 1/2/3 at L6/10/14**: 9 spendable nodes. Forks and Mastery arrive in M3; skill points earned beyond the 9 slice nodes stay banked. Fork-dependent edge cases in this doc (e.g. Puppet String, Muster Point, Bulldozer) are therefore out of the slice; Rewrite R1–R3 are in, including R3's permanent wave conversion.
 
 ---
 
 ## Canon Concerns
 
-| # | Canon item | Concern | What this doc did | Suggested fix |
-| ---- | ---- | ---- | ---- | ---- |
-| 1 | C1 (each hero unique within a team) + Scope Tier 1 (4 heroes, 5v5 with bots) | A 5-player team cannot be filled with 4 unique heroes. The Vertical Slice as written cannot run 5v5. | Followed Canon: recommended Vesper + Brannoc for the slice (§11). | Either add a 5th hero to the slice (Juniper is next-cheapest: her traps reuse the deployable pipeline), or allow duplicates within a team in Tier 1 only. |
-| 2 | C15 (Minionmancer +2) + Top Risks netcode row (squads ≤50) | With 2 Vespers, squads reach 8 × 5 + 2 × 7 = **54**, above the ≤50 in the risk table; Vesper's subverted overflow units and a conducted wave add more. Total worst case ≈ 54 + 30 Sentinels + 24 Vanguard = **108** AI vs "~100". | Implemented +2 (base 5, max 7) as Canon. Subverted units are temporary overflow; Rewrite R3 merges converted waves into an existing wave (max 8) rather than adding a new one. | Re-baseline the netcode budget to ~110 AI, or cap Vesper at +1 when both teams pick her. |
-| 3 | C16 (skills use cooldowns only) vs owner's "Healer heals with mana" | Read literally, Liora's healing cannot spend mana via a skill. | Routed mana healing through her **weapon alt-fire** (heal beam drains the weapon pool); skills stay on cooldowns. Fully Canon-compliant. | None needed; flagged so the weapons doc models a dual-mode weapon. |
-| 4 | C4 (Wardlings = 0.5 Hold presence) | Vesper's 7 Wardlings + a conducted wave of 4 = 5.5 players of presence before Rewrite turns more. | Kept 0.5 untouched; relied on the wardlings doc's 3.0 per-team Wardling presence cap (an extension of C4 they flagged) plus short Turned timers and Hex's 0-presence Malfunction. | Promote the 3.0 Wardling presence cap into Canon C4 so every doc obeys it. |
-| 5 | Pillar 3 design test ("more than two commands → cut") vs C15 (4 commands, owner decision 2026-10-02) | The concept now contradicts itself: C15 grants 4 commands, but Pillar 3's test still cuts any feature that needs more than two. | Followed C15: Vesper uses the same 4 commands and adds **no** new inputs (waves obey her current squad command). | Update Pillar 3's test to "more than the 4 standard commands or a top-down view". |
+Resolved in consistency pass 2026-10-02:
+- Slice cannot fill 5 unique heroes per team (C1 + Scope Tier 1): duplicates allowed in the slice only; slice heroes are Vesper + Brannoc (R5).
+- AI budget (two Vespers push squads to 54, total ≈108 vs "~100"): Canon C1 re-baselined to ≤110 AI agents (R4).
+- Liora healing with mana vs cooldown-only skills (C16): her Halo Repeater has a healing alt-fire on the shared mana pool, modelled in `weapons-and-mods.md` (R9).
+- Vesper's AI presence vs C4 0.5 per Wardling: Canon C4 now caps AI presence at 3.0 per team per hardpoint (R3).
+- Pillar 3 "more than two commands" vs C15's 4 commands: Pillar 3 test now reads "more than four squad commands" (R1).
+- Squad DPS mismatch (Picket 12 DPS → 20% of a Soldier): Pickets retuned to 18 focused DPS so 3 = 54 = 30% of Ryker's 180 (R2).
+
+No open Canon concerns remain in this doc.

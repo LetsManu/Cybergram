@@ -206,13 +206,13 @@ her team colour, so stealth is never fully invisible to an attentive enemy.
 tool-pack** taller than her head, with a cable spool wheel on one side and a folded
 mine-launcher arm on the other: a top-heavy box on slim legs. Brass goggles pushed up into
 a messy bun stuck with quill-darts (the tripwire anchors). Utility belt of trap
-canisters, each with a stripe for its type. Weapon: the *Tackhammer*, a semi-auto rail-tack
+canisters, each with a stripe for its type. Weapon: the *Tackhammer*, a lever-action rail-tack
 rifle with a box magazine and a visible spool feeding tripwire line along the frame.
 
 **Ryker Vance — Soldier (Mechanical).** The baseline every other hero is measured against: an
 upright V-taper in light combat armour. The hook is a **single oversized left pauldron**
 with a rising antenna fin, plus a closed helmet with a horizontal visor bar. A grenade
-bandolier crosses the chest diagonally. Weapon: the *Vanguard AR-7*, a bulky full-auto rifle with a top
+bandolier crosses the chest diagonally. Weapon: the *Breakline AR-7*, a bulky full-auto rifle with a top
 rail and a big receiver that carries the chip rack; it is the most "classic gun" in the cast
 so new players have an anchor.
 
@@ -256,9 +256,9 @@ carries up to 7) above it to its owner only, matching the HUD squad strip.
 | **Sapper** | Backpack charge + drill arm | 0.9 m | Drill spins up near Barricades/Generators |
 | **Sentinel** (Garrison only) | Tripod turret-construct anchored to the hardpoint plinth | 1.4 m | Never moves; rotates head only |
 
-Variant names and traits are owned by `wardlings-and-economy.md` §5; silhouettes above match its
-"silhouette tell" column. Squad upgrades have tells per its §6 (plating rim / full plating for
-Reinforced Cores, brighter muzzle for Overclock Emitters, owner-colour trail for Harmonic Tether,
+Variant names and traits are owned by `wardlings-and-economy.md` §6; silhouettes above match its
+"silhouette" column. Squad upgrades have tells per its §7 (plating rim / full plating for
+Reinforced Cores, brighter muzzle for Amplifier Emitters, owner-colour trail for Harmonic Tether,
 small ground shield in Hold for Bulwark Protocol).
 
 **Tiers (Surge I/II, C15):** each tier adds silhouette, not just glow.
@@ -273,13 +273,13 @@ A Surge upgrades every living Wardling in place with a 3 s invulnerable morph an
 
 ### 5.4 Three Kinds of Wardling — Personal, Vanguard, Garrison
 
-C15 (revised 2026-10-02) puts up to ~100 constructs on the map: personal squads (≤ 50),
+C15 (revised 2026-10-02) puts up to 108 constructs on the map (Canon C1 budget ≤ 110): personal squads (≤ 54, incl. 2 Vespers),
 Garrisons (≤ 30) and ownerless **Vanguard waves** (4 per lane per team every 60 s, ≤ 24 live).
 All three are team-coloured; their *ownership class* must read as fast as their team.
 
 | Class | Shell & markings | Core | Head marker | Movement read |
 | --- | --- | --- | --- | --- |
-| **Personal squad** | Faction shell + a **bright owner band** (a ribbon-sash in team colour around the torso); for the owner only, a 1 px owner-accent outline and 0.6 m ground ring (`wardlings-and-economy.md` §7) | Team colour, soft pulse | To the owner: slot number 1–7. To allies: owner's hero icon (tiny). To enemies: nothing extra | Loose cluster near a hero, hover-skip |
+| **Personal squad** | Faction shell + a **bright owner band** (a ribbon-sash in team colour around the torso); for the owner only, a 1 px owner-accent outline and 0.6 m ground ring (`wardlings-and-economy.md` §8) | Team colour, soft pulse | To the owner: slot number 1–7. To allies: owner's hero icon (tiny). To enemies: nothing extra | Loose cluster near a hero, hover-skip |
 | **Vanguard** | Faction shell with **no sash**; instead a **pennant pole rising 0.4 m above the back fin** (narrow flag, team colour with the faction glyph; tier pips stay on the fin below it) and a single shoulder stripe | Team colour, **steady** (no pulse) | Lane-letter glyph (N / C / S) to allies only | **Marching formation**: a 2×2 block walking in step along the lane, pennants aligned — the formation itself is the read |
 | **Garrison Sentinel** | Tripod turret, no legs, anchored | Team colour, slow rotate | None | Static on hardpoint sockets |
 
@@ -308,8 +308,7 @@ strength) and **allies** (50% opacity); enemies see none of them except Attack T
 spindle above the head; enemy Wardlings she turns show their original faction shell with the
 core flipped to her team colour, wrapped in a visible thread tether back to her and a violet `leyfall_violet` ring under their
 feet (the "Turned" icon colour in `wardlings-and-economy.md`), with a glitch flicker so the
-ownership change is obvious. Elite scale follows `heroes.md` (×1.3) — note `wardlings-and-economy.md`
-says ×1.15; the art rig supports either (§15 A7).
+ownership change is obvious. Elite scale is **×1.3** (unified in `heroes.md` and `wardlings-and-economy.md`, consistency pass 2026-10-02).
 
 ---
 
@@ -439,7 +438,7 @@ Empty sockets are visible as open brass claws (Mana) or empty chip slots with a 
 - Mana state is diegetic: crystal glow tracks the current pool %, and **Burnout** turns every
   crystal dark grey with a crackle of sparks until regen starts.
 
-### 7.3 Chips (Mechanical guns: Vanguard AR-7, Ironmaw, Tackhammer)
+### 7.3 Chips (Mechanical guns: Breakline AR-7, Ironmaw, Tackhammer)
 
 Chips are cartridge-like cards slotted into a **chip rack** with an LED strip; every line also adds
 a physical module so the change is a silhouette, not just an LED.
@@ -628,7 +627,7 @@ ally effects > ambient.
 
 Scene-level: ≤ 2,000 draw calls and ≤ 3.5 M visible tris in the worst view (team fight
 at a Mid with 10 heroes + 50 Wardlings, of which up to 8 Vanguards and 4 Sentinels; the
-map-wide AI cap is ~100 per C15); texture memory ≤ 2.5 GB at High; VFX ≤ 1.5 ms GPU.
+map-wide AI budget is ≤ 110 per Canon C1); texture memory ≤ 2.5 GB at High; VFX ≤ 1.5 ms GPU.
 These are art-side proposals; `technical-preferences.md` still has budgets unconfigured, so
 technical-director must ratify them.
 
@@ -677,31 +676,31 @@ Pattern (from art-director standard): `[category]_[name]_[variant]_[size].[ext]`
 
 ---
 
-## 12. Vertical-Slice Asset List (Scope Tier 1)
+## 12. Vertical-Slice Asset List (M1)
 
-Tier 1 = the one-lane **Slice Map "Shardline Causeway"** (`match-flow-and-map.md` §3.7: 5
-hardpoints using all 3 task types, both HQs, reduced Mid Plaza, one flank loop per half), 4 heroes
-(Ryker, Liora, Vesper, Brannoc), levels, Lumen shop, Surges, Vanguard waves, Sudden Death.
-Garrisons, Beacons, Wardling variants and the full crystal/chip set are Tier 2 (Alpha); the slice
-includes a minimal read-test of the socket system.
+M1 = the one-lane **Slice Map "Shardline Causeway"** (`match-flow-and-map.md` §3.7: 5
+hardpoints using all 3 task types, staged within M1, both HQs, reduced Mid Plaza, one flank loop per half), **2 heroes
+(Vesper Loom, Brannoc)**, levels with a reduced skill tree, Lumen shop with the minimal mount pipeline, Surge I, Vanguard waves,
+Forward Beacon spawn. Garrisons, Barricades and Supply Caches (M3), Sudden Death (M3), Ryker and Liora (M3), Wardling
+variants and the full crystal/chip set (Alpha) are later; the slice includes a minimal read-test of the socket system.
 
 | # | Asset | Quantity | Fidelity in VS |
 | --- | --- | --- | --- |
-| 1 | Hero 3P models + FP arms: Ryker, Liora, Vesper, Brannoc | 4 + 4 | Final-quality body, 1 faction trim swap |
-| 2 | Hero weapons FP + TP (Vanguard AR-7, Halo Repeater, Threadcaster, Ironmaw) with four `socket_*` markers | 4 × 2 | Final |
-| 3 | Hero animation sets (locomotion, fire, reload/vent, 4 skills, death, emote idle) | 4 | Final for FP, blockout-plus for TP |
-| 4 | Slice mounts per `weapons-and-mods.md` §3.10: Ember Heart + Flux Coil crystals, Overclock + Quickload chips, Tiers I–III each; Piercing + Sunder tracers/impacts (no Barrel socket, no Ammo Mods) | 12 mounts + 2 ammo FX | Greybox primitives per GDD; final art for Ember Heart + Overclock as the Pillar 4 read-test |
+| 1 | Hero 3P models + FP arms: Vesper, Brannoc | 2 + 2 | Final-quality body, 1 faction trim swap |
+| 2 | Hero weapons FP + TP (Threadcaster, Ironmaw) with four `socket_*` markers | 2 × 2 | Final |
+| 3 | Hero animation sets (locomotion, fire, reload/vent, 4 skills, death, emote idle) | 2 | Final for FP, blockout-plus for TP |
+| 4 | Slice mounts per `weapons-and-mods.md` §3.10: Ember Heart + Flux Coil crystals (Threadcaster), Overclock + Quickload chips (Ironmaw), Tiers I–III each; Piercing + Sunder tracers/impacts (no Barrel socket, no Ammo Mods) | 12 mounts + 2 ammo FX | Greybox primitives per GDD; final art for Ember Heart + Overclock as the Pillar 4 read-test |
 | 5 | Wardling base form, both faction skins, Tiers I–III; owner sash + Vanguard pennant variants | 1 rig, 3 tier states, 2 class markings | Final |
 | 5b | Command world markers: Hold ring, Attack reticle + threads, Go Capture ping column + path ribbon | 4 | Final |
 | 6 | Slice Map: 1 lane × 5 hardpoints (Glasswork/Furnace Gate, Signal Market/Scrap Bazaar, Spindle kits), causeways, 2 flank loops, Barricade sockets | 5 nodes | Stylised neutral kit + 1 faction kit each side; full 15-node map is Alpha |
 | 7 | Task objects: Holdstone, Charge Cradle + Mana Cell, Ward Generator (3 crack stages) | 3 + cell | Final |
-| 7b | Barricade (Concord lattice / Syndicate blast gate), 3 damage states + rubble | 2 | Final |
+| 7b | Barricade (Concord lattice / Syndicate blast gate), 3 damage states + rubble | 2 | Greybox in M1 (sockets only, inactive); final for M3 when Barricades go live |
 | 8 | HQ ×2: Uplink spire (protected/exposed/3 crack stages/destroyed), Sanctum, Foundry, Armory | 2 | Uplink final; rooms stylised kit |
-| 9 | Reduced Mid Plaza (r = 25 m) + Leyfall ring wall (Sudden Death) | 1 | Final |
+| 9 | Reduced Mid Plaza (r = 25 m); Leyfall ring wall for Sudden Death built in M3 | 1 | Final |
 | 10 | Skybox: Leyfall sea, distant shards, per-phase LUTs (4) | 1 + 4 | Final |
-| 11 | VFX: 4 heroes × (weapon fire, impact, 4 skills), heal, Wardling hit/death, capture flip, Uplink damage, Surge transition | ~40 | Final for gameplay-critical, simple for ambient |
+| 11 | VFX: 2 heroes × (weapon fire, impact, 4 skills), Vesper Elite/Turned, Rally Beacon heal, Wardling hit/death, capture flip, Uplink damage, Surge transition | ~25 | Final for gameplay-critical, simple for ambient |
 | 12 | Shaders: toon (char/env), outline, crystal, team-tint, telegraph decal, Leyfall, LUT grading | 7 | Final |
-| 13 | UI kit (scope per HUD doc §19): icons for 4 heroes × 4 skills, task types, ownership patterns, squad command states (F/H/A/C), Vanguard flag, status effects, mount/ammo icons | ~60 icons | Final |
+| 13 | UI kit (scope per HUD doc §19): icons for 2 heroes × 4 skills, task types, ownership patterns, squad command states (F/H/A/C), Vanguard flag, status effects, mount/ammo icons | ~60 icons | Final |
 
 ---
 
@@ -748,8 +747,8 @@ Code must not wait for art. Placeholder art follows the same pipeline, naming (`
 | --- | --- | --- |
 | A1 | Team colours absolute (Concord always blue) or relative (my team always blue)? | Absolute by default; Relative as an option |
 | A2 | Damage numbers on by default? (UX decision mirrored here) | On, compact; can be turned off |
-| A3 | Ryker's rifle is named **Vanguard AR-7** in `weapons-and-mods.md`, which collides with the new **Vanguard waves** (C15) | Flag to game-designer: rename the rifle (e.g. *Warden AR-7*); this doc uses the GDD name until then |
+| A3 | ~~Ryker's rifle name collides with Vanguard waves~~ | Resolved in consistency pass 2026-10-02: renamed **Breakline AR-7** |
 | A4 | Environment outlines (post edge-detect) | None in VS; Alpha experiment with a < 0.5 ms budget |
 | A5 | Performance budgets in §10.5 | Proposed; technical-director to ratify in `technical-preferences.md` |
-| A7 | Elite (Rewrite) scale differs: `heroes.md` ×1.3 vs `wardlings-and-economy.md` ×1.15 | Flag to game-designer; art uses ×1.3 until resolved |
-| A6 | Pillar 3's design test still reads "more than two commands … cut it", but revised C15 has 4 commands | Art follows C15 (canon); creative-director should update the Pillar 3 test text |
+| A7 | ~~Elite (Rewrite) scale differs between GDDs~~ | Resolved in consistency pass 2026-10-02: ×1.3 everywhere |
+| A6 | ~~Pillar 3's design test vs C15's 4 commands~~ | Resolved in consistency pass 2026-10-02: Pillar 3 now reads "more than four squad commands" |

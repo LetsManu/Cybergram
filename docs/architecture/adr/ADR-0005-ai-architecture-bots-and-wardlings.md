@@ -20,7 +20,7 @@ technical-director (author), lead-programmer, network-programmer; ai-programmer 
 
 ## Summary
 
-Cybergram needs bots that fill any of 10 hero slots, and about 100 Wardlings (squads ≤ 50, Garrisons ≤ 30, Vanguard waves ≤ 24, per the 2026-10-02 C15 revision), within ≤ 2 ms of AI decision time per server tick. **Bots produce the same `InputCommand`s as humans** through an `InputSource` interface, so the hero sim cannot tell them apart. **Wardlings are server-only bodies with table-driven brains** scheduled by a deterministic LOD scheduler. Vanguard waves think once per wave, navigation uses `NavigationServer3D` with RVO avoidance, and perception is LOS-gated with no omniscience.
+Cybergram needs bots that fill any of 10 hero slots, and up to 108 Wardlings (Canon C1 budget ≤ 110: squads ≤ 54 incl. 2 Vespers, Garrisons ≤ 30, Vanguard waves ≤ 24), within ≤ 2 ms of AI decision time per server tick. **Bots produce the same `InputCommand`s as humans** through an `InputSource` interface, so the hero sim cannot tell them apart. **Wardlings are server-only bodies with table-driven brains** scheduled by a deterministic LOD scheduler. Vanguard waves think once per wave, navigation uses `NavigationServer3D` with RVO avoidance, and perception is LOS-gated with no omniscience.
 
 ## Engine Compatibility
 
@@ -46,7 +46,7 @@ Cybergram needs bots that fill any of 10 hero slots, and about 100 Wardlings (sq
 ## Context
 
 ### Problem Statement
-Bots must fill PvP and later power co-op. Cheating bots (wall vision, perfect aim) would undermine Pillar 2. ~100 Wardlings at 30 Hz in GDScript would exceed budget if every agent thought every tick. Canon C15 now gives squads 4 commands (Follow, Hold Here, Attack Target, Go Capture) and adds ownerless Vanguard waves that march to a computed lane front.
+Bots must fill PvP and later power co-op. Cheating bots (wall vision, perfect aim) would undermine Pillar 2. ≤110 Wardlings at 30 Hz in GDScript would exceed budget if every agent thought every tick. Canon C15 now gives squads 4 commands (Follow, Hold Here, Attack Target, Go Capture) and adds ownerless Vanguard waves that march to a computed lane front.
 
 ### Constraints
 - `.claude/rules/ai-code.md`: ≤ 2 ms AI per frame (mapped to ≤ 2 ms decisions per server tick); data-tunable; debug visualisation; logged transitions; utility or behaviour-tree style over if/else chains.
@@ -86,14 +86,14 @@ func front_for(team: int, lane: int) -> int          # hardpoint index (C15 rule
 
 ### Alternative 1: Behaviour trees (addon such as Beehave/LimboAI) for everything
 - **Pros**: visual editing; familiar.
-- **Cons**: per-agent tree ticking is costly at ~100 agents in GDScript; Wardling logic is small and fits an FSM; an addon dependency must track 4.7.
+- **Cons**: per-agent tree ticking is costly at ≤110 agents in GDScript; Wardling logic is small and fits an FSM; an addon dependency must track 4.7.
 - **Rejection Reason**: FSM tables for Wardlings and utility for bots are cheaper and sufficient. A BT addon may be reconsidered for bots only.
 
 ### Alternative 2: Bots that manipulate `HeroSim` directly
 - **Rejection Reason**: Creates a second control path that bypasses validation and netcode, and cannot be reused client-side for load tests.
 
 ### Alternative 3: Per-agent thinking every tick
-- **Rejection Reason**: ~100 × 30 Hz decisions blow the 2 ms budget.
+- **Rejection Reason**: ~110 × 30 Hz decisions blow the 2 ms budget.
 
 ## Consequences
 
@@ -134,7 +134,7 @@ func front_for(team: int, lane: int) -> int          # hardpoint index (C15 rule
 |-------------|--------|-------------|--------------------------|
 | `design/gdd/game-concept.md` | C1 | Bots fill empty or disconnected slots | `BotInputSource` into the slot's `InputBuffer` |
 | `design/gdd/game-concept.md` | C15 | Squad 4 commands; retaliation; Vanguard 4/lane/60 s, 1 live wave | Brain states, `Squad`, `VanguardSpawner`, `WaveBrain` |
-| `design/gdd/game-concept.md` | C4, C5 | Wardlings count 0.5 for Hold; Garrisons | CAPTURE state; GARRISONED state |
+| `design/gdd/game-concept.md` | C4, C5 | Wardlings count 0.5 for Hold (AI presence capped at 3.0 per team); Garrisons | CAPTURE state; GARRISONED state |
 | `design/gdd/game-concept.md` | Pillar 3 | One-key commands, no RTS micro | Commands are intents; no unit selection |
 
 ## Related

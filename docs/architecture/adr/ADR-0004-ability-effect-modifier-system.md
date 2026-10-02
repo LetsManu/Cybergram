@@ -40,7 +40,7 @@ Cybergram has 28 skills with 4-node trees (56 forks), levels, Crystals/Chips, am
 |-------|-------|
 | **Depends On** | ADR-0003 (Defs), ADR-0002 (authority and prediction rules) |
 | **Enables** | Hero, weapon, shop, Wardling-tier and status epics |
-| **Blocks** | Ryker and Liora skill implementation (M1) |
+| **Blocks** | Vesper Loom and Brannoc skill implementation (M1) |
 | **Ordering Note** | `StatBlock` (core) before `AbilityRunner` (gameplay). |
 
 ## Context
@@ -120,12 +120,12 @@ var aim_origin: Vector3; var aim_dir: Vector3
 | Metric | Before | Expected After | Budget |
 |--------|--------|---------------|--------|
 | Stat reads | n/a | O(1) cached array read | — |
-| Abilities + statuses per tick (10 heroes, ~100 agents) | n/a | ~0.4 ms | part of 1.0 + 0.9 ms (§12) |
+| Abilities + statuses per tick (10 heroes, ≤110 agents) | n/a | ~0.4 ms | part of 1.0 + 0.9 ms (§12) |
 
 ## Validation Criteria
 
 - [ ] Unit tests: StatBlock order of ops, remove_by_source, expiry by tick, fork exclusivity, Mastery L9, ult 6/10/14.
-- [ ] Ryker and Liora skills in M1 are implemented with zero hero-specific scripts beyond `EffectDef` subclasses.
+- [ ] Vesper Loom and Brannoc skills in M1 are implemented with zero hero-specific scripts beyond `EffectDef` subclasses.
 - [ ] No per-tick allocations in `AbilityRunner`/`StatusComponent` (profiler check).
 
 ## GDD Requirements Addressed

@@ -8,7 +8,8 @@
 > **Related GDDs**: `design/gdd/game-concept.md` (Canon C1–C18), `match-flow-and-map.md`, `wardlings-and-economy.md`, `weapons-and-mods.md`, `heroes.md`
 > **Accessibility Tier**: Standard (target Comprehensive by Launch)
 > **Style Reference**: `design/art-bible.md` §4 (colour), §6.3 (task icons), §9 (UI visual direction)
-> **Path note**: `design/CLAUDE.md` names the HUD spec `design/ux/hud.md`; this file is at the path the producer requested. Sibling GDDs that say "future `design/ux/hud.md`" mean this file.
+> **Path note**: this file is at `design/ux/hud.md`, the path `design/CLAUDE.md` names. Sibling GDDs that say "HUD / UX (future)" mean this file.
+> **Consistency pass 2026-10-02**: squad command input unified with `wardlings-and-economy.md` §8 (Smart Command `Z`, Follow `X`); Ultimate moved to `G`; Ryker's rifle renamed Breakline AR-7; slice scope set to Vesper Loom + Brannoc.
 
 Scope: everything shown while the player controls their hero, plus the in-match overlays that
 replace the HUD (tactical map, scoreboard, Armory, skill tree, death/respawn, Sudden Death).
@@ -81,16 +82,16 @@ weapon) and *the war* (top: front line, Uplinks, clock; top-left: map; right: ob
 |                                                                                                      |
 | SQUAD  [1 Pk |||| F] [2 Sh |||. F] [3 Pk ||.. >ATK] [4 -- empty (Foundry)]                           |
 | +----+ [Burn][Slow]                                                     +--------------------------+ |
-| | L7 | HP ||||||||||||||||....  412 / 500  +80 shield                   | HALO REPEATER            | |
+| | L7 | HP ||||||||||||||||....  212 / 279  +75 shield                   | HALO REPEATER            | |
 | |(ring)                                                                 | MANA ))))))))))))).. 86% | |
-| +----+ LUMEN 1,240   RES 62%   [+1 SP]    [Q]  [E]  [C]  [X]   [4]    | [Core][Frame][Chamber]   | |
+| +----+ LUMEN 1,240   RES 62%   [+1 SP]    [Q]  [E]  [C]  [G]   [4]    | [Core][Frame][Chamber]   | |
 |                                           4s   --  12s  78%  Med x2   | Ember III  Flux I  Pierce| |
 |                                                                         +--------------------------+ |
 +------------------------------------------------------------------------------------------------------+
   [#] own team (solid + ring glyph)   [/] enemy (hatched + tooth glyph)   (o) neutral / contested
 ```
 
-Mechanical variant of the weapon panel: `VANGUARD AR-7   24 | 120   [Piercing]` with the magazine
+Mechanical variant of the weapon panel: `BREAKLINE AR-7   24 | 120   [Piercing]` with the magazine
 number large (48 px), reserve small (24 px), and a 30-tick magazine strip under it.
 
 ### 3.2 Zone Table
@@ -122,7 +123,7 @@ centre region by default ("HUD aspect: 16:9 / native").
 | Skills | Hero/skill system | 10 Hz | 64 px icons | Radial sweep + seconds |
 | Level / Resonance | Progression (C12/C13) | Per gain | 72 px portrait ring | Number |
 | Lumen | Economy (C14) | Per gain | 20 px | Number |
-| Squad strip | `wardlings-and-economy.md` §7 | 5 Hz | 56 px per slot | Letters F/H/A/C + glyphs |
+| Squad strip | `wardlings-and-economy.md` §8 | 5 Hz | 56 px per slot | Letters F/H/A/C + glyphs |
 | Front-Line bar | `match-flow-and-map.md` | Per flip/progress | 22 px node | Solid vs hatched pattern |
 | Uplink bars | Match flow (C7) | Per damage, 5 Hz | 260×12 px | % number + EXPOSED text |
 | Timer + phase | Match flow | 1 Hz | 28 px | Text |
@@ -158,7 +159,7 @@ centre region by default ("HUD aspect: 16:9 / native").
   outlined boxes. This is the HUD side of Pillar 4.
 
 ### 4.4 Skills, Skill Points, Level
-- Four 64 px icons labelled with their current binds: S1 [Q], S2 [E], S3 [C], Ult [X]. Cooldown:
+- Four 64 px icons labelled with their current binds: S1 [Q], S2 [E], S3 [C], Ult [G]. Cooldown:
   dark radial sweep + seconds (≤ 3 s shows tenths). Ready: icon brightens, 150 ms pop. Locked
   (unlearned): greyed with a lock. Charges: pip row under the icon.
 - Learned Fork tints the icon border (A cool / B warm, `heroes.md` §3.5) and adds a small "A"/"B" letter.
@@ -172,7 +173,7 @@ centre region by default ("HUD aspect: 16:9 / native").
 `LUMEN 1,240` with a `+120` flyout on gains (captures, kills, Wardlings). The Lumen number pulses
 once when the player can afford the next item on their **wish list** (pinned in the Armory).
 
-### 4.6 Squad Strip (C15, `wardlings-and-economy.md` §7)
+### 4.6 Squad Strip (C15, `wardlings-and-economy.md` §8)
 One 56 px slot per squad slot (3–5; Vesper up to 7), above the HP bar:
 
 ```
@@ -182,7 +183,7 @@ One 56 px slot per squad slot (3–5; Vesper up to 7), above the HP bar:
 - **Variant glyph:** Pk Picket, Sh Shieldling, St Striker, Sk Seeker, Mn Mender, Sp Sapper (icons,
   with the letters as accessibility labels); tier pips 1–3 on the glyph's corner.
 - **State badge** (letter + icon, never colour only): `F` Follow, `H` Hold Here, `A` Attack Target,
-  `C` Go Capture, `!` in combat, `↻` returning, `S` stranded. The whole strip shares one command
+  `C` Go Capture, `!` in combat, `↻` returning, `S` stranded (same letters as `wardlings-and-economy.md` §8). The whole strip shares one command
   state; per-unit badges differ only for `!`/`↻`.
 - Hit flash on a slot when that Wardling takes damage; death = slot greys, X, then the Foundry glyph.
 - **Death hold:** when the owner dies, the strip shows a 10 s ring timer, then clears (C15).
@@ -258,28 +259,34 @@ The world stays live behind a 75%-dark overlay; the player can still move (not s
 Everything from the minimap, larger, plus:
 - **Lane panel** per lane: ownership of all 5 nodes, task types, current progress, Locked status,
   and **Incursion preview** (0–3) with the team total (C9) — "if time ran out now".
-- **Uplink panel:** Integrity absolute (`27,412 / 30,000`), Exposed state and **why**: "EXPOSED —
+- **Uplink panel:** Integrity absolute (`30,412 / 33,000`), Exposed state and **why**: "EXPOSED —
   Syndicate holds Concord Atrium (C-AI)". From 45:00: "Drought: any Outer loss exposes".
 - **Wave panel:** per lane, own wave status (`en route`, `at Signal Market`, `3 alive`) and next wave
   timer, or `waiting — previous wave alive` (C15 one-live-wave rule).
 - Next Surge / Drought timer and what it does ("Wardlings → Tier II, tasks −15%").
 - Legend (toggle with `L`), always accessible for colour-blind users.
-- **No commands are issued from the map** (Pillar 3: no top-down control). Go Capture is issued in
+- **No commands are issued from the map** (Pillar 3: no top-down control; decided in the consistency pass, R10). Go Capture is issued in
   first person (§7); the map only shows its target and path.
 
 ---
 
-## 7. Squad Commands — Radial Wheel + Quick Keys (C15, 4 commands)
+## 7. Squad Commands — Smart Command, Follow, Radial (C15, 4 commands)
 
-| Command | Effect (C15) | KB/M quick key | Gamepad quick key |
+The binding source for command input is `wardlings-and-economy.md` §8; this table mirrors it.
+
+| Command | Effect (C15) | KB/M (default) | Gamepad |
 | --- | --- | --- | --- |
-| **Follow** (default) | Squad returns to formation | Double-tap `Z` | Double-tap D-pad ↓ |
-| **Hold Here** | Garrison the crosshair's ground point (≤ 25 m, else own feet) | Tap `Z` | Tap D-pad ↓ |
-| **Attack Target** | Focus the hero / Wardling / gadget under the crosshair | `T` (aim + press) | D-pad → (aim + press) |
-| **Go Capture** | Send squad to a hardpoint to work its task | `G` (aim at a hardpoint or its marker; if none, nearest attackable node in the current lane) | Via radial |
-| **Radial** (all four) | — | Hold `Z` ≥ 0.2 s | Hold D-pad ↓ ≥ 0.2 s |
+| **Smart Command** | Context-sensitive, resolved from the crosshair: enemy → **Attack Target**; hardpoint zone or its diamond → **Go Capture**; ground → **Hold Here** (≤ 25 m, else own feet) | Tap `Z` | Tap D-pad ↓ |
+| **Follow** (default) | Squad returns to formation | `X` | Double-tap D-pad ↓ |
+| **Radial** (all four) | Explicit choice of any command | Hold `Z` ≥ 0.2 s | Hold D-pad ↓ ≥ 0.2 s |
+| **Direct keys** (optional) | One action per command: Attack Target, Go Capture, Hold Here, Follow | Unbound by default (suggested: mouse thumb buttons) | Unbound by default |
 
-**Radial wheel:** four 90° slices (Follow top, Hold right, Attack bottom, Go Capture left), 220 px,
+While `Z` is down the crosshair shows the **command preview glyph** (sword = Attack, flag = Go Capture,
+pin = Hold) so the Smart Command result is never ambiguous. On gamepad a D-pad ↓ tap is resolved
+after the double-tap window (default 0.3 s) so it can be told apart from Follow; the target is
+captured at the first press. **No command can be issued from the tactical map** (Pillar 3).
+
+**Radial wheel:** four 90° slices (Follow top, Hold Here right, Attack Target bottom, Go Capture left), 220 px,
 centred on the crosshair, 40% panel opacity so aim stays visible. The command's target is captured
 **when the wheel opens** (the point/entity/hardpoint under the crosshair), and is previewed in the
 world (ghost ring, target diamond, or hardpoint highlight). Select by mouse flick / right stick,
@@ -290,10 +297,6 @@ hardpoint") — Go Capture to a Locked node is rejected with a buzz.
 **Feedback per order:** 40 ms acknowledgement chirp (one per command, distinct pitch); squad strip
 badge flashes; world marker appears (art bible §5.5: Hold ring + anchor, Attack diamond + threads,
 Go Capture ping column + path ribbon). Allies see the markers at 50% and a minimap tick.
-
-> **Doc conflict:** `wardlings-and-economy.md` §7 still describes two commands on one key
-> (tap = Hold, long-press = Follow). Canon C15 (2026-10-02) wins; this mapping keeps the tap-Z =
-> Hold habit and moves Follow to double-tap so long-press can open the wheel. That GDD needs updating.
 
 ---
 
@@ -322,8 +325,8 @@ Own team on top, enemy below; centre overlay, 85% dark background, HUD hidden ex
 
 ```
 +------------------------------------------------------------------------------------------+
-| KILLED BY  [Sable]  Whisperfang  [Tmp II][Velo I][--][Cryo]   Sable HP left: 84 / 250    |
-| Damage taken: Whisperfang 212 (8 hits, 3 heads)  Eclipse Step 60  Picket 18              |
+| KILLED BY  [Sable]  Whisperfang  [Tmp II][Velo I][--][Cryo]   Sable HP left: 84 / 225    |
+| Damage taken: Whisperfang 261 (9 hits, 2 heads, Eclipse bonus)  Picket 18                |
 |                                                                                          |
 |   RESPAWN IN 14s                                  +-----------------------------------+  |
 |                                                   |  TACTICAL MAP (spawn select)      |  |
@@ -362,7 +365,7 @@ strip shows "Uplink under attack" / "Enemy in HQ" if relevant. Moving out of the
 |  |                    III1800 |   |   socket under the cursor glows; drag or press A    |  |
 |  | Tempest Shard  ...         |   |   preview: crystal flies in, claws clamp, test shot |  |
 |  | Prism Eye      ...         |   +-----------------------------------------------------+  |
-|  | Wellspring     ...         |   DPS 160 -> 170 (+6%)   TTK vs Medium 1.88 -> 1.77 s       |
+|  | Wellspring     ...         |   DPS 95 -> 101 (+6%)   TTK vs 250 HP 2.63 -> 2.48 s        |
 |  +----------------------------+   [BUY 400]  [Upgrade to II: 500]  [Sell 240]  [Undo]       |
 +--------------------------------------------------------------------------------------------+
 ```
@@ -375,7 +378,7 @@ strip shows "Uplink under attack" / "Enemy in HQ" if relevant. Moving out of the
 - **Prices:** buy shows list price; owning a lower tier shows **"Upgrade to III: 900"** (cost =
   `list(new) − list(held)`). Swapping lines shows the auto-sell amount first: "Replaces Flux Coil I
   (sells for 210)". **Undo** = 100% refund during the same visit; later sells show 60%.
-- **Stat delta** for the hovered item, in plain numbers (DPS, TTK vs Medium, pool/magazine).
+- **Stat delta** for the hovered item, in plain numbers (DPS, TTK vs a 250 HP hero, pool/magazine).
 - **Wish list:** star items anywhere (also from the death screen); the HUD Lumen pulses when the next
   one is affordable, and a one-click "Buy wish list" button appears on entry.
 - **Foundry kiosk** (`F` at the Foundry): same shell, Squad tab only, showing slots, licences, and
@@ -390,8 +393,8 @@ Each basic skill is a vertical 4-node column: **Unlock → Boost (L3) → Fork A
 the Ultimate is a 3-rank column with gates 6 / 10 / 14 (C12, `heroes.md` §3.5).
 
 **Quick spend (no screen, keeps aim):** hold `Alt` → a compact flyout appears above the skill bar
-showing each skill's next node; press the skill key (`Q`/`E`/`C`/`X`) to buy it. When the next node
-is a **Fork**, two cards pop up above that skill (`[1] Pounce — Wardlings leap…` / `[2] Tether — …`)
+showing each skill's next node; press the skill key (`Q`/`E`/`C`/`G`) to buy it. When the next node
+is a **Fork**, two cards pop up above that skill (`[1] Pounce — Wardlings leap…` / `[2] Puppet String — …`)
 with a one-line effect and a 3-second animated preview; press `1` or `2` (or click). Releasing Alt
 cancels. The choice is permanent for the match, so a Fork pick needs the explicit 1/2 press (no
 accidental double-tap). Gamepad: hold View → RB/LB/Y/LB+RB select the skill → D-pad ←/→ + A for Forks.
@@ -408,13 +411,14 @@ gates, current numbers, and the Fork tint each choice will give.
 
 | Moment | Presentation |
 | --- | --- |
-| **60:00 Time-out** (5 s freeze) | Screen desaturates 50%; banner `MANA RESERVES DEPLETED`; the clock shows `TIME-OUT`; all Uplink beams flicker out. |
+| **60:00 Capture Overtime** (≤ 30 s, C8) | Only if a task is in progress: banner `MANA RESERVES DEPLETED — CAPTURE OVERTIME`; the clock counts `OT 0:30` down; in-progress nodes pulse on the Front-Line bar, all other chips show a padlock. |
+| **Time-out** (5 s freeze) | Screen desaturates 50%; banner `MANA RESERVES DEPLETED`; the clock shows `TIME-OUT`; all Uplink beams flicker out. |
 | **Incursion reveal** (10 s) | Full-screen panel: each lane's score animates in (0–3) with its node strip, then team totals; if tied, Uplink damage % for both. Result: `CONCORD WINS ON INCURSION` or `TIED — SUDDEN DEATH`. |
 | **SD-Freeze** (5 s) | Banner `SUDDEN DEATH — ROUND 1` + one-line rule ("No respawns. Last team standing wins."). Everyone at the Mid Plaza spawn pads. |
 | **SD-Round HUD** | Front-Line bar, objective tracker, Lumen, squad strip and wave timer are **hidden**. Top centre shows **alive pips** per team `CONCORD ●●●●○  vs  ●●○○○ SYNDICATE` (filled = alive, hollow = dead; shape + count, not colour) and the **ring timer** `Ring 0:47 → 4 m`. Minimap zooms to the plaza with the Leyfall ring drawn. |
 | **Ring** | Outside the ring: violet edge vignette + damage tick sound + "OUTSIDE RING −8%/s". After 90 s: `LEYFALL BLOOM` warning and a rising damage number under the ring timer. |
 | **SD-Confirm** (1.0 s) | When a team's last fighter dies: centre text `CONFIRMING…` with a 1 s bar. |
-| **Mutual kill** | `TRADE! — ROUND RESTARTS` banner, round counter +1, back to SD-Freeze. |
+| **Mutual kill** | `TRADE! — ROUND RESTARTS` banner, round counter +1, back to SD-Freeze. After the 3rd restart the banner reads `FINAL ROUND — HIGHER TEAM HP WINS AT RING CLOSE`, and the alive pips gain a summed-HP% number per team (C10). |
 | **End** | `VICTORY` / `DEFEAT` (also spoken), the enemy Uplink goes dark on screen, then stats. |
 
 ---
@@ -511,7 +515,8 @@ level up) → **Low** (Lumen bonuses, tips; held while in combat). Same-type toa
   indicators** for footsteps, reloads and ult stings within 20 m.
 - **Input:** full remapping (KB/M and gamepad separately), every hold action has a toggle option
   (ADS, crouch, sprint, scoreboard, map, radial = "tap to open, click to select"), adjustable
-  double-tap window (150–500 ms, default 300) for Follow, and an option to swap Hold / Follow binds.
+  double-tap window (150–500 ms, default 300) for gamepad Follow, and optional direct keys for each
+  squad command (unbound by default).
 - **Screen reader:** menus and the Armory expose names/values through Godot's AccessKit support (4.5+, verify for 4.7).
 - **Cognitive:** tactical map legend always available; Auto-spend skill points; Armory "recommended" tag.
 
@@ -527,11 +532,12 @@ level up) → **Low** (Lumen bonuses, tips; held while in combat). Same-type toa
 | Reload (Mech) | R | X □ (tap) |
 | Interact (Plant, pick up Cell, Armory, Foundry kiosk) | F | X □ (hold) |
 | Melee | V | R3 |
-| Skill 1 / 2 / 3 / Ultimate | Q / E / C / X | RB / LB / Y △ / LB+RB |
+| Skill 1 / 2 / 3 / Ultimate | Q / E / C / G | RB / LB / Y △ / LB+RB |
 | Spend skill point | Alt + skill key; Forks: 1 / 2 | Hold View + skill button; D-pad ←/→ + A |
-| Squad: Hold Here / Follow / radial | Z tap / Z double-tap / Z hold | D-pad ↓ tap / double-tap / hold |
-| Squad: Attack Target | T | D-pad → |
-| Squad: Go Capture | G | Radial |
+| Squad: Smart Command (Attack / Go Capture / Hold Here by context) | Z tap | D-pad ↓ tap |
+| Squad: radial wheel (all four) | Z hold | D-pad ↓ hold |
+| Squad: Follow | X | D-pad ↓ double-tap |
+| Squad: direct Attack / Capture / Hold / Follow keys | unbound (optional) | unbound (optional) |
 | Med-Pack | 4 | D-pad ← |
 | Recall to HQ | B (channelled) | Ping wheel → Recall |
 | Ping / ping wheel | MMB tap / MMB hold | D-pad ↑ tap / hold |
@@ -539,8 +545,8 @@ level up) → **Low** (Lumen bonuses, tips; held while in combat). Same-type toa
 | Chat team / all | Enter / Shift+Enter | — (quick-chat via ping wheel) |
 | Pause / settings | Esc | Menu |
 
-Squad quick-key defaults follow `wardlings-and-economy.md` (Z); mouse thumb buttons are suggested
-alternatives for Attack Target / Go Capture in the onboarding prompt.
+Squad bindings follow `wardlings-and-economy.md` §8 (the binding source). Mouse thumb buttons are
+suggested for the optional direct Attack Target / Go Capture keys in the onboarding prompt.
 
 ---
 
@@ -549,7 +555,7 @@ alternatives for Attack Target / Go Capture in the onboarding prompt.
 | Parameter | Default | Range | Affects |
 | --- | --- | --- | --- |
 | Radial open delay | 0.2 s | 0.12–0.35 | Tap vs hold on Z |
-| Double-tap window | 0.3 s | 0.15–0.5 (player) | Follow |
+| Double-tap window | 0.3 s | 0.15–0.5 (player) | Gamepad Follow vs Smart Command |
 | Kill feed duration / rows | 6 s / 5 | 4–10 / 3–7 | Clutter |
 | Damage number merge window | 0.5 s | 0.2–1.0 | Readability |
 | Objective tracker range | 40 m | 20–80 | When it appears |
@@ -559,17 +565,17 @@ alternatives for Attack Target / Go Capture in the onboarding prompt.
 
 ---
 
-## 19. Vertical-Slice HUD Subset (Tier 1, Slice Map "Shardline Causeway")
+## 19. Vertical-Slice HUD Subset (M1, Slice Map "Shardline Causeway", Vesper Loom + Brannoc)
 
 **In:** crosshair + hit markers (body/head/kill/Wardling/structure); damage numbers Compact/Off;
-HP + shield + status icons for the 4 slice heroes' effects; weapon panel (mana arc with Burnout,
+HP + shield + status icons for the 2 slice heroes' effects (Vesper, Brannoc); weapon panel (mana arc with Burnout,
 magazine + reserve); mount strip for Core / Frame / Chamber only; 4 skills + SP badge + Alt quick
-spend + Fork cards; level ring + Resonance + Lumen; squad strip (Pickets only; badges F/H/A/C/!/↻/S);
-**all 4 squad commands with radial + quick keys** and world markers; Front-Line bar with **one lane**;
+spend (reduced tree: Unlock, Boost, ult ranks; no Fork cards or Mastery glyphs until M3); level ring + Resonance + Lumen; squad strip (Pickets only; badges F/H/A/C/!/↻/S);
+**all 4 squad commands (Smart Command, Follow, radial)** and world markers; Vesper's Turned/Elite strip icons; Front-Line bar with **one lane**;
 Uplink bars + Exposed; clock + phase; objective tracker for Hold/Plant/Breach; kill feed; minimap
 (incl. Vanguard flags); simplified tactical map (one lane, Incursion 0–3); scoreboard (no build icons,
 per `weapons-and-mods.md` §3.10); death screen with Sanctum/Beacon choice; Armory with turntable
-(greybox mounts); Time-out → Incursion → Sudden Death sequence; colour-blind presets, text scale,
+(greybox mounts); 30:00 slice Time-out → Incursion (a tie is a draw; Capture Overtime and Sudden Death HUD arrive in M3); colour-blind presets, text scale,
 full KB/M remapping, subtitles.
 
 **Out (Alpha):** scoreboard build icons, killcam, wish list, visual sound indicators, Scramble HUD
@@ -581,7 +587,7 @@ treatment (Hex not in slice), variant glyphs, HUD layout editor, gamepad gamepla
 
 1. In a greyscale screenshot, a tester identifies ownership of every Front-Line chip and the front
    marker position for each lane (pattern + glyph only).
-2. Issuing each of the 4 squad commands by quick key and by radial updates the strip badge within
+2. Issuing each of the 4 squad commands by Smart Command (`Z` tap on enemy / hardpoint / ground), Follow (`X`) and by radial updates the strip badge within
    100 ms, shows the correct world marker, and plays a distinct chirp; Go Capture on a Locked node is rejected with a reason.
 3. Personal squads, Vanguard waves and Garrisons are distinguishable on the minimap by shape alone.
 4. The Exposed state appears on the header, minimap and tactical map within 1 server tick of the
@@ -602,7 +608,8 @@ treatment (Hex not in slice), variant glyphs, HUD layout editor, gamepad gamepla
 | --- | --- | --- |
 | U1 | Damage numbers default | Compact ON; Off available |
 | U2 | Front-Line bar and minimap orientation | Own side on the left for both teams (option: absolute, Concord left) |
-| U3 | `wardlings-and-economy.md` §7 lists 2 commands on one key; C15 now has 4 | This doc follows C15; GDD owner to update §7 to match §7 here |
-| U4 | Should Go Capture also be issuable from the tactical map? | No (Pillar 3: no top-down control) |
-| U5 | Ryker's rifle "Vanguard AR-7" collides with "Vanguard waves" in UI text and VO | Rename the rifle (game-designer); UI uses "Vanguard" only for waves |
-| U6 | File path `design/ux/hud.md` vs `design/ux/hud.md` in `design/CLAUDE.md` | Keep requested path; update references when the producer decides |
+| U3 | ~~Command input differs between this doc and `wardlings-and-economy.md`~~ | Resolved in consistency pass 2026-10-02: unified scheme (Z tap Smart Command, Z hold radial, X Follow, optional direct keys); wardlings §8 is the binding source |
+| U4 | ~~Should Go Capture also be issuable from the tactical map?~~ | Resolved in consistency pass 2026-10-02: no (Pillar 3) |
+| U5 | ~~Ryker's rifle "Vanguard AR-7" collides with "Vanguard waves"~~ | Resolved in consistency pass 2026-10-02: renamed **Breakline AR-7**; UI uses "Vanguard" only for waves |
+| U6 | ~~HUD file path~~ | Resolved: `design/ux/hud.md` matches `design/CLAUDE.md` |
+| U7 | Ultimate key moved from `X` to `G` because `X` is now Follow | Default `G`; fully rebindable. Revisit at the M1 playtest |
