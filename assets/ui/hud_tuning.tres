@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="HudTuningDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/hud/hud_tuning_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+design_size = Vector2(1920, 1080)
+min_design_size = Vector2(1422, 800)
+min_scale = 0.9
+safe_margin = 0.03
+kill_feed_rows = 5
+kill_feed_seconds = 6.0
+kill_feed_name_chars = 16
+hit_marker_seconds = 0.12
+kill_marker_seconds = 0.3
+damage_merge_seconds = 0.5
+damage_number_seconds = 0.9
+damage_number_lift_m = 0.6
+hp_segment = 50
+caution_frac = 0.5
+low_hp_frac = 0.25
+lumen_flyout_seconds = 1.2
+plate_max_width = 72.0
+plate_min_width = 36.0
+plate_near_m = 6.0
+plate_far_m = 40.0
+plate_max_distance_m = 70.0
+plate_height_m = 2.2
+tracker_range_m = 40.0

@@ -34,7 +34,39 @@ extends Resource
 ## Breach node is staged as Hold (M1 staging, §3.7; values from §3.3/§8).
 @export var staged_hold_base_s: PackedFloat32Array = PackedFloat32Array([75.0, 65.0, 60.0])
 ## M1 staging: run every hardpoint as Hold until Plant/Breach ship (§3.7).
+## The class default stays on (unit fixtures); the slice .tres turns it off (E14).
 @export var stage_all_as_hold: bool = true
+
+## ---- Plant (E14; match-flow-and-map.md §3.4 Plant, F3, §8 knobs) ----
+## Cradle pickup: a 1 s interact within cell_interact_radius_m of the Cradle.
+@export_range(0.0, 10.0, 0.1) var cell_pickup_s: float = 1.0
+@export_range(0.5, 10.0, 0.1) var cell_interact_radius_m: float = 2.5
+## A dropped Cell is taken by an attacker touching it, dispersed by a defender
+## hero standing on it for cell_disperse_s.
+@export_range(0.5, 10.0, 0.1) var cell_touch_radius_m: float = 1.5
+@export_range(0.0, 10.0, 0.1) var cell_disperse_s: float = 2.0
+## Carrier move speed multiplier (§3.3 table: 5.4 m/s at a 6.0 m/s run).
+@export_range(0.5, 1.0, 0.01) var cell_carrier_speed_mult: float = 0.9
+## A dropped Cell lies this long; the Cradle refills this long after a Cell is lost.
+@export_range(0.0, 120.0, 0.5) var cell_drop_life_s: float = 15.0
+@export_range(0.0, 120.0, 0.5) var cradle_respawn_s: float = 10.0
+## Plant and defuse channels (interact held, inside the zone; not scaled by D_s).
+@export_range(0.0, 30.0, 0.1) var plant_channel_s: float = 3.0
+@export_range(0.0, 30.0, 0.1) var defuse_channel_s: float = 6.0
+## F3: charge runs at this fraction while Pres(att) < Pres(def).
+@export_range(0.0, 1.0, 0.05) var plant_outnumbered_mult: float = 0.5
+
+## ---- Breach (E14; match-flow-and-map.md §3.4 Breach, F4, §8 knobs) ----
+## Wardling hits on a Generator count this fraction (as on the Uplink, C7).
+@export_range(0.0, 1.0, 0.05) var generator_wardling_damage_scale: float = 0.5
+## Regeneration: after this long without attacker damage, this fraction of max HP per second.
+@export_range(0.0, 60.0, 0.5) var generator_regen_delay_s: float = 8.0
+@export_range(0.0, 1.0, 0.005) var generator_regen_frac_s: float = 0.04
+## Phase 2 at P = 0 with no attacker for this long: the Generator respawns at full HP.
+@export_range(0.0, 120.0, 0.5) var breach_reset_idle_s: float = 15.0
+## Generator hit volume (greybox core): radius and height above the zone floor.
+@export_range(0.1, 5.0, 0.1) var generator_hit_radius_m: float = 1.2
+@export_range(0.5, 10.0, 0.1) var generator_hit_height_m: float = 2.4
 ## §3.5 rewards (emitted as ObjectiveEvents; no economy yet). A participant was
 ## in the zone during the last participant_window_s.
 @export_range(0.0, 60.0, 0.5) var participant_window_s: float = 10.0

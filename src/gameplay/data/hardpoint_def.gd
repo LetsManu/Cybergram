@@ -26,6 +26,15 @@ enum Tier { INNER, OUTER, MID }
 @export var base_duration_s: float = 60.0
 ## Breach phase-1 Generator HP before D_s (0 for non-Breach).
 @export var generator_hp: float = 0.0
+## Plant only (§3.4 Plant 1): Cell Cradle per ATTACKING team, [0] = the Cradle
+## Concord takes Cells from, [1] = Syndicate's. Each sits at the adjacent
+## hardpoint toward that team's HQ (its HQ lane gate when there is none).
+@export var cell_cradles: PackedVector3Array = PackedVector3Array()
 ## Barricade sockets, 15 m outside the zone edge on the main path:
 ## [0] = the side toward the Concord HQ, [1] = the side toward the Syndicate HQ.
 @export var barricade_sockets: PackedVector3Array = PackedVector3Array()
+
+
+## Cradle where `team` takes Cells for this Plant node (Vector3.INF if none).
+func cradle_for(team: int) -> Vector3:
+	return cell_cradles[team] if team >= 0 and team < cell_cradles.size() else Vector3.INF
