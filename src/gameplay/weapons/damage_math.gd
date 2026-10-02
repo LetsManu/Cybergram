@@ -11,6 +11,26 @@ const K_LEVEL: float = 0.025
 ## §4.1: armor + damage reduction is clamped at 70%.
 const MAX_REDUCTION: float = 0.70
 
+## E13 Chamber Ammo Types in the slice (§3.7.1, §3.10).
+const AMMO_STANDARD: int = 0
+const AMMO_PIERCING: int = 1
+const AMMO_SUNDER: int = 2
+## Target classes for V_mult (§4.1).
+const TARGET_HERO: int = 0
+## Wardlings, Sentinels, traps, deployables (Aegis Wall).
+const TARGET_CONSTRUCT: int = 1
+## Barricades, Ward Generators.
+const TARGET_STRUCTURE: int = 2
+## Mana Uplink: immune to every ammo effect (C7).
+const TARGET_UPLINK: int = 3
+## §3.7.1 Piercing: ignores 40% of armor; +25% vs hero-deployed shields.
+const PIERCING_ARMOR_PEN: float = 0.40
+const PIERCING_SHIELD_MULT: float = 1.25
+## §3.7.1 Sunder: +35% constructs, +20% structures, −10% heroes.
+const SUNDER_CONSTRUCT_MULT: float = 1.35
+const SUNDER_STRUCTURE_MULT: float = 1.20
+const SUNDER_HERO_MULT: float = 0.90
+
 
 ## §4.2 L(level) = 1 + k_lvl * (level - 1).
 static func level_mult(level: int) -> float:
@@ -31,6 +51,29 @@ static func falloff(def: WeaponDef, distance: float) -> float:
 ## §4.1 A_mult = 1 - min(0.70, A_eff + DR).
 static func armor_mult(armor: float, damage_reduction: float = 0.0) -> float:
 	return 1.0 - minf(MAX_REDUCTION, maxf(armor, 0.0) + maxf(damage_reduction, 0.0))
+
+
+## §4.1 V_mult of `ammo` against a target class (`shield`: a hero-deployed
+## shield wall, which Piercing hits +25%).
+static func ammo_mult(ammo: int, target_class: int, shield: bool = false) -> float:
+	if target_class == TARGET_UPLINK:
+		return 1.0
+	if ammo == AMMO_SUNDER:
+		match target_class:
+			TARGET_HERO:
+				return SUNDER_HERO_MULT
+			TARGET_CONSTRUCT:
+				return SUNDER_CONSTRUCT_MULT
+			TARGET_STRUCTURE:
+				return SUNDER_STRUCTURE_MULT
+	if ammo == AMMO_PIERCING and shield:
+		return PIERCING_SHIELD_MULT
+	return 1.0
+
+
+## Armor penetration of `ammo` (DamageInfo.armor_pen).
+static func ammo_armor_pen(ammo: int) -> float:
+	return PIERCING_ARMOR_PEN if ammo == AMMO_PIERCING else 0.0
 
 
 ## Damage of one hit (one pellet) before the target's armor:

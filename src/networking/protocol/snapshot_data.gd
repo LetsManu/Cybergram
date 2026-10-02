@@ -109,6 +109,34 @@ class MatchState:
 	var end_reason: int = 0
 	var uplinks: Array[UplinkState] = []
 
+## E13/E15: the receiving client's progression and wallet (own hero only).
+class ProgressState:
+	var level: int = 1
+	## Total Resonance (floor).
+	var exp: int = 0
+	var skill_points: int = 0
+	var lumen: int = 0
+	var medpacks: int = 0
+	## FLAG_* bits.
+	var flags: int = 0
+	## Owned squad upgrades: bit i = catalog index i.
+	var owned_bits: int = 0
+	## Per socket (MOUNT_SOCKETS order): catalog index (-1 = empty), tier, Lumen
+	## paid for the line, part paid this Armory visit.
+	var mount_item: PackedInt32Array = PackedInt32Array([-1, -1, -1])
+	var mount_tier: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var mount_paid: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var mount_paid_visit: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	## Lumen Motes on the ground (everyone's; positions only).
+	var motes: PackedVector3Array = PackedVector3Array()
+
+	const FLAG_AT_ARMORY: int = 1
+	const FLAG_BEACON_READY: int = 2
+	const FLAG_SPAWN_BEACON: int = 4
+	const FLAG_HEALING: int = 8
+	## Slice sockets (weapons-and-mods.md §3.10: no Barrel): ArmoryItemDef.Socket.
+	const MOUNT_SOCKETS: Array[int] = [1, 3, 4]
+
 var tick: int = 0
 ## Highest InputCommand.seq the server applied for the receiving client.
 var last_processed_seq: int = 0
@@ -131,3 +159,5 @@ var hardpoints: Array[HardpointState] = []
 var fronts: PackedInt32Array = PackedInt32Array()
 ## Match flow (E9); null on servers without one.
 var match_state: MatchState = null
+## E13/E15 own progression (null on servers without a ProgressionSystem).
+var progress: ProgressState = null

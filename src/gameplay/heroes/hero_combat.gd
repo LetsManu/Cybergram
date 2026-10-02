@@ -23,6 +23,8 @@ var deaths: int = 0
 var stats: StatBlock
 var status: StatusComponent
 var abilities: AbilityRunner
+## E13: Chamber Ammo Type (DamageMath.AMMO_*), set by the Armory.
+var ammo_type: int = DamageMath.AMMO_STANDARD
 
 
 func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
@@ -31,8 +33,10 @@ func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
 	health = HealthComponent.new(hero.max_hp, hero.armor, team_)
 	if hero.weapon != null:
 		weapon = WeaponSim.new(hero.weapon, tick_rate_hz, rng_seed)
-	stats = StatCatalog.new_hero_block(hero.move_speed)
+	stats = StatCatalog.new_hero_block(hero.move_speed, hero.max_hp)
 	health.stats = stats
+	if weapon != null:
+		weapon.feed.stats = stats  # E13 Frame mounts
 	var passive := Modifier.source(Modifier.SRC_PASSIVE, rng_seed)
 	for m in hero.passive_modifiers:
 		if m != null and m.index() >= 0:
@@ -42,9 +46,35 @@ func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
 	abilities = AbilityRunner.new(self, rules, tick_rate_hz)
 
 
-## heroes.md §3.3 SkillPower(L) × the SKILL_POWER stat.
+## heroes.md §3.3 SkillPower(L): the SKILL_POWER stat (apply_level writes the
+## per-level MUL).
 func skill_power() -> float:
-	return stats.get_value(StatCatalog.SKILL_POWER) * (1.0 + abilities.rules.skill_power_per_level * (level - 1))
+	return stats.get_value(StatCatalog.SKILL_POWER)
+
+
+## E15 level scaling (heroes.md §3.3) as SRC_LEVEL MUL modifiers on the hero
+## StatBlock: MaxHP +4%/level, weapon damage +2.5%/level (weapons-and-mods.md
+## §4.2), SkillPower +2%/level. Current HP rises by the max-HP gain.
+func apply_level(new_level: int, hp_per_level: float = 0.04, weapon_per_level: float = DamageMath.K_LEVEL) -> void:
+	level = clampi(new_level, 1, 99)
+	var src := Modifier.source(Modifier.SRC_LEVEL, 0)
+	stats.remove_by_source(src)
+	var k := float(level - 1)
+	if level > 1:
+		stats.add_modifier(Modifier.make(StatCatalog.MAX_HP, Modifier.Op.MUL, 1.0 + hp_per_level * k, src))
+		stats.add_modifier(Modifier.make(StatCatalog.WEAPON_DAMAGE, Modifier.Op.MUL, 1.0 + weapon_per_level * k, src))
+		stats.add_modifier(Modifier.make(StatCatalog.SKILL_POWER, Modifier.Op.MUL,
+			1.0 + abilities.rules.skill_power_per_level * k, src))
+	var old_max := health.max_hp
+	health.max_hp = stats.get_value(StatCatalog.MAX_HP)
+	if health.is_alive():
+		health.hp = minf(health.max_hp, health.hp + maxf(0.0, health.max_hp - old_max))
+
+
+## Weapon damage multiplier before falloff/headshot/armor: L(level) × (1 + M_dmg)
+## (weapons-and-mods.md §4.1; M_dmg capped at +0.25 by the stat limit).
+func weapon_damage_mult() -> float:
+	return stats.get_value(StatCatalog.WEAPON_DAMAGE) * (1.0 + stats.get_value(StatCatalog.MOD_DAMAGE))
 
 
 ## Can fire the weapon this tick (not stunned, not in forced motion).
@@ -52,12 +82,13 @@ func can_shoot() -> bool:
 	return not status.is_stunned() and not abilities.is_dashing()
 
 
-func reset_for_respawn() -> void:
+func reset_for_respawn(at_hq: bool = true) -> void:
 	dead = false
 	health.reset()
 	if weapon != null:
 		weapon.reset()
 	status.clear()
-	# heroes.md §3.4: respawning at the HQ Sanctum resets basic cooldowns (every
-	# respawn in the slice is at the HQ; Forward Beacons arrive later).
-	abilities.on_respawn_at_hq()
+	# heroes.md §3.4: respawning at the HQ Sanctum resets basic cooldowns; a
+	# Forward Beacon spawn (E13) does not.
+	if at_hq:
+		abilities.on_respawn_at_hq()

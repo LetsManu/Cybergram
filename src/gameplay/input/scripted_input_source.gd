@@ -32,4 +32,6 @@ func sample(seq: int, out: InputCommand) -> void:
 	if def.fire_period_ticks > 0 and seq % def.fire_period_ticks < def.fire_hold_ticks:
 		out.buttons |= InputCommand.BTN_FIRE
 	out.squad_cmd = InputCommand.SQUAD_NONE
+	out.action = InputCommand.ACTION_NONE  # E13/E15 edge event
+	out.action_arg = 0
 	out.quantize()

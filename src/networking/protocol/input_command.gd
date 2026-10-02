@@ -5,16 +5,18 @@ extends RefCounted
 ## emit this. The client quantizes BEFORE predicting so client and server feed
 ## HeroMotor bit-identical values.
 ##
-## Wire layout (WIRE_SIZE = 26 bytes): seq u32, move i8 x2, yaw u16, pitch i16,
+## Wire layout (WIRE_SIZE = 29 bytes): seq u32, move i8 x2, yaw u16, pitch i16,
 ## buttons u16, view_tick u32, view_alpha u8, squad_cmd u8, squad_target u16,
-## squad_point i16 x3 (1/8 m). Squad fields (E8, wardlings-and-economy.md §8)
-## are an edge event: set on the one tick the order is given, else SQUAD_NONE.
+## squad_point i16 x3 (1/8 m), action u8, action_arg u16. Squad fields (E8,
+## wardlings-and-economy.md §8) and the E13/E15 action (learn a skill node, buy /
+## sell at the Armory, use a Med-Pack, pick the spawn point) are edge events:
+## set on the one tick they are issued, else NONE.
 ##
 ## Example:
 ##   cmd.quantize(); var off := cmd.write_to(buf, 0)
 ##   var back := InputCommand.new(); InputCommand.read_from(buf, 0, back)
 
-const WIRE_SIZE: int = 26
+const WIRE_SIZE: int = 29
 
 const BTN_JUMP: int = 1 << 0
 const BTN_CROUCH: int = 1 << 1
@@ -42,6 +44,19 @@ const SQUAD_SMART: int = 7
 const _SQUAD_MAX: int = SQUAD_CAPTURE
 const _POINT_STEPS: float = 8.0
 
+## E13 / E15 actions (server-validated; ProgressionSystem.handle_action).
+const ACTION_NONE: int = 0
+## arg = skill slot (0..3): learn that slot's next node (Alt + skill key).
+const ACTION_LEARN: int = 1
+## arg = catalog index | tier << 8 (tier 0 = next tier).
+const ACTION_BUY: int = 2
+## arg = ArmoryItemDef.Socket to sell.
+const ACTION_SELL: int = 3
+const ACTION_USE_MEDPACK: int = 4
+## arg = HeroProgress.SPAWN_*.
+const ACTION_SPAWN_CHOICE: int = 5
+const _ACTION_MAX: int = ACTION_SPAWN_CHOICE
+
 const _MOVE_STEPS: float = 127.0
 const _YAW_STEPS: float = 65536.0
 const _PITCH_STEPS: float = 32767.0
@@ -66,6 +81,9 @@ var squad_cmd: int = SQUAD_NONE
 var squad_target: int = 0
 ## HOLD: ground point (the server re-validates range and projects to the navmesh).
 var squad_point: Vector3 = Vector3.ZERO
+## E13/E15 ACTION_* issued this tick and its argument.
+var action: int = ACTION_NONE
+var action_arg: int = 0
 
 
 func has(button: int) -> bool:
@@ -94,6 +112,8 @@ func copy_from(other: InputCommand) -> void:
 	squad_cmd = other.squad_cmd
 	squad_target = other.squad_target
 	squad_point = other.squad_point
+	action = other.action
+	action_arg = other.action_arg
 
 
 func duplicate_command() -> InputCommand:
@@ -106,7 +126,8 @@ func equals(other: InputCommand) -> bool:
 	return seq == other.seq and move == other.move and yaw == other.yaw \
 		and pitch == other.pitch and buttons == other.buttons \
 		and view_tick == other.view_tick and view_alpha == other.view_alpha \
-		and squad_cmd == other.squad_cmd and squad_target == other.squad_target and squad_point == other.squad_point
+		and squad_cmd == other.squad_cmd and squad_target == other.squad_target and squad_point == other.squad_point \
+		and action == other.action and action_arg == other.action_arg
 
 
 ## Writes WIRE_SIZE bytes at `offset` (buffer must be large enough). Returns the end offset.
@@ -125,6 +146,8 @@ func write_to(buf: PackedByteArray, offset: int) -> int:
 	buf.encode_s16(offset + 20, clampi(roundi(squad_point.x * _POINT_STEPS), -32767, 32767))
 	buf.encode_s16(offset + 22, clampi(roundi(squad_point.y * _POINT_STEPS), -32767, 32767))
 	buf.encode_s16(offset + 24, clampi(roundi(squad_point.z * _POINT_STEPS), -32767, 32767))
+	buf.encode_u8(offset + 26, action if action >= 0 and action <= _ACTION_MAX else ACTION_NONE)
+	buf.encode_u16(offset + 27, action_arg & 0xFFFF)
 	return offset + WIRE_SIZE
 
 
@@ -148,4 +171,7 @@ static func read_from(buf: PackedByteArray, offset: int, out: InputCommand) -> b
 	out.squad_target = buf.decode_u16(offset + 18)
 	out.squad_point = Vector3(buf.decode_s16(offset + 20), buf.decode_s16(offset + 22),
 		buf.decode_s16(offset + 24)) / _POINT_STEPS
+	var ac := buf.decode_u8(offset + 26)
+	out.action = ac if ac <= _ACTION_MAX else ACTION_NONE
+	out.action_arg = buf.decode_u16(offset + 27)
 	return true

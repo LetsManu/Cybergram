@@ -11,6 +11,8 @@ var stats: StatBlock
 ## Ultimate rank (0 = not learned yet; basics ignore it).
 var rank: int = 0
 var learned: Array[SkillNodeDef] = []
+## E15: the basic skill's Unlock node is learned (ultimates: rank >= 1).
+var unlocked: bool = false
 var cooldown_end_tick: int = 0
 ## Length of the current cooldown (HUD sweep).
 var cooldown_total_ticks: int = 0
@@ -47,7 +49,25 @@ func learn(node: SkillNodeDef, hero_stats: StatBlock = null) -> void:
 			stats.add_modifier(m.to_modifier(src))
 	if node.kind == SkillNodeDef.Kind.ULT_RANK:
 		rank = maxi(rank, node.rank)
+	if node.kind == SkillNodeDef.Kind.UNLOCK or node.kind == SkillNodeDef.Kind.ULT_RANK:
+		unlocked = true
 	learned.append(node)
+
+
+## E15: a learned node of `kind` (BOOST, FORK_A...).
+func has_node(kind: int) -> bool:
+	for n in learned:
+		if n.kind == kind:
+			return true
+	return false
+
+
+## E15: the def's node of `kind` (ult ranks: of `rank_`), or null.
+func node_of(kind: int, rank_: int = 0) -> SkillNodeDef:
+	for n in def.nodes:
+		if n != null and n.kind == kind and (kind != SkillNodeDef.Kind.ULT_RANK or n.rank == rank_):
+			return n
+	return null
 
 
 func on_cooldown(tick: int) -> bool:

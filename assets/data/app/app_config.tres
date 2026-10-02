@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AppConfig" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="AppConfig" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/core/app/app_config.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/gameplay/world/game_session.tscn" id="2"]
@@ -8,9 +8,11 @@
 [ext_resource type="PackedScene" path="res://src/ai/wardlings/wardling_ai_installer.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://src/ui/hud/squad_strip.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://src/ui/hud/match_hud.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://src/ai/bots/bot_ai_installer.tscn" id="e11_bots"]
+[ext_resource type="PackedScene" path="res://src/ui/hud/economy_hud.tscn" id="e13_economy_hud"]
 
 [resource]
 script = ExtResource("1")
 session_scene = ExtResource("2")
-overlay_scenes = Array[PackedScene]([ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("7"), ExtResource("8")])
-sim_plugin_scenes = Array[PackedScene]([ExtResource("6")])
+overlay_scenes = Array[PackedScene]([ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("7"), ExtResource("8"), ExtResource("e13_economy_hud")])
+sim_plugin_scenes = Array[PackedScene]([ExtResource("6"), ExtResource("e11_bots")])

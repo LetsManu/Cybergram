@@ -27,6 +27,15 @@ var wheel_vec: Vector2 = Vector2.ZERO
 ## Set when the wheel opens: ClientWorld captures the crosshair targets then.
 var wheel_capture: bool = false
 var _squad_request: int = InputCommand.SQUAD_NONE
+## E13/E15 actions (hud.md §11 quick spend: hold Alt + Q/E/C/G; Med-Pack [4];
+## Armory panel and death screen push requests): [action, arg], one per tick.
+var _actions: Array = []
+var _learn_was_down: Array[bool] = [false, false, false, false]
+var _medpack_was_down: bool = false
+## True while Alt is held (the HUD shows the quick-spend flyout).
+var quick_spend: bool = false
+## UI panels (Armory) take the keyboard: skills and squad keys are ignored.
+var ui_captured: bool = false
 var _z_held_s: float = -1.0
 var _x_was_down: bool = false
 
@@ -50,8 +59,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
+## Queues an InputCommand.ACTION_* (sent on the next ticks, one per tick).
+func request_action(action: int, arg: int = 0) -> void:
+	_actions.append([action, arg])
+
+
 func _process(delta: float) -> void:
-	var z := _pressed("squad_smart", KEY_Z)
+	quick_spend = _pressed("quick_spend", KEY_ALT)
+	var keys := [KEY_Q, KEY_E, KEY_C, KEY_G]
+	for i in 4:
+		var down := quick_spend and not ui_captured and _pressed(StringName("skill_%d" % (i + 1)), keys[i])
+		if down and not _learn_was_down[i]:
+			request_action(InputCommand.ACTION_LEARN, i)
+		_learn_was_down[i] = down
+	var med := not ui_captured and _pressed("use_medpack", KEY_4)
+	if med and not _medpack_was_down:
+		request_action(InputCommand.ACTION_USE_MEDPACK)
+	_medpack_was_down = med
+	var z := _pressed("squad_smart", KEY_Z) and not ui_captured
 	if z:
 		_z_held_s = 0.0 if _z_held_s < 0.0 else _z_held_s + delta
 		if _z_held_s >= WHEEL_HOLD_S and not wheel_open:
@@ -65,7 +90,7 @@ func _process(delta: float) -> void:
 		else:
 			_squad_request = InputCommand.SQUAD_SMART
 		_z_held_s = -1.0
-	var x := _pressed("squad_follow", KEY_X)
+	var x := _pressed("squad_follow", KEY_X) and not ui_captured
 	if x and not _x_was_down:
 		_squad_request = InputCommand.SQUAD_FOLLOW
 	_x_was_down = x
@@ -97,19 +122,27 @@ func sample(seq: int, out: InputCommand) -> void:
 		out.buttons |= InputCommand.BTN_FIRE
 	if _pressed("reload", KEY_R):
 		out.buttons |= InputCommand.BTN_RELOAD
-	# E10 skills (hud.md §4.4 / §13 binds: S1 Q, S2 E, S3 C, Ult G).
-	if _pressed("skill_1", KEY_Q):
+	# E10 skills (hud.md §4.4 / §13 binds: S1 Q, S2 E, S3 C, Ult G). Alt held =
+	# quick spend (E15): the keys learn instead of cast.
+	var cast := not quick_spend and not ui_captured
+	if cast and _pressed("skill_1", KEY_Q):
 		out.buttons |= InputCommand.BTN_SKILL1
-	if _pressed("skill_2", KEY_E):
+	if cast and _pressed("skill_2", KEY_E):
 		out.buttons |= InputCommand.BTN_SKILL2
-	if _pressed("skill_3", KEY_C):
+	if cast and _pressed("skill_3", KEY_C):
 		out.buttons |= InputCommand.BTN_SKILL3
-	if _pressed("skill_4", KEY_G):
+	if cast and _pressed("skill_4", KEY_G):
 		out.buttons |= InputCommand.BTN_SKILL4
 	out.squad_cmd = _squad_request
 	out.squad_target = 0
 	out.squad_point = Vector3.ZERO
 	_squad_request = InputCommand.SQUAD_NONE
+	out.action = InputCommand.ACTION_NONE
+	out.action_arg = 0
+	if not _actions.is_empty():
+		var a: Array = _actions.pop_front()
+		out.action = a[0]
+		out.action_arg = a[1]
 	out.quantize()
 
 

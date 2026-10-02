@@ -10,6 +10,9 @@ const FLAG_DRY: int = 4
 
 var def: WeaponDef
 var tick_rate_hz: int
+## E13: the owner's hero StatBlock (Frame mounts: MANA_REGEN, REGEN_DELAY,
+## RELOAD_TIME). Null = the WeaponDef values.
+var stats: StatBlock
 
 
 func _init(weapon: WeaponDef, tick_rate: int) -> void:
@@ -21,6 +24,21 @@ static func create(weapon: WeaponDef, tick_rate: int) -> AmmoFeed:
 	if weapon.feed_kind == WeaponDef.FeedKind.MAGAZINE:
 		return MagazineFeed.new(weapon, tick_rate)
 	return ManaPoolFeed.new(weapon, tick_rate)
+
+
+## Mana regen per second after mounts (Flux Coil).
+func regen_rate() -> float:
+	return def.mana_regen * (stats.get_value(StatCatalog.MANA_REGEN) if stats != null else 1.0)
+
+
+## Regen delay after mounts (Flux Coil), never below 0.
+func regen_delay_s() -> float:
+	return maxf(0.0, def.mana_regen_delay_s + (stats.get_value(StatCatalog.REGEN_DELAY) if stats != null else 0.0))
+
+
+## Reload time `t` after mounts (Quickload).
+func reload_time(t: float) -> float:
+	return t * (stats.get_value(StatCatalog.RELOAD_TIME) if stats != null else 1.0)
 
 
 ## Seconds -> whole ticks (rounded up, at least 1).

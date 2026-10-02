@@ -47,7 +47,7 @@ func apply_damage(info: DamageInfo) -> float:
 		var dr := damage_reduction
 		if stats != null:
 			dr += stats.get_value(StatCatalog.DAMAGE_REDUCTION)
-		amount *= DamageMath.armor_mult(armor, dr)
+		amount *= DamageMath.armor_mult(armor * (1.0 - minf(0.60, maxf(info.armor_pen, 0.0))), dr)
 		if stats != null:
 			amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
 	last_absorbed = 0.0

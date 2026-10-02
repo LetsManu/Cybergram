@@ -27,14 +27,25 @@ const ULT_SLOT: int = 3
 const FLAG_LOCKED: int = 1
 const FLAG_ACTIVE: int = 2
 const FLAG_CASTING: int = 4
+## E15 skill tree (replicated in the same byte): Boost learned, ultimate rank
+## (2 bits), a point can be spent on this slot now (set by ProgressionSystem).
+const FLAG_BOOSTED: int = 8
+const RANK_SHIFT: int = 4
+const RANK_MASK: int = 48
+const FLAG_LEARNABLE: int = 64
 
 var combat: HeroCombat
 var rules: AbilityRulesDef
 var tick_hz: int
 var skills: Array[SkillInstance] = []
 var lockout_until_tick: int = 0
-## Debug (--grant-ult): the ultimate is usable below level 6.
+## Debug (--grant-ult): the ultimate is usable below level 6 (with the E15
+## tree on: every skill is usable unlearned).
 var debug_grant_ult: bool = false
+## E15: skills are usable only once learned (Unlock / Ult rank 1). Off = the
+## E10 rule (basics owned from L1, the ultimate by level). ProgressionSystem
+## turns it on for every hero it tracks.
+var tree_enabled: bool = false
 var last_reject: int = Reject.NONE
 
 var casting_slot: int = -1
@@ -72,8 +83,10 @@ func is_unlocked(slot: int) -> bool:
 	var s := skill(slot)
 	if s == null:
 		return false
-	if s.def.ultimate and debug_grant_ult:
+	if debug_grant_ult and (s.def.ultimate or tree_enabled):
 		return true
+	if tree_enabled:
+		return s.unlocked
 	return combat.level >= s.def.required_level
 
 
@@ -240,4 +253,7 @@ func hud_state(slot: int, tick: int) -> Array:
 		f |= FLAG_ACTIVE
 	if casting_slot == slot:
 		f |= FLAG_CASTING
+	if s.has_node(SkillNodeDef.Kind.BOOST):
+		f |= FLAG_BOOSTED
+	f |= (clampi(s.rank, 0, 3) << RANK_SHIFT) & RANK_MASK
 	return [s.cooldown_ticks_left(tick), s.cooldown_total_ticks, f]

@@ -25,8 +25,16 @@ extends RefCounted
 ##                                                  fires at it with its squad (E9 evidence)
 ##   ... -- --debug-uplink-integrity 2000       -> debug: Syndicate Uplink starts at 2000
 ##   ... -- --grant-ult                          -> debug: ultimates usable below level 6 (E10)
+##   ... -- --bots                               -> E11: player + 9 bots, 5v5 on the slice map
+##   godot --headless --fixed-fps 30 --path . -- --server --bots-only --seed 3 [--match-clock 4]
+##                                                -> E11: 10 bots play to End, JSON summary, quit
+##   ... -- --bot-difficulty easy|normal|hard    -> E11: bot profile (default normal)
 ##   ... -- --debug-skill-demo                   -> debug: the local hero casts its skills on a
 ##                                                  schedule (E10 evidence)
+##   ... -- --map slice --debug-level 7          -> debug: the local hero starts at level 7 with
+##                                                  skills learned and points banked (E15 evidence)
+##   ... -- --map slice --debug-armory           -> debug: spawn on the Armory pad with Lumen,
+##                                                  mounts bought, Armory panel open (E13 evidence)
 
 enum Mode { OFFLINE, DEDICATED }
 
@@ -54,6 +62,15 @@ var match_clock: float = 1.0
 var debug_match_time: float = 0.0
 var debug_uplink: bool = false
 var debug_uplink_integrity: float = -1.0
+## E13/E15 debug: start level (0 = off) and the Armory evidence setup.
+var debug_level: int = 0
+var debug_armory: bool = false
+## E11 bots: --bots (player + 9 bots), --bots-only (10 bots, no player; with
+## --server the match runs to End and prints a JSON summary), --seed, --bot-difficulty.
+var bots: bool = false
+var bots_only: bool = false
+var match_seed: int = 1
+var bot_difficulty: String = ""
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -85,8 +102,26 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.debug_camera = args[i].validate_filename()
 			"--debug-squad-demo":
 				c.debug_squad_demo = true
+			"--bots":
+				c.bots = true
+			"--bots-only", "--slice-autoplay":
+				c.bots_only = true
+			"--seed":
+				if i + 1 < args.size():
+					i += 1
+					c.match_seed = args[i].to_int()
+			"--bot-difficulty":
+				if i + 1 < args.size():
+					i += 1
+					c.bot_difficulty = args[i].validate_filename()
 			"--grant-ult":
 				c.grant_ult = true
+			"--debug-level":
+				if i + 1 < args.size():
+					i += 1
+					c.debug_level = clampi(args[i].to_int(), 0, 15)
+			"--debug-armory":
+				c.debug_armory = true
 			"--debug-skill-demo":
 				c.debug_skill_demo = true
 			"--match-clock":
@@ -123,4 +158,6 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if args[i].begins_with("--hero="):
 					c.hero_id = args[i].trim_prefix("--hero=").validate_filename()
 		i += 1
+	if (c.bots or c.bots_only) and c.map_name == "":
+		c.map_name = "slice"  # E11: bot matches run on the slice map
 	return c

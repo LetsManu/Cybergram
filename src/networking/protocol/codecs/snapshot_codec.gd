@@ -24,7 +24,10 @@ extends RefCounted
 ##   u8 param (1/255), u16 ticks left).
 ## Hardpoint: i8 owner, i8 capturing team, u8 flags (contested, overtime, severed,
 ##   locked0, locked1), u16 progress (P x 65535).
-## Match (E9, after the objectives, ends the packet): u8 present; if 1: u8 phase,
+## Progress (E13/E15, after the objectives): u8 present; if 1: u8 level, u32 exp,
+##   u8 skill points, u32 lumen, u8 medpacks, u8 flags, u32 owned bits, 3 x mount
+##   (i8 item, u8 tier, u16 paid, u16 paid this visit), u8 mote count, count x i16x3.
+## Match (E9, after the progress block, ends the packet): u8 present; if 1: u8 phase,
 ##   f32 clock s, f32 next phase s, i8 winner, u8 end reason, u8 uplink count,
 ##   count x uplink (10 B: u8 team, f32 integrity, f32 max, u8 exposed).
 
@@ -49,6 +52,8 @@ const _HF_LOCKED0: int = 8
 const _HF_LOCKED1: int = 16
 const _MATCH: int = 1 + 4 + 4 + 1 + 1 + 1
 const _UPLINK: int = 10
+const _PROGRESS: int = 1 + 4 + 1 + 4 + 1 + 1 + 4 + 3 * 6 + 1
+const _MOTE: int = 6
 
 
 static func encode(s: SnapshotData) -> PackedByteArray:
@@ -58,6 +63,7 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 		+ 2 + s.hardpoints.size() * _HARDPOINT + s.fronts.size()
 		+ 4 + s.wardlings.size() * _WARDLING + s.bolts.size() * _BOLT
 		+ 2 + s.fx.size() * _FX
+		+ 1 + (_PROGRESS + s.progress.motes.size() * _MOTE if s.progress != null else 0)
 		+ 1 + (_MATCH + s.match_state.uplinks.size() * _UPLINK if s.match_state != null else 0))
 	b.encode_u8(0, MsgType.SNAPSHOT)
 	b.encode_u32(1, s.tick)
@@ -108,6 +114,7 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 	off = _encode_wardlings(b, off, s)
 	off = _encode_fx(b, off, s)
 	off = _encode_objectives(b, off, s)
+	off = _encode_progress(b, off, s)
 	_encode_match(b, off, s)
 	return b
 
@@ -272,9 +279,73 @@ static func _encode_match(b: PackedByteArray, off: int, s: SnapshotData) -> void
 		off += _UPLINK
 
 
+static func _encode_progress(b: PackedByteArray, off: int, s: SnapshotData) -> int:
+	var p := s.progress
+	b.encode_u8(off, 1 if p != null else 0)
+	if p == null:
+		return off + 1
+	off += 1
+	b.encode_u8(off, clampi(p.level, 0, 255))
+	b.encode_u32(off + 1, clampi(p.exp, 0, 0x7FFFFFFF))
+	b.encode_u8(off + 5, clampi(p.skill_points, 0, 255))
+	b.encode_u32(off + 6, clampi(p.lumen, 0, 0x7FFFFFFF))
+	b.encode_u8(off + 10, clampi(p.medpacks, 0, 255))
+	b.encode_u8(off + 11, p.flags & 0xFF)
+	b.encode_u32(off + 12, p.owned_bits & 0xFFFFFFFF)
+	off += 16
+	for i in 3:
+		b.encode_s8(off, clampi(p.mount_item[i], -1, 127))
+		b.encode_u8(off + 1, clampi(p.mount_tier[i], 0, 255))
+		b.encode_u16(off + 2, clampi(p.mount_paid[i], 0, 65535))
+		b.encode_u16(off + 4, clampi(p.mount_paid_visit[i], 0, 65535))
+		off += 6
+	var n := mini(p.motes.size(), 255)
+	b.encode_u8(off, n)
+	off += 1
+	for i in n:
+		_put_q3(b, off, p.motes[i])
+		off += _MOTE
+	return off
+
+
+## Decodes the progress block at `off`; returns the end offset or -1.
+static func _decode_progress(b: PackedByteArray, off: int, s: SnapshotData) -> int:
+	if b.size() < off + 1:
+		return -1
+	if b.decode_u8(off) == 0:
+		return off + 1
+	if b.size() < off + 1 + _PROGRESS:
+		return -1
+	off += 1
+	var p := SnapshotData.ProgressState.new()
+	p.level = b.decode_u8(off)
+	p.exp = b.decode_u32(off + 1)
+	p.skill_points = b.decode_u8(off + 5)
+	p.lumen = b.decode_u32(off + 6)
+	p.medpacks = b.decode_u8(off + 10)
+	p.flags = b.decode_u8(off + 11)
+	p.owned_bits = b.decode_u32(off + 12)
+	off += 16
+	for i in 3:
+		p.mount_item[i] = b.decode_s8(off)
+		p.mount_tier[i] = b.decode_u8(off + 1)
+		p.mount_paid[i] = b.decode_u16(off + 2)
+		p.mount_paid_visit[i] = b.decode_u16(off + 4)
+		off += 6
+	var n := b.decode_u8(off)
+	off += 1
+	if b.size() < off + n * _MOTE:
+		return -1
+	for i in n:
+		p.motes.append(_get_q3(b, off))
+		off += _MOTE
+	s.progress = p
+	return off
+
+
 ## Decodes the match block at `off`; false if malformed or not ending the packet.
 static func _decode_match(b: PackedByteArray, off: int, s: SnapshotData) -> bool:
-	if b.size() < off + 1:
+	if off < 0 or b.size() < off + 1:
 		return false
 	if b.decode_u8(off) == 0:
 		return b.size() == off + 1
@@ -398,6 +469,8 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		off = _decode_fx(b, off, s)
 	if off >= 0:
 		off = _decode_objectives(b, off, s)
+	if off >= 0:
+		off = _decode_progress(b, off, s)
 	if off < 0 or not _decode_match(b, off, s):
 		return null
 	return s

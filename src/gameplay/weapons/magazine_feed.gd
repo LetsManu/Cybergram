@@ -32,7 +32,7 @@ func step(tick: int) -> void:
 		if def.reload_per_round:
 			rounds += 1
 			reserve -= 1
-			reload_end_tick = tick + ticks(def.reload_s) if rounds < def.magazine and reserve > 0 else -1
+			reload_end_tick = tick + ticks(reload_time(def.reload_s)) if rounds < def.magazine and reserve > 0 else -1
 		else:
 			var n := mini(def.magazine - rounds, reserve)
 			rounds += n
@@ -61,7 +61,7 @@ func request_reload(tick: int) -> void:
 	var t := def.reload_s
 	if rounds == 0 and not def.reload_per_round and def.reload_empty_s > 0.0:
 		t = def.reload_empty_s
-	reload_end_tick = tick + ticks(t)
+	reload_end_tick = tick + ticks(reload_time(t))
 
 
 func refill() -> void:

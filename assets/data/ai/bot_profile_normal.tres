@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BotProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ai/bots/bot_profile.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"normal"
+decision_hz = 10.0
+reaction_s = 0.35
+tracking_error_deg = 0.8
+max_error_deg = 2.5
+flick_error_deg = 4.0
+turn_rate_deg_s = 420.0
+headshot_rate = 0.15
+skill_use_chance = 0.5
+fire_tolerance_mult = 2.0

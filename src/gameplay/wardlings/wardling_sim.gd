@@ -77,6 +77,8 @@ var squad_mods: Dictionary = {}
 ## Damage memory (retaliation, LOD).
 var last_attacker_id: int = 0
 var last_hit_tick: int = -1000000
+## E13 share list (§15.1): source net id -> last tick it damaged this Wardling.
+var hit_by: Dictionary = {}
 
 
 static func layer_for_team(t: int) -> int:

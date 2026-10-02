@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BotRosterDef" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/ai/bots/bot_roster_def.gd" id="1"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_vesper_loom.tres" id="2"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_brannoc.tres" id="3"]
+[ext_resource type="Resource" path="res://assets/data/ai/bot_profile_easy.tres" id="4"]
+[ext_resource type="Resource" path="res://assets/data/ai/bot_profile_normal.tres" id="5"]
+[ext_resource type="Resource" path="res://assets/data/ai/bot_profile_hard.tres" id="6"]
+
+[resource]
+script = ExtResource("1")
+heroes = Array[Resource]([ExtResource("2"), ExtResource("3")])
+profiles = {
+&"easy": ExtResource("4"),
+&"hard": ExtResource("6"),
+&"normal": ExtResource("5")
+}
+build_orders = {
+&"hero_brannoc": PackedInt32Array(3, 1, 0, 2, 1, 0, 2),
+&"hero_vesper_loom": PackedInt32Array(3, 0, 1, 2, 0, 1, 2)
+}
+default_difficulty = &"normal"
+team_size = 5

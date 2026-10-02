@@ -21,7 +21,7 @@ func step(tick: int) -> void:
 	if tick < regen_resume_tick:
 		return
 	burnout = false
-	mana = minf(def.mana_pool, mana + def.mana_regen / tick_rate_hz)
+	mana = minf(def.mana_pool, mana + regen_rate() / tick_rate_hz)
 
 
 func can_fire() -> bool:
@@ -30,7 +30,7 @@ func can_fire() -> bool:
 
 func consume(tick: int) -> void:
 	mana = maxf(0.0, mana - def.mana_cost)
-	var delay := def.mana_regen_delay_s
+	var delay := regen_delay_s()
 	if mana <= 1e-4:
 		mana = 0.0
 		burnout = true

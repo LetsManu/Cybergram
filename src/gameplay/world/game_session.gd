@@ -20,6 +20,8 @@ const DEFAULT_MATCH_RULES := "res://assets/data/match/match_rules_slice.tres"
 ## E8 Wardling data (squads + Vanguard on maps with HQs).
 const WARDLING_RULES := "res://assets/data/wardlings/wardling_rules_slice.tres"
 const WARDLING_PICKET := "res://assets/data/wardlings/wardling_picket.tres"
+## E13/E15 economy rules and the Armory catalog (slice subset).
+const ECONOMY_RULES := "res://assets/data/economy/economy_rules_slice.tres"
 const SERVER_PEER: int = 1
 const LOCAL_CLIENT_PEER: int = 2
 
@@ -90,7 +92,8 @@ func _ready() -> void:
 	_setup_match()
 	_apply_debug_capture()
 	if launch_config != null:
-		server.abilities.grant_ult = launch_config.grant_ult  # E10 debug
+		# E10 debug; with the E15 tree on, the scripted skill demo needs every skill usable.
+		server.abilities.grant_ult = launch_config.grant_ult or launch_config.debug_skill_demo
 	var wardling_rules := load(WARDLING_RULES) as WardlingRulesDef
 	if server.enable_wardlings(map_def, wardling_rules, load(WARDLING_PICKET) as WardlingDef) != null \
 			and launch_config != null:
@@ -99,7 +102,13 @@ func _ready() -> void:
 			else launch_config.match_clock
 		if launch_config.spawn_wardlings > 0:
 			server.wardlings.debug_spawn(launch_config.spawn_wardlings)
-	for i in dummy_inputs.size():
+	server.enable_progression(load(ECONOMY_RULES) as EconomyRulesDef,
+		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, map_def)  # E13/E15
+	if launch_config != null and launch_config.debug_armory and map_def != null and not map_def.hqs.is_empty():
+		server.debug_player_spawn = map_def.hq(ServerWorld.TEAM_PLAYERS).armory + Vector3(0.0, 0.05, 1.5)
+	# E11: bot matches fill the slots from src/ai (BotAiInstaller); no training dummies.
+	var bot_match := launch_config != null and (launch_config.bots or launch_config.bots_only)
+	for i in dummy_inputs.size() if not bot_match else 0:
 		server.add_scripted_hero(ScriptedInputSource.new(dummy_inputs[i]), server.spawn_point("DummySpawn%d" % (i + 1)),
 			dummy_heroes[i % dummy_heroes.size()] as HeroDef)
 	if not dedicated:
@@ -171,6 +180,83 @@ func _debug_uplink_squad() -> void:
 		sq.issue(Squad.CMD_ATTACK, server.tick, Vector3.ZERO, u.net_id)
 
 
+## --debug-level N / --debug-armory (E13/E15 evidence): once the player's hero
+## exists, set its level and learn skills (Unlock all basics, Boost S1 at L3+,
+## ult rank 1 at L6+; the rest stays banked), and on the Armory pad buy a gun
+## build that fits its weapon. Runs once.
+var _debug_progress_done: bool = false
+
+
+func _debug_progress() -> void:
+	if _debug_progress_done or launch_config == null or server.progression == null or client == null \
+			or (launch_config.debug_level <= 0 and not launch_config.debug_armory):
+		return
+	var h := server.hero(client.session.own_net_id)
+	if h == null or server.tick < 5:
+		return
+	_debug_progress_done = true
+	var pr := server.progression
+	if launch_config.debug_level > 0:
+		pr.debug_set_level(h, launch_config.debug_level)
+		pr.progress_of(h).exp += 0.45 * EconomyMath.exp_to_next(pr.rules, launch_config.debug_level)
+		for slot in 3:
+			server.learn_skill(h, slot)
+		server.learn_skill(h, 0)
+		server.learn_skill(h, 3)
+	if launch_config.debug_armory:
+		pr.progress_of(h).lumen = 6000
+		pr.progress_of(h).at_armory = pr.is_at_armory(h)
+		var mana := h.combat.weapon != null and h.combat.weapon.def.feed_kind == WeaponDef.FeedKind.MANA
+		var res := [server.buy(h, &"ember_heart" if mana else &"overclock", 3),
+			server.buy(h, &"flux_coil" if mana else &"quickload", 2),
+			server.buy(h, &"ammo_piercing" if mana else &"ammo_sunder"),
+			server.buy(h, &"med_pack")]
+		print("[debug-armory] buys %s, Lumen left %d" % [res, pr.progress_of(h).lumen])
+
+
+## E13/E15 telemetry (dedicated runs): Lumen earned and levels across heroes at
+## match minutes 5 / 10 / 20 / 30 (the wardlings-and-economy.md §18 checkpoints).
+var _econ_marks: Array[int] = [5, 10, 20, 30]
+
+
+func _log_economy() -> void:
+	if not dedicated or server.progression == null or _econ_marks.is_empty() \
+			or server.match_seconds() < _econ_marks[0] * 60.0:
+		return
+	var m: int = _econ_marks.pop_front()
+	var earned: Array[int] = []
+	var levels: Array[int] = []
+	for id in server.progression.progress:
+		var p: HeroProgress = server.progression.progress[id]
+		earned.append(p.total_earned())
+		levels.append(p.level)
+	if earned.is_empty():
+		return
+	earned.sort()
+	levels.sort()
+	var sum := 0
+	var lsum := 0
+	for i in earned.size():
+		sum += earned[i]
+		lsum += levels[i]
+	print("[economy] %d:00 heroes %d | Lumen earned median %d mean %d (min %d max %d) | level median %d mean %.1f (min %d max %d)" % [
+		m, earned.size(), earned[earned.size() / 2], sum / earned.size(), earned[0], earned[-1],
+		levels[levels.size() / 2], float(lsum) / levels.size(), levels[0], levels[-1]])
+	var src := {}
+	var xsrc := {}
+	for id in server.progression.progress:
+		var p: HeroProgress = server.progression.progress[id]
+		for k in p.earned:
+			src[k] = int(src.get(k, 0)) + int(p.earned[k])
+		for k in p.exp_by:
+			xsrc[k] = float(xsrc.get(k, 0.0)) + float(p.exp_by[k])
+	for k in src:
+		src[k] = int(src[k]) / earned.size()
+	for k in xsrc:
+		xsrc[k] = roundi(float(xsrc[k]) / earned.size())
+	print("[economy] %d:00 mean Lumen by source %s | mean EXP by source %s" % [m, src, xsrc])
+
+
 ## --debug-capture <hardpoint id>: the local player spawns inside that zone and
 ## the hardpoint starts mid-capture for the player's team (evidence captures).
 func _apply_debug_capture() -> void:
@@ -202,6 +288,8 @@ func step_tick() -> void:
 		client.tick()
 	server.step()
 	_debug_uplink_squad()
+	_debug_progress()
+	_log_economy()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:
 		print("[server] tick=%d entities=%d" % [server.tick, server.registry.count()])
 		if server.wardlings != null and server.wardlings.steps > 0:

@@ -16,6 +16,8 @@ signal hardpoint_owner_changed(index: int, old_team: int, new_team: int)
 signal match_phase_changed(phase: int)
 ## E9: the match ended (winner -1 = draw; reason = MatchRules.EndReason).
 signal match_ended(winner: int, reason: int)
+## E15: the own hero's level changed (HUD level-up flash).
+signal level_changed(level: int)
 
 var net: NetConfig
 var movement: MovementDef
@@ -51,6 +53,11 @@ var wardlings: WardlingPresenter
 ## replicated move-speed scale (fed to prediction).
 var abilities: AbilityPresenter
 var own_speed_scale: float = 1.0
+## E13/E15: replicated own progression / wallet / mounts (null until received)
+## and the Armory catalog (same data as the server: wire indices).
+var progress: SnapshotData.ProgressState
+var catalog: ArmoryCatalogDef
+var _mote_views: Array[MeshInstance3D] = []
 
 var _views: Dictionary = {}  # net id -> HeroView
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
@@ -78,6 +85,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	abilities = AbilityPresenter.new()
 	abilities.client = self
 	add_child(abilities)
+	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
 
 
@@ -205,6 +213,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_visual_offset += predictor.reconcile(s.own_state, s.last_processed_seq)
 	_apply_objectives(s)
 	_apply_match(s)
+	_apply_progress(s.progress)  # E13/E15
 	wardlings.apply_snapshot(s)
 	abilities.apply_snapshot(s)  # E10
 	if s.own_state != null:
@@ -227,6 +236,44 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_views[id].queue_free()
 			_views.erase(id)
 			_buffers.erase(id)
+
+
+## E13/E15: own progress, the FP gun's mounts and the Lumen Motes.
+func _apply_progress(p: SnapshotData.ProgressState) -> void:
+	if p == null:
+		return
+	var old := progress.level if progress != null else 1
+	progress = p
+	if p.level != old:
+		level_changed.emit(p.level)
+	if rig != null:
+		rig.set_mounts(mount_items(), p.mount_tier)
+	while _mote_views.size() < p.motes.size():
+		var m := MeshInstance3D.new()
+		var sph := SphereMesh.new()
+		sph.radius = 0.18
+		sph.height = 0.36
+		m.mesh = sph
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(1.0, 0.85, 0.3)
+		mat.emission_enabled = true
+		mat.emission = Color(1.0, 0.8, 0.2)
+		mat.emission_energy_multiplier = 2.0
+		m.material_override = mat
+		add_child(m)
+		_mote_views.append(m)
+	for i in _mote_views.size():
+		_mote_views[i].visible = i < p.motes.size()
+		if i < p.motes.size():
+			_mote_views[i].position = p.motes[i] + Vector3(0.0, 0.6, 0.0)
+
+
+## Mounted catalog items per ProgressState.MOUNT_SOCKETS slot (null = empty).
+func mount_items() -> Array:
+	var out := []
+	for i in SnapshotData.ProgressState.MOUNT_SOCKETS.size():
+		out.append(catalog.at(progress.mount_item[i]) if progress != null and catalog != null else null)
+	return out
 
 
 func _apply_objectives(s: SnapshotData) -> void:

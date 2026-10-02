@@ -50,6 +50,8 @@ var wardlings: WardlingWorld
 var match_flow: MatchRules
 ## E10 skills: deployables, skill projectiles, charges, leaps, skill FX.
 var abilities: AbilityWorld
+## E13/E15 Lumen, Armory, Resonance, levels, skill tree; null until enable_progression().
+var progression: ProgressionSystem
 
 
 ## Builds the map and session. Call after the node is in the tree.
@@ -95,6 +97,46 @@ func enable_wardlings(map_def: MapDef, wardling_rules: WardlingRulesDef, picket:
 		return null
 	wardlings = WardlingWorld.new(self, map_def, wardling_rules, picket)
 	return wardlings
+
+
+## E13/E15: Lumen, Armory, Resonance and the skill tree for every hero (call
+## after setup_objectives() / enable_wardlings(); `map_def` gives the Armory pads).
+func enable_progression(economy: EconomyRulesDef, catalog: ArmoryCatalogDef, map_def: MapDef = null) -> ProgressionSystem:
+	progression = ProgressionSystem.new(self, economy, catalog, map_def)
+	return progression
+
+
+# --- E13/E15 bot-facing API (results are HeroProgress.Result; OK = 0) ---------------
+
+## Spends a skill point on `slot` (0..2 basics, 3 ultimate): the next node
+## (Unlock -> Boost; Ult rank 1 -> 3), or `node_kind` (SkillNodeDef.Kind) if given.
+func learn_skill(h: HeroBody, slot: int, node_kind: int = -1) -> int:
+	return progression.learn(h, slot, node_kind) if progression != null else HeroProgress.Result.DISABLED
+
+
+## Buys `item_id` (ArmoryItemDef.id) at `tier` (0 = next tier). Only on the own HQ Armory pad.
+func buy(h: HeroBody, item_id: StringName, tier: int = 0) -> int:
+	return progression.buy(h, item_id, tier) if progression != null else HeroProgress.Result.DISABLED
+
+
+## Sells the mount in `socket` (ArmoryItemDef.Socket): 100% this visit, else 60%.
+func sell_mount(h: HeroBody, socket: int) -> int:
+	return progression.sell(h, socket) if progression != null else HeroProgress.Result.DISABLED
+
+
+func use_medpack(h: HeroBody) -> int:
+	return progression.use_medpack(h) if progression != null else HeroProgress.Result.DISABLED
+
+
+## Weapon damage of one body hit at `distance` m against `target_class`
+## (DamageMath.TARGET_*), before the target's armor: level, mounts and ammo.
+func weapon_hit_damage(h: HeroBody, distance: float, headshot: bool = false,
+		target_class: int = DamageMath.TARGET_HERO) -> float:
+	var c := h.combat
+	if c.weapon == null:
+		return 0.0
+	return DamageMath.hit_damage(c.weapon.def, distance, headshot) * c.weapon_damage_mult() \
+		* DamageMath.ammo_mult(c.ammo_type, target_class) * c.stats.get_value(StatCatalog.DAMAGE_DEALT)
 
 
 ## World-space position of a Marker3D in the map, or the origin.
@@ -164,6 +206,8 @@ func step() -> void:
 	_respawn_due()
 	_step_objectives()
 	_step_match()
+	if progression != null:
+		progression.step()  # E13/E15 income, Armory visits, Motes, Med-Packs
 	_send_snapshots()
 	_flush_events()
 	tick += 1
@@ -235,6 +279,8 @@ static func _alive_check(h: HeroBody) -> Callable:
 func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 	var c := h.combat
 	c.local_tick += 1
+	if cmd.action != InputCommand.ACTION_NONE and progression != null:
+		progression.handle_action(h, cmd)  # E13/E15 (also while dead)
 	if c.dead:
 		# Dead heroes stand still; the owning client zeroes the same fields so
 		# prediction keeps matching (ClientWorld.tick()).
@@ -269,6 +315,8 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var per_uplink := {}  # E9: UplinkSim -> [raw damage, first point]
 	var uplinks := _enemy_uplinks(c.team)
 	var dealt := c.stats.get_value(StatCatalog.DAMAGE_DEALT)  # E10
+	var wm := c.weapon_damage_mult()  # E15 level L + E13 mod M_dmg
+	var ammo := c.ammo_type  # E13 Chamber
 	for dir in dirs:
 		var clip := abilities.clip_shot(origin, dir, w.def.range_m, c.team)  # E10: enemy shield walls
 		var hit := _tracer.trace(space, origin, dir, clip[0], targets, cmd.view_tick, cmd.view_alpha)
@@ -277,16 +325,19 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 			if not wl.is_empty():
 				if not per_wardling.has(wl[0]):
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
-				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false, c.level)
+				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false) * wm \
+					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT)
 				continue
-		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, c.level):
+		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, wm):
 			continue
 		if hit.target == null:
 			if clip[1] != null and _tracer.last_limit >= clip[0] - 1e-3:
-				abilities.damage_deployable(clip[1], DamageMath.hit_damage(w.def, clip[0], false, c.level) * dealt)
+				abilities.damage_deployable(clip[1], DamageMath.hit_damage(w.def, clip[0], false) * wm * dealt
+					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT, true))
 				abilities.blocked_shots += 1
 			continue
-		var raw := DamageMath.hit_damage(w.def, hit.distance, hit.headshot, c.level)
+		var raw := DamageMath.hit_damage(w.def, hit.distance, hit.headshot) * wm \
+			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO)
 		var id := hit.target.net_id
 		if not per_target.has(id):
 			per_target[id] = [0.0, 0, hit.point]
@@ -297,7 +348,9 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		var target := hero(id)
 		var rec: Array = per_target[id]
 		var dmg_flags: int = DamageInfo.FLAG_HEADSHOT if (rec[1] & GameEvent.FLAG_HEADSHOT) != 0 else 0
-		var applied := target.combat.health.apply_damage(DamageInfo.make(rec[0] * dealt, h.net_id, c.team, dmg_flags))
+		var info := DamageInfo.make(rec[0] * dealt, h.net_id, c.team, dmg_flags)
+		info.armor_pen = DamageMath.ammo_armor_pen(ammo)  # E13 Piercing
+		var applied := target.combat.health.apply_damage(info)
 		if applied > 0.0:
 			hero_damaged.emit(id, h.net_id, applied)
 		var ev_flags: int = rec[1]
@@ -320,14 +373,14 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 ## E9: nearest Uplink in front of the hero hit and the static wall; accumulates
 ## the raw weapon damage (no headshot, no ammo effects: C7). True if it took the pellet.
 func _pellet_hits_uplink(uplinks: Array[UplinkSim], origin: Vector3, dir: Vector3, hit: HitscanTracer.Hit,
-		acc: Dictionary, wdef: WeaponDef, level: int) -> bool:
+		acc: Dictionary, wdef: WeaponDef, mult: float) -> bool:
 	var limit := hit.distance if hit.target != null else _tracer.last_limit + 0.5
 	for u in uplinks:
 		var t := u.ray_hit(origin, dir)
 		if t >= 0.0 and t <= limit:
 			if not acc.has(u):
 				acc[u] = [0.0, origin + dir * t]
-			acc[u][0] += DamageMath.hit_damage(wdef, t, false, level)
+			acc[u][0] += DamageMath.hit_damage(wdef, t, false) * mult  # no ammo effects (C7)
 			return true
 	return false
 
@@ -386,10 +439,13 @@ func _respawn_due() -> void:
 			continue
 		var fresh := MotorState.new()
 		fresh.position = h.combat.home_spawn if _respawns_at_home(h) else team_spawn(h.combat.team, h.combat.home_spawn)
+		var beacon: Variant = progression.respawn_point(h) if progression != null else null  # E13 Mid Beacon
+		if beacon != null:
+			fresh.position = beacon
 		h.state.copy_from(fresh)
 		h.collision_layer = HeroBody.LAYER_HEROES
 		h.motor.restore(h.state)
-		h.combat.reset_for_respawn()
+		h.combat.reset_for_respawn(beacon == null)
 		hero_respawned.emit(id)
 
 
@@ -456,7 +512,7 @@ func _send_snapshots() -> void:
 		e.dead = h.combat.dead
 		e.team = h.combat.team
 		e.hp = ceili(h.combat.health.hp)
-		e.max_hp = h.combat.def.max_hp
+		e.max_hp = ceili(h.combat.health.max_hp)  # E15 level scaling
 		e.status = abilities.status_bits(h)  # E10
 		entities.append(e)
 	for peer in session.clients:
@@ -471,6 +527,8 @@ func _send_snapshots() -> void:
 			s.own_combat = _own_combat(own.combat)
 			abilities.fill_own(s.own_combat, own.combat)  # E10 skill bar
 		s.entities = entities
+		if own != null and progression != null:
+			progression.fill_own(s, own)  # E13/E15 own progress + learnable slots
 		_fill_objectives(s)
 		_fill_match(s)
 		abilities.write_snapshot(s)  # E10 skill FX
@@ -520,7 +578,7 @@ func _fill_match(s: SnapshotData) -> void:
 static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:
 	var o := SnapshotData.OwnCombat.new()
 	o.hp = ceili(c.health.hp)
-	o.max_hp = c.def.max_hp
+	o.max_hp = ceili(c.health.max_hp)
 	o.dead = c.dead
 	o.respawn_tick = c.respawn_tick
 	if c.weapon != null:

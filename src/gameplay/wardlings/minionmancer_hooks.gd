@@ -71,6 +71,10 @@ static func damage_mult(ww: WardlingWorld, w: WardlingSim, tick: int) -> float:
 		var r := h.combat.def.wardling_aura_radius_m
 		if a > aura and WardlingWorld._flat(h.state.position, w.global_position) <= r:
 			aura = a
+	if w.owner_net_id != 0:  # E13 Amplifier Emitters (owner's squad)
+		var owner := ww.server.hero(w.owner_net_id)
+		if owner != null and owner.combat != null:
+			m *= owner.combat.stats.get_value(StatCatalog.WARDLING_DAMAGE_MULT)
 	return m * (1.0 + aura)
 
 

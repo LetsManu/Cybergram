@@ -186,7 +186,8 @@ func enemies_near(pos: Vector3, radius: float, team: int) -> Array[Node3D]:
 		for z in range(c.y - r, c.y + r + 1):
 			var list: Array = _grid.get(Vector2i(x, z), [])
 			for n in list:
-				if team_of(n) == team:
+				# The grid is rebuilt after despawns: a Wardling freed since then is skipped.
+				if not is_instance_valid(n) or team_of(n) == team:
 					continue
 				var p := feet_of(n)
 				if (p.x - pos.x) * (p.x - pos.x) + (p.z - pos.z) * (p.z - pos.z) <= r2 and live_entity(n.get("net_id")) != null:
@@ -322,6 +323,7 @@ func damage_wardling(w: WardlingSim, info: DamageInfo) -> float:
 	if applied > 0.0:
 		w.last_attacker_id = info.source_net_id
 		w.last_hit_tick = server.tick
+		w.hit_by[info.source_net_id] = server.tick  # E13 share list
 	if not w.health.is_alive():
 		w.dead = true
 		w.killer_id = info.source_net_id

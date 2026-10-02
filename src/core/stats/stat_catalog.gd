@@ -29,15 +29,34 @@ const WARDLING_AURA_DAMAGE: int = 8
 const KNOCKBACK_IMMUNE: int = 9
 ## > 0 = immune to hard CC (Brannoc Fortify).
 const CC_IMMUNE: int = 10
-const HERO_COUNT: int = 11
+## E15 MaxHP(L) of heroes.md §3.3 (base = HeroDef.max_hp; level writes a MUL).
+const MAX_HP: int = 11
+## E15 weapon L(level) of weapons-and-mods.md §4.2 (base 1; level writes a MUL).
+const WEAPON_DAMAGE: int = 12
+## E13 M_dmg of weapons-and-mods.md §4.1: additive mod damage bonus, capped at +0.25.
+const MOD_DAMAGE: int = 13
+## E13 Frame mounts: mana regen multiplier (Flux Coil +15/25/35%).
+const MANA_REGEN: int = 14
+## E13 Frame mounts: seconds added to the mana regen delay (Flux Coil −0.1/0.2/0.3).
+const REGEN_DELAY: int = 15
+## E13 Frame mounts: reload time multiplier (Quickload −12/22/30%).
+const RELOAD_TIME: int = 16
+## E13 Amplifier Emitters: own squad Wardling bolt damage multiplier (+20%).
+const WARDLING_DAMAGE_MULT: int = 17
+const HERO_COUNT: int = 18
 
 const HERO_NAMES: Array[StringName] = [&"move_speed", &"damage_taken", &"damage_dealt", &"cooldown_reduction",
 	&"damage_reduction", &"skill_power", &"squad_capacity_bonus", &"wardling_hp_mult", &"wardling_aura_damage",
-	&"knockback_immune", &"cc_immune"]
-## Default base values (move speed is overwritten from HeroDef).
-const HERO_BASE: Array[float] = [6.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0]
-const HERO_MIN: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-const HERO_MAX: Array[float] = [50.0, 10.0, 10.0, 1.0, 1.0, 10.0, 8.0, 10.0, 5.0, 1.0, 1.0]
+	&"knockback_immune", &"cc_immune", &"max_hp", &"weapon_damage", &"mod_damage", &"mana_regen",
+	&"regen_delay", &"reload_time", &"wardling_damage_mult"]
+## Default base values (move speed and max HP are overwritten from HeroDef).
+const HERO_BASE: Array[float] = [6.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+	250.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0]
+const HERO_MIN: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+	1.0, 0.0, 0.0, 0.0, -10.0, 0.1, 0.0]
+## MOD_DAMAGE max 0.25 is the §4.1 M_dmg cap.
+const HERO_MAX: Array[float] = [50.0, 10.0, 10.0, 1.0, 1.0, 10.0, 8.0, 10.0, 5.0, 1.0, 1.0,
+	100000.0, 10.0, 0.25, 10.0, 10.0, 10.0, 10.0]
 
 # --- Skill scope (generic params, reused across skills) -----------------------
 ## Names of the per-skill params; index = position. Seconds, metres, HP, fractions.
@@ -56,10 +75,11 @@ static func skill_index(param: StringName) -> int:
 	return SKILL_PARAMS.find(param)
 
 
-## A fresh hero block with the catalog defaults and `move_speed`.
-static func new_hero_block(move_speed: float) -> StatBlock:
+## A fresh hero block with the catalog defaults, `move_speed` and `max_hp`.
+static func new_hero_block(move_speed: float, max_hp: float = 250.0) -> StatBlock:
 	var base := PackedFloat32Array(HERO_BASE)
 	base[MOVE_SPEED] = move_speed
+	base[MAX_HP] = max_hp
 	var b := StatBlock.new(base)
 	for i in HERO_COUNT:
 		b.set_limits(i, HERO_MIN[i], HERO_MAX[i])
