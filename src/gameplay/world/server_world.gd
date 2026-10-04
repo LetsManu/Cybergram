@@ -20,6 +20,8 @@ const PLAYER_SPAWN := "PlayerSpawn"
 const TEAM_SPAWN := "TeamSpawn%d"
 const TEAM_PLAYERS: int = 0
 const TEAM_DUMMIES: int = 1
+## Bullet tracers sent per shot (shotguns send an even subset of their pellets).
+const TRACERS_PER_SHOT: int = 4
 
 var net: NetConfig
 var movement: MovementDef
@@ -386,9 +388,8 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var origin := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
 	var fwd := Basis(Vector3.UP, h.look_yaw) * Basis(Vector3.RIGHT, h.look_pitch) * Vector3.FORWARD
 	var dirs := w.pellet_directions(fwd)
-	if targets.is_empty() and (wardlings == null or wardlings.wardlings.is_empty()) and match_flow == null:
-		return
 	var space := h.get_world_3d().direct_space_state
+	var ends: Array[Vector3] = []  # where each pellet stopped, for client tracers
 	var per_target := {}  # net id -> [raw damage, flags, first point]
 	var per_wardling := {}  # WardlingSim -> [raw damage, first point]
 	var per_uplink := {}  # E9: UplinkSim -> [raw damage, first point]
@@ -401,14 +402,18 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	for dir in dirs:
 		var clip := abilities.clip_shot(origin, dir, w.def.range_m, c.team)  # E10: enemy shield walls
 		var hit := _tracer.trace(space, origin, dir, clip[0], targets, cmd.view_tick, cmd.view_alpha)
+		var end_d := hit.distance if hit.target != null else minf(_tracer.last_limit, clip[0])
 		if wardlings != null:
 			var wl := wardlings.trace_wardlings(origin, dir, hit.distance if hit.target != null else _tracer.last_limit, c.team)
 			if not wl.is_empty():
+				end_d = float(wl[1])
+				ends.append(origin + dir * end_d)
 				if not per_wardling.has(wl[0]):
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
 				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false) * wm \
 					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT)
 				continue
+		ends.append(origin + dir * end_d)
 		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, wm):
 			continue
 		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, w.def, wm):
@@ -427,6 +432,7 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		per_target[id][0] += raw
 		if hit.headshot:
 			per_target[id][1] |= GameEvent.FLAG_HEADSHOT
+	_broadcast_tracers(h.net_id, ends)
 	for id in per_target:
 		var target := hero(id)
 		var rec: Array = per_target[id]
@@ -589,6 +595,18 @@ func _on_client_joined(peer_id: int) -> void:
 	_humans[peer_id] = h
 	_peer_of[h.net_id] = peer_id
 	session.accept(peer_id, h.net_id, tick)
+
+
+## Sends up to TRACERS_PER_SHOT pellet end points of one shot to every client
+## (evenly picked for shotguns) so they can draw bullet tracers.
+func _broadcast_tracers(shooter: int, ends: Array[Vector3]) -> void:
+	if session.clients.is_empty() or ends.is_empty():
+		return
+	var step := maxi(1, ceili(float(ends.size()) / TRACERS_PER_SHOT))
+	for i in range(0, ends.size(), step):
+		var ev := GameEvent.shot(shooter, ends[i])
+		for peer in session.clients:
+			_queue_event(peer, ev)
 
 
 func _queue_event(peer: int, ev: GameEvent) -> void:
