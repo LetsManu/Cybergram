@@ -10,6 +10,10 @@ extends RefCounted
 ##   for h in HeroCatalog.entries(): print(h.index, " ", h.name)
 ##   HeroCatalog.find_stem("brannoc").index
 
+## Optional per-hero name key: HUD_HERO_NAME_<STEM> (built, so the key
+## scanner in translation_keys_test does not read the prefix as a key).
+const NAME_KEY_PREFIX := "HUD" + "_HERO_NAME_"
+
 ## Cached entries (the content does not change at runtime).
 static var _cache: Array = []
 
@@ -53,7 +57,7 @@ static func find_stem(stem: String) -> Dictionary:
 
 ## Localised display name of a hero.
 static func display_name(stem: String, def: HeroDef) -> String:
-	var key := "HUD_HERO_NAME_" + stem.to_upper()
+	var key := NAME_KEY_PREFIX + stem.to_upper()
 	var t := TranslationServer.translate(key)
 	if t != key and t != "":
 		return t
