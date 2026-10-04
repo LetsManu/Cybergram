@@ -78,9 +78,10 @@ jobs:
           echo "$out" | grep -q "quit after 90 ticks"
           ! echo "$out" | grep -q "SCRIPT ERROR"
           # Default mode: the lobby opens and waits for players.
-          lob=$(timeout 10 build/linux/Cybergram.x86_64 --headless -- --server --port 7778 2>&1) || true
+          lob=$(timeout 30 build/linux/Cybergram.x86_64 --headless -- --server --port 7778 --quit-after-ticks 30 2>&1) || true
           echo "$lob" | tail -5
           echo "$lob" | grep -q "\[lobby\] open on UDP 7778"
+          echo "$lob" | grep -q "\[lobby\] quit after 30 ticks"
           ! echo "$lob" | grep -q "SCRIPT ERROR"
 
       - name: Add play notes

@@ -55,6 +55,7 @@ var _remote_wait_ticks: int = 0
 ## Online dedicated server: the pre-match lobby (null once the match runs).
 var lobby: LobbyServer
 var _lobby_enet: ENetTransport
+var _lobby_ticks: int = 0
 ## AppRoot defers simulation plugins (bots, Wardling AI) until match_built.
 var match_pending: bool = false
 signal match_built
@@ -377,6 +378,11 @@ func _apply_debug_capture() -> void:
 func _physics_process(delta: float) -> void:
 	if lobby != null:
 		lobby.step(delta)
+		_lobby_ticks += 1
+		if _quit_after_ticks > 0 and _lobby_ticks >= _quit_after_ticks:
+			print("[lobby] quit after %d ticks, %d player(s)" % [_lobby_ticks, lobby.players.size()])
+			_lobby_enet.close()
+			get_tree().quit()
 		return
 	for i in clock.advance(delta):
 		step_tick()
