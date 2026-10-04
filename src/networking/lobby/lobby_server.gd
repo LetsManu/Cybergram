@@ -184,6 +184,10 @@ func _on_join(peer: int, j: Dictionary) -> void:
 	if index_of_peer(peer) >= 0:
 		return  # duplicate join on the same connection
 	var seat := _seat_of_id(j.id)
+	if seat == null and players.size() >= team_size * 2:
+		print("[lobby] peer %d rejected: lobby full (%d players)" % [peer, players.size()])
+		transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_SERVER_FULL))
+		return
 	if (seat != null and seat.key != j.key) or not registry.claim(j.id, j.key, j.name):
 		print("[lobby] peer %d rejected: id %s is held by another key" % [peer, PlayerProfile.tag_of(j.id)])
 		transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_ID_TAKEN))
@@ -203,10 +207,6 @@ func _on_join(peer: int, j: Dictionary) -> void:
 			", replacing peer %d" % old_peer if old_peer >= 0 else ""])
 		_system(LobbyCodec.SYS_RECONNECTED, p)
 	else:
-		if players.size() >= team_size * 2:
-			print("[lobby] peer %d rejected: lobby full (%d players)" % [peer, players.size()])
-			transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_SERVER_FULL))
-			return
 		p = Player.new()
 		p.peer = peer
 		p.id = j.id
