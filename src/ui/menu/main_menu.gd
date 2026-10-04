@@ -22,6 +22,8 @@ var _hero: OptionButton
 var _address: LineEdit
 var _status: Label
 var _settings: SettingsPanel
+var _center: CenterContainer
+var _col: VBoxContainer
 
 
 func _ready() -> void:
@@ -38,9 +40,11 @@ func _ready() -> void:
 	glow.custom_minimum_size.y = 6
 	add_child(glow)
 	var center := CenterContainer.new()
+	_center = center
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	var col := VBoxContainer.new()
+	_col = col
 	col.custom_minimum_size = Vector2(440, 0)
 	col.add_theme_constant_override("separation", 12)
 	center.add_child(col)
@@ -93,6 +97,10 @@ func _ready() -> void:
 		play.grab_focus())
 	center.add_child(_settings)
 	GameSettings.shared().apply_display()
+	if AppRoot.rejoin_address != "":
+		var addr := AppRoot.rejoin_address
+		AppRoot.rejoin_address = ""
+		_open_lobby.call_deferred(addr)  # back to the server's lobby after a match
 	play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
 
 
@@ -105,8 +113,21 @@ func _join() -> void:
 	if addr == "":
 		addr = DEFAULT_ADDRESS
 	_save_settings(addr)
-	_status.text = tr("HUD_MENU_CONNECTING") % addr
-	_start(PackedStringArray(["--connect", addr, "--hero", _hero_id()]))
+	_open_lobby(addr)
+
+
+## Online: the server's lobby (teams, hero pick, Ready) before each match.
+func _open_lobby(addr: String) -> void:
+	_col.visible = false
+	var lobby := LobbyScreen.new()
+	lobby.address = addr
+	lobby.hero_id = _hero_id()
+	lobby.start_requested.connect(func(args: PackedStringArray) -> void: start_requested.emit(args))
+	lobby.cancelled.connect(func(reason: String) -> void:
+		lobby.queue_free()
+		_col.visible = true
+		_status.text = reason)
+	_center.add_child(lobby)
 
 
 func _course() -> void:

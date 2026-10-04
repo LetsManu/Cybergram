@@ -4,22 +4,26 @@ extends RefCounted
 
 
 ## Hello: protocol version + the hero the player picked (ContentDB HERO index,
-## 0 = server default). v9 added the hero index.
-static func encode_hello(protocol_version: int, hero_index: int = 0) -> PackedByteArray:
+## 0 = server default) + the lobby slot token (0 = none). v9 added the hero,
+## v10 the token.
+static func encode_hello(protocol_version: int, hero_index: int = 0, token: int = 0) -> PackedByteArray:
 	var b := PackedByteArray()
-	b.resize(5)
+	b.resize(7)
 	b.encode_u8(0, MsgType.HELLO)
 	b.encode_u16(1, protocol_version)
 	b.encode_u16(3, hero_index)
+	b.encode_u16(5, token)
 	return b
 
 
-## Accepts the 3-byte pre-v9 form too, so an old client gets a clean
+## Accepts the shorter pre-v10 forms too, so an old client gets a clean
 ## protocol-mismatch Reject instead of a malformed-packet violation.
 static func decode_hello(b: PackedByteArray) -> Dictionary:
-	if (b.size() != 5 and b.size() != 3) or b.decode_u8(0) != MsgType.HELLO:
+	if not (b.size() in [3, 5, 7]) or b.decode_u8(0) != MsgType.HELLO:
 		return {}
-	return {"protocol_version": b.decode_u16(1), "hero_index": b.decode_u16(3) if b.size() == 5 else 0}
+	return {"protocol_version": b.decode_u16(1),
+		"hero_index": b.decode_u16(3) if b.size() >= 5 else 0,
+		"token": b.decode_u16(5) if b.size() >= 7 else 0}
 
 
 static func encode_welcome(own_net_id: int, server_tick: int, tick_rate_hz: int) -> PackedByteArray:

@@ -156,3 +156,11 @@ HUD_PAUSE_RESUME,RESUME
 HUD_PAUSE_SETTINGS,SETTINGS
 HUD_PAUSE_MENU,LEAVE MATCH
 HUD_PAUSE_QUIT,QUIT GAME
+HUD_LOBBY_TITLE,Lobby
+HUD_LOBBY_READY,READY
+HUD_LOBBY_LEAVE,LEAVE LOBBY
+HUD_LOBBY_YOU,You
+HUD_LOBBY_PLAYER,Player %d
+HUD_LOBBY_WAITING,Pick a hero and press Ready. The match starts when everyone is ready.
+HUD_LOBBY_STARTING,Match starts in %d ...
+HUD_LOBBY_NO_ANSWER,"No answer from %s (server down, wrong address, or UDP port blocked)"

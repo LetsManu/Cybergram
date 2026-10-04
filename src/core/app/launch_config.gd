@@ -13,6 +13,7 @@ extends RefCounted
 ##                                                -> ONLINE dedicated server (UDP), slice 3v3,
 ##                                                  bots fill the slots humans do not
 ##   godot --path . -- --connect 1.2.3.4[:7777]  -> CLIENT: join that server (no local server)
+##   godot --path . -- --open-lobby 1.2.3.4[:7777] -> menu opened straight into that server's lobby
 ##   ... -- --server --quit-after-ticks 900      -> soak run that exits
 ##   godot --path . -- --map slice               -> load assets/data/match/map_<name>_lane.tres
 ##   ... -- --hero brannoc                       -> play hero_brannoc.tres (also --hero=brannoc)
@@ -104,6 +105,12 @@ var connect_address: String = ""
 var max_clients: int = 8
 ## Debug: open the pause menu on start (UI evidence captures).
 var debug_pause_menu: bool = false
+## CLIENT: lobby slot token for the match (from LOBBY_START).
+var token: int = 0
+## Dedicated online server without the pre-match lobby (old behaviour).
+var no_lobby: bool = false
+## Open the main menu straight into this server's lobby (host[:port]).
+var open_lobby: String = ""
 
 
 ## `--map test_course` selects the movement test course (no MapDef).
@@ -125,6 +132,16 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if i + 1 < args.size():
 					i += 1
 					c.port = clampi(args[i].to_int(), 1, 65535)
+			"--token":
+				if i + 1 < args.size():
+					i += 1
+					c.token = clampi(args[i].to_int(), 0, 65535)
+			"--open-lobby":
+				if i + 1 < args.size():
+					i += 1
+					c.open_lobby = args[i]
+			"--no-lobby":
+				c.no_lobby = true
 			"--debug-pause-menu":
 				c.debug_pause_menu = true
 			"--max-clients":

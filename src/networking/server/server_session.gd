@@ -20,6 +20,8 @@ var net: NetConfig
 var clients: Dictionary = {}  # peer id -> ClientConnection
 ## Hero index each joining peer asked for in Hello (ContentDB HERO, 0 = default).
 var hello_hero: Dictionary = {}  # peer id -> int
+## Lobby slot token each joining peer sent in Hello (0 = none).
+var hello_token: Dictionary = {}  # peer id -> int
 var _scratch: Array[InputCommand] = []
 
 
@@ -80,7 +82,16 @@ func _handle(pkt: Transport.Packet) -> void:
 				reject(pkt.from_peer, MsgType.REJECT_PROTOCOL_MISMATCH)
 			elif not clients.has(pkt.from_peer):
 				hello_hero[pkt.from_peer] = hello.hero_index
+				hello_token[pkt.from_peer] = hello.token
 				client_joined.emit(pkt.from_peer)
+		MsgType.LOBBY_JOIN:
+			# A lobby client while the match runs: tell it to join right away
+			# (token 0 = take over a bot slot, see ServerWorld).
+			var j := LobbyCodec.decode_join(pkt.data)
+			if not j.is_empty():
+				transport.send(pkt.from_peer, Transport.CH_CONTROL, LobbyCodec.encode_start(0, 255, j.hero_index))
+		MsgType.LOBBY_PICK:
+			pass
 		MsgType.INPUT_BATCH:
 			var c: ClientConnection = clients.get(pkt.from_peer)
 			if c == null:

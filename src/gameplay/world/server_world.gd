@@ -38,6 +38,9 @@ var tick: int = 0
 var dt: float
 
 var _humans: Dictionary = {}  # peer id -> HeroBody
+## Online lobby: token -> {team, hero_index} for players who start the match
+## from the lobby (bots leave these slots free). Consumed on join.
+var reserved_slots: Dictionary = {}
 var _peer_of: Dictionary = {}  # hero net id -> peer id
 var _dummies: Array = []      # [HeroBody, ScriptedInputSource]
 var _map: Node3D
@@ -611,7 +614,12 @@ func _hero_for_peer(peer_id: int) -> HeroDef:
 func _on_client_joined(peer_id: int) -> void:
 	var def := _hero_for_peer(peer_id)
 	var h: HeroBody = null
-	if not _humans.is_empty():
+	var token: int = session.hello_token.get(peer_id, 0)
+	if token != 0 and reserved_slots.has(token):
+		var slot: Dictionary = reserved_slots[token]
+		reserved_slots.erase(token)
+		h = _spawn_hero(team_spawn(slot.team, spawn_point(PLAYER_SPAWN)), def, slot.team)
+	elif not _humans.is_empty() or not reserved_slots.is_empty() or token != 0:
 		# Later players fill the team with fewer humans by taking over a bot.
 		h = _take_over_scripted(_team_with_fewer_humans(), def)
 	if h == null:
@@ -820,3 +828,13 @@ func _hero_bodies() -> Array:
 		if h != null:
 			out.append(h)
 	return out
+
+
+## Online lobby: how many reserved human slots each team has (bots skip them).
+func reserved_per_team() -> Array[int]:
+	var n: Array[int] = [0, 0]
+	for t in reserved_slots:
+		var team: int = reserved_slots[t].team
+		if team >= 0 and team <= 1:
+			n[team] += 1
+	return n

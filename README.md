@@ -6,9 +6,9 @@ over a war-like front line, each player leading their own squad of minions
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
 > Status: **pre-alpha, playable.** Latest release:
-> [**v0.3.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.3.0) for
+> [**v0.4.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.4.0) for
 > Windows and Linux: main menu, pause menu with settings, placeholder sound,
-> and a dedicated server for online tests ([`docs/SERVER.md`](docs/SERVER.md)). The offline vertical slice (M1) is a 3v3 match against
+> and a dedicated server with a matchmaking lobby and lag compensation ([`docs/SERVER.md`](docs/SERVER.md)). The offline vertical slice (M1) is a 3v3 match against
 > bots on a 1-lane map. Its balance target (most matches ending by Uplink
 > kill) is not met yet; see `production/qa/m1-soak-report.md`.
 
@@ -58,11 +58,11 @@ All 15 M1 epics are built:
 Since v0.1.0: main menu, Esc pause menu with saved settings (sensitivity,
 FOV, volume, fullscreen), bullet tracers, placeholder combat sounds,
 invisible edge walls so heroes can't fall off the lane, and an online
-dedicated server (UDP / ENet) where players take over bot slots.
+dedicated server (UDP / ENet) with a LoL-style lobby (teams, hero pick, Ready,
+countdown, back to the lobby after each match) and lag-compensated shooting.
 
 Next up:
 - Balance pass so most matches end by Uplink kill
-- Online: lag compensation
 - Bot AI: siege the exposed Uplink and contest defuses (see `design/balance/slice-tuning.md`)
 - Real art and audio
 
