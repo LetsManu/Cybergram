@@ -6,9 +6,9 @@ over a war-like front line, each player leading their own squad of minions
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
 > Status: **pre-alpha, playable.** Latest release:
-> [**v0.2.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.2.0) for
-> Windows and Linux, with a main menu and a first dedicated server for online
-> tests ([`docs/SERVER.md`](docs/SERVER.md)). The offline vertical slice (M1) is a 3v3 match against
+> [**v0.3.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.3.0) for
+> Windows and Linux: main menu, pause menu with settings, placeholder sound,
+> and a dedicated server for online tests ([`docs/SERVER.md`](docs/SERVER.md)). The offline vertical slice (M1) is a 3v3 match against
 > bots on a 1-lane map. Its balance target (most matches ending by Uplink
 > kill) is not met yet; see `production/qa/m1-soak-report.md`.
 
@@ -55,12 +55,15 @@ All 15 M1 epics are built:
 | E14 | Integration, soak and playtest (balance target still open) |
 | E15 | Levels and a reduced skill tree |
 
-Since v0.1.0: main menu, bullet tracers, invisible edge walls so heroes can't
-fall off the lane, and a first online dedicated server (UDP / ENet).
+Since v0.1.0: main menu, Esc pause menu with saved settings (sensitivity,
+FOV, volume, fullscreen), bullet tracers, placeholder combat sounds,
+invisible edge walls so heroes can't fall off the lane, and an online
+dedicated server (UDP / ENet) where players take over bot slots.
 
 Next up:
 - Balance pass so most matches end by Uplink kill
-- Online: lag compensation, team choice, bot takeover on disconnect
+- Online: lag compensation
+- Bot AI: siege the exposed Uplink and contest defuses (see `design/balance/slice-tuning.md`)
 - Real art and audio
 
 The roadmap is in [`production/milestones/roadmap.md`](production/milestones/roadmap.md).
@@ -106,6 +109,7 @@ godot --headless --path . -- --server --bots-only --seed 3   # all-bot match, pr
 | Use Med-Pack | 4 |
 | Squad: smart command / wheel / follow | tap Z / hold Z / X |
 | Scoreboard | Tab |
+| Pause menu / settings | Esc |
 | Net graph / colour-blind / UI scale / damage numbers | F3 / F6 / F7-F8 / F9 |
 
 Tests: `GODOT=/path/to/godot tools/ci/run_tests.sh` (gdUnit4) and

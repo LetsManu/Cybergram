@@ -13,6 +13,11 @@ signal hero_respawned(net_id: int)
 signal hero_damaged(victim_net_id: int, attacker_net_id: int, amount: float)
 ## E7: a capture or defence outcome (Lumen / EXP hook; no economy yet).
 signal objective_event(event: ObjectiveEvent)
+## Online slots: a joining human took over this scripted (bot) hero; whoever
+## drove it must stop. Gameplay never names the AI; src/ai listens.
+signal controller_taken(hero_net_id: int)
+## A human left; this hero has no driver until someone attach_source()s one.
+signal controller_released(hero_net_id: int)
 
 const PLAYER_SPAWN := "PlayerSpawn"
 ## Optional per-team respawn markers in the map ("TeamSpawn0", "TeamSpawn1").
@@ -602,11 +607,58 @@ func _hero_for_peer(peer_id: int) -> HeroDef:
 
 
 func _on_client_joined(peer_id: int) -> void:
-	var at: Vector3 = debug_player_spawn if debug_player_spawn != null else spawn_point(PLAYER_SPAWN)
-	var h := _spawn_hero(at, _hero_for_peer(peer_id), TEAM_PLAYERS)
+	var def := _hero_for_peer(peer_id)
+	var h: HeroBody = null
+	if not _humans.is_empty():
+		# Later players fill the team with fewer humans by taking over a bot.
+		h = _take_over_scripted(_team_with_fewer_humans(), def)
+	if h == null:
+		var at: Vector3 = debug_player_spawn if debug_player_spawn != null else spawn_point(PLAYER_SPAWN)
+		h = _spawn_hero(at, def, TEAM_PLAYERS)
 	_humans[peer_id] = h
 	_peer_of[h.net_id] = peer_id
 	session.accept(peer_id, h.net_id, tick)
+
+
+## A remote player disconnected: forget the peer and release its hero so a
+## bot can drive it (controller_released).
+func on_peer_left(peer_id: int) -> void:
+	session.drop(peer_id)
+	var h: HeroBody = _humans.get(peer_id)
+	_humans.erase(peer_id)
+	if h == null:
+		return
+	_peer_of.erase(h.net_id)
+	controller_released.emit(h.net_id)
+
+
+## Gives `hero_net_id` a scripted driver (e.g. a bot taking over a left player).
+func attach_source(hero_net_id: int, source: Object) -> void:
+	var h := hero(hero_net_id)
+	if h != null:
+		_dummies.append([h, source])
+
+
+func _team_with_fewer_humans() -> int:
+	var n := [0, 0]
+	for p in _humans:
+		var t: int = (_humans[p] as HeroBody).combat.team
+		if t >= 0 and t <= 1:
+			n[t] += 1
+	return 0 if n[0] <= n[1] else 1
+
+
+## Detaches a scripted hero of `team` (same hero as `def` if possible, else
+## none: the joining client predicts with its own pick) and returns it.
+func _take_over_scripted(team: int, def: HeroDef) -> HeroBody:
+	for i in _dummies.size():
+		var h: HeroBody = _dummies[i][0]
+		if h.combat.team == team and h.combat.def != null and def != null \
+				and h.combat.def.resource_path == def.resource_path:
+			_dummies.remove_at(i)
+			controller_taken.emit(h.net_id)
+			return h
+	return null
 
 
 ## Sends up to TRACERS_PER_SHOT pellet end points of one shot to every client
