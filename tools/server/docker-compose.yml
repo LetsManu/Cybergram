@@ -9,5 +9,6 @@ services:
     restart: unless-stopped
     ports:
       - "7777:7777/udp"
+      - "8080:8080/tcp"   # launcher updates (version.json + client zips)
     # Extra server flags, e.g. bot skill:
     # command: ["--bot-difficulty", "hard"]

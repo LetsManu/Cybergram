@@ -60,5 +60,9 @@ func _init() -> void:
 	_check(bb.contains("[b]bold[/b]") and bb.contains("[code]code[/code]"), "md inline")
 	_check(bb.contains("[lb]x]"), "md escapes brackets")
 
+	var wrapped: String = LauncherCore.markdown_to_bbcode("- first line\n  second line\n\npara")
+	_check(wrapped.contains("first line second line"), "md joins wrapped lines")
+	_check(wrapped.ends_with("\npara"), "md keeps paragraph break")
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

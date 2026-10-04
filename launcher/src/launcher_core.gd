@@ -112,6 +112,7 @@ static func base_url(version_url: String) -> String:
 ## for a RichTextLabel. Square brackets in the source are escaped.
 static func markdown_to_bbcode(md: String) -> String:
 	var out: PackedStringArray = PackedStringArray()
+	var prev_flow: bool = false
 	for raw in md.replace("\r", "").split("\n"):
 		var line: String = raw.replace("[", "[lb]")
 		var stripped: String = line.strip_edges(true, false)
@@ -123,8 +124,12 @@ static func markdown_to_bbcode(md: String) -> String:
 			out.append("[font_size=26][color=#2fd6ff][b]%s[/b][/color][/font_size]" % _inline(stripped.substr(2)))
 		elif stripped.begins_with("- ") or stripped.begins_with("* "):
 			out.append("  [color=#ff4fa3]•[/color] %s" % _inline(stripped.substr(2)))
+		elif stripped != "" and prev_flow:
+			# Hard-wrapped markdown: join continuation lines into the paragraph.
+			out[out.size() - 1] += " " + _inline(stripped)
 		else:
 			out.append(_inline(line))
+		prev_flow = stripped != "" and not stripped.begins_with("#")
 	return "\n".join(out)
 
 
