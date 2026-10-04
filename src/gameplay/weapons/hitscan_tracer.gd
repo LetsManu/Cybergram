@@ -70,14 +70,79 @@ func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, max_
 	return hit
 
 
-## Pose of `h` at the client's view time. See the class doc (lag-comp seam).
-func _pose(h: HeroBody, _view_tick: int, _view_alpha: float) -> Pose:
+## Lag compensation (architecture.md §8.7): how many ticks a shot may rewind
+## (NetConfig.max_rewind_ms at the tick rate). 0 = off (current poses only).
+var rewind_ticks: int = 0
+var _now: int = -1
+## net id -> [ticks: PackedInt32Array, feet: PackedVector3Array, y_scale: PackedFloat32Array] rings.
+var _hist: Dictionary = {}
+
+
+## Stores every hero's hitbox pose for `tick` (call once per server tick, with
+## the same tick number the snapshot of that tick carries).
+func record(tick: int, heroes: Array) -> void:
+	_now = tick
+	if rewind_ticks <= 0:
+		return
+	var size := rewind_ticks + 2
+	var slot := tick % size
+	for h: HeroBody in heroes:
+		var ring: Array = _hist.get(h.net_id, [])
+		if ring.is_empty():
+			var t := PackedInt32Array()
+			t.resize(size)
+			t.fill(-1)
+			var f := PackedVector3Array()
+			f.resize(size)
+			var y := PackedFloat32Array()
+			y.resize(size)
+			ring = [t, f, y]
+			_hist[h.net_id] = ring
+		# Packed arrays are values in GDScript: modify a copy, then store it back.
+		var ticks: PackedInt32Array = ring[0]
+		var feet: PackedVector3Array = ring[1]
+		var ys: PackedFloat32Array = ring[2]
+		ticks[slot] = tick
+		feet[slot] = h.state.position
+		ys[slot] = _current_y_scale(h)
+		ring[0] = ticks
+		ring[1] = feet
+		ring[2] = ys
+
+
+## Pose of `h` at the client's view time: interpolated between the recorded
+## ticks view_tick and view_tick + 1, clamped to rewind_ticks; the current
+## pose when there is no usable history (bots send view_tick = now).
+func _pose(h: HeroBody, view_tick: int, view_alpha: float) -> Pose:
 	var p := _pose_scratch
 	p.feet = h.state.position
-	p.y_scale = 1.0
-	if h.state.crouching:
-		p.y_scale = h.movement_def().crouch_height / h.movement_def().stand_height
+	p.y_scale = _current_y_scale(h)
+	if rewind_ticks <= 0 or view_tick <= 0 or view_tick >= _now or not _hist.has(h.net_id):
+		return p
+	var v := maxi(view_tick, _now - rewind_ticks)
+	var alpha := view_alpha if v == view_tick else 0.0
+	var ring: Array = _hist[h.net_id]
+	var size := rewind_ticks + 2
+	var a := v % size
+	if (ring[0] as PackedInt32Array)[a] != v:
+		return p
+	var fa: Vector3 = (ring[1] as PackedVector3Array)[a]
+	var ya: float = (ring[2] as PackedFloat32Array)[a]
+	var fb := fa
+	var yb := ya
+	var b := (v + 1) % size
+	if v + 1 <= _now and (ring[0] as PackedInt32Array)[b] == v + 1:
+		fb = (ring[1] as PackedVector3Array)[b]
+		yb = (ring[2] as PackedFloat32Array)[b]
+	p.feet = fa.lerp(fb, alpha)
+	p.y_scale = lerpf(ya, yb, alpha)
 	return p
+
+
+func _current_y_scale(h: HeroBody) -> float:
+	if h.state.crouching:
+		return h.movement_def().crouch_height / h.movement_def().stand_height
+	return 1.0
 
 
 ## Smallest t >= 0 where the ray hits the sphere, or -1.

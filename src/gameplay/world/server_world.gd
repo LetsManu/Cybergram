@@ -72,6 +72,7 @@ var content: ContentDB = ContentDB.shared()
 func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedScene, transport: Transport,
 		hero_def: HeroDef = null, match_rules: MatchRulesDef = null) -> void:
 	net = net_config
+	_tracer.rewind_ticks = roundi(net.max_rewind_ms * net.tick_rate_hz / 1000.0)  # lag compensation window
 	movement = movement_def
 	player_hero = hero_def if hero_def != null else HeroDef.new()
 	rules = match_rules if match_rules != null else MatchRulesDef.new()
@@ -265,6 +266,7 @@ func step() -> void:
 	_step_match()
 	if progression != null:
 		progression.step()  # E13/E15 income, Armory visits, Motes, Med-Packs
+	_tracer.record(tick, _hero_bodies())  # lag compensation: pose history per tick
 	_send_snapshots()
 	_flush_events()
 	tick += 1
@@ -809,3 +811,12 @@ static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:
 		o.reserve = f.reserve_count()
 		o.ammo_flags = f.flags()
 	return o
+
+
+func _hero_bodies() -> Array:
+	var out: Array = []
+	for id in registry.ids():
+		var h := registry.get_node_by_id(id) as HeroBody
+		if h != null:
+			out.append(h)
+	return out
