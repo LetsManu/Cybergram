@@ -113,6 +113,17 @@ to skip the lobby).
 | `--hero brannoc` | hero for players whose client sends no pick |
 | `--match-clock 2` | run the match clock 2× faster (shorter test matches) |
 
+## Logs
+
+- **Server:** everything goes to the container log (Portainer: *Containers →
+  cybergram → Logs*, or `docker logs -t cybergram`). The lobby narrates
+  joins, hero picks, Ready, countdown and match start; the match logs
+  players joining and leaving, and a status line every 5 s. A crash prints
+  Godot's crash message and backtrace there too.
+- **Game (Windows):** `%APPDATA%\Godot\app_userdata\Cybergram\logs\godot.log`
+  (Linux: `~/.local/share/godot/app_userdata/Cybergram/logs/godot.log`).
+  The last 5 sessions are kept. Send both logs when something fails.
+
 ## Troubleshooting
 
 | Symptom | Check |

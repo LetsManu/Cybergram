@@ -12,6 +12,8 @@ const HEROES := MainMenu.HEROES
 
 var address: String = ""
 var hero_id: String = "vesper_loom"
+## Debug / testing: press Ready as soon as the lobby answers (--auto-ready).
+var auto_ready: bool = false
 
 var _enet: ENetTransport
 var _lobby: LobbyClient
@@ -89,7 +91,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _lobby == null:
 		return
-	_lobby.step()
+	var lobby := _lobby  # keep a reference: a handler below may drop _lobby
+	lobby.step()
+	if _lobby == null:
+		return  # the match is starting (or the lobby was left) during step()
 	if _enet.error_text != "":
 		_cancel(_enet.error_text)
 		return
@@ -100,6 +105,8 @@ func _process(delta: float) -> void:
 
 
 func _on_state(s: Dictionary) -> void:
+	if auto_ready and not _ready_btn.button_pressed:
+		_ready_btn.button_pressed = true  # toggled -> _send_pick()
 	for t in 2:
 		while _teams[t].get_child_count() > 1:
 			var c := _teams[t].get_child(1)

@@ -111,6 +111,8 @@ var token: int = 0
 var no_lobby: bool = false
 ## Open the main menu straight into this server's lobby (host[:port]).
 var open_lobby: String = ""
+## Testing: the lobby screen presses Ready by itself.
+var auto_ready: bool = false
 
 
 ## `--map test_course` selects the movement test course (no MapDef).
@@ -136,6 +138,8 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if i + 1 < args.size():
 					i += 1
 					c.token = clampi(args[i].to_int(), 0, 65535)
+			"--auto-ready":
+				c.auto_ready = true
 			"--open-lobby":
 				if i + 1 < args.size():
 					i += 1

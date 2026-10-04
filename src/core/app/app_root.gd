@@ -12,13 +12,17 @@ static var menu_notice: String = ""
 static var return_to_menu: bool = false
 ## After an online match: the menu reopens the lobby of this server.
 static var rejoin_address: String = ""
+## Testing (--auto-ready): the lobby screen presses Ready by itself.
+static var auto_ready: bool = false
 
 
 func _ready() -> void:
 	var headless := DisplayServer.get_name() == "headless"
 	var cfg := load(APP_CONFIG_PATH) as AppConfig
 	var args := OS.get_cmdline_user_args()
-	var lobby_addr := LaunchConfig.parse(args, headless).open_lobby
+	var parsed := LaunchConfig.parse(args, headless)
+	var lobby_addr := parsed.open_lobby
+	auto_ready = auto_ready or parsed.auto_ready
 	if lobby_addr != "" and not return_to_menu:
 		rejoin_address = lobby_addr
 	if (args.is_empty() or return_to_menu or lobby_addr != "") and not headless and cfg.menu_scene != null:
