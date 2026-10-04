@@ -508,6 +508,7 @@ func _on_lobby_started(slots: Array) -> void:
 	_build_match()
 	for sl: Dictionary in slots:
 		server.reserved_slots[sl.token] = {"team": sl.team, "hero_index": sl.hero_index}
+		server.session.token_names[sl.token] = {"name": sl.name, "id": sl.id, "accent": sl.accent}
 	enet.peer_disconnected.connect(func(id: int) -> void: server.on_peer_left(id))
 	server.session.client_joined.connect(func(peer: int) -> void:
 		print("[server] player joined the match (peer %d)" % peer), CONNECT_DEFERRED)

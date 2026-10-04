@@ -11,6 +11,13 @@ extends RefCounted
 ## Callable(net_id) -> Dictionary, or an invalid Callable when not offline.
 static func make(session: Node) -> Callable:
 	var server := session.get("server") as ServerWorld if session != null else null
+	if server == null and session != null and session.get("dedicated") != true:
+		# Online client (v11): human player names from the server's PLAYER_NAMES.
+		var remote := session.get("client") as ClientWorld
+		if remote != null and remote.session != null:
+			return func(id: int) -> Dictionary:
+				var e: Dictionary = remote.session.player_names.get(id, {})
+				return {"name": str(e.name)} if not e.is_empty() else {}
 	if server == null or session.get("dedicated") == true:
 		return Callable()
 	var lc = session.get("launch_config")
