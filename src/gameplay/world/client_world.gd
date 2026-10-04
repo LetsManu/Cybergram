@@ -66,6 +66,7 @@ var _hero_index: Dictionary = {}  # net id -> replicated hero index
 
 var _views: Dictionary = {}  # net id -> HeroView
 var tracers: TracerFx
+var sfx: ClientSfx
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
 var _visual_offset: Vector3 = Vector3.ZERO
@@ -97,6 +98,10 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	tracers = TracerFx.new()
 	tracers.name = "Tracers"
 	add_child(tracers)
+	sfx = ClientSfx.new()
+	sfx.name = "Sfx"
+	sfx.client = self
+	add_child(sfx)
 	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
 
@@ -409,3 +414,11 @@ func _draw_tracer(e: GameEvent) -> void:
 		return
 	var c := TRACER_ALLY if v.team == own_team() else TRACER_ENEMY
 	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c)
+
+
+## World position (chest height) of a remote hero's view, or null if unknown.
+func hero_view_position(net_id: int) -> Variant:
+	var v: HeroView = _views.get(net_id)
+	if v == null:
+		return null
+	return v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0)
