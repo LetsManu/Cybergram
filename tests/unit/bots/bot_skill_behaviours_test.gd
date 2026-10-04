@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## W10-W3: heal beam target choice, Sabotage remote detonation, Tripwire site
 ## choice, Relay Hop escape / reposition, and the seeded roster rotation.
 
-const B := BotSkillBehaviours
+const B = preload("res://src/ai/bots/bot_skill_behaviours.gd")
 const ROSTER := "res://assets/data/ai/bot_roster_slice.tres"
 
 
