@@ -27,6 +27,7 @@ const HQ_BACK := -6.0             # back wall line (keeps the r 10 Sanctum insid
 const HQ_FRONT := 40.0            # lane gate line
 const HQ_WALL_H := 12.0
 const RAIL_H := 1.1
+const RAIL_BLOCK_H := 4.0      # invisible edge wall height (above jump apex)
 const SANCTUM_L := 5.0
 const SANCTUM_R := 10.0
 const UPLINK_L := 30.0
@@ -194,7 +195,30 @@ func _box(parent: Node, n: String, size: Vector3, center: Vector3, mat: Material
 
 ## Axis-aligned box from lateral range [x0,x1], lane range [l0,l1], height range [y0,y1].
 func _slab(parent: Node, n: String, x0: float, x1: float, l0: float, l1: float, y0: float, y1: float, mat: Material, collide := true) -> Node3D:
-	return _box(parent, n, Vector3(absf(x1 - x0), y1 - y0, absf(l1 - l0)), P((x0 + x1) * 0.5, (l0 + l1) * 0.5, (y0 + y1) * 0.5), mat, collide)
+	var body := _box(parent, n, Vector3(absf(x1 - x0), y1 - y0, absf(l1 - l0)), P((x0 + x1) * 0.5, (l0 + l1) * 0.5, (y0 + y1) * 0.5), mat, collide)
+	if collide and mat == mats.rail:
+		_edge_blocker(body, absf(x1 - x0), absf(l1 - l0), y1 - y0)
+	return body
+
+
+## Invisible wall on top of an edge rail, up to RAIL_BLOCK_H, so heroes cannot
+## jump (or be knocked) over the 1.1 m rail into the Leyfall void (M1 soak S2).
+func _edge_blocker(rail: Node3D, w: float, d: float, rail_h: float) -> void:
+	var h := RAIL_BLOCK_H - rail_h
+	var wall := StaticBody3D.new()
+	wall.name = "EdgeBlock"
+	# Own layer: heroes collide with it, hitscan (world layer only) passes through.
+	wall.collision_layer = HeroBody.LAYER_EDGE_BLOCK
+	wall.collision_mask = 0
+	wall.position = Vector3(0, (rail_h + h) * 0.5, 0)
+	var cs := CollisionShape3D.new()
+	cs.name = "Shape"
+	var sh := BoxShape3D.new()
+	sh.size = Vector3(w, h, d)
+	cs.shape = sh
+	wall.add_child(cs)
+	rail.add_child(wall)
+	_own(wall)
 
 
 ## Cylinder / cone with a convex collider (or none).

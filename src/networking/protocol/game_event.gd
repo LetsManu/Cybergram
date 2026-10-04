@@ -10,6 +10,10 @@ const KILL: int = 2
 ## source_net_id = winner + 1 (0 = none / draw), flags = MatchRules.EndReason,
 ## amount = match clock seconds.
 const MATCH_PHASE: int = 3
+## A weapon shot, to every client, for bullet tracers. source_net_id = the
+## shooter, position = where the pellet stopped (hit point, wall or max range).
+## One event per traced pellet (capped per shot by ServerWorld).
+const SHOT: int = 4
 
 const FLAG_HEADSHOT: int = 1
 const FLAG_KILL: int = 2
@@ -45,6 +49,14 @@ static func kill(victim: int, killer: int, pos: Vector3) -> GameEvent:
 	e.target_net_id = victim
 	e.source_net_id = killer
 	e.position = pos
+	return e
+
+
+static func shot(shooter: int, end: Vector3) -> GameEvent:
+	var e := GameEvent.new()
+	e.kind = SHOT
+	e.source_net_id = shooter
+	e.position = end
 	return e
 
 

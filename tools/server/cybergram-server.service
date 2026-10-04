@@ -1,0 +1,20 @@
+# systemd unit for a VPS. Install:
+#   sudo useradd --system --create-home cybergram
+#   sudo mkdir -p /opt/cybergram && sudo tar -xzf Cybergram-v0.2.0-linux-x86_64.tar.gz -C /opt/cybergram
+#   sudo cp tools/server/cybergram-server.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cybergram-server
+#   journalctl -u cybergram-server -f        # live log
+[Unit]
+Description=Cybergram dedicated server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=cybergram
+WorkingDirectory=/opt/cybergram
+ExecStart=/opt/cybergram/Cybergram.x86_64 --headless -- --server --port 7777
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

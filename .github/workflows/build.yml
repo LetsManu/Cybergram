@@ -69,6 +69,14 @@ jobs:
           $GODOT --headless --path . --export-release "Linux" build/linux/Cybergram.x86_64
           ls -la build/linux
 
+      - name: Smoke-test the exported dedicated server
+        run: |
+          out=$(timeout 60 build/linux/Cybergram.x86_64 --headless -- --server --port 7777 --quit-after-ticks 90 2>&1) || true
+          echo "$out" | tail -20
+          echo "$out" | grep -q "online: listening on UDP 7777"
+          echo "$out" | grep -q "quit after 90 ticks"
+          ! echo "$out" | grep -q "SCRIPT ERROR"
+
       - name: Add play notes
         run: |
           for d in build/windows build/linux; do

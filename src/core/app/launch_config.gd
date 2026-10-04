@@ -9,6 +9,10 @@ extends RefCounted
 ##   godot --path . -- --map slice               -> the slice without bots (evidence / debug setups)
 ##   godot --path . -- --net-sim 100ms_2pct      -> OFFLINE through a conditioned loopback
 ##   godot --headless --path . [-- --server]     -> DEDICATED (server only)
+##   godot --headless --path . -- --server --port 7777 [--max-clients 8]
+##                                                -> ONLINE dedicated server (UDP), slice 3v3,
+##                                                  bots fill the slots humans do not
+##   godot --path . -- --connect 1.2.3.4[:7777]  -> CLIENT: join that server (no local server)
 ##   ... -- --server --quit-after-ticks 900      -> soak run that exits
 ##   godot --path . -- --map slice               -> load assets/data/match/map_<name>_lane.tres
 ##   ... -- --hero brannoc                       -> play hero_brannoc.tres (also --hero=brannoc)
@@ -47,7 +51,8 @@ extends RefCounted
 ##   ... -- --map slice --debug-armory           -> debug: spawn on the Armory pad with Lumen,
 ##                                                  mounts bought, Armory panel open (E13 evidence)
 
-enum Mode { OFFLINE, DEDICATED }
+## CLIENT: no local server; the client connects over UDP (--connect).
+enum Mode { OFFLINE, DEDICATED, CLIENT }
 
 var mode: Mode = Mode.OFFLINE
 var net_sim_name: String = ""
@@ -90,10 +95,19 @@ var telemetry_dir: String = ""
 var debug_task: String = ""
 ## Tuning runs: a MatchRulesDef .tres path replacing the slice rules ("" = default).
 var match_rules_path: String = ""
+## Online (ENetTransport): UDP port the dedicated server listens on (0 = no
+## network, loopback only) or the client connects to.
+var port: int = 0
+## CLIENT mode: server address (host name or IP).
+var connect_address: String = ""
+## Dedicated server: most simultaneous remote clients.
+var max_clients: int = 8
 
 
 ## `--map test_course` selects the movement test course (no MapDef).
 const TEST_COURSE := "test_course"
+## UDP port when --connect gives none (matches ENetTransport.DEFAULT_PORT).
+const DEFAULT_PORT: int = 7777
 
 
 static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
@@ -105,6 +119,22 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 		match args[i]:
 			"--server":
 				c.mode = Mode.DEDICATED
+			"--port":
+				if i + 1 < args.size():
+					i += 1
+					c.port = clampi(args[i].to_int(), 1, 65535)
+			"--max-clients":
+				if i + 1 < args.size():
+					i += 1
+					c.max_clients = clampi(args[i].to_int(), 1, 32)
+			"--connect":
+				if i + 1 < args.size():
+					i += 1
+					c.mode = Mode.CLIENT
+					var hp := args[i].rsplit(":", true, 1)
+					c.connect_address = hp[0]
+					if hp.size() == 2 and hp[1].is_valid_int():
+						c.port = clampi(hp[1].to_int(), 1, 65535)
 			"--net-sim":
 				if i + 1 < args.size():
 					i += 1
@@ -200,9 +230,15 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 		c.map_name = ""  # the session scene's default map (movement test course)
 	elif (c.bots or c.bots_only) and c.map_name == "":
 		c.map_name = "slice"  # E11: bot matches run on the slice map
+	elif not map_given and (c.mode == Mode.CLIENT or (c.mode == Mode.DEDICATED and c.port > 0)):
+		# Online: the slice match; the server fills empty slots with bots.
+		c.map_name = "slice"
+		c.bots = c.mode == Mode.DEDICATED
 	elif not map_given and c.mode == Mode.OFFLINE \
 			and not (c.autofire or c.debug_skill_demo or c.debug_squad_demo):
 		# M1 default launch (no arguments): a playable 3v3 slice match vs bots.
 		c.map_name = "slice"
 		c.bots = true
+	if c.mode == Mode.CLIENT and c.port == 0:
+		c.port = DEFAULT_PORT
 	return c

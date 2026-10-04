@@ -14,6 +14,8 @@ signal kill_received(event: GameEvent)
 signal hardpoint_owner_changed(index: int, old_team: int, new_team: int)
 ## E9: the match phase changed (MatchRules.Phase), from the reliable event.
 signal match_phase_changed(phase: int)
+## A shot was fired (any hero): drives bullet tracers.
+signal shot_received(event: GameEvent)
 ## E9: the match ended (winner -1 = draw; reason = MatchRules.EndReason).
 signal match_ended(winner: int, reason: int)
 ## E15: the own hero's level changed (HUD level-up flash).
@@ -63,6 +65,7 @@ var content: ContentDB = ContentDB.shared()
 var _hero_index: Dictionary = {}  # net id -> replicated hero index
 
 var _views: Dictionary = {}  # net id -> HeroView
+var tracers: TracerFx
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
 var _visual_offset: Vector3 = Vector3.ZERO
@@ -80,6 +83,9 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	player_input = source as PlayerInputSource
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
+	if hero != null and hero.resource_path != "":
+		session.hero_index = ContentDB.shared().index_of(ContentDB.HERO,
+			StringName(hero.resource_path.get_file().get_basename()))
 	session.snapshot_received.connect(_on_snapshot)
 	session.event_received.connect(_on_event)
 	wardlings = WardlingPresenter.new()
@@ -88,6 +94,9 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	abilities = AbilityPresenter.new()
 	abilities.client = self
 	add_child(abilities)
+	tracers = TracerFx.new()
+	tracers.name = "Tracers"
+	add_child(tracers)
 	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
 
@@ -371,3 +380,32 @@ func _on_event(e: GameEvent, _server_tick: int) -> void:
 			kill_received.emit(e)
 		GameEvent.MATCH_PHASE:
 			match_phase_changed.emit(e.target_net_id)
+		GameEvent.SHOT:
+			_draw_tracer(e)
+			shot_received.emit(e)
+
+
+## Tracer colours (saturated so they read on both the pale floor and dark sky):
+## own shots yellow, allies azure, enemies ember red.
+const TRACER_OWN := Color(1.0, 0.82, 0.1, 0.95)
+const TRACER_ALLY := Color(0.25, 0.6, 1.0, 0.9)
+const TRACER_ENEMY := Color(1.0, 0.25, 0.1, 0.95)
+const REMOTE_MUZZLE_H := 1.45
+
+
+func _draw_tracer(e: GameEvent) -> void:
+	if tracers == null:
+		return
+	if e.source_net_id == session.own_net_id:
+		var from := rig.camera.global_position if rig != null and rig.camera != null else e.position
+		if rig != null and rig.weapon_model != null:
+			var m := rig.weapon_model.socket(&"fx_muzzle")
+			if m != null:
+				from = m.global_position
+		tracers.spawn(from, e.position, TRACER_OWN, true)
+		return
+	var v: HeroView = _views.get(e.source_net_id)
+	if v == null:
+		return
+	var c := TRACER_ALLY if v.team == own_team() else TRACER_ENEMY
+	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c)

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AppConfig" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="AppConfig" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/core/app/app_config.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/gameplay/world/game_session.tscn" id="2"]
@@ -6,9 +6,11 @@
 [ext_resource type="PackedScene" path="res://src/ui/hud/hud_root.tscn" id="e12_hud"]
 [ext_resource type="PackedScene" path="res://src/ai/wardlings/wardling_ai_installer.tscn" id="6"]
 [ext_resource type="PackedScene" path="res://src/ai/bots/bot_ai_installer.tscn" id="e11_bots"]
+[ext_resource type="PackedScene" path="res://src/ui/menu/main_menu.tscn" id="menu"]
 
 [resource]
 script = ExtResource("1")
 session_scene = ExtResource("2")
 overlay_scenes = Array[PackedScene]([ExtResource("e12_hud"), ExtResource("3")])
 sim_plugin_scenes = Array[PackedScene]([ExtResource("6"), ExtResource("e11_bots")])
+menu_scene = ExtResource("menu")

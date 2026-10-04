@@ -155,3 +155,28 @@ func test_hero_below_kill_plane_dies_and_respawns() -> void:
 	_tick(1)
 	assert_bool(died[0]).is_true()
 	assert_bool(h.combat.dead).is_true()
+
+
+func test_client_shots_produce_tracer_events_and_streaks() -> void:
+	var scene := CombatFixtures.range_scene(false)
+	var vesper := CombatFixtures.vesper()
+	_server_world(scene, vesper)
+	var dummy_id := _server.add_scripted_hero(ScriptedInputSource.new(CombatFixtures.idle_input()),
+		_server.spawn_point("DummySpawn1"), vesper)
+	_client = auto_free(ClientWorld.new())
+	add_child(_client)
+	_client.setup(_net, MovementDef.new(), LookSettings.new(), scene, _link.create_endpoint(2),
+		ScriptedInputSource.new(CombatFixtures.shooter_input(8.0, 2)), vesper)
+	await get_tree().physics_frame
+	var shots: Array[GameEvent] = []
+	_client.shot_received.connect(func(e: GameEvent) -> void: shots.append(e))
+	var max_active := [0]
+	for i in 45:
+		_tick(1)
+		max_active[0] = maxi(max_active[0], _client.tracers.active_count())
+	assert_int(shots.size()).is_greater(0)
+	assert_int(shots[0].source_net_id).is_equal(_client.session.own_net_id)
+	# The shooter aims at the dummy 8 m ahead: the first tracer ends near it.
+	var dummy_pos := _server.hero(dummy_id).global_position
+	assert_float(Vector2(shots[0].position.x - dummy_pos.x, shots[0].position.z - dummy_pos.z).length()).is_less(1.5)
+	assert_int(max_active[0]).is_greater(0)
