@@ -94,3 +94,41 @@ func test_reveal_sets_bit_only_for_the_revealing_team() -> void:
 	assert_int(base[1].status).is_equal(0)  # shared state untouched
 	_run(4 * HZ + 2)
 	assert_bool(_server.abilities.reveals.is_revealed(foe.net_id, a.combat.team, _server.tick)).is_false()
+
+
+# ------------------------------------------------------------------ Bleed / Healing reduction
+
+func test_bleed_deals_its_total_over_time_and_heal_cut_reduces_heals() -> void:
+	_world()
+	var a := _hero(VESPER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(VESPER, Vector3(0.0, 0.05, -10.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var ctx := _ctx(a, foe)
+	ctx.skill = _fake_skill({&"bleed": 40.0, &"bleed_time": 3.0, &"heal_cut": 0.3, &"heal_cut_time": 3.0})
+	_server.abilities.apply_skill_dots(ctx, foe)
+	var before := foe.combat.health.hp
+	foe.combat.health.hp -= 100.0
+	before = foe.combat.health.hp
+	_run(3 * HZ + 3)
+	var lost := before - foe.combat.health.hp
+	assert_float(lost).is_between(36.0, 41.0)  # ~40 true damage over 3 s (power scaled)
+	assert_bool(foe.combat.status.has(StatusComponent.Kind.BLEED)).is_false()
+	# While cut, heals are 30% weaker.
+	_server.abilities.apply_skill_dots(ctx, foe)
+	var hp := foe.combat.health.hp
+	foe.combat.health.heal(100.0)
+	assert_float(foe.combat.health.hp - hp).is_equal_approx(70.0, 0.5)
+
+
+func test_bleed_kill_credits_the_attacker() -> void:
+	_world()
+	var a := _hero(VESPER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(VESPER, Vector3(0.0, 0.05, -10.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var ctx := _ctx(a, foe)
+	ctx.skill = _fake_skill({&"bleed": 40.0, &"bleed_time": 3.0})
+	foe.combat.health.hp = 5.0
+	_server.abilities.apply_skill_dots(ctx, foe)
+	_run(HZ)
+	assert_bool(foe.combat.dead).is_true()
+	assert_int(a.combat.kills).is_equal(1)

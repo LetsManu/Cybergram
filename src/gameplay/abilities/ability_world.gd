@@ -425,7 +425,9 @@ func _tick_bleed(h: HeroBody) -> void:
 		if e.carry >= 1.0 or (last and e.carry > 0.0):
 			var amount := e.carry
 			e.carry = 0.0
-			server.damage_hero(h, DamageInfo.make(amount, e.attacker_id, 1 - c.team, 0, DamageInfo.Type.TRUE))
+			var src := server.hero(e.attacker_id)
+			var team := src.combat.team if src != null and src.combat != null else 1 - c.team
+			server.damage_hero(h, DamageInfo.make(amount, e.attacker_id, team, 0, DamageInfo.Type.TRUE))
 			if c.dead:
 				return
 
