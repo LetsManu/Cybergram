@@ -9,5 +9,23 @@ services:
     restart: unless-stopped
     ports:
       - "7777:7777/udp"
+      - "8080:8080/tcp"   # launcher updates (version.json + client zips)
+    volumes:
+      # Player accounts. Keep this volume: deleting it deletes every account.
+      - cybergram-data:/data
+      # TLS certificate for encrypted login (e.g. Let's Encrypt for your
+      # domain): put fullchain.pem + privkey.pem in ./tls, readable by the
+      # container user (uid shown by `docker exec cybergram id -u`).
+      # Without it the server runs guest-only.
+      - /srv/cybergram/tls:/data/tls:ro   # change to a folder on your NAS
+    # Server logs: rotated, never kept long (privacy: they can name players).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     # Extra server flags, e.g. bot skill:
     # command: ["--bot-difficulty", "hard"]
+
+volumes:
+  cybergram-data:

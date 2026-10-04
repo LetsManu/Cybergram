@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WeaponDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/weapon_def.gd" id="s1"]
+
+[resource]
+script = ExtResource("s1")
+id = &"weapon_breakline_ar7"
+display_name = "Breakline AR-7"
+feed_kind = 1
+damage = 18.0
+pellets = 1
+fire_rate = 10.0
+semi_auto = false
+headshot_mult = 2.0
+falloff_start_m = 22.0
+falloff_end_m = 40.0
+falloff_min = 0.6
+spread_base_deg = 0.4
+spread_bloom_deg = 0.12
+spread_max_deg = 2.2
+range_m = 150.0
+magazine = 30
+reserve = 150
+reload_s = 1.6
+reload_empty_s = 1.9
+reload_per_round = false

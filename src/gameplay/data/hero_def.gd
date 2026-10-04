@@ -28,11 +28,18 @@ extends Resource
 ## Passive: hero-scope modifiers active only inside a hardpoint zone with an
 ## active task (Brannoc Anchor: +15% DR, knockback immune).
 @export var zone_passive_modifiers: Array[ModifierDef] = []
+## Passive: behaviours that need server logic beyond Modifiers (HeroPassiveDef:
+## Battle Rhythm, Shadowgraph, Triage Kit, Heal Beam).
+@export var passives: Array[HeroPassiveDef] = []
 ## Passive: radius of the WARDLING_AURA_DAMAGE aura (Vesper Conductor: 15 m).
 @export_range(0.0, 60.0, 0.5) var wardling_aura_radius_m: float = 0.0
 ## Passive: allied Vanguard waves with a member this close are "conducted"
 ## (Vesper Conductor: 25 m; 0 = cannot conduct waves).
 @export_range(0.0, 60.0, 0.5) var conduct_radius_m: float = 0.0
+
+## W9-H2 Hex Signal Sight: weapon damage multiplier against enemy gadgets
+## (traps, deployables). 1 = no bonus.
+@export_range(1.0, 3.0, 0.01) var gadget_damage_mult: float = 1.0
 
 @export_group("Hitbox")
 ## Linear scale of the hitbox. heroes.md §3.1: Brannoc +25% volume -> 1.25^(1/3) = 1.077.

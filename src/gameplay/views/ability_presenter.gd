@@ -12,11 +12,32 @@ const VIOLET := Color("#8E5CFF")
 const HEAL := Color("#46E07A")
 const _TICKS: int = 18
 
+## PLACEHOLDER. Veilwalk readability bands (heroes.md §4.2): fully visible within
+## FULL_M, a heat-shimmer within SHIMMER_M, invisible beyond; Sabotage Charges
+## show to enemies only within CHARGE_SEE_M.
+const FULL_M: float = 3.0
+const SHIMMER_M: float = 8.0
+const CHARGE_SEE_M: float = 6.0
+const SHIMMER_FADE: float = 0.8
+const BLIND_ALPHA: float = 0.7
+
 var client: ClientWorld
 var _nodes: Dictionary = {}  # fx id -> [Node3D, kind]
+## net id -> true while a remote hero is stealthed (from the replicated status).
+var _stealthed: Dictionary = {}
+var _faded: Dictionary = {}  # net id -> true while its model is faded by us
+var _blind_rect: ColorRect
+var _blind: bool = false
 
 
 func apply_snapshot(s: SnapshotData) -> void:
+	_stealthed.clear()
+	_blind = false
+	for e in s.entities:
+		if e.net_id == s.own_net_id:
+			_blind = (e.status & SkillStatusBits.BLIND) != 0
+		elif (e.status & SkillStatusBits.STEALTH) != 0:
+			_stealthed[e.net_id] = true
 	var seen := {}
 	for f in s.fx:
 		seen[f.id] = true
@@ -33,6 +54,50 @@ func apply_snapshot(s: SnapshotData) -> void:
 			_nodes.erase(id)
 
 
+func _process(_delta: float) -> void:
+	_update_blind()
+	if client == null or client.body == null:
+		return
+	var me := client.body.state.position
+	var views := client.remote_views()
+	for id in views:
+		var v := views[id] as HeroView
+		if v == null or v.model == null:
+			continue
+		if _stealthed.has(id) and v.team != client.own_team():
+			var d := v.position.distance_to(me)
+			v.model.visible = d <= SHIMMER_M
+			_set_fade(v.model, 0.0 if d <= FULL_M else SHIMMER_FADE)
+			_faded[id] = true
+		elif _faded.has(id):
+			v.model.visible = true
+			_set_fade(v.model, 0.0)
+			_faded.erase(id)
+
+
+func _set_fade(n: Node, t: float) -> void:
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).transparency = t
+	for c in n.get_children():
+		_set_fade(c, t)
+
+
+## Blind: full-screen white-out of the own screen (heroes.md §3.6).
+func _update_blind() -> void:
+	if _blind_rect == null:
+		if not _blind:
+			return
+		var layer := CanvasLayer.new()
+		layer.layer = 90
+		add_child(layer)
+		_blind_rect = ColorRect.new()
+		_blind_rect.color = Color(1.0, 1.0, 1.0, BLIND_ALPHA)
+		_blind_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_blind_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(_blind_rect)
+	_blind_rect.visible = _blind
+
+
 func count() -> int:
 	return _nodes.size()
 
@@ -46,6 +111,10 @@ func _team_color(team: int) -> Color:
 
 
 func _build(f: SnapshotData.FxState) -> Node3D:
+	if f.kind >= TrapWorld.FX_FIRST:  # W9-H2 gadgets (Juniper traps, Hex hacks)
+		var g := GadgetFx.build(f, _team_color(f.team), _hostile(f.team))
+		add_child(g)
+		return g
 	var root := Node3D.new()
 	add_child(root)
 	var c := _team_color(f.team)
@@ -53,7 +122,10 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 	match f.kind:
 		AbilityWorld.FX_WALL:
 			var size := f.position2
-			var slab := _mesh(root, _box(Vector3(size.x, size.y, maxf(size.z, 0.2))), _mat(c.lightened(0.25), 0.45, true))
+			# G1: holo-scanline barrier (art bible §10.4); the replicated `param`
+			# still drives the fade, through the shader's `alpha`.
+			var wall_mat := ModelMaterials.holo(c.lightened(0.25), 1.3, false, 0.0).duplicate() as ShaderMaterial
+			var slab := _mesh(root, _box(Vector3(size.x, size.y, maxf(size.z, 0.2))), wall_mat)
 			slab.name = "Slab"
 			slab.position.y = size.y * 0.5
 			for x in [-0.5, 0.5]:
@@ -64,23 +136,62 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 		AbilityWorld.FX_BEACON:
 			var pole := _mesh(root, _cyl(0.12, 1.6), _mat(VIOLET, 0.95, true))
 			pole.position.y = 0.8
-			var gem := _mesh(root, _sphere(0.28), _mat(Color.WHITE, 1.0, true))
+			var gem := _mesh(root, _sphere(0.28), ModelMaterials.crystal(VIOLET, 2.0, 3.0, 0.5))
 			gem.position.y = 1.75
 			_area(root, f.position2.x, HEAL.lerp(c, 0.4), hostile)
 		AbilityWorld.FX_BASTION:
 			_area(root, f.position2.x, c.lightened(0.3), hostile)
 		AbilityWorld.FX_CIRCLE, AbilityWorld.FX_BURST:
 			_area(root, f.position2.x, c if f.kind == AbilityWorld.FX_CIRCLE else Color.WHITE.lerp(c, 0.5), hostile)
+			if f.kind == AbilityWorld.FX_BURST:
+				# G1: bright inner shock ring + dome flash on top of the area ring.
+				var br := maxf(f.position2.x, 0.5)
+				var shock := TorusMesh.new()
+				shock.inner_radius = br * 0.7
+				shock.outer_radius = br * 0.74
+				shock.rings = 48
+				_mesh(root, shock, _mat(Color.WHITE, 0.9, true)).position.y = 0.15
+				var dome := SphereMesh.new()
+				dome.radius = br * 0.6
+				dome.height = dome.radius
+				dome.is_hemisphere = true
+				_mesh(root, dome, _mat(Color.WHITE.lerp(c, 0.4), 0.18, true))
 			if f.kind == AbilityWorld.FX_CIRCLE:
 				# Ultimate / cast telegraph: vertical light column (art bible §8.2).
-				var col := _mesh(root, _cyl(0.25, 14.0), _mat(c.lightened(0.4), 0.35, true))
+				var col := _mesh(root, _cyl(0.25, 14.0), ModelMaterials.holo(c.lightened(0.4), 1.6, false, 0.0))
 				col.position.y = 7.0
-		AbilityWorld.FX_THREAD, AbilityWorld.FX_TRAIL, AbilityWorld.FX_ARROW:
+				var halo := _mesh(root, _cyl(0.7, 14.0), _mat(c, 0.12, true))
+				halo.position.y = 7.0
+		SkillEntities.FX_THROWN:
+			var orb := _mesh(root, _sphere(0.2), _mat(Color.WHITE.lerp(c, 0.35), 1.0, true))
+			orb.position.y = 0.0
+		SkillEntities.FX_DRONE:
+			var body := _mesh(root, _sphere(0.22), _mat(Color.WHITE, 1.0, true))
+			body.name = "Body"
+			for x in [-1.0, 1.0]:
+				var rotor := _mesh(root, _cyl(0.2, 0.02), _mat(HEAL, 0.9, true))
+				rotor.position = Vector3(0.28 * x, 0.12, 0.0)
+		SkillEntities.FX_DOME:
+			var dome := SphereMesh.new()
+			dome.radius = maxf(f.position2.x, 1.0)
+			dome.height = dome.radius * 2.0
+			dome.radial_segments = 32
+			dome.rings = 16
+			var shell := _mesh(root, dome, _mat(HEAL.lerp(c, 0.3).lightened(0.3), 0.14, true))
+			shell.name = "Dome"
+			_area(root, f.position2.x, HEAL.lerp(c, 0.3), hostile)
+		SkillEntities.FX_CHARGE:
+			var pad := _mesh(root, _box(Vector3(0.5, 0.12, 0.5)), _mat(Color("#3FBF8F"), 1.0, true))
+			pad.position.y = 0.06
+			var led := _mesh(root, _sphere(0.07), _mat(Color.WHITE, 1.0, true))
+			led.position.y = 0.2
+			led.name = "Led"
+		AbilityWorld.FX_THREAD, AbilityWorld.FX_TRAIL, AbilityWorld.FX_ARROW, SkillEntities.FX_BEAM, SkillEntities.FX_DART:
 			var w := 0.06 if f.kind != AbilityWorld.FX_ARROW else 0.5
 			if hostile:
 				w *= 1.2
 			var line := _mesh(root, _box(Vector3(w, w if f.kind != AbilityWorld.FX_ARROW else 0.03, 1.0)),
-				_mat(Color.WHITE.lerp(VIOLET if f.kind != AbilityWorld.FX_ARROW else c, 0.45), 0.85, true))
+				_mat(Color.WHITE.lerp(_line_color(f.kind, c), 0.45), 0.85, true))
 			line.name = "Line"
 			if f.kind == AbilityWorld.FX_ARROW:
 				var head := _mesh(root, _box(Vector3(1.2, 0.03, 0.6)), _mat(c, 0.7, true))
@@ -89,16 +200,33 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 
 
 func _update(n: Node3D, f: SnapshotData.FxState) -> void:
+	if f.kind >= TrapWorld.FX_FIRST:
+		GadgetFx.update(n, f, client, _hostile(f.team))
+		return
 	match f.kind:
 		AbilityWorld.FX_WALL:
 			n.position = f.position
 			n.rotation = Vector3(0.0, f.yaw, 0.0)
 			var slab := n.get_node_or_null("Slab") as MeshInstance3D
 			if slab != null:
-				(slab.material_override as StandardMaterial3D).albedo_color.a = 0.2 + 0.35 * f.param
-		AbilityWorld.FX_THREAD, AbilityWorld.FX_TRAIL, AbilityWorld.FX_ARROW:
-			var a := f.position2 if f.kind == AbilityWorld.FX_THREAD else f.position
-			var b := f.position if f.kind == AbilityWorld.FX_THREAD else f.position2
+				(slab.material_override as ShaderMaterial).set_shader_parameter("alpha", 0.3 + 0.5 * f.param)
+		SkillEntities.FX_THROWN, SkillEntities.FX_DRONE, SkillEntities.FX_DOME:
+			n.position = f.position
+			if f.kind == SkillEntities.FX_DOME:
+				n.position.y += 0.05
+		SkillEntities.FX_CHARGE:
+			n.position = f.position
+			var near := true
+			if _hostile(f.team) and client != null and client.body != null:
+				near = f.position.distance_to(client.body.state.position) <= CHARGE_SEE_M
+			n.visible = near
+			var led := n.get_node_or_null("Led") as MeshInstance3D
+			if led != null:
+				led.visible = f.param > 0.5
+		AbilityWorld.FX_THREAD, AbilityWorld.FX_TRAIL, AbilityWorld.FX_ARROW, SkillEntities.FX_BEAM, SkillEntities.FX_DART:
+			var tail_first := f.kind == AbilityWorld.FX_THREAD or f.kind == SkillEntities.FX_DART
+			var a := f.position2 if tail_first else f.position
+			var b := f.position if tail_first else f.position2
 			if f.kind == AbilityWorld.FX_ARROW:
 				a.y += 0.08
 				b.y += 0.08
@@ -119,6 +247,17 @@ func _update(n: Node3D, f: SnapshotData.FxState) -> void:
 			n.scale = Vector3(k, 1.0, k)
 		_:
 			n.position = f.position + Vector3(0.0, 0.05, 0.0)
+
+
+func _line_color(kind: int, team_c: Color) -> Color:
+	match kind:
+		AbilityWorld.FX_ARROW:
+			return team_c
+		SkillEntities.FX_BEAM:
+			return HEAL
+		SkillEntities.FX_DART:
+			return Color("#3FBF8F")
+	return VIOLET
 
 
 ## Ground area: ring + fill (+ serrated outward ticks when hostile).

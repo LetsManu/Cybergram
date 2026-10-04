@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/stealth_effect_def.gd" id="s1"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s4"]
+
+[sub_resource type="Resource" id="stealth_effect_def_1"]
+script = ExtResource("s1")
+speed_bonus = 0.15
+
+[sub_resource type="Resource" id="modifier_def_2"]
+script = ExtResource("s2")
+stat = &"duration"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="modifier_def_3"]
+script = ExtResource("s2")
+stat = &"cooldown"
+op = 0
+value = -3.0
+
+[sub_resource type="Resource" id="skill_node_def_4"]
+script = ExtResource("s3")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("s2")]([SubResource("modifier_def_2"), SubResource("modifier_def_3")])
+
+[resource]
+script = ExtResource("s4")
+id = &"skill_sable_veilwalk"
+display_name = "Veilwalk"
+short_label = "VEIL"
+targeting = 0
+cooldown_on_end = true
+params = {
+&"cooldown": 16.0,
+&"duration": 6.0,
+&"radius": 8.0
+}
+effects = Array[Resource]([SubResource("stealth_effect_def_1")])
+nodes = Array[ExtResource("s3")]([SubResource("skill_node_def_4")])

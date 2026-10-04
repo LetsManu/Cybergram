@@ -35,6 +35,9 @@ var _seg_off: StandardMaterial3D
 var _segments: Array[MeshInstance3D] = []
 var _label: Label3D
 var _lit: int = -1
+var _ring_base: Color = COLOR_NEUTRAL
+var _seg_base: Color = COLOR_NEUTRAL
+var _progress: float = 0.0
 # E14 task views.
 var _shield: MeshInstance3D
 var _shield_mat: StandardMaterial3D
@@ -220,8 +223,11 @@ func _build_plant(d: HardpointDef) -> void:
 
 ## Applies the latest replicated state.
 func apply(st: SnapshotData.HardpointState) -> void:
-	_ring_mat.albedo_color = team_color(st.owner)
-	_seg_on.albedo_color = team_color(st.capturing_team)
+	_ring_base = team_color(st.owner)
+	_seg_base = team_color(st.capturing_team)
+	_progress = st.progress
+	_ring_mat.albedo_color = _ring_base
+	_seg_on.albedo_color = _seg_base
 	var lit := roundi(st.progress * SEGMENTS)
 	if lit != _lit:
 		_lit = lit
@@ -245,6 +251,20 @@ func set_objective(on: bool) -> void:
 
 func _process(_delta: float) -> void:
 	_update_label()
+	_glow_pulse()
+
+
+## G1: capture glow. The lit progress segments and the owner ring breathe above
+## 1.0 (HDR, Signal tier: ownership emissive, blooms where glow is on); the
+## pulse speeds up and brightens with capture progress.
+func _glow_pulse() -> void:
+	if _ring_mat == null or GfxQuality.is_headless():
+		return
+	var t := Time.get_ticks_msec() * 0.001
+	var k := 1.15 + 0.15 * sin(t * 2.0)
+	_ring_mat.albedo_color = Color(_ring_base.r * k, _ring_base.g * k, _ring_base.b * k, _ring_mat.albedo_color.a)
+	var p := 1.25 + 0.25 * _progress + (0.2 + 0.25 * _progress) * sin(t * (3.0 + 5.0 * _progress))
+	_seg_on.albedo_color = Color(_seg_base.r * p, _seg_base.g * p, _seg_base.b * p, 1.0)
 
 
 func _update_label() -> void:

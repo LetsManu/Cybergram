@@ -22,6 +22,16 @@ var clients: Dictionary = {}  # peer id -> ClientConnection
 var hello_hero: Dictionary = {}  # peer id -> int
 ## Lobby slot token each joining peer sent in Hello (0 = none).
 var hello_token: Dictionary = {}  # peer id -> int
+## v11: lobby slot token -> {name, id, accent} of the player it belongs to
+## (filled by the session from the lobby slots, and for late joiners here).
+var token_names: Dictionary = {}
+## v11: net id -> {name, accent, id} of the joined human players (PLAYER_NAMES).
+var names: Dictionary = {}
+## Presence of the players in this match (process-wide by default).
+var registry: PresenceRegistry = PresenceRegistry.shared()
+## Accounts / guests (process-wide by default); identities of late joiners.
+var accounts: AccountService = AccountService.shared()
+var _rng := RandomNumberGenerator.new()
 var _scratch: Array[InputCommand] = []
 
 
@@ -32,6 +42,7 @@ func _init(t: Transport, net_config: NetConfig) -> void:
 
 ## Receives and routes every arrived packet.
 func poll() -> void:
+	accounts.step(net.tick_dt())
 	transport.poll()
 	var pkt := transport.pop_packet()
 	while pkt != null:
@@ -46,12 +57,37 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	c.inputs = InputBuffer.new(net.max_buffered_inputs)
 	clients[peer_id] = c
 	transport.send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
+	var who: Dictionary = token_names.get(hello_token.get(peer_id, 0), {})
+	if not who.is_empty():
+		names[own_net_id] = {"name": who.name, "accent": who.accent, "id": who.id}
+		registry.claim(who.id, who.id, who.name)
+		registry.set_status(who.id, LobbyCodec.STATUS_IN_MATCH, PresenceRegistry.now_s())
+		accounts.adopt(who.id, peer_id)  # the login session lives while connected to the match
+	_send_names()
 
 
 ## Forgets a disconnected peer: no more snapshots or events go to it. Its
 ## hero stays in the match, idle (a bot takeover is future work).
 func drop(peer_id: int) -> void:
+	var c: ClientConnection = clients.get(peer_id)
 	clients.erase(peer_id)
+	accounts.on_disconnect(peer_id)
+	token_names.erase(hello_token.get(peer_id, 0))
+	hello_token.erase(peer_id)
+	hello_hero.erase(peer_id)
+	if c != null and names.has(c.own_net_id):
+		registry.forget(str(names[c.own_net_id].id))  # privacy: nothing kept after a disconnect
+		names.erase(c.own_net_id)
+		_send_names()
+
+
+## PLAYER_NAMES to every joined client (reliable; sent on joins and leaves only).
+func _send_names() -> void:
+	if names.is_empty() and clients.is_empty():
+		return
+	var b := LobbyCodec.encode_player_names(names)
+	for peer in clients:
+		transport.send(peer, Transport.CH_CONTROL, b)
 
 
 func reject(peer_id: int, reason: int) -> void:
@@ -87,11 +123,25 @@ func _handle(pkt: Transport.Packet) -> void:
 		MsgType.LOBBY_JOIN:
 			# A lobby client while the match runs: tell it to join right away
 			# (token 0 = take over a bot slot, see ServerWorld).
+			# v11: the late joiner gets its own token so the match knows its name.
 			var j := LobbyCodec.decode_join(pkt.data)
-			if not j.is_empty():
-				transport.send(pkt.from_peer, Transport.CH_CONTROL, LobbyCodec.encode_start(0, 255, j.hero_index))
-		MsgType.LOBBY_PICK:
-			pass
+			if j.is_empty():
+				return
+			if j.get("legacy", false) or j.protocol_version != MsgType.PROTOCOL_VERSION:
+				reject(pkt.from_peer, MsgType.REJECT_PROTOCOL_MISMATCH)
+			elif accounts.identity(pkt.from_peer).is_empty():
+				reject(pkt.from_peer, MsgType.REJECT_NOT_LOGGED_IN)
+			else:
+				var who := accounts.identity(pkt.from_peer)
+				var token := 0
+				while token == 0 or token_names.has(token):
+					token = _rng.randi_range(1, 65535)
+				token_names[token] = {"name": who.name, "id": who.id, "accent": who.accent}
+				transport.send(pkt.from_peer, Transport.CH_CONTROL, LobbyCodec.encode_start(token, 255, j.hero_index))
+		MsgType.ACCOUNT_REQ:
+			accounts.handle(transport, pkt.from_peer, pkt.data)
+		MsgType.LOBBY_PICK, MsgType.LOBBY_TEAM, MsgType.LOBBY_CHAT_SEND:
+			pass  # a lobby client that has not seen the match start yet
 		MsgType.INPUT_BATCH:
 			var c: ClientConnection = clients.get(pkt.from_peer)
 			if c == null:

@@ -1,0 +1,215 @@
+# Lobby and Social — UX decisions (Wave 9, chunk L1)
+
+Status: implemented in v0.5.0 (protocol v12). Owner: L1 (lobby/social).
+
+> **Superseded in part (owner, 2026-10-04): accounts moved to the server (§6).**
+> §2.1 (local profile file), §2.4 (local friends list, presence check-ins) and
+> §4 items 1, 4, 5 describe the first, local-only design and are kept as
+> history; §6 is what ships. Everything else (lobby, chat, team switch,
+> badges, match names) is unchanged.
+Scope: player profile, the full pre-match lobby, lobby chat, friends and
+presence. One dedicated server and no accounts, so everything that a live
+service keeps in a backend lives either in the client's `user://` files or in
+the server's memory.
+
+## 1. Reference: how the big four do it
+
+| Area | League of Legends | Dota 2 | Apex Legends | Valorant | What we take |
+|---|---|---|---|---|---|
+| Identity | Riot ID `Name#TAG`; summoner icon + border | Steam name + avatar | EA/platform name, banner | Riot ID `Name#TAG`, player card | **Riot-ID style**: free name + a 4-char tag derived from a stable id, an emblem and an accent colour |
+| Client home | Big PLAY button, social panel docked on the right at all times | Dashboard, friends column on the right | Lobby with your squad visible | Home with party panel on the left | A **compact friends panel docked right** on the main menu and in the lobby |
+| Pre-game | Champ select: two team columns, portraits, lock-in, a short final countdown | All Pick: hero grid, timers | Legend select in turn order | Agent select: two columns, Lock In, countdown | **Two team columns**, hero badges per slot, Ready = **Lock In** (pick frozen), countdown, final 2 s fully locked |
+| Custom games | Free team switch when the other side has room | Lobby slots, drag to a team | — | Custom: team switch | **Player-chosen team switch** when the other side has a free slot (waiting phase only) |
+| Chat | Lobby chat with system lines (joined / left / locked in) | Lobby chat | Squad text + pings | Team/party chat | One lobby chat, server-sanitised, rate-limited, with **localised system lines** |
+| Friends | Add by Riot ID; online / in champ select / in game / away; "Join" / "Invite" | Steam friends, "Join game" | Platform friends, "Join party" | Add by Riot ID, party join | Add by name (or `Name#TAG`); statuses **online / in lobby / in match / offline**; **Join** |
+| Parties | Party queues together, same team | Party | Squad | Party | **Party-lite**: "Join" asks the server to seat you on your friend's team when it has room |
+
+## 2. Decisions
+
+### 2.1 Profile (`src/core/profile/player_profile.gd`, `user://profile.cfg`)
+
+- **Name**: 3-16 characters from `A-Z a-z 0-9 _ - .` and single inner spaces;
+  no leading/trailing space. ASCII only: every glyph is in the UI font, the
+  wire size is bounded (≤ 16 bytes) and there are no look-alike names. The
+  server re-validates every name it receives (never trusts the client).
+- **Id**: 16 random bytes generated once (hex string, "UUID-ish").
+  **Tag** = first 4 hex digits, upper case, shown as `Name#1A2B` (Riot ID).
+  Two players may share a name; the tag tells them apart.
+- **Key**: a second 16 random bytes that never leave the client except to the
+  server. While an id is connected (or its lobby seat is in the reconnect
+  grace), the server refuses a join that claims it with another key — nobody
+  can steal a seat by copying a friend's (public) id. The claim is forgotten
+  on disconnect (§4).
+- **Emblem**: one of 12 code-drawn emblems; **accent colour**: one of 10
+  presets (indices on the wire, validated on the server). Presets rather than
+  a free colour picker keep every combination readable on the dark panels.
+- **First launch** shows the profile screen before anything else (LoL/Valorant
+  make you pick a name before the client opens). A test run with
+  `--auto-ready` gets a generated valid profile so automation never blocks.
+- Editable any time from **PROFILE** on the main menu.
+
+### 2.2 Lobby (`LobbyServer`, `LobbyScreen`)
+
+- **Seating**: a joiner goes to the smaller team (ties: Concord), or to their
+  friend's team when they came through **Join friend** and it has room.
+- **Team switch**: SWITCH TEAM button under each column header while the
+  phase is *waiting* and the other side has fewer than `team_size` players.
+  Switching un-readies you (LoL custom games behave the same).
+- **Hero picker**: built from ContentDB (every `assets/data/heroes/hero_*.tres`),
+  sorted by display name; label = `tr("HUD_HERO_NAME_<STEM>")` when the key
+  exists, else `HeroDef.display_name`. New heroes appear with no code change.
+  Each slot shows a code-drawn **hero badge** (hex in the hero's signature
+  colour with initials).
+- **Ready = Lock In**: while ready the hero cannot change (the server ignores
+  hero changes from a ready player; the picker greys out).
+- **Countdown**: 5 s once everyone is ready. Un-readying cancels it, except in
+  the **final 2 s (LOCKED)**, where nobody can un-ready and the line turns
+  gold — the Valorant/LoL "picks are final" beat. A leaver during LOCKED does
+  not cancel the start.
+- **Reconnect-safe**: a player who drops keeps their slot (team + hero) for
+  15 s, shown as *reconnecting*; rejoining with the same id + key restores it
+  (the client retries on its own). A disconnected slot does not block the
+  countdown. A second connection with the same id + key replaces the first.
+- **Leave**: LEAVE LOBBY closes the connection; the seat is held for the
+  reconnect grace, but a disconnected seat never blocks the countdown and is
+  dropped when the match starts.
+- **Handover**: unchanged slot-token flow; the token now also maps to the
+  player's name on the match server (§2.5).
+
+### 2.3 Chat
+
+- Max 120 characters (and 240 UTF-8 bytes); the server strips control
+  characters, bidi overrides and zero-width characters, collapses whitespace
+  and drops empty results. Shown in a plain `Label`/`RichTextLabel` with
+  BBCode **off**, so no markup injection.
+- **Rate limit**: token bucket, 4 messages burst, 1 new message every 1.5 s;
+  an over-limit message is dropped and only the sender gets a "slow down"
+  system line.
+- The server keeps the last 20 lines **in memory** and sends them to a joiner
+  (reconnects keep context); the buffer is cleared when the match starts.
+- **System lines** (joined, left, reconnecting, switched team, locked in) are
+  sent as codes + a name and composed client-side with `tr()`, so they are
+  localisable.
+
+### 2.4 Friends and presence
+
+- Friends are stored locally (`user://friends.cfg`): name, and the id once
+  seen. Add by `Name` or `Name#TAG`; it resolves when the server (or the
+  lobby roster) has seen exactly one matching player, or the tag matches.
+- The server keeps a presence table **in memory, for connected players
+  only** (§4): id, key, name, status. **Online** = the client's main menu
+  checked in within the last 25 s; **In lobby** / **In match** are set by the
+  lobby and the match server; anything else (including unknown) is
+  **Offline**. An entry is forgotten on disconnect.
+- The main menu polls every 10 s with a short-lived connection
+  (connect → PRESENCE_QUERY → PRESENCE → close) so it never holds one of the
+  server's client slots. In the lobby the query rides the lobby connection.
+- **Join friend** (friend in lobby or match) opens the server's lobby with a
+  party request: you are seated on the friend's team if it has room; during a
+  match you join the match (bot takeover, as any late joiner).
+- Panel: a compact column docked right (LoL client), status dot + text,
+  sorted online-first, with Join and Remove per row and an add field on top.
+  In the lobby, every other player's row has a **+** to add them as a friend.
+
+### 2.5 Match
+
+- The lobby sends each player's validated name with its slot token to the
+  match server (`ServerSession.token_names`). When the player's Hello is
+  accepted, the server broadcasts a PLAYER_NAMES table (net id → name);
+  clients feed it to the HUD roster, so the **scoreboard and kill feed show
+  player names** online. Late joiners get a token too, so they are named.
+- Names above heroes are left to the views owner (G1 wave owns
+  `src/gameplay/views/*`); the data is on `ClientSession.player_names`.
+
+## 4. Privacy / GDPR (owner requirement, 2026-10-04)
+
+The owner is in Austria (EU); the full notice is `PRIVACY.md` (repo root).
+
+1. **Data minimisation.** No e-mail, password, real name, IP display,
+   analytics or tracking. The profile is name + emblem + colour + random id
+   (+ a private key that only goes to the server, to protect a seat), stored
+   only in `user://profile.cfg`. No server accounts.
+2. **Notice + acknowledgement.** The profile screen shows a short notice (what
+   is sent: name, emblem, colour, player id, chat; why; how long) and an
+   acknowledgement checkbox, versioned (`PlayerProfile.PRIVACY_VERSION`, saved
+   in `profile.cfg`). PLAY ONLINE, Join friend and the menu's presence
+   check-ins need it; otherwise the profile screen opens first with the
+   notice highlighted. Offline play needs nothing. Unticking withdraws it.
+   Automated `--auto-ready` runs create a generated profile with the notice
+   acknowledged (the tester is the user).
+3. **Server retention.** `PresenceRegistry` and the lobby seats live in memory
+   only and are connection-scoped: forgotten on disconnect (lobby seat after the
+   15 s reconnect grace, menu check-ins after 25 s, match players on leave and
+   at match end). Chat is relayed; the 20-line replay buffer is per lobby and
+   cleared at match start. **Logs** contain no chat text and no display names,
+   only `player #TAG` (the 4-hex id tag), peer numbers and game events. Log
+   rotation is still recommended (`docs/SERVER.md`, compose `logging:`).
+4. **Friends list** is local only (names + ids on the player's machine). The
+   server answers presence only for the ids/names the client asks about, from
+   what it holds for currently connected players.
+5. **Rights.** Profile screen: **Export my data** (`LocalData.export_json` →
+   `user://my_cybergram_data.json`, readable JSON, path shown) and
+   **Delete my profile & data** (two presses; removes profile, friends,
+   moderation, menu prefs and an earlier export; back to first launch).
+   Server-side data vanishes on disconnect, so there is nothing to delete
+   there.
+6. **Chat safety.** 120 chars / 240 bytes, 4-burst + 1 per 1.5 s rate limit,
+   control / bidi / zero-width characters stripped on the server; per-player
+   **Mute** (by id, local) and a **Report** stub that only records locally
+   (`user://moderation.cfg`). Offensive / impersonating names are refused by
+   a data list (`assets/data/social/name_filter.tres`, `NameFilterDef`) on
+   the client (hint) and the server (authoritative).
+
+## 6. Server accounts (owner decision, 2026-10-04; ships in v0.5.0)
+
+- **Transport**: ENet DTLS (`ENetConnection.dtls_server_setup` /
+  `dtls_client_setup`). Server cert + key from `--tls-cert/--tls-key` or env
+  `CYBERGRAM_TLS_CERT/CYBERGRAM_TLS_KEY` (Docker: `/data/tls/fullchain.pem`,
+  `/data/tls/privkey.pem`, a Let's Encrypt cert for cyber.djboeck.at). With no
+  readable cert the server is **guest-only**, logs one line, and refuses
+  login / register (`E_NOT_SECURE`); passwords never travel in plain. Clients
+  use DTLS with the system CAs for host names; IPs / localhost are plain unless
+  `--dtls-ca <pem>` pins a cert; `--dtls-insecure` (client_unsafe) is a debug
+  flag only.
+- **Guests**: `--allow-guests` / `CYBERGRAM_ALLOW_GUESTS` (default off). With
+  encryption on and guests off, everyone logs in. Without a cert, guests are
+  allowed anyway so the game stays playable.
+- **Store** (`AccountStore` / `FileAccountStore`): one JSON file per account
+  in the data dir (`--data-dir` / `CYBERGRAM_DATA_DIR`, default
+  `user://accounts`, Docker `/data/accounts`), written atomically (tmp + rename).
+  Fields: id, username, password {algo, hash, salt, iterations}, profile
+  {display_name, emblem, accent, favourite_hero}, friends, requests_in/out,
+  blocks, created_at, last_login_at. Nothing else.
+- **Passwords**: PBKDF2-HMAC-SHA256 (`Pbkdf2`, on `Crypto.hmac_digest`), 16-byte
+  random salt, iterations from `assets/data/net/auth_rules.tres` (60 000 ≈
+  0.25 s in GDScript), run on the WorkerThreadPool (`PasswordHasher`), never on
+  the sim thread; constant-time compare; an unknown username costs the same
+  hash. Login rate limits per account (5 / 5 min) and per connection (10 / 5
+  min), lockout 5 min (data).
+- **Sessions**: 32 random bytes, memory only; bound to the connection and
+  dropped `session_grace_s` (60 s) after it closes. The match server adopts the
+  session of a player who joins with a slot token, so after the match the
+  client resumes (`OP_RESUME`) without a password. The client keeps the token
+  in a static var only.
+- **Protocol v12**: `ACCOUNT_REQ` / `ACCOUNT_RESULT` (`AccountCodec`, fixed
+  per-op schemas): register (privacy + age ≥ 14 flags), login, resume, guest,
+  logout, change password, update profile, delete (password), export (account
+  JSON minus hash/salt), friend request (username or id) / accept / decline /
+  remove, block / unblock, friends list with presence. `LOBBY_JOIN` carries
+  no identity any more; the lobby takes it from the session.
+  Delete cascades out of every other account's lists.
+- **Retention**: accounts idle for `retention_days` (365) are deleted at start
+  and daily. Chat stays unlogged and unstored.
+- **Client**: login / register / guest screen ahead of the lobby (no password
+  recovery note), PROFILE = account screen (profile, password, export to a
+  picked file, delete, log out), friends panel on the server account, lobby
+  rows: + (friend request), Mute (session only), Block (account). The client
+  stores only the hero pick and the optional remembered username. An old
+  `user://profile.cfg` is offered for import once after the first login, then
+  all old local files are deleted.
+
+## 7. Not doing (yet)
+
+Invites/notifications, blocking/muting, persistent server-side accounts,
+whispers, party chat, a hero grid with portraits (badges until hero art
+exists), drag-and-drop seating.

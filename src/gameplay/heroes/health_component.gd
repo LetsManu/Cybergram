@@ -22,6 +22,8 @@ var shield: float = 0.0
 var last_absorbed: float = 0.0
 var team: int
 var last_attacker: int = 0
+## HP that damage cannot reduce below (Aurora's 2 s floor of 1 HP; 0 = none).
+var floor_hp: float = 0.0
 
 
 func _init(max_hp_: float, armor_: float, team_: int) -> void:
@@ -58,7 +60,7 @@ func apply_damage(info: DamageInfo) -> float:
 		if amount <= 0.0:
 			last_attacker = info.source_net_id
 			return 0.0
-	var applied := minf(amount, hp)
+	var applied := minf(amount, maxf(0.0, hp - floor_hp))
 	hp -= applied
 	last_attacker = info.source_net_id
 	if hp <= 0.0:

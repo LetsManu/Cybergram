@@ -447,7 +447,8 @@ func debug_text() -> String:
 ## CLIENT mode: a ClientWorld joined to a remote dedicated server over UDP.
 func _setup_remote_client() -> void:
 	var lc := launch_config
-	remote = ENetTransport.connect_to(lc.connect_address, lc.port)
+	remote = ENetTransport.connect_to(lc.connect_address, lc.port,
+		AuthConfig.from_os().client_tls_for(lc.connect_address))  # L1: DTLS like the lobby link
 	print("[client] connecting to %s:%d" % [lc.connect_address, lc.port])
 	client = ClientWorld.new()
 	client.hello_token = lc.token
@@ -491,7 +492,24 @@ func _watch_remote() -> void:
 ## when the lobby starts it (see LobbyServer).
 func _start_lobby() -> void:
 	match_pending = true
-	_lobby_enet = ENetTransport.listen(launch_config.port, launch_config.max_clients)
+	# L1: DTLS + server accounts when a certificate is configured, else guest-only.
+	var auth := AuthConfig.from_os()
+	var tls := auth.load_server_tls()
+	_lobby_enet = ENetTransport.listen(launch_config.port, launch_config.max_clients, tls)
+	if _lobby_enet.error_text == "":
+		var store: AccountStore = null
+		if tls != null:
+			store = FileAccountStore.new(auth.data_dir)
+			if store.open() != OK:
+				push_error("[accounts] cannot open the account store in %s" % auth.data_dir)
+				store = null
+		var svc := AccountService.configure_shared(store, AuthConfig.rules(), tls != null and store != null,
+			auth.allow_guests)
+		if store != null:
+			print("[accounts] encrypted login enabled (%d account(s) in %s); guests %s" % [store.count(),
+				auth.data_dir, "allowed" if svc.allow_guests else "off (login required)"])
+		else:
+			print("[accounts] %s; guest-only (login disabled)" % (auth.tls_error if tls == null else "no account store"))
 	if _lobby_enet.error_text != "":
 		push_error("GameSession: %s" % _lobby_enet.error_text)
 		get_tree().quit(1)
@@ -508,6 +526,7 @@ func _on_lobby_started(slots: Array) -> void:
 	_build_match()
 	for sl: Dictionary in slots:
 		server.reserved_slots[sl.token] = {"team": sl.team, "hero_index": sl.hero_index}
+		server.session.token_names[sl.token] = {"name": sl.name, "id": sl.id, "accent": sl.accent}
 	enet.peer_disconnected.connect(func(id: int) -> void: server.on_peer_left(id))
 	server.session.client_joined.connect(func(peer: int) -> void:
 		print("[server] player joined the match (peer %d)" % peer), CONNECT_DEFERRED)

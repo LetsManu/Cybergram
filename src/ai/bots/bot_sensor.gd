@@ -57,6 +57,8 @@ func scan(h: HeroBody, look_yaw: float, bb: BotBlackboard, prefer_uplink: bool) 
 		var d := eye.distance_to(e.state.position)
 		if d > profile.sight_range_m:
 			continue
+		if server.abilities.extras.hidden_from(e, eye):
+			continue  # Veilwalk: unseen beyond the shimmer radius
 		var flat := Vector2(e.state.position.x - eye.x, e.state.position.z - eye.z)
 		var in_fov := flat.length() < 0.01 or absf(fwd.angle_to(flat.normalized())) <= half_fov
 		var hit_me := e.net_id == bb.last_attacker_id and bb.seconds_since(bb.last_damaged_tick) < 1.0
