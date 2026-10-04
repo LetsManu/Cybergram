@@ -14,9 +14,9 @@ const VESPER_PLAN := {150: InputCommand.BTN_SKILL2, 175: InputCommand.BTN_SKILL4
 const WALL_PITCH: float = -0.16
 ## W9-H2: scripted plans for the gadget heroes: tick -> buttons; AIM tick ranges
 ## -> [yaw offset (rad), pitch]. They stand facing the lane like Brannoc.
-const JUNIPER_PLAN := {10: InputCommand.BTN_SKILL3, 25: InputCommand.BTN_SKILL1, 40: InputCommand.BTN_SKILL2,
-	55: InputCommand.BTN_SKILL2, 80: InputCommand.BTN_SKILL4}
-const HEX_PLAN := {20: InputCommand.BTN_SKILL1, 40: InputCommand.BTN_SKILL2, 70: InputCommand.BTN_SKILL4}
+const JUNIPER_PLAN := {4: InputCommand.BTN_SKILL3, 12: InputCommand.BTN_SKILL1, 21: InputCommand.BTN_SKILL2,
+	30: InputCommand.BTN_SKILL2, 40: InputCommand.BTN_SKILL4}
+const HEX_PLAN := {8: InputCommand.BTN_SKILL1, 16: InputCommand.BTN_SKILL2, 26: InputCommand.BTN_SKILL4}
 
 var _brannoc: bool = false
 var _face: float = INF
@@ -39,9 +39,9 @@ func sample(seq: int, out: InputCommand) -> void:
 		if gadget_hero:
 			var juniper := client.hero_def.id == &"hero_juniper_quill"
 			out.buttons = (JUNIPER_PLAN if juniper else HEX_PLAN).get(seq, 0)
-			out.pitch = -0.2 if seq < 100 else -0.1
+			out.pitch = -0.2 if seq < 36 else -0.1
 			if juniper:  # Tripwire anchors A (left) and B (right) a few metres apart
-				out.yaw += 0.4 if seq >= 36 and seq < 50 else (-0.4 if seq >= 50 and seq < 70 else 0.0)
+				out.yaw += 0.4 if seq >= 18 and seq < 26 else (-0.4 if seq >= 26 and seq < 36 else 0.0)
 		out.quantize()
 		return
 	super.sample(seq, out)
