@@ -37,8 +37,11 @@ func _ready() -> void:
 	layer = 40
 	_panel = MenuStyle.panel_container(Color(HudPalette.PANEL_STRONG, 0.9), 12)
 	_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_panel.position = Vector2(0.0, 150.0)
 	_panel.custom_minimum_size = Vector2(560, 0)
+	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_panel.offset_left = -280.0
+	_panel.offset_right = 280.0
+	_panel.offset_top = 150.0
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_panel)
 	var v := VBoxContainer.new()

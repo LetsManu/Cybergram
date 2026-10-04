@@ -66,7 +66,7 @@ static func hero_display_name(index: int) -> String:
 	var id := ContentDB.shared().id_at(ContentDB.HERO, index)
 	if id == &"":
 		return ""
-	var path := HERO_PATH % id
+	var path := HERO_PATH % String(id).trim_prefix("hero_")
 	if ResourceLoader.exists(path):
 		var d := load(path) as HeroDef
 		if d != null:

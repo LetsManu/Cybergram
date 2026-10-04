@@ -8,6 +8,7 @@ extends CanvasLayer
 ## SHOW_DELAY_S after the match end so the end banner is seen first.
 
 const SHOW_DELAY_S := 2.5
+const COLUMN_W: Array[int] = [150, 210, 90, 110, 80, 120, 70, 50]
 const COLUMN_KEYS: Array[String] = ["HUD_END_COL_HERO", "HUD_END_COL_NAME", "HUD_END_COL_KDA",
 	"HUD_END_COL_DAMAGE", "HUD_END_COL_HEALING", "HUD_END_COL_OBJECTIVE", "HUD_END_COL_LUMEN", "HUD_END_COL_LEVEL"]
 
@@ -61,7 +62,7 @@ func show_summary(summary: Dictionary, winner: int) -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.025, 0.05, 0.88)
+	dim.color = Color(0.02, 0.025, 0.05, 0.94)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	var center := CenterContainer.new()
@@ -113,8 +114,10 @@ func _team_table(team: int, rows: Array, won: bool) -> Control:
 	g.add_theme_constant_override("h_separation", 22)
 	g.add_theme_constant_override("v_separation", 3)
 	v.add_child(g)
-	for k in COLUMN_KEYS:
-		g.add_child(MenuStyle.label(tr(k), 13, HudPalette.TEXT_DIM))
+	for i in COLUMN_KEYS.size():
+		var hl := MenuStyle.label(tr(COLUMN_KEYS[i]), 13, HudPalette.TEXT_DIM)
+		hl.custom_minimum_size.x = COLUMN_W[i]
+		g.add_child(hl)
 	for r: MatchEndModel.Row in rows:
 		var c := HudPalette.TEXT if not r.is_self else HudPalette.team_color(team).lightened(0.5)
 		var cells: Array[String] = [r.hero, r.name + ("  " + tr("HUD_END_MVP") if r.is_mvp else ""),
