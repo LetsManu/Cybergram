@@ -507,3 +507,34 @@ HUD_END_COL_LEVEL,Lvl
 HUD_END_MVP,[MVP]
 HUD_END_BACK_LOBBY,BACK TO LOBBY
 HUD_END_MAIN_MENU,MAIN MENU
+HUD_TUT_TITLE,PRACTICE RANGE TUTORIAL  (%d / %d)
+HUD_TUT_OFFER,First time here? Take the short tutorial.
+HUD_TUT_OFFER_YES,START TUTORIAL
+HUD_TUT_OFFER_NO,SKIP
+HUD_TUT_SKIP_STEP,Skip step
+HUD_TUT_SKIP_ALL,Skip tutorial
+HUD_TUT_DONE_TITLE,Tutorial complete
+HUD_TUT_DONE_TEXT,You are ready. Keep practising on the dummies.
+HUD_TUT_KEYS_HINT,Range keys: %s level up   %s reset   %s replay tutorial
+HUD_TUT_PAD_LABEL,Gamepad:
+HUD_TUT_MOVE,Move around with %s.
+HUD_TUT_MOVE_PAD,Left stick
+HUD_TUT_JUMP,Jump with %s.
+HUD_TUT_JUMP_PAD,A / Cross
+HUD_TUT_SPRINT,Hold %s while moving to sprint.
+HUD_TUT_SPRINT_PAD,Click the left stick
+HUD_TUT_SHOOT,Shoot a dummy with %s.
+HUD_TUT_SHOOT_PAD,Right trigger
+HUD_TUT_RELOAD,Reload with %s.
+HUD_TUT_RELOAD_PAD,X / Square
+HUD_TUT_SKILL,Use your first skill with %s.
+HUD_TUT_SKILL_PAD,Left bumper area: see the skill bar
+HUD_TUT_LEVEL,Level up with %s (free in the range).
+HUD_TUT_LEVEL_PAD,D-pad up
+HUD_TUT_FORK,Pick a fork for a skill with %s.
+HUD_TUT_FORK_PAD,L1 = fork A, R1 = fork B
+HUD_TUT_SHOP,Open the shop with %s.
+HUD_TUT_SHOP_PAD,Y / Triangle
+HUD_TUT_BUY,Buy an item: move to it and confirm.
+HUD_TUT_BUY_PAD,A / Cross to buy
+HUD_MENU_PRACTICE,PRACTICE RANGE

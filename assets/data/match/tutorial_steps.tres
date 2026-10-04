@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="TutorialDef" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/tutorial_def.gd" id="d"]
+[ext_resource type="Script" path="res://src/gameplay/data/tutorial_step_def.gd" id="s"]
+
+[sub_resource type="Resource" id="st0"]
+script = ExtResource("s")
+id = &"move"
+text_key = "HUD_TUT_MOVE"
+actions = PackedStringArray("move_forward", "move_left", "move_back", "move_right")
+pad_key = "HUD_TUT_MOVE_PAD"
+
+[sub_resource type="Resource" id="st1"]
+script = ExtResource("s")
+id = &"jump"
+text_key = "HUD_TUT_JUMP"
+actions = PackedStringArray("jump")
+pad_key = "HUD_TUT_JUMP_PAD"
+
+[sub_resource type="Resource" id="st2"]
+script = ExtResource("s")
+id = &"sprint"
+text_key = "HUD_TUT_SPRINT"
+actions = PackedStringArray("sprint")
+pad_key = "HUD_TUT_SPRINT_PAD"
+
+[sub_resource type="Resource" id="st3"]
+script = ExtResource("s")
+id = &"shoot"
+text_key = "HUD_TUT_SHOOT"
+actions = PackedStringArray("fire")
+pad_key = "HUD_TUT_SHOOT_PAD"
+
+[sub_resource type="Resource" id="st4"]
+script = ExtResource("s")
+id = &"reload"
+text_key = "HUD_TUT_RELOAD"
+actions = PackedStringArray("reload")
+pad_key = "HUD_TUT_RELOAD_PAD"
+
+[sub_resource type="Resource" id="st5"]
+script = ExtResource("s")
+id = &"skill_1"
+text_key = "HUD_TUT_SKILL"
+actions = PackedStringArray("skill_1")
+pad_key = "HUD_TUT_SKILL_PAD"
+
+[sub_resource type="Resource" id="st6"]
+script = ExtResource("s")
+id = &"level_up"
+text_key = "HUD_TUT_LEVEL"
+actions = PackedStringArray()
+pad_key = "HUD_TUT_LEVEL_PAD"
+
+[sub_resource type="Resource" id="st7"]
+script = ExtResource("s")
+id = &"fork"
+text_key = "HUD_TUT_FORK"
+actions = PackedStringArray("fork_a", "fork_b")
+pad_key = "HUD_TUT_FORK_PAD"
+
+[sub_resource type="Resource" id="st8"]
+script = ExtResource("s")
+id = &"shop_open"
+text_key = "HUD_TUT_SHOP"
+actions = PackedStringArray("open_shop")
+pad_key = "HUD_TUT_SHOP_PAD"
+
+[sub_resource type="Resource" id="st9"]
+script = ExtResource("s")
+id = &"buy"
+text_key = "HUD_TUT_BUY"
+actions = PackedStringArray()
+pad_key = "HUD_TUT_BUY_PAD"
+
+[resource]
+script = ExtResource("d")
+steps = Array[ExtResource("s")]([SubResource("st0"), SubResource("st1"), SubResource("st2"), SubResource("st3"), SubResource("st4"), SubResource("st5"), SubResource("st6"), SubResource("st7"), SubResource("st8"), SubResource("st9")])
+done_flash_s = 0.8

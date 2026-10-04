@@ -95,6 +95,7 @@ func _ready() -> void:
 	col.add_child(MenuStyle.button(tr("HUD_MENU_PLAY_ONLINE"), _join, true))
 	col.add_child(MenuStyle.spacer(6))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_TEST_COURSE"), _course, false, 44))
+	col.add_child(MenuStyle.button(tr("HUD_MENU_PRACTICE"), _practice, false, 44))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_PROFILE"), func() -> void: _with_session(_show_profile), false, 44))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_SETTINGS"), func() -> void:
 		col.visible = false
@@ -494,6 +495,10 @@ func _show_lobby(addr: String, party_id: String) -> void:
 
 func _course() -> void:
 	_start(PackedStringArray(["--map", "test_course", "--hero", _hero_id()]))
+
+
+func _practice() -> void:
+	_start(PracticeRange.begin(_hero_id()))
 
 
 func _start(args: PackedStringArray) -> void:

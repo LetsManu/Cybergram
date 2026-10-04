@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AppConfig" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="AppConfig" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/core/app/app_config.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/gameplay/world/game_session.tscn" id="2"]
@@ -9,11 +9,12 @@
 [ext_resource type="PackedScene" path="res://src/ui/menu/main_menu.tscn" id="menu"]
 [ext_resource type="PackedScene" path="res://src/ui/menu/pause_menu.tscn" id="pause"]
 [ext_resource type="PackedScene" path="res://src/ui/hud/match_end_screen.tscn" id="w4_end"]
+[ext_resource type="PackedScene" path="res://src/gameplay/practice/practice_range_installer.tscn" id="w4_range"]
 
 [resource]
 script = ExtResource("1")
 session_scene = ExtResource("2")
 overlay_scenes = Array[PackedScene]([ExtResource("e12_hud"), ExtResource("3"), ExtResource("pause"), ExtResource("w4_end")])
-sim_plugin_scenes = Array[PackedScene]([ExtResource("6"), ExtResource("e11_bots")])
+sim_plugin_scenes = Array[PackedScene]([ExtResource("6"), ExtResource("e11_bots"), ExtResource("w4_range")])
 menu_scene = ExtResource("menu")
 online_server = "cyber.djboeck.at:7777"
