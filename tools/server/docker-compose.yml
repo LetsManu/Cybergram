@@ -1,9 +1,13 @@
-# docker compose -f tools/server/docker-compose.yml up -d --build
-# (extract the Linux release into tools/server/game first, see Dockerfile)
+# Cybergram dedicated server (lobby + 3v3 matches, bots fill free slots).
+#   docker compose -f tools/server/docker-compose.yml up -d
+# The image is published with every release (x86_64 only):
+#   ghcr.io/letsmanu/cybergram-server:latest  (or a fixed :v0.4.0)
 services:
   cybergram:
-    build: .
+    image: ghcr.io/letsmanu/cybergram-server:latest
     container_name: cybergram
     restart: unless-stopped
     ports:
       - "7777:7777/udp"
+    # Extra server flags, e.g. bot skill:
+    # command: ["--bot-difficulty", "hard"]

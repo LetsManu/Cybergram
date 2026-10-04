@@ -57,18 +57,36 @@ journalctl -u cybergram-server -f          # live log
 sudo ufw allow 7777/udp
 ```
 
-## Option B: NAS or any host with Docker
+## Option B: NAS or any host with Docker (easiest)
+
+Every release publishes a ready server image. No download or unpacking needed:
 
 ```bash
-# in a checkout of this repo (or copy the tools/server folder)
-tar -xzf Cybergram-v0.2.0-linux-x86_64.tar.gz -C tools/server/game
-docker compose -f tools/server/docker-compose.yml up -d --build
-docker logs -f cybergram
+docker run -d --name cybergram --restart unless-stopped \
+  -p 7777:7777/udp ghcr.io/letsmanu/cybergram-server:latest
+docker logs -f cybergram          # "[lobby] open on UDP 7777 ..."
 ```
 
-On a Synology NAS: install **Container Manager**, copy the `tools/server`
-folder (with `game/` filled) to the NAS, and create a *Project* from its
-`docker-compose.yml`. Then forward **UDP 7777** on your router to the NAS.
+Or with compose: `docker compose -f tools/server/docker-compose.yml up -d`.
+
+**Synology:**
+1. Open **Container Manager → Registry → Add**, and add
+   `ghcr.io/letsmanu/cybergram-server`.
+2. Download the `latest` tag.
+3. Create a container from it. Map **UDP 7777 → 7777** and enable
+   auto-restart.
+4. Forward **UDP 7777** on your router to the NAS.
+
+**Updating:** pull `latest` again and recreate the container. Players need
+the same game version as the server.
+
+**Note:** if pulling says *denied* / *unauthorized*, the package is still
+private. On GitHub, open the repo's **Packages → cybergram-server → Package
+settings** and set the visibility to **Public**. Alternatively, run
+`docker login ghcr.io` on the NAS with a personal access token that has
+`read:packages`.
+
+Requires an **x86_64** NAS (Intel/AMD CPU). ARM models cannot run it.
 
 ## Connecting
 
