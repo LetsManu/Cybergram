@@ -19,18 +19,16 @@ func _check(cond: bool, what: String) -> void:
 
 
 func _wait(sig: Signal, seconds: float = 10.0) -> Array:
-	var box: Array = []
-	var done: bool = false
+	var box: Array = []  # lambdas capture bools by value: a non-empty box means done
 	var cb: Callable = func(a: Variant = null, b: Variant = null, c: Variant = null) -> void:
 		box.assign([a, b, c])
-		done = true
 	sig.connect(cb)
 	var t: float = 0.0
-	while not done and t < seconds:
+	while box.is_empty() and t < seconds:
 		await create_timer(0.05).timeout
 		t += 0.05
 	sig.disconnect(cb)
-	return box if done else []
+	return box
 
 
 func _initialize() -> void:
@@ -44,6 +42,9 @@ func _initialize() -> void:
 	login.open(addr)
 	var ready: Array = await _wait(login.link_ready)
 	_check(not ready.is_empty(), "link to the server came up")
+	if ready.is_empty():
+		_finish()
+		return
 	if mode == "plain":
 		_check(ready[0] == false and login.guest_only, "plain link: guest only")
 		var r: Array = []
@@ -63,7 +64,7 @@ func _initialize() -> void:
 		"display_name": "E2E", "emblem": 0, "accent": 0, "flags": AccountCodec.FLAG_PRIVACY | AccountCodec.FLAG_AGE})
 	var reg: Array = []
 	var t: float = 0.0
-	lc.account_result.connect(func(d: Dictionary) -> void: reg = [d])
+	lc.account_result.connect(func(d: Dictionary) -> void: reg.append(d))
 	while reg.is_empty() and t < 10.0:
 		lc.step()
 		await create_timer(0.05).timeout
@@ -109,7 +110,7 @@ func _initialize() -> void:
 	lc = LobbyClient.new(enet)
 	lc.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": token})
 	reg = []
-	lc.account_result.connect(func(d: Dictionary) -> void: reg = [d])
+	lc.account_result.connect(func(d: Dictionary) -> void: reg.append(d))
 	t = 0.0
 	while reg.is_empty() and t < 10.0:
 		lc.step()
