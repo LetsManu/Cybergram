@@ -42,10 +42,12 @@ var paused: bool = false
 var has_pause_menu: bool = false
 var _z_held_s: float = -1.0
 var _x_was_down: bool = false
+var _wheel_by_key: bool = false
 
 
 func setup(look_settings: LookSettings, movement: MovementDef) -> void:
 	look = look_settings
+	GameSettings.shared()  # first use applies the saved key bindings to the InputMap
 	max_pitch_rad = deg_to_rad(movement.max_pitch_deg)
 
 
@@ -81,13 +83,26 @@ func _process(delta: float) -> void:
 		request_action(InputCommand.ACTION_USE_MEDPACK)
 	_medpack_was_down = med
 	var z := _pressed("squad_smart", KEY_Z) and not ui_captured
-	if z:
+	var wheel_key := _pressed("squad_wheel", KEY_V) and not ui_captured
+	if wheel_key:
+		# Dedicated wheel key: opens at once, flick + release picks the slice.
+		if not wheel_open:
+			wheel_open = true
+			wheel_vec = Vector2.ZERO
+			wheel_capture = true
+		_wheel_by_key = true
+	elif _wheel_by_key:
+		_wheel_by_key = false
+		if wheel_open:
+			_squad_request = wheel_selection()
+			wheel_open = false
+	elif z:
 		_z_held_s = 0.0 if _z_held_s < 0.0 else _z_held_s + delta
 		if _z_held_s >= WHEEL_HOLD_S and not wheel_open:
 			wheel_open = true
 			wheel_vec = Vector2.ZERO
 			wheel_capture = true
-	elif _z_held_s >= 0.0:
+	if not wheel_key and not _wheel_by_key and not z and _z_held_s >= 0.0:
 		if wheel_open:
 			_squad_request = wheel_selection()
 			wheel_open = false
@@ -114,18 +129,18 @@ func sample(seq: int, out: InputCommand) -> void:
 	if paused:
 		_sample_neutral(out)
 		return
-	out.move = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	out.move = _move_vector()
 	out.yaw = live_yaw
 	out.pitch = live_pitch
 	out.buttons = 0
-	if Input.is_action_pressed("jump"):
+	if _pressed("jump", KEY_SPACE):
 		out.buttons |= InputCommand.BTN_JUMP
-	if Input.is_action_pressed("crouch"):
+	if _pressed("crouch", KEY_CTRL):
 		out.buttons |= InputCommand.BTN_CROUCH
-	if Input.is_action_pressed("sprint"):
+	if _pressed("sprint", KEY_SHIFT):
 		out.buttons |= InputCommand.BTN_SPRINT
 	# Fire only while the mouse is captured (the capturing click never shoots).
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _fire_down():
 		out.buttons |= InputCommand.BTN_FIRE
 	# Alt-fire (RMB): Liora's heal beam (weapons-and-mods.md §3.3.1).
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
@@ -173,8 +188,23 @@ func _sample_neutral(out: InputCommand) -> void:
 	out.quantize()
 
 
-## Input-map action if defined, else the physical key (no project.godot edit needed).
+## Held-state of the fire action (InputMap, rebindable; default left mouse).
+func _fire_down() -> bool:
+	if InputMap.has_action(&"fire"):
+		return Input.is_action_pressed(&"fire")
+	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+
+
+## WASD (or rebound) movement vector; physical-key fallback without the map.
+func _move_vector() -> Vector2:
+	if InputMap.has_action(&"move_forward"):
+		return Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	return Vector2(
+		float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)),
+		float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))).limit_length(1.0)
+
+
+## Input-map action if defined, else the physical key (unit tests / before
+## GameSettings applied the bindings).
 func _pressed(action: StringName, fallback: Key) -> bool:
-	if InputMap.has_action(action):
-		return Input.is_action_pressed(action)
-	return Input.is_physical_key_pressed(fallback)
+	return InputBindings.is_down(action, fallback)

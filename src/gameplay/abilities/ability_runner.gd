@@ -97,35 +97,15 @@ func effective_cooldown_s(s: SkillInstance) -> float:
 	return maxf(lo, s.param(&"cooldown") * (1.0 - cdr))
 
 
-## A charge-based skill spends one charge; the cooldown (recharge) runs one
-## charge at a time and only blocks the skill at 0 charges.
-func _spend_charge(s: SkillInstance, tick: int) -> void:
-	var cap := s.max_charges()
-	if s.charges_left < 0:
-		s.charges_left = cap
-	s.charges_left -= 1
-	s.cooldown_total_ticks = ceili(effective_cooldown_s(s) * tick_hz)
-	if s.recharge_end_tick <= tick:
-		s.recharge_end_tick = tick + s.cooldown_total_ticks
-	s.cooldown_end_tick = s.recharge_end_tick if s.charges_left <= 0 else 0
-	cooldown_started.emit(s.slot, s.recharge_end_tick)
-
-
-func _recharge(s: SkillInstance, tick: int) -> void:
-	if s.charges_left < 0 or s.recharge_end_tick <= 0 or tick < s.recharge_end_tick:
-		return
-	s.charges_left += 1
-	if s.charges_left < s.max_charges():
-		s.recharge_end_tick += s.cooldown_total_ticks
-	else:
-		s.recharge_end_tick = 0
-	s.cooldown_end_tick = 0
-
-
 func start_cooldown(s: SkillInstance, tick: int, frac: float = 1.0) -> void:
 	s.active = false
 	s.active_until_tick = -1
-	s.cooldown_total_ticks = ceili(effective_cooldown_s(s) * frac * tick_hz)
+	var total := ceili(effective_cooldown_s(s) * frac * tick_hz)
+	if s.is_multi():  # W9-H2: charges recharge one at a time
+		s.consume_charge(tick, total)
+		cooldown_started.emit(s.slot, s.cooldown_end_tick)
+		return
+	s.cooldown_total_ticks = total
 	s.cooldown_end_tick = tick + s.cooldown_total_ticks
 	cooldown_started.emit(s.slot, s.cooldown_end_tick)
 
@@ -140,10 +120,9 @@ func end_active(s: SkillInstance, tick: int) -> void:
 func on_respawn_at_hq() -> void:
 	for s in skills:
 		if not s.def.ultimate:
-			s.charges_left = -1
-			s.recharge_end_tick = 0
 			s.cooldown_end_tick = 0
 			s.cooldown_total_ticks = 0
+			s.charges_left = -1
 			s.active = false
 			s.active_until_tick = -1
 	casting_slot = -1
@@ -157,7 +136,6 @@ func process(h: HeroBody, cmd: InputCommand, tick: int, world: AbilityWorld) -> 
 	for s in skills:
 		if s.active and s.active_until_tick >= 0 and tick >= s.active_until_tick:
 			start_cooldown(s, tick)
-		_recharge(s, tick)
 	if casting_slot >= 0:
 		var cs := skills[casting_slot]
 		if combat.dead or (cs.def.interruptible and combat.status.is_stunned()):
@@ -264,8 +242,6 @@ func _execute(s: SkillInstance, ctx: EffectContext, world: AbilityWorld) -> void
 		s.active = true
 		var dur := s.param(s.def.active_param)
 		s.active_until_tick = _now + roundi(dur * tick_hz) if dur > 0.0 else -1
-	elif s.max_charges() > 0:
-		_spend_charge(s, _now)
 	else:
 		start_cooldown(s, _now)
 	s.casts += 1

@@ -89,6 +89,7 @@ func test_frag_grenade_two_charges_recharge_and_damage() -> void:
 	var s := ryker.combat.abilities.skill(0)
 	assert_bool(_cast(ryker, 0, 0.08)).is_true()
 	assert_int(_server.abilities.extras.thrown.size()).is_equal(1)
+	s.sync_charges(_server.tick)
 	assert_int(s.charges_left).is_equal(1)
 	assert_bool(s.on_cooldown(_server.tick)).is_false()  # a charge is left
 	_run(60)  # fuse 1.2 s = 36 ticks
@@ -98,6 +99,7 @@ func test_frag_grenade_two_charges_recharge_and_damage() -> void:
 	assert_float(hp).is_greater_equal(250.0 - 110.0 - 1e-3)  # full damage at most
 	# Second charge, then none: the third press is rejected on cooldown.
 	assert_bool(_cast(ryker, 0, 0.08)).is_true()
+	s.sync_charges(_server.tick)
 	assert_int(s.charges_left).is_equal(0)
 	assert_bool(s.on_cooldown(_server.tick)).is_true()
 	_run(10)
@@ -105,6 +107,7 @@ func test_frag_grenade_two_charges_recharge_and_damage() -> void:
 	assert_int(ryker.combat.abilities.last_reject).is_equal(AbilityRunner.Reject.COOLDOWN)
 	# One charge returns 9 s after the first spend.
 	_run(9 * HZ)
+	s.sync_charges(_server.tick)
 	assert_int(s.charges_left).is_equal(1)
 	assert_bool(s.on_cooldown(_server.tick)).is_false()
 
@@ -448,7 +451,9 @@ func test_med_pack_drone_heals_the_most_injured_ally_over_2_s() -> void:
 	assert_float(hurt.combat.health.hp).is_equal_approx(220.0, 2.0)  # 120 over 2 s
 	assert_float(fine.combat.health.hp).is_equal_approx(200.0, 1e-3)
 	assert_int(_server.abilities.extras.drones.size()).is_equal(0)
-	assert_int(liora.combat.abilities.skill(0).charges_left).is_equal(1)
+	var ds := liora.combat.abilities.skill(0)
+	ds.sync_charges(_server.tick)
+	assert_int(ds.charges_left).is_equal(1)
 
 
 func test_prism_ward_shields_the_aimed_ally_else_self() -> void:

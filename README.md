@@ -83,6 +83,19 @@ code-signed, so SmartScreen may warn: choose *More info → Run anyway*.
 Builds for every commit are also attached to each **Build** run under the
 *Actions* tab.
 
+### Install with the launcher
+
+The launcher keeps the game up to date (like the League client or
+Battle.net). Download `CybergramLauncher-windows.zip` (or
+`CybergramLauncher-linux.tar.gz`) from the Releases page, unzip it anywhere
+and run `CybergramLauncher`. On first start press **INSTALL**: it downloads
+the game from the official server into a `game/` folder next to it,
+checks the sha256 and unpacks it. After that it shows the patch notes and
+**PLAY** starts the game (or **UPDATE** when a new version is out). Offline
+you can still start the installed version. Settings (update URL, close or
+minimize after start) are in `launcher.cfg` next to the launcher. Launcher
+source and tests: [`launcher/`](launcher/).
+
 The game opens on the **main menu**: pick a hero, then **Play vs Bots** (a
 **3v3 match on the slice map**, bots fill the other slots) or **Play Online**
 on the official server (`cyber.djboeck.at`). To host one, see [`docs/SERVER.md`](docs/SERVER.md). Destroy the enemy Mana Uplink

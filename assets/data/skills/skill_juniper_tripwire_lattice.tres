@@ -1,0 +1,57 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/trap_effect_def.gd" id="4"]
+
+[sub_resource type="Resource" id="r1"]
+script = ExtResource("4")
+kind = 1
+wire_close = false
+life_s = 90.0
+trigger_radius_m = 2.0
+
+[sub_resource type="Resource" id="r2"]
+script = ExtResource("4")
+kind = 1
+wire_close = true
+life_s = 90.0
+
+[sub_resource type="Resource" id="r3"]
+script = ExtResource("1")
+stat = &"damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="r4"]
+script = ExtResource("1")
+stat = &"distance"
+op = 0
+value = 4.0
+
+[sub_resource type="Resource" id="r5"]
+script = ExtResource("2")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("1")]([SubResource("r3"), SubResource("r4")])
+
+[resource]
+script = ExtResource("3")
+id = &"skill_juniper_tripwire_lattice"
+display_name = "Tripwire Lattice"
+short_label = "WIRE"
+targeting = 1
+params = {
+&"cooldown": 12.0,
+&"range": 20.0,
+&"damage": 70.0,
+&"slow": 0.4,
+&"secondary_duration": 2.0,
+&"distance": 10.0,
+&"hp": 60.0,
+&"arm_time": 0.5
+}
+effects = Array[Resource]([SubResource("r1")])
+recast_effects = Array[Resource]([SubResource("r2")])
+nodes = Array[ExtResource("2")]([SubResource("r5")])

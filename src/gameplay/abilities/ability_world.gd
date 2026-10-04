@@ -128,6 +128,10 @@ var _next_id: int = 1
 var _ray := PhysicsRayQueryParameters3D.new()
 var _cast_fx: Dictionary = {}  # HeroCombat -> Fx
 var _blocker_set: bool = false
+## W9-H2: traps, fields, hacks (Juniper Quill / Hex); stepped from step().
+var traps: TrapWorld
+## Hero whose hitscan was just clipped by a deployable (Hex gadget bonus).
+var _shooter: HeroBody
 
 
 func _init(world: ServerWorld) -> void:
@@ -135,6 +139,7 @@ func _init(world: ServerWorld) -> void:
 	tick_hz = world.net.tick_rate_hz
 	dt = world.dt
 	_ray.collision_mask = HeroBody.LAYER_WORLD
+	traps = TrapWorld.new(self)
 	extras = SkillEntities.new(world)
 
 
@@ -171,6 +176,7 @@ func post_move(h: HeroBody, cmd: InputCommand) -> void:
 
 func step() -> void:
 	var t := server.tick
+	_shooter = null
 	_ensure_bolt_blocker()
 	for i in range(deployables.size() - 1, -1, -1):
 		var d := deployables[i]
@@ -179,6 +185,7 @@ func step() -> void:
 			deployables.remove_at(i)
 			continue
 		_tick_deployable(d, t)
+	traps.step()
 	_step_projectiles()
 	extras.step()
 	for i in range(leaps.size() - 1, -1, -1):
@@ -277,7 +284,11 @@ func block_distance(origin: Vector3, dir: Vector3, limit: float, shooter_team: i
 		if not d.alive or d.team == shooter_team:
 			continue
 		var t := -1.0
-		if d.kind == DeployableEffectDef.Kind.WALL:
+		if d.kind >= TrapWorld.KIND_BASE:
+			t = traps.ray(origin, dir, d)
+		elif traps.is_down(d):
+			continue  # W9-H2: a hacked wall / beacon does not block
+		elif d.kind == DeployableEffectDef.Kind.WALL:
 			t = _ray_wall(origin, dir, d)
 		elif d.kind == DeployableEffectDef.Kind.BEACON:
 			t = HitscanTracer.ray_vertical_capsule(origin, dir, d.pos.y + BEACON_RADIUS_M,
@@ -289,9 +300,13 @@ func block_distance(origin: Vector3, dir: Vector3, limit: float, shooter_team: i
 
 
 ## Damage to a deployable (blocked shots, skills). Returns the HP removed.
-func damage_deployable(d: Deployable, amount: float) -> float:
+func damage_deployable(d: Deployable, amount: float, src: HeroBody = null) -> float:
+	var who := src if src != null else _shooter
+	_shooter = null
 	if not d.alive or d.max_hp <= 0.0:
 		return 0.0
+	if who != null and who.combat != null and who.combat.def != null:
+		amount *= who.combat.def.gadget_damage_mult  # Hex Signal Sight (+50% vs gadgets)
 	var a := minf(maxf(amount, 0.0), d.hp)
 	d.hp -= a
 	d.absorbed += a
@@ -302,9 +317,21 @@ func damage_deployable(d: Deployable, amount: float) -> float:
 ## an enemy deployable. Returns [limit, Deployable or null].
 func clip_shot(origin: Vector3, dir: Vector3, range_m: float, shooter_team: int) -> Array:
 	var b := block_distance(origin, dir, range_m, shooter_team)
+	_shooter = null
 	if b.is_empty():
 		return [range_m, null]
+	_shooter = _hero_at_eye(origin, shooter_team)
 	return [b[0], b[1]]
+
+
+## The hero of `team` whose eye is at `origin` (identifies a hitscan shooter).
+func _hero_at_eye(origin: Vector3, team: int) -> HeroBody:
+	for id in server.registry.ids():
+		var h := server.registry.get_node_by_id(id) as HeroBody
+		if h != null and h.combat != null and h.combat.team == team \
+				and h.state.position.distance_squared_to(origin - Vector3(0.0, h.eye_height(), 0.0)) < 0.0025:
+			return h
+	return null
 
 
 func deployable_of(skill: SkillInstance) -> Deployable:
@@ -367,6 +394,8 @@ func apply_status(ctx: EffectContext, target: Node3D, kind: int, ticks: int, mag
 
 
 func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployable:
+	if traps.field_blocks(ctx.team, ctx.point):
+		return null  # W9-H2: enemy Static Field forbids placing
 	var t := server.tick
 	if def.kind == DeployableEffectDef.Kind.BEACON:
 		var old := deployable_of(ctx.skill)
@@ -599,6 +628,7 @@ func _ensure_bolt_blocker() -> void:
 
 ## ProjectileSystem blocker: a Wardling bolt meets an enemy wall / beacon.
 func _block_bolt(from: Vector3, dir: Vector3, seg: float, team: int, damage: float) -> float:
+	_shooter = null
 	var b := block_distance(from, dir, seg, team)
 	if b.is_empty():
 		return -1.0
@@ -610,6 +640,8 @@ func _block_bolt(from: Vector3, dir: Vector3, seg: float, team: int, damage: flo
 func _tick_deployable(d: Deployable, t: int) -> void:
 	if d.fx != null:
 		d.fx.param = d.hp / d.max_hp if d.max_hp > 0.0 else 1.0
+	if d.kind >= TrapWorld.KIND_BASE or traps.is_down(d):
+		return  # traps are TrapWorld's; hacked beacons / bastions are off
 	match d.kind:
 		DeployableEffectDef.Kind.BEACON:
 			if server.wardlings != null:
@@ -625,6 +657,7 @@ func _tick_deployable(d: Deployable, t: int) -> void:
 
 func _end_deployable(d: Deployable) -> void:
 	d.alive = false
+	traps.on_end(d)
 	_remove_fx(d.fx)
 	if d.ends_active and d.skill != null:
 		var owner := server.hero(d.owner_id)
@@ -656,6 +689,10 @@ func _step_projectiles() -> void:
 			projectiles.remove_at(i)
 			continue
 		if blocked:
+			if traps.projectile_hit_deployable(p.ctx, wall[1], p.on_hit):
+				_remove_fx(p.fx)
+				projectiles.remove_at(i)
+				continue
 			damage_deployable(wall[1], p.ctx.power_param(&"damage"))
 			_remove_fx(p.fx)
 			projectiles.remove_at(i)

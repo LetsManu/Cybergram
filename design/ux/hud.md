@@ -613,3 +613,5 @@ treatment (Hex not in slice), variant glyphs, HUD layout editor, gamepad gamepla
 | U5 | ~~Ryker's rifle "Vanguard AR-7" collides with "Vanguard waves"~~ | Resolved in consistency pass 2026-10-02: renamed **Breakline AR-7**; UI uses "Vanguard" only for waves |
 | U6 | ~~HUD file path~~ | Resolved: `design/ux/hud.md` matches `design/CLAUDE.md` |
 | U7 | Ultimate key moved from `X` to `G` because `X` is now Follow | Default `G`; fully rebindable. Revisit at the M1 playtest |
+
+**Slice implementation notes (P1):** the shop is a full-screen panel (tabs, search, cards, detail pane, recommended build from `assets/data/economy/recommended_builds_slice.tres`). Opens with F or `open_shop` (default B) on the pad; off the pad B shows "Return to your Armory pad to buy". Sell and undo are the same server action (ACTION_SELL by socket): 100% back for a line bought entirely this visit ("Undo", Ctrl+Z), 60% rounded down to 5 otherwise ("Sell"); Squad upgrades and Med-Packs cannot be sold (no GDD rule). No turntable, wish list or Barrel tab in the slice.

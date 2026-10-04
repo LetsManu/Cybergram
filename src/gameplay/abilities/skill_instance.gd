@@ -19,12 +19,11 @@ var cooldown_total_ticks: int = 0
 ## Effect running; the cooldown starts when it ends (cooldown_on_end skills).
 var active: bool = false
 var active_until_tick: int = -1
-## Charges (param `charges` >= 2, heroes.md "2 charges, recharge 9 s"): charges
-## left (-1 = full, not yet used) and the tick the next one returns (0 = none pending).
-var charges_left: int = -1
-var recharge_end_tick: int = 0
 ## Times this skill completed a cast (diagnostics / tests).
 var casts: int = 0
+## W9-H2 multi-charge skills (param `charges` > 1; `cooldown` = seconds per
+## charge). -1 = not initialised (full).
+var charges_left: int = -1
 
 
 func _init(skill: SkillDef, slot_: int) -> void:
@@ -74,18 +73,48 @@ func node_of(kind: int, rank_: int = 0) -> SkillNodeDef:
 	return null
 
 
-## Max charges of a charge-based skill (0 = a plain cooldown skill).
-func max_charges() -> int:
-	var n := roundi(param(&"charges"))
-	return n if n >= 2 else 0
-
-
 func on_cooldown(tick: int) -> bool:
+	if is_multi():
+		sync_charges(tick)
+		return charges_left <= 0
 	return tick < cooldown_end_tick
 
 
 func cooldown_ticks_left(tick: int) -> int:
+	if is_multi():
+		sync_charges(tick)
+		return maxi(cooldown_end_tick - tick, 0) if charges_left <= 0 else 0
 	return maxi(cooldown_end_tick - tick, 0)
+
+
+## True when the skill has several charges (`charges` param > 1, Boost-able).
+func is_multi() -> bool:
+	return param(&"charges") > 1.5
+
+
+func max_charges() -> int:
+	return maxi(1, roundi(param(&"charges")))
+
+
+## Grants the charges whose recharge timer elapsed (one at a time).
+func sync_charges(tick: int) -> void:
+	var mx := max_charges()
+	if charges_left < 0 or charges_left > mx or (charges_left < mx and cooldown_total_ticks <= 0):
+		charges_left = mx
+	while charges_left < mx and tick >= cooldown_end_tick:
+		charges_left += 1
+		if charges_left < mx:
+			cooldown_end_tick += maxi(cooldown_total_ticks, 1)
+
+
+## Spends one charge; starts the recharge timer when the skill was full.
+func consume_charge(tick: int, recharge_ticks: int) -> void:
+	sync_charges(tick)
+	var was_full := charges_left >= max_charges()
+	charges_left = maxi(charges_left - 1, 0)
+	if was_full:
+		cooldown_total_ticks = recharge_ticks
+		cooldown_end_tick = tick + recharge_ticks
 
 
 ## Effect list: the def's effects plus effects appended by learned nodes.

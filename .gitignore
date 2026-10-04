@@ -174,3 +174,6 @@ $RECYCLE.BIN/
 
 # gdUnit4 reports
 reports/
+
+# Agent git worktrees (parallel sub-agent work, see .claude/docs/work-breakdown.md)
+.claude/worktrees/

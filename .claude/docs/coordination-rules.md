@@ -46,6 +46,15 @@ Multiple independent Claude Code *sessions* coordinated via a shared task list.
 Opt-in and never yet used here — read `.claude/docs/agent-teams.md` on demand
 before proposing one.
 
+## Work Breakdown (large multi-agent batches)
+
+For a batch of several agents working at once, follow
+`.claude/docs/work-breakdown.md`: the roles and model tiers (Lead /
+Integrator / Builder / Scribe / Reviewer / Verifier), the chunk lifecycle
+(brief, worktree, review, verify, merge), the **lead-only shared files**, the
+port blocks, and the brief template. Its rule "two agents never own the same
+file" overrides convenience.
+
 ## Parallel Task Protocol
 
 When an orchestration skill spawns multiple independent agents:

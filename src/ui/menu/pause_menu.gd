@@ -68,6 +68,9 @@ func _process(_delta: float) -> void:
 			var lc: Variant = session.get("launch_config")
 			if lc != null and lc.debug_pause_menu:
 				open.call_deferred()
+				if lc.debug_settings_tab >= 0:
+					_settings.show_tab.call_deferred(lc.debug_settings_tab)
+					_show_settings.call_deferred()
 	if _player != null and not _root.visible:
 		_ui_was_captured = _player.ui_captured
 

@@ -165,6 +165,117 @@ HUD_LOBBY_WAITING,Pick a hero and press Ready. The match starts when everyone is
 HUD_LOBBY_STARTING,Match starts in %d ...
 HUD_LOBBY_NO_ANSWER,"No answer from %s (server down, wrong address, or UDP port blocked)"
 HUD_MENU_PLAY_ONLINE,PLAY ONLINE
+HUD_SET_TAB_VIDEO,Video
+HUD_SET_TAB_AUDIO,Audio
+HUD_SET_TAB_CONTROLS,Controls
+HUD_SET_TAB_GAMEPLAY,Gameplay
+HUD_SET_TAB_HINT,LB / RB or Ctrl+Tab: switch tab
+HUD_SET_WINDOW_MODE,Window mode
+HUD_SET_WM_WINDOWED,Windowed
+HUD_SET_WM_FULLSCREEN,Fullscreen
+HUD_SET_WM_BORDERLESS,Borderless
+HUD_SET_RENDER_SCALE,Render scale
+HUD_SET_VSYNC,VSync
+HUD_SET_FPS_CAP,FPS cap
+HUD_SET_FPS_UNLIMITED,Unlimited
+HUD_SET_QUALITY,Graphics quality
+HUD_SET_Q_LOW,Low
+HUD_SET_Q_MEDIUM,Medium
+HUD_SET_Q_HIGH,High
+HUD_SET_Q_ULTRA,Ultra
+HUD_SET_VOL_MASTER,Master volume
+HUD_SET_VOL_EFFECTS,Effects volume
+HUD_SET_VOL_UI,UI volume
+HUD_SET_SEC_VIEW,Mouse and view
+HUD_SET_SEC_MOVE,Movement
+HUD_SET_SEC_COMBAT,Combat
+HUD_SET_SEC_SKILLS,Skills
+HUD_SET_SEC_SQUAD,Squad orders
+HUD_SET_SEC_INTERFACE,Interface
+HUD_SET_SEC_HUD,HUD
+HUD_SET_RESET_BINDINGS,Reset all keys to defaults
+HUD_SET_RESET_DONE,All keys reset to defaults.
+HUD_SET_PRESS_KEY,Press a key...
+HUD_SET_CAPTURE_HINT,"Click a key to rebind it. Esc cancels while waiting."
+HUD_SET_SWAPPED,"%s and %s swapped (they shared a key)."
+HUD_ACT_MOVE_FORWARD,Move forward
+HUD_ACT_MOVE_BACK,Move back
+HUD_ACT_MOVE_LEFT,Move left
+HUD_ACT_MOVE_RIGHT,Move right
+HUD_ACT_JUMP,Jump
+HUD_ACT_CROUCH,Crouch
+HUD_ACT_SPRINT,Sprint
+HUD_ACT_FIRE,Fire
+HUD_ACT_RELOAD,Reload
+HUD_ACT_INTERACT,Interact
+HUD_ACT_MEDPACK,Use Med-Pack
+HUD_ACT_SKILL_1,Skill 1
+HUD_ACT_SKILL_2,Skill 2
+HUD_ACT_SKILL_3,Skill 3
+HUD_ACT_SKILL_4,Ultimate (skill 4)
+HUD_ACT_QUICK_SPEND,Quick spend (hold)
+HUD_ACT_SQUAD_SMART,Squad: smart command
+HUD_ACT_SQUAD_FOLLOW,Squad: follow
+HUD_ACT_SQUAD_WHEEL,Squad: command wheel
+HUD_ACT_OPEN_SHOP,Open shop
+HUD_ACT_SCOREBOARD,Scoreboard
+HUD_ACT_NET_GRAPH,Net graph
+HUD_ACT_PAUSE,Pause menu
+HUD_SET_CROSSHAIR_STYLE,Crosshair style
+HUD_SET_XH_CROSS_DOT,Cross and dot
+HUD_SET_XH_CROSS,Cross
+HUD_SET_XH_DOT,Dot
+HUD_SET_XH_CIRCLE,Circle
+HUD_SET_CROSSHAIR_COLOUR,Crosshair colour
+HUD_SET_COL_WHITE,White
+HUD_SET_COL_GREEN,Green
+HUD_SET_COL_CYAN,Cyan
+HUD_SET_COL_YELLOW,Yellow
+HUD_SET_COL_MAGENTA,Magenta
+HUD_SET_COL_RED,Red
+HUD_SET_DMG_NUMBERS,Damage numbers
+HUD_SET_COLORBLIND,Colour-blind preset
+HUD_SET_UI_SCALE,UI scale
+HUD_SHOP_TAB_ALL,ALL
+HUD_SHOP_SEARCH,Search items (/)
+HUD_SHOP_EMPTY,No items match your search.
+HUD_SHOP_OFF_PAD,Return to your Armory pad to buy
+HUD_SHOP_BUILD_FOR,Build: %s
+HUD_SHOP_RECOMMENDED,Recommended build: %s
+HUD_SHOP_RECOMMENDED_TAG,RECOMMENDED
+HUD_SHOP_NO_BUILD,No recommended build for this hero.
+HUD_SHOP_JUMP_KEY,[R] jump to next
+HUD_SHOP_NEXT,NEXT
+HUD_SHOP_NO_SELL,Nothing to sell here
+HUD_SHOP_NO_UNDO,Nothing to undo
+HUD_SHOP_TOAST_BOUGHT,Purchased %s (-%d)
+HUD_SHOP_TOAST_SOLD,Sold %s (+%d)
+HUD_SHOP_TOAST_REFUSED,The server refused that request
+HUD_SHOP_NEED_LUMEN,Need %d more Lumen
+HUD_SHOP_CARRY_FULL,Carrying the maximum
+HUD_SHOP_COL_TIER,TIER
+HUD_SHOP_COL_EFFECT,EFFECT
+HUD_SHOP_COL_PRICE,PRICE
+HUD_SHOP_COL_UPGRADE,UPGRADE
+HUD_SHOP_PRICE,Price %s
+HUD_SHOP_UNDO_INFO,Undo refunds %d (this visit)
+HUD_SHOP_SELL_INFO,Sells for %d (60%%)
+HUD_SHOP_REPLACES,"Replaces %s (sells for %d)"
+HUD_SHOP_BTN_BUY,BUY %s
+HUD_SHOP_BTN_UPGRADE,"UPGRADE to %s: %s"
+HUD_SHOP_BTN_UNDO,UNDO +%d
+HUD_SHOP_BTN_SELL,SELL +%d
+HUD_SHOP_BTN_SELL_NA,Nothing to sell
+HUD_SHOP_KEYS,[Arrows] move  [Q/E] tabs  [Enter / double-click] buy  [1-3] tier  [Bksp] sell  [Ctrl+Z] undo  [/] search  [Esc] close
+HUD_STAT_DAMAGE,Damage
+HUD_STAT_REGEN,Mana regen
+HUD_STAT_REGEN_DELAY,Regen delay
+HUD_STAT_RELOAD,Reload time
+HUD_STAT_SQUAD,Squad size
+HUD_STAT_WARDLING_HP,Wardling HP
+HUD_STAT_WARDLING_DMG,Wardling damage
+HUD_HERO_JUNIPER,Juniper Quill  (Trapper)
+HUD_HERO_HEX,Hex  (Hacker)
 HUD_MENU_HERO_RYKER,Ryker Vance  (Soldier)
 HUD_MENU_HERO_LIORA,Liora Vale  (Healer)
 HUD_MENU_HERO_SABLE,Sable  (Infiltrator)

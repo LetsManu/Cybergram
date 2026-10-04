@@ -39,6 +39,7 @@ const CRADLE_X := -5.0            # E14 Cell Cradles: lateral offset from the ad
 const AZURE := Color("#2E86FF")
 const EMBER := Color("#FF5A1F")
 const NEUTRAL := Color(0.92, 0.9, 1.0)
+const LEYFALL := Color("#8E5CFF")
 
 ## Half-A hardpoints: id, name, task, tier, L, radius, half pad size, base duration, generator hp, owner.
 var HP_A := [
@@ -143,18 +144,33 @@ func _mat(c: Color, emissive: float = 0.0, alpha: float = 1.0, unshaded: bool = 
 	return m
 
 
+## Stylised panel material (assets/shaders/spatial_env_panel.gdshader).
+func _panel(base: Color, seam: Color, size: float = 4.0, trim: Color = Color.BLACK, trim_h: float = 0.0, ao_h: float = 2.5) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://assets/shaders/spatial_env_panel.gdshader")
+	m.set_shader_parameter("base_color", base)
+	m.set_shader_parameter("seam_color", seam)
+	m.set_shader_parameter("panel_size", size)
+	m.set_shader_parameter("trim_color", trim)
+	m.set_shader_parameter("trim_height", trim_h)
+	m.set_shader_parameter("ao_height", ao_h)
+	return m
+
+
 func _build_materials() -> void:
-	mats.floor_a = _mat(Color(0.3, 0.33, 0.4))
-	mats.floor_b = _mat(Color(0.36, 0.31, 0.29))
-	mats.floor_hq_a = _mat(Color(0.4, 0.43, 0.5))
-	mats.floor_hq_b = _mat(Color(0.2, 0.18, 0.19))
-	mats.floor_mid = _mat(Color(0.34, 0.33, 0.37))
-	mats.floor_loop = _mat(Color(0.26, 0.22, 0.34))
-	mats.wall_a = _mat(Color(0.42, 0.45, 0.52))
-	mats.wall_b = _mat(Color(0.2, 0.18, 0.19))
-	mats.rail = _mat(Color(0.3, 0.31, 0.36))
-	mats.cover_low = _mat(Color(0.58, 0.5, 0.36))
-	mats.cover_tall = _mat(Color(0.42, 0.38, 0.5))
+	var seam_a := Color(0.16, 0.18, 0.34)
+	var seam_b := Color(0.14, 0.07, 0.1)
+	mats.floor_a = _panel(Color(0.33, 0.37, 0.5), seam_a)
+	mats.floor_b = _panel(Color(0.38, 0.3, 0.3), seam_b)
+	mats.floor_hq_a = _panel(Color(0.42, 0.46, 0.6), seam_a)
+	mats.floor_hq_b = _panel(Color(0.22, 0.18, 0.2), seam_b)
+	mats.floor_mid = _panel(Color(0.36, 0.34, 0.47), Color(0.22, 0.14, 0.4), 3.0)
+	mats.floor_loop = _panel(Color(0.27, 0.22, 0.4), Color(0.14, 0.1, 0.28))
+	mats.wall_a = _panel(Color(0.5, 0.54, 0.68), seam_a, 4.0, AZURE, 9.0, 4.0)
+	mats.wall_b = _panel(Color(0.24, 0.2, 0.23), seam_b, 4.0, EMBER, 9.0, 4.0)
+	mats.rail = _panel(Color(0.26, 0.28, 0.38), seam_a, 1.5, Color.BLACK, 0.0, 1.0)
+	mats.cover_low = _panel(Color(0.7, 0.58, 0.4), Color(0.3, 0.22, 0.2), 1.5, Color.BLACK, 0.0, 1.0)
+	mats.cover_tall = _panel(Color(0.46, 0.4, 0.62), Color(0.15, 0.12, 0.3), 1.5, Color.BLACK, 0.0, 2.0)
 	mats.strip = _mat(Color(0.3, 0.32, 0.38))
 	mats.socket = _mat(Color(0.95, 0.8, 0.25), 0.4, 0.55, true)
 	for key in ["a", "b", "n"]:
@@ -265,35 +281,27 @@ func _key(half: int) -> String:
 # ---------------------------------------------------------------- environment
 
 func _env() -> void:
-	var env := Environment.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.2, 0.17, 0.38)
-	sky_mat.sky_horizon_color = Color(0.62, 0.55, 0.75)
-	sky_mat.ground_bottom_color = Color(0.12, 0.08, 0.2)
-	sky_mat.ground_horizon_color = Color(0.5, 0.42, 0.66)
-	var sky := Sky.new()
-	sky.sky_material = sky_mat
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.55, 0.57, 0.7)
-	env.ambient_light_energy = 0.45
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.55, 0.5, 0.7)
-	env.fog_density = 0.0015
-	env.fog_sky_affect = 0.25
 	var we := WorldEnvironment.new()
 	we.name = "Env"
-	we.environment = env
+	we.environment = GfxQuality.make_environment()
 	_add(map_root, we)
-	var sun := DirectionalLight3D.new()
-	sun.name = "Sun"
-	sun.rotation_degrees = Vector3(-52.0, -35.0, 0.0)
-	sun.light_energy = 0.8
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 250.0
-	_add(map_root, sun)
+	_add(map_root, GfxQuality.make_sun())
+	# Client-side runtime layer (quality scaling + dressing); strips lights on the server.
+	var vis := MapVisuals.new()
+	vis.name = "MapVisuals"
+	_add(map_root, vis)
+
+
+## Team-coloured accent light above 4 m (art bible §4.6: never on lane floors).
+func _accent_light(parent: Node, n: String, c: Color, pos: Vector3, range_m: float, energy: float) -> void:
+	var ol := OmniLight3D.new()
+	ol.name = n
+	ol.light_color = c
+	ol.omni_range = range_m
+	ol.light_energy = energy
+	ol.shadow_enabled = false
+	ol.position = pos
+	_add(parent, ol)
 
 
 # ---------------------------------------------------------------- HQs
@@ -333,6 +341,10 @@ func _hq(half: int) -> void:
 	ol.light_energy = 0.6
 	ol.position = u + Vector3(0, 7.0, 0)
 	_add(g, ol)
+	var hq_c: Color = AZURE if half == 0 else EMBER
+	_accent_light(g, "HQAccentL", hq_c, P(-18, _half_l(half, 20.0), 9.0), 26.0, 1.4)
+	_accent_light(g, "HQAccentR", hq_c, P(18, _half_l(half, 20.0), 9.0), 26.0, 1.4)
+	_accent_light(g, "SanctumAccent", hq_c, s + Vector3(0, 8.0, 0), 22.0, 1.6)
 	# Foundry (west, -X) and Armory (east, +X) beside the Sanctum.
 	var lf := _half_l(half, 10.0)
 	_box(g, "Foundry", Vector3(10, 6, 8), P(-19, lf, 3), wall)
@@ -518,6 +530,8 @@ func _hardpoint(anchors: Node3D, id: StringName, task: int, pos: Vector3, r: flo
 	_add(anchors, a)
 	var vis := _node(geo, "Hardpoint_" + String(id).to_upper())
 	vis.position = pos
+	var hp_c: Color = AZURE if k == "a" else (EMBER if k == "b" else LEYFALL)
+	_accent_light(vis, "AccentLight", hp_c, Vector3(0, 8.0, 0), maxf(r * 1.6, 18.0), 1.3)
 	match task:
 		HardpointDef.TaskKind.BREACH:
 			# Ward Generator: hex zone, solid core, shield dome; gatehouse arch over the lane.
@@ -568,6 +582,7 @@ func _hardpoint(anchors: Node3D, id: StringName, task: int, pos: Vector3, r: flo
 			_cyl(vis, "LightPillar", 0.7, 0.7, 12.0, Vector3(0, 0.9, 0), mats["glow_" + k], false, 16)
 			var ol := OmniLight3D.new()
 			ol.name = "PillarLight"
+			ol.light_color = LEYFALL
 			ol.omni_range = 16.0
 			ol.light_energy = 1.2
 			ol.position = Vector3(0, 4, 0)
