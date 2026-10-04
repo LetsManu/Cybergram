@@ -1,6 +1,12 @@
 # Lobby and Social — UX decisions (Wave 9, chunk L1)
 
-Status: implemented in v0.5.0 (protocol v11). Owner: L1 (lobby/social).
+Status: implemented in v0.5.0 (protocol v12). Owner: L1 (lobby/social).
+
+> **Superseded in part (owner, 2026-10-04): accounts moved to the server (§6).**
+> §2.1 (local profile file), §2.4 (local friends list, presence check-ins) and
+> §4 items 1, 4, 5 describe the first, local-only design and are kept as
+> history; §6 is what ships. Everything else (lobby, chat, team switch,
+> badges, match names) is unchanged.
 Scope: player profile, the full pre-match lobby, lobby chat, friends and
 presence. One dedicated server and no accounts, so everything that a live
 service keeps in a backend lives either in the client's `user://` files or in
@@ -154,7 +160,55 @@ The owner is in Austria (EU); the full notice is `PRIVACY.md` (repo root).
    a data list (`assets/data/social/name_filter.tres`, `NameFilterDef`) on
    the client (hint) and the server (authoritative).
 
-## 5. Not doing (yet)
+## 6. Server accounts (owner decision, 2026-10-04; ships in v0.5.0)
+
+- **Transport**: ENet DTLS (`ENetConnection.dtls_server_setup` /
+  `dtls_client_setup`). Server cert + key from `--tls-cert/--tls-key` or env
+  `CYBERGRAM_TLS_CERT/CYBERGRAM_TLS_KEY` (Docker: `/data/tls/fullchain.pem`,
+  `/data/tls/privkey.pem`, a Let's Encrypt cert for cyber.djboeck.at). With no
+  readable cert the server is **guest-only**, logs one line, and refuses
+  login / register (`E_NOT_SECURE`); passwords never travel in plain. Clients
+  use DTLS with the system CAs for host names; IPs / localhost are plain unless
+  `--dtls-ca <pem>` pins a cert; `--dtls-insecure` (client_unsafe) is a debug
+  flag only.
+- **Guests**: `--allow-guests` / `CYBERGRAM_ALLOW_GUESTS` (default off). With
+  encryption on and guests off, everyone logs in. Without a cert, guests are
+  allowed anyway so the game stays playable.
+- **Store** (`AccountStore` / `FileAccountStore`): one JSON file per account
+  in the data dir (`--data-dir` / `CYBERGRAM_DATA_DIR`, default
+  `user://accounts`, Docker `/data/accounts`), written atomically (tmp + rename).
+  Fields: id, username, password {algo, hash, salt, iterations}, profile
+  {display_name, emblem, accent, favourite_hero}, friends, requests_in/out,
+  blocks, created_at, last_login_at. Nothing else.
+- **Passwords**: PBKDF2-HMAC-SHA256 (`Pbkdf2`, on `Crypto.hmac_digest`), 16-byte
+  random salt, iterations from `assets/data/net/auth_rules.tres` (60 000 ≈
+  0.25 s in GDScript), run on the WorkerThreadPool (`PasswordHasher`), never on
+  the sim thread; constant-time compare; an unknown username costs the same
+  hash. Login rate limits per account (5 / 5 min) and per connection (10 / 5
+  min), lockout 5 min (data).
+- **Sessions**: 32 random bytes, memory only; bound to the connection and
+  dropped `session_grace_s` (60 s) after it closes. The match server adopts the
+  session of a player who joins with a slot token, so after the match the
+  client resumes (`OP_RESUME`) without a password. The client keeps the token
+  in a static var only.
+- **Protocol v12**: `ACCOUNT_REQ` / `ACCOUNT_RESULT` (`AccountCodec`, fixed
+  per-op schemas): register (privacy + age ≥ 14 flags), login, resume, guest,
+  logout, change password, update profile, delete (password), export (account
+  JSON minus hash/salt), friend request (username or id) / accept / decline /
+  remove, block / unblock, friends list with presence. `LOBBY_JOIN` carries
+  no identity any more; the lobby takes it from the session.
+  Delete cascades out of every other account's lists.
+- **Retention**: accounts idle for `retention_days` (365) are deleted at start
+  and daily. Chat stays unlogged and unstored.
+- **Client**: login / register / guest screen ahead of the lobby (no password
+  recovery note), PROFILE = account screen (profile, password, export to a
+  picked file, delete, log out), friends panel on the server account, lobby
+  rows: + (friend request), Mute (session only), Block (account). The client
+  stores only the hero pick and the optional remembered username. An old
+  `user://profile.cfg` is offered for import once after the first login, then
+  all old local files are deleted.
+
+## 7. Not doing (yet)
 
 Invites/notifications, blocking/muting, persistent server-side accounts,
 whispers, party chat, a hero grid with portraits (badges until hero art
