@@ -18,6 +18,8 @@ extends Resource
 ## Fallback heroes per team when no MatchRulesDef is set; the match format
 ## itself is data on MatchRulesDef.team_size (Canon C1 5v5, slice 3v3).
 @export_range(1, 5) var team_size: int = 5
+## W10-W3: thresholds for the heal beam, remote detonation, Tripwire and Relay Hop.
+@export var skill_tuning: BotSkillTuning = null
 
 
 func profile(difficulty: String) -> BotProfile:
@@ -31,6 +33,20 @@ func hero_for(slot: int) -> HeroDef:
 	if heroes.is_empty():
 		return null
 	return heroes[slot % heroes.size()] as HeroDef
+
+
+## W10-W3: hero for team slot `slot` of `team` in a match with this `seed_`. The
+## roster is walked in order starting at posmod(seed, size), team 0 first, so
+## each seed fields consecutive heroes and every hero appears across seeds
+## (deterministic per seed; no RNG).
+func hero_for_seeded(team: int, slot: int, team_size_: int, seed_: int) -> HeroDef:
+	if heroes.is_empty():
+		return null
+	return heroes[posmod(posmod(seed_, heroes.size()) + team * team_size_ + slot, heroes.size())] as HeroDef
+
+
+func tuning() -> BotSkillTuning:
+	return skill_tuning if skill_tuning != null else BotSkillTuning.new()
 
 
 func build_order_for(hero: HeroDef) -> PackedInt32Array:

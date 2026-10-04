@@ -254,3 +254,11 @@ func _los(from: Vector3, to: Vector3) -> bool:
 	_ray.from = from
 	_ray.to = to
 	return server.get_world_3d().direct_space_state.intersect_ray(_ray).is_empty()
+
+
+## W10-W3: one extra clear-line check outside the per-scan ray budget, for the
+## gated skill rules (heal beam ally, Relay Hop gadget). Map geometry only.
+func has_los(from: Vector3, to: Vector3) -> bool:
+	_ray.from = from
+	_ray.to = to
+	return server.get_world_3d().direct_space_state.intersect_ray(_ray).is_empty()

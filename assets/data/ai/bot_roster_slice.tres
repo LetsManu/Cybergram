@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="BotRosterDef" load_steps=13 format=3]
+[gd_resource type="Resource" script_class="BotRosterDef" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/ai/bots/bot_roster_def.gd" id="1"]
 [ext_resource type="Resource" path="res://assets/data/heroes/hero_vesper_loom.tres" id="2"]
@@ -11,6 +11,8 @@
 [ext_resource type="Resource" path="res://assets/data/ai/bot_profile_easy.tres" id="4"]
 [ext_resource type="Resource" path="res://assets/data/ai/bot_profile_normal.tres" id="5"]
 [ext_resource type="Resource" path="res://assets/data/ai/bot_profile_hard.tres" id="6"]
+
+[ext_resource type="Resource" path="res://assets/data/ai/bot_skill_tuning.tres" id="tune"]
 
 [resource]
 script = ExtResource("1")
@@ -38,4 +40,5 @@ build_orders = {
 &"hero_juniper_quill": PackedInt32Array(3, 2, 0, 1, 2, 0, 1),
 &"hero_vesper_loom": PackedInt32Array(3, 0, 1, 2, 0, 1, 2)
 }
+skill_tuning = ExtResource("tune")
 default_difficulty = &"normal"
