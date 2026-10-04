@@ -63,6 +63,8 @@ var world: AbilityWorld
 var data: Dictionary = {}
 ## gadget (Deployable or WardlingSim) -> [malfunction_until, immune_until, Fx].
 var hacks: Dictionary = {}
+## W11-M1 Hijack: trap Deployable -> [until_tick, original team, original owner id, original ctx].
+var hijacks: Dictionary = {}
 ## hero -> tick until which it is Scrambled (server state; HUD is a client concern).
 var scramble_until: Dictionary = {}
 ## hero net id -> [Vector3 anchor A, expires tick, Fx]: Tripwire anchor waiting for B.
@@ -168,6 +170,7 @@ func step() -> void:
 	var t := world.tick()
 	_step_pending(t)
 	_step_hacks(t)
+	_step_hijacks(t)
 	for dd in data.keys():
 		var rec: Data = data[dd]
 		var d := rec.d
@@ -192,6 +195,7 @@ func step() -> void:
 
 func on_end(d: AbilityWorld.Deployable) -> void:
 	data.erase(d)
+	hijacks.erase(d)
 	_clear_hack(d)
 
 
@@ -340,6 +344,62 @@ func aim_gadget(ctx: EffectContext, range_m: float, cone: float) -> bool:
 		ctx.target = best_t
 		ctx.point = best_t.global_position if best_t != null else best_p
 	return found
+
+
+# --- Hijack (heroes.md §4.7 Breach Spike Fork A, §3.7) -------------------------
+
+## True when `d` is a trap-kind gadget that can be hijacked (not Static Fields,
+## Wardlings, walls or beacons).
+func can_hijack(d: Object) -> bool:
+	if not d is AbilityWorld.Deployable:
+		return false
+	var rec: Data = data.get(d)
+	return rec != null and rec.kind != KIND_FIELD and (d as AbilityWorld.Deployable).alive
+
+
+func is_hijacked(d: Object) -> bool:
+	return hijacks.has(d)
+
+
+## The trap `d` switches to the hijacker's team for `ticks`: it triggers against its
+## owner's team. Returns false when it cannot be hijacked or is already hijacked.
+func hijack(d: AbilityWorld.Deployable, by: EffectContext, ticks: int) -> bool:
+	if not can_hijack(d) or hijacks.has(d) or d.team == by.team or ticks <= 0:
+		return false
+	var rec: Data = data[d]
+	var t := world.tick()
+	hijacks[d] = [t + ticks, d.team, d.owner_id, rec.ctx]
+	var c := rec.ctx.with_target(null, d.pos)
+	c.caster = by.caster
+	c.team = by.team
+	rec.ctx = c
+	d.team = by.team
+	d.owner_id = by.caster.net_id
+	if d.fx != null:
+		d.fx.team = d.team
+	rec.arm_tick = maxi(rec.arm_tick, t + roundi(c.param(&"arm_time") * world.tick_hz))
+	return true
+
+
+func _step_hijacks(t: int) -> void:
+	for d in hijacks.keys():
+		var h: Array = hijacks[d]
+		if t >= int(h[0]) or not d.alive:
+			_restore_hijack(d)
+
+
+func _restore_hijack(d: AbilityWorld.Deployable) -> void:
+	var h: Array = hijacks.get(d, [])
+	hijacks.erase(d)
+	if h.is_empty():
+		return
+	d.team = int(h[1])
+	d.owner_id = int(h[2])
+	if d.fx != null:
+		d.fx.team = d.team
+	var rec: Data = data.get(d)
+	if rec != null:
+		rec.ctx = h[3]
 
 
 # --- Internals ---------------------------------------------------------------------

@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 
 const HZ: int = 30
 const VESPER := "res://assets/data/heroes/hero_vesper_loom.tres"
+const JUNIPER := "res://assets/data/heroes/hero_juniper_quill.tres"
+const HEX := "res://assets/data/heroes/hero_hex.tres"
 const BRANNOC := "res://assets/data/heroes/hero_brannoc.tres"
 
 var _server: ServerWorld
@@ -132,3 +134,56 @@ func test_bleed_kill_credits_the_attacker() -> void:
 	_run(HZ)
 	assert_bool(foe.combat.dead).is_true()
 	assert_int(a.combat.kills).is_equal(1)
+
+
+# ------------------------------------------------------------------ Hijack
+
+func test_hijacked_trap_triggers_on_its_old_owners_team_then_reverts() -> void:
+	_world()
+	var j := _hero(JUNIPER, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	var hx := _hero(HEX, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var victim := _hero(VESPER, Vector3(30.0, 0.05, -10.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var js := j.combat.abilities.skill(0)
+	var tc := _ctx(j, null, 0)
+	tc.point = victim.state.position + Vector3(0.0, 0.0, 6.0)
+	tc.run(js.effects())
+	var trap := _server.abilities.deployables[0]
+	assert_int(trap.team).is_equal(ServerWorld.TEAM_DUMMIES)
+	var spike := hx.combat.abilities.skill(0)
+	spike.learn(spike.node_of(SkillNodeDef.Kind.FORK_A))
+	var hc := _ctx(hx, null, 0)
+	assert_bool((spike.def.effects[0].on_hit[0] as HackEffectDef).hack_gadget(hc, trap)).is_true()
+	assert_int(trap.team).is_equal(ServerWorld.TEAM_PLAYERS)
+	assert_int(trap.owner_id).is_equal(hx.net_id)
+	assert_bool(_server.abilities.traps.is_hijacked(trap)).is_true()
+	assert_bool(_server.abilities.traps.is_down(trap)).is_false()  # hijacked, not malfunctioning
+	# Walk the old owner's ally into it: it fires against him.
+	_server.abilities.teleport(victim, trap.pos + Vector3(0.0, 0.0, 0.3))
+	var hp := victim.combat.health.hp
+	_run(4 * HZ)
+	assert_float(victim.combat.health.hp).is_less(hp)
+	# The window ends: back to the owner.
+	_run(8 * HZ)
+	if trap.alive:
+		assert_int(trap.team).is_equal(ServerWorld.TEAM_DUMMIES)
+		assert_int(trap.owner_id).is_equal(j.net_id)
+
+
+func test_hijack_reverts_when_the_window_ends() -> void:
+	_world()
+	var j := _hero(JUNIPER, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	var hx := _hero(HEX, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var tc := _ctx(j, null, 0)
+	tc.point = Vector3(30.0, 0.05, -10.0)
+	tc.run(j.combat.abilities.skill(0).effects())
+	var trap := _server.abilities.deployables[0]
+	var spike := hx.combat.abilities.skill(0)
+	spike.learn(spike.node_of(SkillNodeDef.Kind.FORK_A))
+	(spike.def.effects[0].on_hit[0] as HackEffectDef).hack_gadget(_ctx(hx, null, 0), trap)
+	assert_int(trap.team).is_equal(ServerWorld.TEAM_PLAYERS)
+	_run(10 * HZ)  # category 6 s x duration scale
+	assert_bool(trap.alive).is_true()
+	assert_int(trap.team).is_equal(ServerWorld.TEAM_DUMMIES)
+	assert_int(trap.owner_id).is_equal(j.net_id)
