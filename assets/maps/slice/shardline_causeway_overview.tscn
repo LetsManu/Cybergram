@@ -39,15 +39,15 @@ fog_light_color = Color(0.55, 0.5, 0.7, 1)
 fog_density = 0.0015
 fog_sky_affect = 0.25
 
-[node name="ShardlineCausewayOverview" type="Node3D" unique_id=1944850431]
+[node name="ShardlineCausewayOverview" type="Node3D" unique_id=1371495391]
 
-[node name="ShardlineCauseway" type="Node3D" parent="." unique_id=373675612 instance=ExtResource("1_cayd1")]
+[node name="ShardlineCauseway" type="Node3D" parent="." unique_id=262239057 instance=ExtResource("1_cayd1")]
 
-[node name="NavmeshOverlay" type="MeshInstance3D" parent="." unique_id=307932232]
+[node name="NavmeshOverlay" type="MeshInstance3D" parent="." unique_id=2068614748]
 material_override = SubResource("StandardMaterial3D_de3ve")
 mesh = SubResource("ArrayMesh_ehteb")
 
-[node name="OverviewCamera" type="Camera3D" parent="." unique_id=1847595271]
+[node name="OverviewCamera" type="Camera3D" parent="." unique_id=1834995729]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -8, 300, -210)
 keep_aspect = 0
 environment = SubResource("Environment_qmw6i")

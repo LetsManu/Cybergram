@@ -7,6 +7,8 @@ extends CharacterBody3D
 
 const LAYER_WORLD: int = 1
 const LAYER_HEROES: int = 2
+## Invisible walls above edge rails: block hero movement only, never shots.
+const LAYER_EDGE_BLOCK: int = 4
 
 var net_id: int = 0
 var state := MotorState.new()
@@ -28,7 +30,7 @@ var _capsule: CapsuleShape3D
 func setup(movement: MovementDef, spawn: Vector3, collide_with_heroes: bool) -> void:
 	_def = movement
 	collision_layer = LAYER_HEROES
-	collision_mask = LAYER_WORLD | (LAYER_HEROES if collide_with_heroes else 0)
+	collision_mask = LAYER_WORLD | LAYER_EDGE_BLOCK | (LAYER_HEROES if collide_with_heroes else 0)
 	floor_max_angle = deg_to_rad(movement.max_floor_angle_deg)
 	floor_snap_length = movement.floor_snap_length
 	_capsule = CapsuleShape3D.new()

@@ -437,7 +437,7 @@ func start_charge(ctx: EffectContext, def: ChargeEffectDef) -> void:
 	ch.last_pos = h.state.position
 	ch.mask = h.collision_mask
 	# Charges pass through bodies; contact is resolved by _step_charge.
-	h.collision_mask = HeroBody.LAYER_WORLD
+	h.collision_mask = HeroBody.LAYER_WORLD | HeroBody.LAYER_EDGE_BLOCK
 	h.state.dash_velocity = ch.dir * ch.speed
 	h.state.dash_ticks = n
 	h.state.dash_launch = false
