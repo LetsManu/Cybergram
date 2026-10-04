@@ -160,7 +160,7 @@ func _process(delta: float) -> void:
 	ctx.armory_open = _armory.open
 	var at := c.progress != null and (c.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) != 0
 	ctx.armory_prompt = at and not _armory.open and not c.is_dead()
-	var held := Input.is_physical_key_pressed(KEY_TAB) or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
+	var held := InputBindings.is_down(&"scoreboard", KEY_TAB) or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
 	ctx.scoreboard_open = (held or ctx.settings.debug_scoreboard) and not _armory.open
 	_apply_context(c)
 
@@ -189,8 +189,17 @@ func _apply_context(c: ClientWorld) -> void:
 	_scoreboard.visible = board
 
 
+var _hud_rev: int = GameSettings.hud_revision
+
+
 func _settings_keys() -> void:
 	var s := ctx.settings
+	if _hud_rev != GameSettings.hud_revision:  # the settings menu rewrote [hud]
+		_hud_rev = GameSettings.hud_revision
+		var cfg := ConfigFile.new()
+		if cfg.load(HudSettings.PATH) == OK:
+			s.read_config(cfg)
+			_relayout()
 	if _fedge(KEY_F6):
 		s.cycle_colorblind()
 		_toasts.push(tr("HUD_TOAST_COLORBLIND") % tr(HudPalette.PRESET_KEYS[s.colorblind]))
