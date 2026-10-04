@@ -63,4 +63,27 @@ static func choose(skills: Array[SkillInstance], bb: BotBlackboard, h: HeroBody,
 			&"skill_vesper_rewrite":
 				if bb.enemy_wardlings_seen >= 3 or (hero_t and bb.target_dist < 15.0):
 					return SkillUse.new(s.slot, Aim.NONE)
+			# W9-H2 Juniper Quill (Trapper) and Hex (Hacker). Tripwire Lattice needs two
+			# presses (anchor A then B) and Relay Hop needs a gadget under the crosshair:
+			# bots do not use them yet (like Threadstep).
+			&"skill_juniper_snare_coil":
+				if hero_t and bb.target_dist >= 5.0 and bb.target_dist <= s.param(&"range") - 2.0:
+					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)
+			&"skill_juniper_pressure_mine":
+				if zone_radius > 0.0 and BotBlackboard.flat_dist(pos, zone_center) < minf(zone_radius, s.param(&"range") - 2.0):
+					return SkillUse.new(s.slot, Aim.POINT, zone_center)
+				if hero_t and bb.target_dist >= 5.0 and bb.target_dist <= 16.0:
+					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)
+			&"skill_juniper_killbox":
+				if hero_t and bb.target_dist >= 6.0 and bb.target_dist <= s.param(&"range") - 2.0:
+					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)
+			&"skill_hex_breach_spike":
+				if hero_t and bb.target_dist <= s.param(&"range") - 3.0:
+					return SkillUse.new(s.slot, Aim.TRACK)
+			&"skill_hex_static_field":
+				if hero_t and bb.target_dist >= 3.0 and bb.target_dist <= 16.0:
+					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)
+			&"skill_hex_zero_day":
+				if (bb.enemy_wardlings_seen >= 3 or hero_t) and bb.target_dist >= 8.0 and bb.target_dist <= s.param(&"range") - 4.0:
+					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)
 	return null

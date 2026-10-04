@@ -165,3 +165,5 @@ HUD_LOBBY_WAITING,Pick a hero and press Ready. The match starts when everyone is
 HUD_LOBBY_STARTING,Match starts in %d ...
 HUD_LOBBY_NO_ANSWER,"No answer from %s (server down, wrong address, or UDP port blocked)"
 HUD_MENU_PLAY_ONLINE,PLAY ONLINE
+HUD_HERO_JUNIPER,Juniper Quill  (Trapper)
+HUD_HERO_HEX,Hex  (Hacker)

@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/weapon_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weapon_glitchcaster"
+display_name = "Glitchcaster"
+feed_kind = 0
+damage = 7.0
+pellets = 1
+fire_rate = 20.0
+semi_auto = false
+headshot_mult = 1.0
+falloff_start_m = 10.0
+falloff_end_m = 15.0
+falloff_min = 0.75
+spread_base_deg = 0.3
+spread_bloom_deg = 0.0
+spread_max_deg = 0.3
+spread_recovery_deg_s = 6
+spread_recovery_delay_s = 0.15
+range_m = 15.0
+mana_pool = 100
+mana_cost = 1.1
+mana_regen = 30.0
+mana_regen_delay_s = 1.2
+burnout_delay_mult = 1.5

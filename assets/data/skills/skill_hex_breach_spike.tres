@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/hack_effect_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/projectile_effect_def.gd" id="4"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="5"]
+
+[sub_resource type="Resource" id="r1"]
+script = ExtResource("1")
+
+[sub_resource type="Resource" id="r2"]
+script = ExtResource("4")
+speed_param = &"speed"
+range_param = &"range"
+on_hit = Array[Resource]([SubResource("r1")])
+
+[sub_resource type="Resource" id="r3"]
+script = ExtResource("2")
+stat = &"duration"
+op = 0
+value = 0.25
+
+[sub_resource type="Resource" id="r4"]
+script = ExtResource("2")
+stat = &"cooldown"
+op = 0
+value = -2.0
+
+[sub_resource type="Resource" id="r5"]
+script = ExtResource("3")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("2")]([SubResource("r3"), SubResource("r4")])
+
+[resource]
+script = ExtResource("5")
+id = &"skill_hex_breach_spike"
+display_name = "Breach Spike"
+short_label = "SPIK"
+targeting = 2
+params = {
+&"cooldown": 10.0,
+&"range": 35.0,
+&"speed": 80.0,
+&"damage": 40.0,
+&"duration": 1.0,
+&"scramble": 3.0
+}
+effects = Array[Resource]([SubResource("r2")])
+nodes = Array[ExtResource("3")]([SubResource("r5")])
