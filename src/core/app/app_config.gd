@@ -13,3 +13,6 @@ extends Resource
 ## Title screen shown when the game starts without command-line arguments
 ## (non-headless). It emits start_requested(args) with launch arguments.
 @export var menu_scene: PackedScene
+## Official online server the menu's PLAY ONLINE joins (host[:port], UDP).
+## --open-lobby host:port overrides it for testing.
+@export var online_server: String = "cyber.djboeck.at:7777"

@@ -4,15 +4,28 @@ The server is the normal game binary started headless with `--server --port`.
 It runs the 3v3 slice match. Bots fill every slot no player has taken, and
 players connect from the main menu (**Join**) or with `--connect`.
 
-> **Status: online test build (v0.3.0).** It works over the internet, but
-> there is no lag compensation or anti-cheat yet. Good for testing with
-> friends, not for public servers.
->
-> **Team slots:** the first player gets the reserved Concord slot. Each
-> later player takes over a bot on the team with fewer humans (the bot with
-> the same hero if there is one), so two players play 3v3, one per side.
-> When a player leaves, a bot takes their hero back over. The server log
-> shows both events (`[bots] a player took over ...`).
+> **Status: online test build (v0.4.0).** Lag compensation is in (shots are
+> judged at what you saw, up to 200 ms back). No anti-cheat yet: good for
+> testing with friends, not for public servers.
+
+### How a session works (lobby → match → lobby)
+
+1. **Lobby.** Players press **PLAY ONLINE** in the main menu. The server puts them on
+   Concord / Syndicate by join order (one each side, then the next pair).
+   Everyone picks a hero and presses **READY**.
+2. **Countdown.** When every player in the lobby is ready, a 5 s countdown
+   runs. Un-readying stops it.
+3. **Match.** The server builds the 3v3 match. Players get their team and
+   hero, and **bots fill every other slot**.
+4. **After the match.** The result shows for 15 s. Then the server opens a
+   fresh lobby, and the players' games return to it automatically.
+
+Late joiners during a match skip the lobby and take over a bot on the team
+with fewer humans. A player who leaves is replaced by a bot. The server log
+narrates all of it (`[lobby] ...`, `[bots] ...`, `[server] player joined ...`).
+Use `--no-lobby` for the old behaviour (match starts at once, players drop in).
+
+Players reach it with **PLAY ONLINE** (see *Connecting*).
 
 ## Requirements
 
@@ -59,16 +72,18 @@ folder (with `game/` filled) to the NAS, and create a *Project* from its
 
 ## Connecting
 
-Start the game, enter the server address in the main menu (for example
-`203.0.113.5` or `myserver.example.com:7777`), pick a hero and press
-**JOIN**. From a terminal:
+Players just press **PLAY ONLINE** in the main menu. The game knows the
+official server, **`cyber.djboeck.at:7777`**, which is set in
+`assets/data/app/app_config.tres` (`online_server`).
 
-```bash
-./Cybergram.x86_64 -- --connect 203.0.113.5:7777 --hero brannoc
-```
+For that to work:
+1. **DNS:** an `A` record `cyber.djboeck.at` → the server's public IPv4.
+2. **Server:** runs v0.4.0 on UDP 7777 (see above), with the port open in the
+   firewall / forwarded on the router.
 
-If the server does not answer within 8 s, the game goes back to the menu and
-names the likely cause.
+For testing another server without a rebuild:
+`Cybergram.exe -- --open-lobby 203.0.113.5:7777` (or `--connect host:port`
+to skip the lobby).
 
 ## Server options
 

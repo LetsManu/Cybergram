@@ -66,6 +66,10 @@ var _hero_index: Dictionary = {}  # net id -> replicated hero index
 
 var _views: Dictionary = {}  # net id -> HeroView
 var tracers: TracerFx
+## Server tick (fractional) at which remote heroes were last drawn.
+var view_render_tick: float = 0.0
+## Online lobby slot token sent in Hello (set before setup; 0 = none).
+var hello_token: int = 0
 var sfx: ClientSfx
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
@@ -84,6 +88,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	player_input = source as PlayerInputSource
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
+	session.token = hello_token
 	if hero != null and hero.resource_path != "":
 		session.hero_index = ContentDB.shared().index_of(ContentDB.HERO,
 			StringName(hero.resource_path.get_file().get_basename()))
@@ -154,6 +159,10 @@ func tick() -> void:
 	client_seq += 1
 	_prev_pos = body.state.position
 	input_source.sample(client_seq, _cmd)
+	# Lag compensation: the server rewinds targets to what this screen showed.
+	if view_render_tick > 0.0:
+		_cmd.view_tick = floori(view_render_tick)
+		_cmd.view_alpha = view_render_tick - floorf(view_render_tick)
 	if player_input != null and player_input.wheel_capture:
 		player_input.wheel_capture = false  # radial: targets fixed when the wheel opens
 		wardlings.wheel_targets = wardlings.crosshair_targets(_cmd.yaw, _cmd.pitch)
@@ -174,6 +183,7 @@ func render(delta: float) -> void:
 	var latest := float(session.latest_snapshot_tick)
 	server_tick_estimate = clampf(server_tick_estimate + delta * net.tick_rate_hz, latest - 1.0, latest + 1.0)
 	var render_tick := server_tick_estimate - net.interp_delay_ticks
+	view_render_tick = render_tick
 	for id in _views:
 		var buf: InterpolationBuffer = _buffers[id]
 		if buf.sample(render_tick):

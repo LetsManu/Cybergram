@@ -38,6 +38,9 @@ var tick: int = 0
 var dt: float
 
 var _humans: Dictionary = {}  # peer id -> HeroBody
+## Online lobby: token -> {team, hero_index} for players who start the match
+## from the lobby (bots leave these slots free). Consumed on join.
+var reserved_slots: Dictionary = {}
 var _peer_of: Dictionary = {}  # hero net id -> peer id
 var _dummies: Array = []      # [HeroBody, ScriptedInputSource]
 var _map: Node3D
@@ -72,6 +75,7 @@ var content: ContentDB = ContentDB.shared()
 func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedScene, transport: Transport,
 		hero_def: HeroDef = null, match_rules: MatchRulesDef = null) -> void:
 	net = net_config
+	_tracer.rewind_ticks = roundi(net.max_rewind_ms * net.tick_rate_hz / 1000.0)  # lag compensation window
 	movement = movement_def
 	player_hero = hero_def if hero_def != null else HeroDef.new()
 	rules = match_rules if match_rules != null else MatchRulesDef.new()
@@ -265,6 +269,7 @@ func step() -> void:
 	_step_match()
 	if progression != null:
 		progression.step()  # E13/E15 income, Armory visits, Motes, Med-Packs
+	_tracer.record(tick, _hero_bodies())  # lag compensation: pose history per tick
 	_send_snapshots()
 	_flush_events()
 	tick += 1
@@ -609,7 +614,12 @@ func _hero_for_peer(peer_id: int) -> HeroDef:
 func _on_client_joined(peer_id: int) -> void:
 	var def := _hero_for_peer(peer_id)
 	var h: HeroBody = null
-	if not _humans.is_empty():
+	var token: int = session.hello_token.get(peer_id, 0)
+	if token != 0 and reserved_slots.has(token):
+		var slot: Dictionary = reserved_slots[token]
+		reserved_slots.erase(token)
+		h = _spawn_hero(team_spawn(slot.team, spawn_point(PLAYER_SPAWN)), def, slot.team)
+	elif not _humans.is_empty() or not reserved_slots.is_empty() or token != 0:
 		# Later players fill the team with fewer humans by taking over a bot.
 		h = _take_over_scripted(_team_with_fewer_humans(), def)
 	if h == null:
@@ -809,3 +819,22 @@ static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:
 		o.reserve = f.reserve_count()
 		o.ammo_flags = f.flags()
 	return o
+
+
+func _hero_bodies() -> Array:
+	var out: Array = []
+	for id in registry.ids():
+		var h := registry.get_node_by_id(id) as HeroBody
+		if h != null:
+			out.append(h)
+	return out
+
+
+## Online lobby: how many reserved human slots each team has (bots skip them).
+func reserved_per_team() -> Array[int]:
+	var n: Array[int] = [0, 0]
+	for t in reserved_slots:
+		var team: int = reserved_slots[t].team
+		if team >= 0 and team <= 1:
+			n[team] += 1
+	return n

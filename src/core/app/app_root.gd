@@ -10,13 +10,18 @@ const APP_CONFIG_PATH := "res://assets/data/app/app_config.tres"
 ## next AppRoot shows the menu with this message instead of re-launching.
 static var menu_notice: String = ""
 static var return_to_menu: bool = false
+## After an online match: the menu reopens the lobby of this server.
+static var rejoin_address: String = ""
 
 
 func _ready() -> void:
 	var headless := DisplayServer.get_name() == "headless"
 	var cfg := load(APP_CONFIG_PATH) as AppConfig
 	var args := OS.get_cmdline_user_args()
-	if (args.is_empty() or return_to_menu) and not headless and cfg.menu_scene != null:
+	var lobby_addr := LaunchConfig.parse(args, headless).open_lobby
+	if lobby_addr != "" and not return_to_menu:
+		rejoin_address = lobby_addr
+	if (args.is_empty() or return_to_menu or lobby_addr != "") and not headless and cfg.menu_scene != null:
 		return_to_menu = false
 		var menu := cfg.menu_scene.instantiate()
 		menu.set("notice", menu_notice)
@@ -27,6 +32,12 @@ func _ready() -> void:
 		add_child(menu)
 		return
 	_start(cfg, args, headless)
+
+
+## Ends an online match and returns to that server's lobby.
+static func rejoin_lobby(tree: SceneTree, address: String) -> void:
+	rejoin_address = address
+	back_to_menu(tree, "")
 
 
 ## Ends the running session and shows the menu with `notice`.
@@ -41,13 +52,21 @@ func _start(cfg: AppConfig, args: PackedStringArray, headless: bool) -> void:
 	var session := cfg.session_scene.instantiate()
 	session.set("launch_config", launch)
 	add_child(session)
-	for scene in cfg.sim_plugin_scenes:
-		var plugin := scene.instantiate()
-		plugin.set("session", session)
-		add_child(plugin)
+	if session.get("match_pending"):
+		# Online lobby: the match (and its AI plugins) is built later.
+		session.connect("match_built", func() -> void: _add_plugins(cfg, session))
+	else:
+		_add_plugins(cfg, session)
 	if launch.mode == LaunchConfig.Mode.DEDICATED:
 		return
 	for scene in cfg.overlay_scenes:
 		var overlay := scene.instantiate()
 		overlay.set("session", session)
 		add_child(overlay)
+
+
+func _add_plugins(cfg: AppConfig, session: Node) -> void:
+	for scene in cfg.sim_plugin_scenes:
+		var plugin := scene.instantiate()
+		plugin.set("session", session)
+		add_child(plugin)

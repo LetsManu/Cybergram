@@ -52,6 +52,15 @@ var remote: ENetTransport
 ## CLIENT mode: why the connection failed or ended ("" = fine). Read by the HUD/menu.
 var remote_status: String = ""
 var _remote_wait_ticks: int = 0
+## Online dedicated server: the pre-match lobby (null once the match runs).
+var lobby: LobbyServer
+var _lobby_enet: ENetTransport
+var _lobby_ticks: int = 0
+## AppRoot defers simulation plugins (bots, Wardling AI) until match_built.
+var match_pending: bool = false
+signal match_built
+## Seconds the server shows the result before it opens a fresh lobby.
+const POST_MATCH_S := 15.0
 var clock: SimClock
 var dedicated: bool = false
 var _quit_after_ticks: int = 0
@@ -90,6 +99,14 @@ func _ready() -> void:
 	if launch_config != null and launch_config.mode == LaunchConfig.Mode.CLIENT:
 		_setup_remote_client()
 		return
+	if dedicated and launch_config != null and launch_config.port > 0 and not launch_config.no_lobby:
+		_start_lobby()
+		return
+	_build_match()
+
+
+## Builds the server world (and the local client unless dedicated).
+func _build_match() -> void:
 	link = LoopbackLink.new(net_sim)
 	server = ServerWorld.new()
 	if dedicated:
@@ -103,7 +120,9 @@ func _ready() -> void:
 		add_child(vp)
 		vp.add_child(server)
 	var server_transport: Transport = link.create_endpoint(SERVER_PEER)
-	if dedicated and launch_config != null and launch_config.port > 0:
+	if _lobby_enet != null:
+		server_transport = _lobby_enet
+	elif dedicated and launch_config != null and launch_config.port > 0:
 		var enet := ENetTransport.listen(launch_config.port, launch_config.max_clients)
 		if enet.error_text != "":
 			push_error("GameSession: %s" % enet.error_text)
@@ -357,6 +376,14 @@ func _apply_debug_capture() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if lobby != null:
+		lobby.step(delta)
+		_lobby_ticks += 1
+		if _quit_after_ticks > 0 and _lobby_ticks >= _quit_after_ticks:
+			print("[lobby] quit after %d ticks, %d player(s)" % [_lobby_ticks, lobby.players.size()])
+			_lobby_enet.close()
+			get_tree().quit()
+		return
 	for i in clock.advance(delta):
 		step_tick()
 
@@ -422,6 +449,7 @@ func _setup_remote_client() -> void:
 	remote = ENetTransport.connect_to(lc.connect_address, lc.port)
 	print("[client] connecting to %s:%d" % [lc.connect_address, lc.port])
 	client = ClientWorld.new()
+	client.hello_token = lc.token
 	add_child(client)
 	var input := PlayerInputSource.new()
 	input.setup(look, movement)
@@ -431,6 +459,10 @@ func _setup_remote_client() -> void:
 	var wardling_rules := load(WARDLING_RULES) as WardlingRulesDef
 	if wardling_rules != null:
 		client.wardlings.rules = wardling_rules
+	client.match_ended.connect(func(_w: int, _r: int) -> void:
+		get_tree().create_timer(POST_MATCH_S - 3.0).timeout.connect(func() -> void:
+			remote.close()
+			AppRoot.rejoin_lobby(get_tree(), "%s:%d" % [lc.connect_address, lc.port])))
 	client.session.rejected.connect(func(reason: int) -> void:
 		remote_status = "server rejected the connection (reason %d: version mismatch?)" % reason)
 
@@ -452,3 +484,38 @@ func _watch_remote() -> void:
 		remote.close()
 		set_physics_process(false)
 		AppRoot.back_to_menu(get_tree(), remote_status)
+
+
+## Online dedicated server: open the lobby on the UDP port; the match is built
+## when the lobby starts it (see LobbyServer).
+func _start_lobby() -> void:
+	match_pending = true
+	_lobby_enet = ENetTransport.listen(launch_config.port, launch_config.max_clients)
+	if _lobby_enet.error_text != "":
+		push_error("GameSession: %s" % _lobby_enet.error_text)
+		get_tree().quit(1)
+		return
+	Engine.max_fps = net_config.tick_rate_hz * 2  # headless loops are uncapped
+	lobby = LobbyServer.new(_lobby_enet, team_size())
+	lobby.match_started.connect(_on_lobby_started)
+	print("[lobby] open on UDP %d: waiting for players (all must press Ready)" % launch_config.port)
+
+
+func _on_lobby_started(slots: Array) -> void:
+	var enet := _lobby_enet
+	lobby = null
+	_build_match()
+	for sl: Dictionary in slots:
+		server.reserved_slots[sl.token] = {"team": sl.team, "hero_index": sl.hero_index}
+	enet.peer_disconnected.connect(func(id: int) -> void: server.on_peer_left(id))
+	server.session.client_joined.connect(func(peer: int) -> void:
+		print("[server] player joined the match (peer %d)" % peer), CONNECT_DEFERRED)
+	print("[lobby] match starting with %d player(s)" % slots.size())
+	match_pending = false
+	match_built.emit()
+	if server.match_flow != null:
+		server.match_flow.match_ended.connect(func(_w: int, _r: int) -> void:
+			print("[lobby] match over; new lobby in %d s" % int(POST_MATCH_S))
+			get_tree().create_timer(POST_MATCH_S).timeout.connect(func() -> void:
+				enet.close()
+				get_tree().reload_current_scene()))

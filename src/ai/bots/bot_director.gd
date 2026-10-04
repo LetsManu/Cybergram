@@ -34,11 +34,18 @@ func setup(s: ServerWorld, r: BotRosterDef, p: BotProfile, seed_: int) -> void:
 ## Adds a bot for every empty slot of both teams. `human_on_team0` keeps
 ## team 0 slot 0 for the local player. Returns the number of bots added.
 func fill(human_on_team0: bool) -> int:
+	var humans: Array[int] = [1 if human_on_team0 else 0, 0]
+	return fill_around(humans)
+
+
+## Adds bots for every slot not kept for humans: the first humans[team] slots
+## of each team stay empty (online lobby reservations).
+func fill_around(humans: Array[int]) -> int:
 	var md := server.wardlings.map_def if server.wardlings != null else null
 	var n := 0
 	for team in 2:
 		for s in team_size():
-			if team == 0 and s == 0 and human_on_team0:
+			if s < humans[team]:
 				continue
 			var hq := md.hq(team) if md != null else null
 			var spawn := server.team_spawn(team, Vector3.ZERO)

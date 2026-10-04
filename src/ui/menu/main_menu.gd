@@ -4,9 +4,9 @@ extends CanvasLayer
 ## It only chooses launch arguments: AppRoot turns them into a LaunchConfig and
 ## builds the session, exactly as if they had been typed on the command line.
 ##   Play vs Bots     -> --hero <id>                 (slice 3v3 vs bots)
-##   Join Server      -> --connect <host[:port]> --hero <id>
+##   Play Online      -> the official server's lobby (AppConfig.online_server)
 ##   Movement Course  -> --map test_course
-## The last server address is remembered in user://menu.cfg.
+## The hero pick is remembered in user://menu.cfg.
 
 ## Emitted with the chosen launch arguments.
 signal start_requested(args: PackedStringArray)
@@ -19,9 +19,10 @@ const DEFAULT_ADDRESS := "127.0.0.1:7777"
 var notice: String = ""
 
 var _hero: OptionButton
-var _address: LineEdit
 var _status: Label
 var _settings: SettingsPanel
+var _center: CenterContainer
+var _col: VBoxContainer
 
 
 func _ready() -> void:
@@ -38,9 +39,11 @@ func _ready() -> void:
 	glow.custom_minimum_size.y = 6
 	add_child(glow)
 	var center := CenterContainer.new()
+	_center = center
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	var col := VBoxContainer.new()
+	_col = col
 	col.custom_minimum_size = Vector2(440, 0)
 	col.add_theme_constant_override("separation", 12)
 	center.add_child(col)
@@ -61,19 +64,7 @@ func _ready() -> void:
 	var play := _button(tr("HUD_MENU_PLAY_BOTS"), _play, true)
 	col.add_child(play)
 	col.add_child(_spacer(6))
-	col.add_child(_label(tr("HUD_MENU_SERVER_ADDRESS"), 14, HudPalette.TEXT_DIM, HORIZONTAL_ALIGNMENT_LEFT))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	_address = LineEdit.new()
-	_address.placeholder_text = DEFAULT_ADDRESS
-	_address.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_address.custom_minimum_size.y = 40
-	_address.text_submitted.connect(func(_t: String) -> void: _join())
-	row.add_child(_address)
-	var join := _button(tr("HUD_MENU_JOIN"), _join)
-	join.custom_minimum_size.x = 110
-	row.add_child(join)
-	col.add_child(row)
+	col.add_child(_button(tr("HUD_MENU_PLAY_ONLINE"), _join, true))
 	col.add_child(_spacer(6))
 	col.add_child(_button(tr("HUD_MENU_TEST_COURSE"), _course))
 	col.add_child(_button(tr("HUD_MENU_SETTINGS"), func() -> void:
@@ -93,6 +84,10 @@ func _ready() -> void:
 		play.grab_focus())
 	center.add_child(_settings)
 	GameSettings.shared().apply_display()
+	if AppRoot.rejoin_address != "":
+		var addr := AppRoot.rejoin_address
+		AppRoot.rejoin_address = ""
+		_open_lobby.call_deferred(addr)  # back to the server's lobby after a match
 	play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
 
 
@@ -100,13 +95,29 @@ func _play() -> void:
 	_start(PackedStringArray(["--hero", _hero_id()]))
 
 
+## PLAY ONLINE: the official server from AppConfig (no address to type).
 func _join() -> void:
-	var addr := _address.text.strip_edges()
-	if addr == "":
-		addr = DEFAULT_ADDRESS
-	_save_settings(addr)
-	_status.text = tr("HUD_MENU_CONNECTING") % addr
-	_start(PackedStringArray(["--connect", addr, "--hero", _hero_id()]))
+	_open_lobby(online_server())
+
+
+## The official online server (assets/data/app/app_config.tres).
+static func online_server() -> String:
+	var cfg := load(AppRoot.APP_CONFIG_PATH) as AppConfig
+	return cfg.online_server if cfg != null and cfg.online_server != "" else DEFAULT_ADDRESS
+
+
+## Online: the server's lobby (teams, hero pick, Ready) before each match.
+func _open_lobby(addr: String) -> void:
+	_col.visible = false
+	var lobby := LobbyScreen.new()
+	lobby.address = addr
+	lobby.hero_id = _hero_id()
+	lobby.start_requested.connect(func(args: PackedStringArray) -> void: start_requested.emit(args))
+	lobby.cancelled.connect(func(reason: String) -> void:
+		lobby.queue_free()
+		_col.visible = true
+		_status.text = reason)
+	_center.add_child(lobby)
 
 
 func _course() -> void:
@@ -114,7 +125,7 @@ func _course() -> void:
 
 
 func _start(args: PackedStringArray) -> void:
-	_save_settings(_address.text.strip_edges())
+	_save_settings()
 	start_requested.emit(args)
 
 
@@ -126,13 +137,11 @@ func _load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) != OK:
 		return
-	_address.text = cfg.get_value("menu", "address", "")
 	_hero.selected = clampi(cfg.get_value("menu", "hero", 0), 0, HEROES.size() - 1)
 
 
-func _save_settings(addr: String) -> void:
+func _save_settings() -> void:
 	var cfg := ConfigFile.new()
-	cfg.set_value("menu", "address", addr)
 	cfg.set_value("menu", "hero", _hero.selected)
 	cfg.save(SETTINGS_PATH)
 
