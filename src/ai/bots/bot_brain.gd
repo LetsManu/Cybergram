@@ -14,6 +14,8 @@ const SKILL_POINT_TOL_DEG: float = 6.0
 const LOOK_AHEAD_M: float = 8.0
 const SPRINT_MIN_M: float = 14.0
 const LOG_MAX: int = 256
+const TRIPWIRE_B_WINDOW_S: float = 4.0
+const SENSOR_CHEST_Y: float = 1.1
 
 var server: ServerWorld
 var profile: BotProfile
@@ -68,6 +70,17 @@ var _calm_buttons: int = 0
 var team_brains: Array = []
 var claims: Dictionary = {}
 var interacts: int = 0
+## W10-W3 thresholds (BotRosterDef.skill_tuning) and behaviour counters for
+## tests and the match report.
+var tuning := BotSkillTuning.new()
+var beam_ticks: int = 0
+var detonations: int = 0
+var wires_placed: int = 0
+var hops_used: int = 0
+var _beam_id: int = 0
+var _wire_cache: Dictionary = {}
+var _wire_ray := PhysicsRayQueryParameters3D.new()
+var _beam_hold_range: float = 14.0
 
 
 func _init(s: ServerWorld, p: BotProfile, seed_: int, slot_: int) -> void:
@@ -79,6 +92,7 @@ func _init(s: ServerWorld, p: BotProfile, seed_: int, slot_: int) -> void:
 	bb.tick_hz = _tick_hz
 	decide_every = maxi(1, roundi(_tick_hz / maxf(p.decision_hz, 0.1)))
 	sensor = BotSensor.new(s, p)
+	_wire_ray.collision_mask = HeroBody.LAYER_WORLD
 	aim = AimHumanizer.new(p, rng, _tick_hz)
 	nav = BotNavigator.new(s.get_world_3d().navigation_map, _tick_hz)
 
@@ -116,6 +130,7 @@ func produce(tick: int, out: InputCommand) -> void:
 		goal = null
 		bb.current_goal = -1
 		_pending_skill = null
+		_beam_id = 0
 	if (tick + slot) % decide_every == 0 or goal == null:
 		var t0 := Time.get_ticks_usec()
 		decide(tick, h)
@@ -146,6 +161,7 @@ func decide(tick: int, h: HeroBody) -> void:
 	else:
 		aim.set_target(0, tick)
 	_decide_learn(h)
+	_decide_beam(tick, h)
 	_decide_skill(tick, h)
 	_decide_squad(tick, h)
 
@@ -385,8 +401,16 @@ func _decide_skill(tick: int, h: HeroBody) -> void:
 		return
 	_pending_skill = null
 	var ab := h.combat.abilities
-	if bb.carrying or ab.is_casting() or ab.is_dashing() or rng.randf() >= profile.skill_use_chance:
+	if bb.carrying or ab.is_casting() or ab.is_dashing():
 		return  # E14: a carrier uses no skills (mobility drops the Cell)
+	var det := _decide_detonation(tick, h)
+	if det != null:
+		_pending_skill = det
+		_skill_deadline = tick + roundi(SKILL_TIMEOUT_S * _tick_hz)
+		detonations += 1
+		return
+	if rng.randf() >= profile.skill_use_chance:
+		return
 	var zone_c := Vector3.ZERO
 	var zone_r := 0.0
 	if goal != null and goal.kind == BotGoal.Kind.DEFEND:
@@ -396,11 +420,155 @@ func _decide_skill(tick: int, h: HeroBody) -> void:
 		zone_c = bb.front_pos
 		zone_r = bb.front_radius
 	var ready := func(s: int) -> bool: return _skill_ready(h, s, tick)
-	var use := BotSkillRules.choose(ab.skills, bb, h, ready, zone_c, zone_r)
+	var use := _decide_special(tick, h, zone_c, zone_r)
+	if use == null:
+		use = BotSkillRules.choose(ab.skills, bb, h, ready, zone_c, zone_r)
 	if use == null or (use.aim == BotSkillRules.Aim.TRACK and not sensor.target_visible):
 		return
 	_pending_skill = use
 	_skill_deadline = tick + roundi(SKILL_TIMEOUT_S * _tick_hz)
+
+
+## W10-W3 Sable: re-press Sabotage Charge (a recast while it is on cooldown) when
+## an enemy hero was sighted within the trigger radius of an armed charge, or an
+## armed charge sits by an enemy Ward Generator.
+func _decide_detonation(tick: int, h: HeroBody) -> BotSkillRules.SkillUse:
+	var ab := h.combat.abilities
+	var sk: SkillInstance = null
+	for s in ab.skills:
+		if s.def.id == &"skill_sable_sabotage_charge":
+			sk = s
+	if sk == null or not ab.is_unlocked(sk.slot) or not (sk.on_cooldown(tick) or sk.active) \
+			or h.combat.status.is_stunned():
+		return null
+	var charges := PackedVector3Array()
+	for c in server.abilities.extras.charges:
+		if c.ctx.caster == h and tick >= c.armed_tick:
+			charges.append(c.pos)
+	if charges.is_empty():
+		return null
+	var max_age := roundi(tuning.sabotage_sighting_age_s * _tick_hz)
+	var enemies := PackedVector3Array()
+	for id in sensor.memory:
+		var e := server.hero(id)
+		if e != null and not e.combat.dead and e.combat.team != h.combat.team \
+				and tick - int(sensor.memory[id][1]) <= max_age:
+			enemies.append(e.state.position + Vector3(0.0, 0.9, 0.0))
+	var gp := PackedVector3Array()
+	var gr := PackedFloat32Array()
+	for g in server.generators:
+		if g.is_up() and g.attackable_by(h.combat.team):
+			gp.append(g.global_position)
+			gr.append(g.hit_radius)
+	if not BotSkillBehaviours.detonation_wanted(charges, enemies, gp, gr, sk.param(&"radius"), tuning):
+		return null
+	var u := BotSkillRules.SkillUse.new(sk.slot, BotSkillRules.Aim.NONE)
+	u.recast = true
+	return u
+
+
+## W10-W3 Hex Relay Hop (escape / reposition) and Juniper Tripwire Lattice.
+func _decide_special(tick: int, h: HeroBody, zone_c: Vector3, zone_r: float) -> BotSkillRules.SkillUse:
+	var eye := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
+	var hurt_now := bb.seconds_since(bb.last_damaged_tick) < 1.0
+	for s in h.combat.abilities.skills:
+		if not _skill_ready(h, s.slot, tick):
+			continue
+		match s.def.id:
+			&"skill_hex_relay_hop":
+				var hero_t := bb.target_id != 0 and bb.target_is_hero
+				var anchor := bb.target_pos if hero_t else bb.front_pos
+				var dist := bb.target_dist if hero_t else (BotBlackboard.flat_dist(bb.pos, bb.front_pos) \
+					if bb.front_index >= 0 and not bb.front_is_own else INF)
+				var mode := BotSkillBehaviours.hop_mode(bb.hp_frac, hurt_now, dist, tuning)
+				if mode == BotSkillBehaviours.HopMode.NONE:
+					continue
+				if mode == BotSkillBehaviours.HopMode.ESCAPE:
+					anchor = bb.home_pos
+				var cands := _hop_gadgets(h)
+				var idx := BotSkillBehaviours.pick_hop_gadget(bb.pos, anchor, cands, s.param(&"range"), tuning)
+				if idx >= 0 and sensor.has_los(eye, cands[idx] + Vector3(0.0, 0.5, 0.0)):
+					hops_used += 1
+					return BotSkillRules.SkillUse.new(s.slot, BotSkillRules.Aim.POINT, cands[idx] + Vector3(0.0, 0.5, 0.0))
+			&"skill_juniper_tripwire_lattice":
+				if sensor.target_visible or zone_r <= 0.0 \
+						or BotBlackboard.flat_dist(bb.pos, zone_c) > tuning.wire_zone_range_m:
+					continue
+				var wire := _wire_sites(zone_c, s.param(&"distance"))
+				if wire.size() == 2 and BotSkillBehaviours.wire_in_reach(bb.pos, wire[0], wire[1], s.param(&"range"), tuning):
+					var u := BotSkillRules.SkillUse.new(s.slot, BotSkillRules.Aim.POINT, wire[0])
+					u.has_then = true
+					u.then_point = wire[1]
+					return u
+	return null
+
+
+## Allied Wardlings and own / allied deployables Relay Hop can land on.
+func _hop_gadgets(h: HeroBody) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var team := h.combat.team
+	if server.wardlings != null:
+		for w in server.wardlings.wardlings:
+			if not w.dead and w.team == team:
+				out.append(w.global_position)
+	for d in server.abilities.deployables:
+		if d.alive and d.team == team and d.kind != TrapWorld.KIND_FIELD:
+			out.append(d.pos)
+	return out
+
+
+## Cached Tripwire anchors across the enemy's approach (nav path from its HQ) to a zone.
+func _wire_sites(zone_c: Vector3, wire_len: float) -> PackedVector3Array:
+	var key := Vector2i(roundi(zone_c.x), roundi(zone_c.z))
+	if _wire_cache.has(key):
+		return _wire_cache[key]
+	var md := server.wardlings.map_def if server.wardlings != null else null
+	var out := PackedVector3Array()
+	if md != null and md.hq(1 - bb.team) != null:
+		var path := NavigationServer3D.map_get_path(server.get_world_3d().navigation_map,
+			md.hq(1 - bb.team).sanctum, zone_c, true)
+		var probe := func(p: Vector3, dir: Vector3) -> float:
+			_wire_ray.from = p + Vector3.UP
+			_wire_ray.to = p + Vector3.UP + dir * 8.0
+			var r := server.get_world_3d().direct_space_state.intersect_ray(_wire_ray)
+			return maxf((r.position as Vector3).distance_to(_wire_ray.from) - 0.4, 0.0) if not r.is_empty() else 8.0
+		out = BotSkillBehaviours.pick_wire(path, wire_len, probe, tuning)
+	_wire_cache[key] = out
+	return out
+
+
+## W10-W3 Liora: pick the allied hero to heal and whether to hold alt-fire.
+func _decide_beam(tick: int, h: HeroBody) -> void:
+	var prev := _beam_id
+	_beam_id = 0
+	var p: HeroPassiveDef = null
+	for ps in h.combat.def.passives:
+		if ps.kind == HeroPassiveDef.Kind.HEAL_BEAM:
+			p = ps
+	var w := h.combat.weapon
+	if p == null or w == null or not (w.feed is ManaPoolFeed) or h.combat.status.is_stunned() \
+			or bb.carrying:
+		return
+	_beam_hold_range = p.range_m - 4.0
+	if BotSkillBehaviours.beam_blocked(bb.hp_frac, bb.seconds_since(bb.last_damaged_tick), tuning):
+		return
+	var feed := w.feed as ManaPoolFeed
+	if not BotSkillBehaviours.beam_mana_ok(feed.current() / maxf(feed.capacity(), 1.0), prev != 0, tuning):
+		return
+	var eye := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
+	var allies: Array = []
+	var list: Array = server.wardlings.heroes() if server.wardlings != null else []
+	for item in list:
+		var a := item as HeroBody
+		if a == h or a.combat.dead or a.combat.team != h.combat.team:
+			continue
+		var hp := a.combat.health.hp / maxf(a.combat.def.max_hp, 1.0)
+		var chest := a.state.position + Vector3(0.0, SENSOR_CHEST_Y, 0.0)
+		var d := eye.distance_to(chest)
+		if hp >= tuning.beam_release_hp_frac or d > p.range_m:
+			continue
+		allies.append(BotSkillBehaviours.AllyView.new(a.net_id, hp, d, sensor.has_los(eye, chest)))
+	_beam_id = BotSkillBehaviours.pick_beam_target(allies, p.range_m, prev, tuning)
 
 
 func _skill_ready(h: HeroBody, s: int, tick: int) -> bool:
@@ -451,7 +619,8 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 	# job or unsticking) steers at half rate: every other tick repeats the last
 	# move / look / sprint, and only the one-tick edges (skill point, squad
 	# order) are sent. Path following at 15 Hz is ample for a 6 m/s run.
-	var calm := not visible and _pending_skill == null and not nav.unsticking(tick) \
+	var beam_ally := _beam_ally()
+	var calm := beam_ally == null and not visible and _pending_skill == null and not nav.unsticking(tick) \
 		and (goal == null or goal.kind != BotGoal.Kind.CELL)
 	if calm and _calm_ready and (tick + slot) % 2 == 1:
 		_calm_ready = false
@@ -483,7 +652,12 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 		wish = Vector3(dest.x + _wander.x - pos.x, 0.0, dest.z + _wander.z - pos.z).normalized()
 	elif rng.randf() < 0.02:
 		_new_wander()
-	if fighting:
+	if beam_ally != null:
+		var to_ally := beam_ally.state.position - pos
+		to_ally.y = 0.0
+		if to_ally.length() > _beam_hold_range:
+			wish = to_ally.normalized()  # close in until the ally is well inside the beam range
+	elif fighting:
 		if tick >= _strafe_until:
 			_strafe = -_strafe if rng.randf() < 0.7 else _strafe
 			_strafe_until = tick + roundi(rng.randf_range(profile.strafe_min_s, profile.strafe_max_s) * _tick_hz)
@@ -509,6 +683,8 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 	var skill := _pending_skill
 	if skill != null and skill.aim == BotSkillRules.Aim.POINT:
 		aim.look_at(skill.point, eye)
+	elif beam_ally != null:
+		aim.look_at(beam_ally.state.position + Vector3(0.0, SENSOR_CHEST_Y, 0.0), eye)
 	elif visible:
 		aim.track(sensor.aim_point(aim.aim_head), eye, tick)
 	elif wish.length_squared() > 0.01:
@@ -523,7 +699,10 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 	out.move = Vector2(wish.dot(r), wish.dot(f)).limit_length(1.0)
 	# --- weapon ---
 	var firing := false
-	if visible and c.weapon != null and aim.can_fire(tick) and c.can_shoot():
+	if beam_ally != null:
+		out.buttons |= InputCommand.BTN_ALT  # heal beam: hold alt-fire on the ally
+		beam_ticks += 1
+	elif visible and c.weapon != null and aim.can_fire(tick) and c.can_shoot():
 		var ap := sensor.aim_point(aim.aim_head)
 		var in_range := eye.distance_to(ap) <= c.weapon.def.range_m
 		if in_range and _resource_ok(c) and aim.on_target(ap, eye, sensor.target_radius()):
@@ -549,6 +728,10 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 			_skill_pressed_tick = tick
 			skills_pressed += 1
 			_pending_skill = null
+			if skill.has_then:  # Tripwire: press 1 laid anchor A, queue press 2 for B
+				wires_placed += 1
+				_pending_skill = BotSkillRules.SkillUse.new(skill.slot, BotSkillRules.Aim.POINT, skill.then_point)
+				_skill_deadline = tick + roundi(TRIPWIRE_B_WINDOW_S * _tick_hz)
 	_emit_edges(out)
 
 
@@ -577,6 +760,14 @@ func _in_objective_zone(pos: Vector3) -> bool:
 	if bb.front_index >= 0 and not bb.front_is_own:
 		return BotBlackboard.flat_dist(pos, bb.front_pos) < bb.front_radius * 0.9
 	return false
+
+
+## The ally being beamed this tick (alive, same team), or null.
+func _beam_ally() -> HeroBody:
+	if _beam_id == 0:
+		return null
+	var a := server.hero(_beam_id)
+	return a if a != null and not a.combat.dead else null
 
 
 func _skill_aim_ok(skill: BotSkillRules.SkillUse, eye: Vector3) -> bool:

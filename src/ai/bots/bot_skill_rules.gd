@@ -17,6 +17,11 @@ class SkillUse:
 	var slot: int = 0
 	var aim: int = Aim.NONE
 	var point: Vector3 = Vector3.ZERO
+	## W10-W3: a second POINT press to queue after this one lands (Tripwire anchor B).
+	var then_point: Vector3 = Vector3.ZERO
+	var has_then: bool = false
+	## Press even though the skill is on cooldown (recast: remote detonation, Tripwire B).
+	var recast: bool = false
 
 	func _init(s: int, a: int, p: Vector3 = Vector3.ZERO) -> void:
 		slot = s
@@ -118,9 +123,9 @@ static func choose(skills: Array[SkillInstance], bb: BotBlackboard, h: HeroBody,
 			&"skill_liora_aurora":
 				if (hurt_now and bb.hp_frac < 0.5) or (hero_t and bb.target_dist < 10.0 and bb.hp_frac < 0.8):
 					return SkillUse.new(s.slot, Aim.NONE)
-			# W9-H2 Juniper Quill (Trapper) and Hex (Hacker). Tripwire Lattice needs two
-			# presses (anchor A then B) and Relay Hop needs a gadget under the crosshair:
-			# bots do not use them yet (like Threadstep).
+			# W9-H2 Juniper Quill (Trapper) and Hex (Hacker). Tripwire Lattice (two presses)
+			# and Relay Hop (a gadget under the crosshair) are BotSkillBehaviours, driven
+			# from BotBrain._decide_special.
 			&"skill_juniper_snare_coil":
 				if hero_t and bb.target_dist >= 5.0 and bb.target_dist <= s.param(&"range") - 2.0:
 					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)

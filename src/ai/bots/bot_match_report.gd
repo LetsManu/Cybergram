@@ -80,6 +80,8 @@ func summary() -> Dictionary:
 		var orders := 0
 		var gt := PackedInt32Array([0, 0, 0, 0, 0, 0])
 		var dec_us := 0
+		var beh := {"beam_ticks": 0, "detonations": 0, "wires": 0, "hops": 0}
+		var heroes_seen := {}
 		for b in director.brains:
 			dec_us += b.decide_usec
 			for k in gt.size():
@@ -87,9 +89,17 @@ func summary() -> Dictionary:
 			shots += b.shots_pressed
 			skills += b.skills_pressed
 			orders += b.squad_orders
+			beh["beam_ticks"] += b.beam_ticks
+			beh["detonations"] += b.detonations
+			beh["wires"] += b.wires_placed
+			beh["hops"] += b.hops_used
+			if b.hero() != null:
+				heroes_seen[String(b.hero().combat.def.id)] = true
 		d["bot_shots"] = shots
 		d["bot_skill_casts"] = skills
 		d["bot_squad_orders"] = orders
+		d["bot_skill_behaviours"] = beh
+		d["bot_heroes"] = heroes_seen.keys()
 		var total := 0.0
 		for v in gt:
 			total += v
