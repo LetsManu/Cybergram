@@ -19,6 +19,7 @@ spread_base_deg = 0.6
 spread_bloom_deg = 0.15
 spread_max_deg = 2.0
 range_m = 120.0
+projectile_speed = 90.0
 mana_pool = 100
 mana_cost = 4.0
 mana_regen = 40.0

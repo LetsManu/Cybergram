@@ -544,6 +544,8 @@ func overdrive(ctx: EffectContext, def: OverdriveEffectDef) -> void:
 	b.max_extend = roundi(def.max_extension_s * tick_hz)
 	b.extended = 0
 	b.od_bonus = ctx.param(def.bonus_param)
+	if h.combat.weapon != null:
+		h.combat.weapon.recoil_mult = def.recoil_mult
 	b.od_src = Modifier.source(Modifier.SRC_PASSIVE, 0x500000 | (h.net_id & 0xFFF))
 	_od_modifier(h, b)
 
@@ -586,6 +588,8 @@ func _step_buffs(tick: int) -> void:
 		if b.bottomless_until >= 0:
 			if tick >= b.bottomless_until:
 				b.bottomless_until = -1
+				if w != null:
+					w.recoil_mult = 1.0
 			elif w != null and w.feed is MagazineFeed:
 				var f := w.feed as MagazineFeed
 				f.rounds = f.def.magazine
@@ -597,6 +601,7 @@ func _step_buffs(tick: int) -> void:
 func _end_buffs(b: Buff) -> void:
 	if b.hero.combat.weapon != null:
 		b.hero.combat.weapon.rate_mult = 1.0
+		b.hero.combat.weapon.recoil_mult = 1.0
 	b.hero.combat.stats.remove_by_source(b.od_src)
 
 
