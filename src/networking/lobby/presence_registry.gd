@@ -18,8 +18,6 @@ extends RefCounted
 const ONLINE_TTL_S: float = 25.0
 ## Most simultaneous entries (a flood of check-ins cannot grow memory).
 const MAX_ENTRIES: int = 1024
-## A name lookup returns at most this many players per name.
-const MAX_MATCHES_PER_NAME: int = 3
 
 static var _shared: PresenceRegistry
 
@@ -97,36 +95,3 @@ func end_match(now: float) -> void:
 		if entries[id].status == LobbyCodec.STATUS_IN_MATCH:
 			entries.erase(id)
 	purge(now)
-
-
-## Presence reply entries ({id, status, name}) for `ids` plus the connected
-## players whose name matches one of `names` (case-insensitive; "Name#TAG"
-## also matches the tag). Unknown ids come back offline with no name.
-func answer(ids: PackedStringArray, names: PackedStringArray, now: float) -> Array:
-	purge(now)
-	var out: Array = []
-	var seen := {}
-	for id in ids:
-		if seen.has(id) or out.size() >= LobbyCodec.MAX_PRESENCE_REPLY:
-			continue
-		seen[id] = true
-		var e: Dictionary = entries.get(id, {})
-		out.append({"id": id, "status": status_of(id, now), "name": str(e.get("name", ""))})
-	for raw in names:
-		var parsed := FriendList.parse(raw)
-		if parsed.is_empty():
-			continue
-		var want := String(parsed[0]).to_lower()
-		var tag: String = parsed[1]
-		var hits := 0
-		for id in entries:
-			if hits >= MAX_MATCHES_PER_NAME or out.size() >= LobbyCodec.MAX_PRESENCE_REPLY:
-				break
-			if seen.has(id) or String(entries[id].name).to_lower() != want:
-				continue
-			if tag != "" and PlayerProfile.tag_of(id) != tag:
-				continue
-			seen[id] = true
-			hits += 1
-			out.append({"id": id, "status": status_of(id, now), "name": entries[id].name})
-	return out

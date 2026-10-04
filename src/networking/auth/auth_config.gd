@@ -1,0 +1,118 @@
+class_name AuthConfig
+extends RefCounted
+## Server account / transport-security settings from the command line and the
+## environment (design/ux/lobby-and-social.md §6):
+##   --tls-cert <pem>   / env CYBERGRAM_TLS_CERT   certificate chain (PEM), e.g. Let's Encrypt fullchain.pem
+##   --tls-key <pem>    / env CYBERGRAM_TLS_KEY    private key (PEM), e.g. privkey.pem
+##   --data-dir <dir>   / env CYBERGRAM_DATA_DIR   account store root (default user://accounts; Docker: /data)
+## Flags win over env. Without a readable cert + key the server runs
+## guest-only (no DTLS; login / register are refused, never sent in plain).
+## Client side:
+##   --dtls-ca <pem>     pin this certificate / CA (self-hosted servers, tests)
+##   --dtls-insecure     DEBUG ONLY: accept any server certificate (client_unsafe)
+##   --no-dtls           connect in plain UDP (guest-only servers)
+## Parsed here (not in LaunchConfig, a lead-owned file; see the L1 report).
+
+const DEFAULT_DATA_DIR := "user://accounts"
+const RULES_PATH := "res://assets/data/net/auth_rules.tres"
+
+var cert_path: String = ""
+var key_path: String = ""
+var data_dir: String = DEFAULT_DATA_DIR
+var ca_path: String = ""
+var insecure: bool = false
+var no_dtls: bool = false
+## Loaded server TLS (null = guest-only) and why it is missing.
+var server_tls: TLSOptions
+var tls_error: String = ""
+
+
+## Parses `args` (user args) and `env` (name -> value; missing = unset).
+static func parse(args: PackedStringArray, env: Dictionary) -> AuthConfig:
+	var c := AuthConfig.new()
+	c.cert_path = str(env.get("CYBERGRAM_TLS_CERT", ""))
+	c.key_path = str(env.get("CYBERGRAM_TLS_KEY", ""))
+	var dd := str(env.get("CYBERGRAM_DATA_DIR", ""))
+	if dd != "":
+		c.data_dir = dd
+	var i := 0
+	while i < args.size():
+		var has_value := i + 1 < args.size()
+		match args[i]:
+			"--tls-cert":
+				if has_value:
+					i += 1
+					c.cert_path = args[i]
+			"--tls-key":
+				if has_value:
+					i += 1
+					c.key_path = args[i]
+			"--data-dir":
+				if has_value:
+					i += 1
+					c.data_dir = args[i]
+			"--dtls-ca":
+				if has_value:
+					i += 1
+					c.ca_path = args[i]
+			"--dtls-insecure":
+				c.insecure = true
+			"--no-dtls":
+				c.no_dtls = true
+		i += 1
+	return c
+
+
+## This process's settings (OS args + env).
+static func from_os() -> AuthConfig:
+	var env := {}
+	for k in ["CYBERGRAM_TLS_CERT", "CYBERGRAM_TLS_KEY", "CYBERGRAM_DATA_DIR"]:
+		if OS.has_environment(k):
+			env[k] = OS.get_environment(k)
+	return parse(OS.get_cmdline_user_args(), env)
+
+
+## Loads the server certificate + key. Returns the TLSOptions or null
+## (tls_error says why); null means guest-only.
+func load_server_tls() -> TLSOptions:
+	server_tls = null
+	if cert_path == "" or key_path == "":
+		tls_error = "no --tls-cert / --tls-key (or CYBERGRAM_TLS_CERT / CYBERGRAM_TLS_KEY)"
+		return null
+	var cert := X509Certificate.new()
+	if cert.load(cert_path) != OK:
+		tls_error = "cannot read certificate %s" % cert_path
+		return null
+	var key := CryptoKey.new()
+	if key.load(key_path) != OK:
+		tls_error = "cannot read private key %s" % key_path
+		return null
+	tls_error = ""
+	server_tls = TLSOptions.server(key, cert)
+	return server_tls
+
+
+## Client TLS for `host`: null = plain UDP. IP addresses and localhost are
+## plain unless a CA is pinned or --dtls-insecure is given; host names use
+## DTLS with the system CA bundle (Let's Encrypt) and hostname check.
+func client_tls_for(host: String) -> TLSOptions:
+	if no_dtls:
+		return null
+	if insecure:
+		push_warning("[net] --dtls-insecure: the server certificate is NOT verified (debug only)")
+		return TLSOptions.client_unsafe()
+	if ca_path != "":
+		var ca := X509Certificate.new()
+		if ca.load(ca_path) == OK:
+			return TLSOptions.client(ca)
+		push_warning("[net] cannot read --dtls-ca %s; using the system CAs" % ca_path)
+		return TLSOptions.client()
+	if host.is_valid_ip_address() or host == "localhost":
+		return null
+	return TLSOptions.client()
+
+
+## The account rules (data), or defaults.
+static func rules() -> AuthRulesDef:
+	var r := load(RULES_PATH) as AuthRulesDef if ResourceLoader.exists(RULES_PATH) else null
+	return r if r != null else AuthRulesDef.new()

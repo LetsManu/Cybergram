@@ -29,6 +29,8 @@ var token_names: Dictionary = {}
 var names: Dictionary = {}
 ## Presence of the players in this match (process-wide by default).
 var registry: PresenceRegistry = PresenceRegistry.shared()
+## Accounts / guests (process-wide by default); identities of late joiners.
+var accounts: AccountService = AccountService.shared()
 var _rng := RandomNumberGenerator.new()
 var _scratch: Array[InputCommand] = []
 
@@ -40,6 +42,7 @@ func _init(t: Transport, net_config: NetConfig) -> void:
 
 ## Receives and routes every arrived packet.
 func poll() -> void:
+	accounts.step(net.tick_dt())
 	transport.poll()
 	var pkt := transport.pop_packet()
 	while pkt != null:
@@ -57,7 +60,9 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	var who: Dictionary = token_names.get(hello_token.get(peer_id, 0), {})
 	if not who.is_empty():
 		names[own_net_id] = {"name": who.name, "accent": who.accent, "id": who.id}
+		registry.claim(who.id, who.id, who.name)
 		registry.set_status(who.id, LobbyCodec.STATUS_IN_MATCH, PresenceRegistry.now_s())
+		accounts.adopt(who.id, peer_id)  # the login session lives while connected to the match
 	_send_names()
 
 
@@ -66,6 +71,7 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 func drop(peer_id: int) -> void:
 	var c: ClientConnection = clients.get(peer_id)
 	clients.erase(peer_id)
+	accounts.on_disconnect(peer_id)
 	token_names.erase(hello_token.get(peer_id, 0))
 	hello_token.erase(peer_id)
 	hello_hero.erase(peer_id)
@@ -123,19 +129,17 @@ func _handle(pkt: Transport.Packet) -> void:
 				return
 			if j.get("legacy", false) or j.protocol_version != MsgType.PROTOCOL_VERSION:
 				reject(pkt.from_peer, MsgType.REJECT_PROTOCOL_MISMATCH)
-			elif not LobbyServer.valid_profile(j):
-				reject(pkt.from_peer, MsgType.REJECT_BAD_PROFILE)
-			elif not registry.claim(j.id, j.key, j.name):
-				reject(pkt.from_peer, MsgType.REJECT_ID_TAKEN)
+			elif accounts.identity(pkt.from_peer).is_empty():
+				reject(pkt.from_peer, MsgType.REJECT_NOT_LOGGED_IN)
 			else:
+				var who := accounts.identity(pkt.from_peer)
 				var token := 0
 				while token == 0 or token_names.has(token):
 					token = _rng.randi_range(1, 65535)
-				token_names[token] = {"name": j.name, "id": j.id, "accent": j.accent}
+				token_names[token] = {"name": who.name, "id": who.id, "accent": who.accent}
 				transport.send(pkt.from_peer, Transport.CH_CONTROL, LobbyCodec.encode_start(token, 255, j.hero_index))
-		MsgType.PRESENCE_QUERY:
-			LobbyServer.answer_presence(transport, registry, pkt.from_peer,
-				LobbyCodec.decode_presence_query(pkt.data), PresenceRegistry.now_s())
+		MsgType.ACCOUNT_REQ:
+			accounts.handle(transport, pkt.from_peer, pkt.data)
 		MsgType.LOBBY_PICK, MsgType.LOBBY_TEAM, MsgType.LOBBY_CHAT_SEND:
 			pass  # a lobby client that has not seen the match start yet
 		MsgType.INPUT_BATCH:

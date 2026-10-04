@@ -447,7 +447,8 @@ func debug_text() -> String:
 ## CLIENT mode: a ClientWorld joined to a remote dedicated server over UDP.
 func _setup_remote_client() -> void:
 	var lc := launch_config
-	remote = ENetTransport.connect_to(lc.connect_address, lc.port)
+	remote = ENetTransport.connect_to(lc.connect_address, lc.port,
+		AuthConfig.from_os().client_tls_for(lc.connect_address))  # L1: DTLS like the lobby link
 	print("[client] connecting to %s:%d" % [lc.connect_address, lc.port])
 	client = ClientWorld.new()
 	client.hello_token = lc.token
@@ -491,7 +492,20 @@ func _watch_remote() -> void:
 ## when the lobby starts it (see LobbyServer).
 func _start_lobby() -> void:
 	match_pending = true
-	_lobby_enet = ENetTransport.listen(launch_config.port, launch_config.max_clients)
+	# L1: DTLS + server accounts when a certificate is configured, else guest-only.
+	var auth := AuthConfig.from_os()
+	var tls := auth.load_server_tls()
+	_lobby_enet = ENetTransport.listen(launch_config.port, launch_config.max_clients, tls)
+	if _lobby_enet.error_text == "":
+		var store: AccountStore = null
+		if tls != null:
+			store = FileAccountStore.new(auth.data_dir)
+			if store.open() != OK:
+				push_error("[accounts] cannot open the account store in %s" % auth.data_dir)
+				store = null
+		AccountService.configure_shared(store, AuthConfig.rules(), tls != null and store != null)
+		print("[accounts] %s" % ("DTLS on; accounts in %s (%d)" % [auth.data_dir, store.count()] if store != null
+			else "guest-only (%s)" % (auth.tls_error if tls == null else "no account store")))
 	if _lobby_enet.error_text != "":
 		push_error("GameSession: %s" % _lobby_enet.error_text)
 		get_tree().quit(1)

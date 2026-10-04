@@ -1,8 +1,8 @@
 class_name LobbyServer
 extends RefCounted
 ## Pre-match lobby of the online dedicated server (LoL-style flow on one
-## server, design/ux/lobby-and-social.md §2.2): players join with their
-## profile, sit in two team columns (smaller team first, or their party
+## server, design/ux/lobby-and-social.md §2.2): players log in (or play as
+## guest) through AccountService, then join with their session's identity, sit in two team columns (smaller team first, or their party
 ## friend's team), may switch teams while there is room, pick a hero, lock in
 ## with Ready and chat. When every connected player is ready a countdown runs;
 ## its last LOCK_S seconds are locked (no un-ready). Then every player gets a
@@ -57,6 +57,8 @@ class Player:
 
 var transport: Transport
 var registry: PresenceRegistry
+## Logins, guests, friends (process-wide by default).
+var accounts: AccountService
 var team_size: int = 3
 var phase: int = LobbyCodec.PHASE_WAITING
 var countdown_left: float = 0.0
@@ -71,11 +73,13 @@ var _violations: Dictionary = {}  # peer -> count
 var _rng := RandomNumberGenerator.new()
 
 
-## `registry_` defaults to the process-wide PresenceRegistry.
-func _init(t: Transport, team_size_: int, registry_: PresenceRegistry = null) -> void:
+## `registry_` / `accounts_` default to the process-wide instances.
+func _init(t: Transport, team_size_: int, registry_: PresenceRegistry = null, accounts_: AccountService = null) -> void:
 	transport = t
 	team_size = team_size_
 	registry = registry_ if registry_ != null else PresenceRegistry.shared()
+	accounts = accounts_ if accounts_ != null else AccountService.shared()
+	accounts.reset_peers()
 	registry.end_match(PresenceRegistry.now_s())
 	_rng.randomize()
 	if t.has_signal("peer_disconnected"):
@@ -85,6 +89,7 @@ func _init(t: Transport, team_size_: int, registry_: PresenceRegistry = null) ->
 ## Call every frame while the lobby runs.
 func step(delta: float) -> void:
 	now += delta
+	accounts.step(delta)
 	transport.poll()
 	var pkt := transport.pop_packet()
 	while pkt != null:
@@ -132,6 +137,7 @@ func team_count(team: int) -> int:
 ## A peer disconnected: its seat is kept for RECONNECT_GRACE_S.
 func on_peer_left(peer: int) -> void:
 	_violations.erase(peer)
+	accounts.on_disconnect(peer)
 	var i := index_of_peer(peer)
 	if i < 0:
 		return
@@ -161,9 +167,8 @@ func _handle(pkt: Transport.Packet) -> void:
 			_on_team(pkt.from_peer, LobbyCodec.decode_team(pkt.data))
 		MsgType.LOBBY_CHAT_SEND:
 			_on_chat(pkt.from_peer, LobbyCodec.decode_chat_send(pkt.data))
-		MsgType.PRESENCE_QUERY:
-			answer_presence(transport, registry, pkt.from_peer, LobbyCodec.decode_presence_query(pkt.data),
-				PresenceRegistry.now_s())
+		MsgType.ACCOUNT_REQ:
+			accounts.handle(transport, pkt.from_peer, pkt.data)
 		_:
 			_violation(pkt.from_peer, "unknown message %d" % pkt.data.decode_u8(0))
 
@@ -177,12 +182,18 @@ func _on_join(peer: int, j: Dictionary) -> void:
 			peer, j.protocol_version, MsgType.PROTOCOL_VERSION])
 		transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_PROTOCOL_MISMATCH))
 		return
-	if not valid_profile(j):
-		print("[lobby] peer %d rejected: invalid profile" % peer)
-		transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_BAD_PROFILE))
+	var who := accounts.identity(peer)
+	if who.is_empty():
+		print("[lobby] peer %d rejected: not logged in" % peer)
+		transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_NOT_LOGGED_IN))
 		return
 	if index_of_peer(peer) >= 0:
 		return  # duplicate join on the same connection
+	j["id"] = who.id
+	j["key"] = who.id  # the session authenticated the id
+	j["name"] = who.name
+	j["emblem"] = who.emblem
+	j["accent"] = who.accent
 	var seat := _seat_of_id(j.id)
 	if seat == null and players.size() >= team_size * 2:
 		print("[lobby] peer %d rejected: lobby full (%d players)" % [peer, players.size()])
@@ -291,29 +302,14 @@ func _on_chat(peer: int, d: Dictionary) -> void:
 	if not p.chat.allow(now):
 		_system_to(peer, LobbyCodec.SYS_SLOW_DOWN, p)
 		return
-	_push(LobbyCodec.encode_chat(LobbyCodec.CHAT_PLAYER, 0, p.team, p.accent, p.name, text, p.id))
-
-
-## Validates a decoded profile (join): ids, name charset/length, emblem, accent.
-static func valid_profile(j: Dictionary) -> bool:
-	return PlayerProfile.is_hex_id(str(j.get("id", ""))) and PlayerProfile.is_hex_id(str(j.get("key", ""))) \
-		and PlayerProfile.validate_name(str(j.get("name", ""))) == PlayerProfile.NameError.OK \
-		and PlayerProfile.name_allowed(str(j.get("name", ""))) \
-		and int(j.get("emblem", -1)) >= 0 and int(j.get("emblem", -1)) < PlayerProfile.EMBLEM_COUNT \
-		and int(j.get("accent", -1)) >= 0 and int(j.get("accent", -1)) < PlayerProfile.ACCENTS.size()
-
-
-## Answers a decoded PRESENCE_QUERY on `t` (shared with the match server's
-## ServerSession). A valid asker not in a lobby / match is marked online.
-static func answer_presence(t: Transport, reg: PresenceRegistry, peer: int, q: Dictionary, at_s: float) -> void:
-	if q.is_empty() or q.protocol_version != MsgType.PROTOCOL_VERSION:
-		return
-	var name: String = q.name
-	if PlayerProfile.validate_name(name) == PlayerProfile.NameError.OK and reg.claim(q.id, q.key, name):
-		var st := reg.status_of(q.id, at_s)
-		if st == LobbyCodec.STATUS_OFFLINE or st == LobbyCodec.STATUS_ONLINE:
-			reg.set_status(q.id, LobbyCodec.STATUS_ONLINE, at_s)
-	t.send(peer, Transport.CH_CONTROL, LobbyCodec.encode_presence(reg.answer(q.ids, q.names, at_s)))
+	var line := LobbyCodec.encode_chat(LobbyCodec.CHAT_PLAYER, 0, p.team, p.accent, p.name, text, p.id)
+	history.append(line)
+	while history.size() > CHAT_HISTORY:
+		history.remove_at(0)
+	for q in players:
+		# Server-side blocks: a player who blocked the sender does not get the line.
+		if q.peer >= 0 and not accounts.blocks_of(q.peer).has(p.id):
+			transport.send(q.peer, Transport.CH_CONTROL, line)
 
 
 func _valid_hero(index: int) -> int:

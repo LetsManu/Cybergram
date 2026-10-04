@@ -9,9 +9,9 @@ extends RefCounted
 ## by the server, not here.
 ##
 ## Replication: every message is reliable + ordered (ch0). LOBBY_STATE is sent
-## on every change and at least once per second; PRESENCE answers a query;
+## on every change and at least once per second;
 ## PLAYER_NAMES is sent when a named player joins or leaves the match.
-## Budget: LOBBY_STATE <= 6 + 16 x 39 bytes; PRESENCE_QUERY <= MAX_C2S_BYTES.
+## Budget: LOBBY_STATE <= 6 + 16 x 39 bytes; any C->S packet <= MAX_C2S_BYTES.
 
 const PHASE_WAITING: int = 0   ## players join, pick heroes, toggle Ready, switch teams
 const PHASE_COUNTDOWN: int = 1 ## everyone is ready; un-readying cancels
@@ -23,10 +23,6 @@ const MAX_C2S_BYTES: int = 1200
 ## Chat limits (characters after sanitising, and raw bytes on the wire).
 const CHAT_MAX_CHARS: int = 120
 const CHAT_MAX_BYTES: int = 240
-## Presence query limits.
-const MAX_PRESENCE_IDS: int = 40
-const MAX_PRESENCE_NAMES: int = 10
-const MAX_PRESENCE_REPLY: int = 64
 ## Name bytes on the wire (names are ASCII, PlayerProfile.NAME_MAX chars).
 const NAME_MAX_BYTES: int = 16
 const ID_BYTES: int = 16
@@ -190,33 +186,28 @@ static func is_none_id(hex: String) -> bool:
 
 # --- LOBBY_JOIN -------------------------------------------------------------
 
-## `profile`: {id, key, name, emblem, accent}. `party_id`: friend to sit with ("" = none).
-static func encode_join(protocol_version: int, profile: Dictionary, hero_index: int,
-		party_id: String = "") -> PackedByteArray:
+## v12: the identity comes from the connection's account / guest session.
+## `party_id`: a friend to sit with ("" = none).
+static func encode_join(protocol_version: int, hero_index: int, party_id: String = "") -> PackedByteArray:
 	var w := Writer.new(MsgType.LOBBY_JOIN)
 	w.u16(protocol_version)
-	w.id(str(profile.get("id", "")))
-	w.id(str(profile.get("key", "")))
-	w.str8(str(profile.get("name", "")), NAME_MAX_BYTES)
-	w.u8(int(profile.get("emblem", 0)))
-	w.u8(int(profile.get("accent", 0)))
 	w.u16(hero_index)
 	w.id(party_id)
 	return w.b
 
 
-## {protocol_version, id, key, name, emblem, accent, hero_index, party_id}.
-## A pre-v11 join (5 bytes) decodes to {protocol_version} only, so the server
-## can answer with a clean protocol-mismatch Reject.
+const JOIN_BYTES: int = 21
+
+## {protocol_version, hero_index, party_id}. Any other layout (v10 / v11
+## clients) decodes to {protocol_version, legacy: true}, so the server can
+## answer with a clean protocol-mismatch Reject.
 static func decode_join(b: PackedByteArray) -> Dictionary:
 	if b.size() < 3 or b.decode_u8(0) != MsgType.LOBBY_JOIN:
 		return {}
-	if b.size() == 5:
+	if b.size() != JOIN_BYTES:
 		return {"protocol_version": b.decode_u16(1), "legacy": true}
 	var r := Reader.new(b)
-	var d := {"protocol_version": r.u16(), "id": r.id(), "key": r.id(),
-		"name": r.str8(NAME_MAX_BYTES), "emblem": r.u8(), "accent": r.u8(), "hero_index": r.u16(),
-		"party_id": r.id()}
+	var d := {"protocol_version": r.u16(), "hero_index": r.u16(), "party_id": r.id()}
 	if not r.done():
 		return {}
 	if is_none_id(d.party_id):
@@ -363,84 +354,6 @@ static func decode_chat(b: PackedByteArray) -> Dictionary:
 	if not r.done() or d.kind > CHAT_SYSTEM or d.code >= SYS_COUNT:
 		return {}
 	return d
-
-
-# --- Presence ---------------------------------------------------------------
-
-## `profile`: {id, key, name} of the asker (marks it online). `ids`: friends
-## to look up; `names`: unresolved friend names (resolved by the server).
-static func encode_presence_query(protocol_version: int, profile: Dictionary, ids: PackedStringArray,
-		names: PackedStringArray) -> PackedByteArray:
-	var w := Writer.new(MsgType.PRESENCE_QUERY)
-	w.u16(protocol_version)
-	w.id(str(profile.get("id", "")))
-	w.id(str(profile.get("key", "")))
-	w.str8(str(profile.get("name", "")), NAME_MAX_BYTES)
-	var n := mini(ids.size(), MAX_PRESENCE_IDS)
-	w.u8(n)
-	for i in n:
-		w.id(ids[i])
-	var m := mini(names.size(), MAX_PRESENCE_NAMES)
-	w.u8(m)
-	for i in m:
-		w.str8(names[i], NAME_MAX_BYTES)
-	return w.b
-
-
-static func decode_presence_query(b: PackedByteArray) -> Dictionary:
-	if b.size() < 3 or b.size() > MAX_C2S_BYTES or b.decode_u8(0) != MsgType.PRESENCE_QUERY:
-		return {}
-	var r := Reader.new(b)
-	var d := {"protocol_version": r.u16(), "id": r.id(), "key": r.id(), "name": r.str8(NAME_MAX_BYTES)}
-	var n := r.u8()
-	if n > MAX_PRESENCE_IDS:
-		return {}
-	var ids := PackedStringArray()
-	for i in n:
-		ids.append(r.id())
-	var m := r.u8()
-	if m > MAX_PRESENCE_NAMES:
-		return {}
-	var names := PackedStringArray()
-	for i in m:
-		names.append(r.str8(NAME_MAX_BYTES))
-	if not r.done():
-		return {}
-	d["ids"] = ids
-	d["names"] = names
-	return d
-
-
-## `entries`: Array of {id, status, name}.
-static func encode_presence(entries: Array) -> PackedByteArray:
-	var n := mini(entries.size(), MAX_PRESENCE_REPLY)
-	var w := Writer.new(MsgType.PRESENCE)
-	w.u8(n)
-	for i in n:
-		var e: Dictionary = entries[i]
-		w.id(str(e.get("id", "")))
-		w.u8(int(e.get("status", STATUS_OFFLINE)))
-		w.str8(str(e.get("name", "")), NAME_MAX_BYTES)
-	return w.b
-
-
-## {entries: Array of {id, status, name}}.
-static func decode_presence(b: PackedByteArray) -> Dictionary:
-	if b.size() < 2 or b.decode_u8(0) != MsgType.PRESENCE:
-		return {}
-	var r := Reader.new(b)
-	var n := r.u8()
-	if n > MAX_PRESENCE_REPLY:
-		return {}
-	var entries: Array = []
-	for i in n:
-		var e := {"id": r.id(), "status": r.u8(), "name": r.str8(NAME_MAX_BYTES)}
-		if e.status > STATUS_IN_MATCH:
-			return {}
-		entries.append(e)
-	if not r.done():
-		return {}
-	return {"entries": entries}
 
 
 # --- PLAYER_NAMES (match) ---------------------------------------------------

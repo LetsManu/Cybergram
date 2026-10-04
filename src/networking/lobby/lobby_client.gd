@@ -1,44 +1,58 @@
 class_name LobbyClient
 extends RefCounted
-## Client end of the server lobby: joins with the player's profile and hero
-## pick, mirrors the lobby state, sends picks / team switches / chat, asks for
-## friends' presence and reports the slot token when the match starts.
-## Display only: the server decides seats, teams, readiness and chat text.
+## Client end of one online-server connection (design/ux/lobby-and-social.md
+## §2, §6): account requests (register / login / resume / guest, profile,
+## friends, export, delete), then the lobby (join, picks, team switch, chat)
+## and the slot token when the match starts. One object polls the transport
+## and dispatches every message. Display only: the server decides
+## everything. The session token is kept in memory only (`session`).
 ##
 ## Example:
-##   var lc := LobbyClient.new(enet, profile.to_wire(), hero_index)
-##   lc.state_changed.connect(_on_state)
+##   var lc := LobbyClient.new(enet)
+##   lc.request(AccountCodec.OP_GUEST, {"ver": MsgType.PROTOCOL_VERSION, "display_name": "Neo", ...})
+##   lc.account_result.connect(func(d): if d.code == AccountCodec.OK: lc.join(hero, ""))
 ##   lc.step()  # every frame
 
 signal state_changed(state: Dictionary)
-## A chat line: {kind, code, team, accent, name, text}.
+## A chat line: {kind, code, team, accent, id, name, text}.
 signal chat_received(line: Dictionary)
-## Presence reply entries: Array of {id, status, name}.
-signal presence_received(entries: Array)
+## An ACCOUNT_RESULT: {op, code, ...fields}.
+signal account_result(result: Dictionary)
 signal match_starting(token: int, team: int, hero_index: int)
+## `reason` is a HUD_ translation key.
 signal failed(reason: String)
 
 ## Server end of the transport (ENetTransport.SERVER_PEER; loopback tests: 1).
 const SERVER_PEER: int = 1
+const CHAT_KEEP := 50
 
 var transport: Transport
-var profile: Dictionary = {}
 var hero_index: int = 0
 var ready: bool = false
 var state: Dictionary = {}
 ## Chat lines received so far (newest last, capped).
 var chat: Array = []
-const CHAT_KEEP := 50
+## The current session ({token, id, username, display_name, emblem, accent,
+## favourite_hero, guest}); {} = not logged in. Memory only.
+var session: Dictionary = {}
+var joined: bool = false
 
 
-## `profile_`: {id, key, name, emblem, accent} (PlayerProfile fields).
-## `party_id`: a friend's id to be seated with ("" = none).
-func _init(t: Transport, profile_: Dictionary, hero_index_: int, party_id: String = "") -> void:
+func _init(t: Transport) -> void:
 	transport = t
-	profile = profile_
+
+
+## Sends an account request (AccountCodec.OP_*, fields per REQ_SCHEMA).
+func request(op: int, fields: Dictionary = {}) -> void:
+	transport.send(SERVER_PEER, Transport.CH_CONTROL, AccountCodec.encode_request(op, fields))
+
+
+## Joins the lobby with the logged-in identity. `party_id`: a friend to sit with.
+func join(hero_index_: int, party_id: String = "") -> void:
 	hero_index = hero_index_
+	joined = true
 	transport.send(SERVER_PEER, Transport.CH_CONTROL,
-		LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, profile, hero_index, party_id))
+		LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, hero_index, party_id))
 
 
 func pick(hero_index_: int, ready_: bool) -> void:
@@ -58,12 +72,6 @@ func say(text: String) -> void:
 	var t := text.strip_edges()
 	if t != "":
 		transport.send(SERVER_PEER, Transport.CH_CONTROL, LobbyCodec.encode_chat_send(t))
-
-
-## Asks for the presence of `ids` (resolved friends) and `names` (unresolved).
-func query_presence(ids: PackedStringArray, names: PackedStringArray) -> void:
-	transport.send(SERVER_PEER, Transport.CH_CONTROL,
-		LobbyCodec.encode_presence_query(MsgType.PROTOCOL_VERSION, profile, ids, names))
 
 
 ## Own seat in the last state ({} before the first state).
@@ -87,6 +95,19 @@ func _handle(b: PackedByteArray) -> void:
 	if b.is_empty():
 		return
 	match b.decode_u8(0):
+		MsgType.ACCOUNT_RESULT:
+			var d := AccountCodec.decode_result(b)
+			if d.is_empty():
+				return
+			if d.code == AccountCodec.OK:
+				if d.has("token"):
+					session = d.duplicate()
+				elif d.op == AccountCodec.OP_UPDATE_PROFILE and not session.is_empty():
+					for k in ["display_name", "emblem", "accent", "favourite_hero"]:
+						session[k] = d[k]
+				elif d.op == AccountCodec.OP_LOGOUT or d.op == AccountCodec.OP_DELETE_ACCOUNT:
+					session = {}
+			account_result.emit(d)
 		MsgType.LOBBY_STATE:
 			var s := LobbyCodec.decode_state(b)
 			if not s.is_empty():
@@ -102,10 +123,6 @@ func _handle(b: PackedByteArray) -> void:
 				while chat.size() > CHAT_KEEP:
 					chat.remove_at(0)
 				chat_received.emit(c)
-		MsgType.PRESENCE:
-			var p := LobbyCodec.decode_presence(b)
-			if not p.is_empty():
-				presence_received.emit(p.entries)
 		MsgType.LOBBY_START:
 			var st := LobbyCodec.decode_start(b)
 			if not st.is_empty():
@@ -124,4 +141,11 @@ static func reject_text(reason: int) -> String:
 			return "HUD_LOBBY_REJECT_ID"
 		MsgType.REJECT_BAD_PROFILE:
 			return "HUD_LOBBY_REJECT_PROFILE"
+		MsgType.REJECT_NOT_LOGGED_IN:
+			return "HUD_LOBBY_REJECT_LOGIN"
 	return "HUD_LOBBY_REJECT_VERSION"
+
+
+## Player-facing text key for an account result code.
+static func account_error_key(code: int) -> String:
+	return "HUD_ACCOUNT_ERR_%d" % code
