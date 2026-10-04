@@ -74,5 +74,32 @@ func _init() -> void:
 	_check(LauncherCore.status_text({"reachable": true}) == "Server reachable", "status text reachable only")
 	_check(LauncherCore.status_text({"reachable": false}) == "Server unreachable", "status text down")
 
+	# Verify, copy, settings.
+	var base: String = OS.get_cache_dir().path_join("cybergram_launcher_verify")
+	LauncherCore.remove_tree(base)
+	DirAccess.make_dir_recursive_absolute(base.path_join("sub"))
+	var vf: FileAccess = FileAccess.open(base.path_join("sub/a.txt"), FileAccess.WRITE)
+	vf.store_string("abc")
+	vf.close()
+	var files: Array = [{"path": "sub/a.txt", "sha256": abc}, {"path": "gone.txt", "sha256": abc}]
+	var bad: PackedStringArray = LauncherCore.verify_files(base, files)
+	_check(bad.size() == 1 and bad[0] == "gone.txt", "verify finds the missing file")
+	files[0]["sha256"] = "00" + abc.substr(2)
+	_check(LauncherCore.verify_files(base, files).size() == 2, "verify finds the corrupt file")
+	_check(LauncherCore.verify_files(base, [{"path": "../x", "sha256": abc}]).size() == 1, "verify rejects unsafe path")
+	_check(LauncherCore.copy_tree(base, base + "_copy") == "", "copy tree ok")
+	_check(FileAccess.get_file_as_string(base + "_copy/sub/a.txt") == "abc", "copy tree content")
+	LauncherCore.remove_tree(base)
+	LauncherCore.remove_tree(base + "_copy")
+	var sp: String = OS.get_cache_dir().path_join("cybergram_launcher_settings_test.cfg")
+	var ls: LauncherSettings = LauncherSettings.new(sp)
+	ls.install_root = "/x/y"
+	ls.username = "neo"
+	_check(ls.save_file(), "settings save")
+	var ls2: LauncherSettings = LauncherSettings.new(sp).load_file()
+	_check(ls2.install_root == "/x/y" and ls2.username == "neo", "settings roundtrip")
+	_check(not FileAccess.get_file_as_string(sp).to_lower().contains("token"), "settings hold no token")
+	DirAccess.remove_absolute(sp)
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

@@ -20,6 +20,7 @@ enum State {
 	DOWNLOADING,
 	INSTALLING,
 	ERROR,             ## update failed; installed game (if any) is untouched
+	VERIFYING,         ## hashing the installed files against the manifest
 }
 
 ## Emitted whenever the state changes. `message` is a short human line.
@@ -28,6 +29,10 @@ signal state_changed(state: State, message: String)
 signal progress_changed(fraction: float, label: String)
 ## Emitted once the manifest is parsed (news text is `latest_notes_md`).
 signal manifest_loaded
+
+## Emitted when a verify run finished: relative paths that were missing or
+## corrupt (empty = intact). A repair download starts right after if non-empty.
+signal verify_done(bad: PackedStringArray)
 
 const MANIFEST_TIMEOUT_S: float = 8.0
 const DEFAULT_EXE: Dictionary = {"windows": "Cybergram.exe", "linux": "Cybergram.x86_64"}
@@ -51,6 +56,11 @@ func setup(install_root: String, version_url: String, os_name: String = "") -> v
 	_install_root = install_root
 	_version_url = version_url
 	_platform = LauncherCore.platform_key(os_name if os_name != "" else OS.get_name())
+
+
+## Folder that holds game/.
+func install_root() -> String:
+	return _install_root
 
 
 ## Absolute path of the installed game folder.
@@ -215,6 +225,55 @@ func _install(zip_path: String) -> void:
 	DirAccess.remove_absolute(zip_path)
 	_downloading = false
 	_set_state(State.UP_TO_DATE, "Cybergram %s installed" % latest_version)
+
+
+## Hashes the installed files against the manifest's per-file sha256 list and
+## re-downloads the whole build when anything is missing or corrupt (the host
+## serves zips, not single files). Needs a loaded manifest and an installed
+## game of the latest version; an older install is simply updated.
+func verify_and_repair() -> void:
+	if _entry.is_empty() or _downloading:
+		return
+	var installed: String = installed_version()
+	if installed == "" or LauncherCore.compare_versions(installed, latest_version) != 0:
+		start_update()
+		return
+	var files: Array = _entry.get("files", [])
+	if files.is_empty():
+		_set_state(State.ERROR, "The update server publishes no file list, so the install cannot be verified.")
+		return
+	_set_state(State.VERIFYING, "Verifying %d files..." % files.size())
+	await get_tree().process_frame  # let the UI show the state before hashing
+	var bad: PackedStringArray = LauncherCore.verify_files(game_dir(), files)
+	verify_done.emit(bad)
+	if bad.is_empty():
+		_set_state(State.UP_TO_DATE, "All %d files are intact. Cybergram %s is ready." % [files.size(), installed])
+	else:
+		print("LAUNCHER: verify found %d bad files, e.g. %s" % [bad.size(), bad[0]])
+		start_update()
+
+
+## Moves the installed game to `new_root`/game and switches this updater to
+## the new root. Tries a rename, falls back to copy + delete (other drive).
+## Returns "" on success or an error text; the old install stays on failure.
+func move_install(new_root: String) -> String:
+	var target: String = new_root.path_join(LauncherCore.GAME_DIR)
+	if new_root.simplify_path() == _install_root.simplify_path():
+		return ""
+	if DirAccess.dir_exists_absolute(target):
+		return "The folder %s already contains a game folder." % new_root
+	var err: Error = DirAccess.make_dir_recursive_absolute(new_root)
+	if err != OK:
+		return "Cannot create %s (%s)." % [new_root, error_string(err)]
+	if DirAccess.dir_exists_absolute(game_dir()):
+		if DirAccess.rename_absolute(game_dir(), target) != OK:
+			var cerr: String = LauncherCore.copy_tree(game_dir(), target)
+			if cerr != "":
+				LauncherCore.remove_tree(target)
+				return "Moving failed: %s. The old install was kept." % cerr
+			LauncherCore.remove_tree(game_dir())
+	_install_root = new_root
+	return ""
 
 
 func _fail(msg: String) -> void:

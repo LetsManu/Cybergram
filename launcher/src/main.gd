@@ -8,6 +8,10 @@ extends Control
 ##                          10 update available / 20 offline or error
 ##   --update-to <dir>      headless: install root = <dir>; check, download,
 ##                          verify, unpack, write the version, exit 0 / 1
+##   --repair               headless: verify files against the manifest, re-download
+##                          if anything is bad; exit 0 intact/repaired, 1 failed
+##   --move-install-to <d>  headless: move the install from --install-root to <d>
+##   --settings <file>      launcher settings file (default user://launcher_settings.cfg)
 ##   --no-launch            window mode: never start the game (screenshots)
 
 const ACCENT: Color = Color("2fd6ff")
@@ -28,7 +32,14 @@ var _probe: StatusProbe
 var _version_url: String = ""
 var _close_on_launch: bool = true
 var _no_launch: bool = false
-var _headless_mode: String = ""   ## "", "check" or "update"
+var _headless_mode: String = ""   ## "", "check", "update" or "repair"
+var _settings: LauncherSettings
+var _repair_started: bool = false
+var _install_label: Label
+var _repair: Button
+var _dialog: FileDialog
+var _confirm: ConfirmationDialog
+var _pending_root: String = ""
 
 
 func _ready() -> void:
@@ -40,15 +51,26 @@ func _ready() -> void:
 	var url: String = String(cfg.get_value("launcher", "version_url", LauncherCore.DEFAULT_VERSION_URL))
 	_close_on_launch = bool(cfg.get_value("launcher", "close_on_launch", true))
 	_no_launch = args.has("no-launch")
-	var root: String = String(args.get("install-root", OS.get_executable_path().get_base_dir()))
+	_settings = LauncherSettings.new(String(args.get("settings", "user://launcher_settings.cfg"))).load_file()
+	var root: String = OS.get_executable_path().get_base_dir()
+	if _settings.install_root != "":
+		root = _settings.install_root
+	root = String(args.get("install-root", root))
 	if args.has("update-to"):
 		root = String(args["update-to"])
 		_headless_mode = "update"
 	elif args.has("check-only"):
 		_headless_mode = "check"
+	elif args.has("repair"):
+		_headless_mode = "repair"
 	_updater = Updater.new()
 	add_child(_updater)
 	_updater.setup(root, url)
+	if args.has("move-install-to"):
+		var merr: String = _updater.move_install(String(args["move-install-to"]))
+		print("LAUNCHER: move %s" % ("ok" if merr == "" else "failed: " + merr))
+		get_tree().quit(0 if merr == "" else 1)
+		return
 	_version_url = url
 	_probe = StatusProbe.new()
 	add_child(_probe)
@@ -77,10 +99,10 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 		var a: String = all[i]
 		if a.begins_with("--") and a.length() > 2:
 			var key: String = a.substr(2)
-			if key in ["config", "install-root", "update-to"] and i + 1 < all.size():
+			if key in ["config", "install-root", "update-to", "settings", "move-install-to"] and i + 1 < all.size():
 				out[key] = all[i + 1]
 				i += 1
-			elif key in ["check-only", "no-launch"]:
+			elif key in ["check-only", "no-launch", "repair"]:
 				out[key] = true
 		i += 1
 	return out
@@ -95,6 +117,9 @@ func _on_state(s: Updater.State, msg: String) -> void:
 	_status.text = msg
 	_version_label.text = _version_text()
 	_skip.visible = false
+	_repair.disabled = s in [Updater.State.CHECKING, Updater.State.DOWNLOADING, Updater.State.INSTALLING, Updater.State.VERIFYING] \
+		or _updater.installed_version() == "" and s != Updater.State.UPDATE_AVAILABLE
+	_install_label.text = "Install folder: " + _updater.install_root()
 	_bar.visible = s == Updater.State.DOWNLOADING or s == Updater.State.INSTALLING
 	_bar_label.visible = _bar.visible
 	_button.disabled = false
@@ -114,6 +139,9 @@ func _on_state(s: Updater.State, msg: String) -> void:
 		Updater.State.DOWNLOADING, Updater.State.INSTALLING:
 			_button.text = "UPDATING..."
 			_button.disabled = true
+		Updater.State.VERIFYING:
+			_button.text = "VERIFYING..."
+			_button.disabled = true
 		Updater.State.ERROR:
 			_button.text = "RETRY"
 			_skip.visible = _updater.installed_version() != ""
@@ -123,15 +151,21 @@ func _on_state(s: Updater.State, msg: String) -> void:
 
 func _headless_state(s: Updater.State, msg: String) -> void:
 	print("LAUNCHER: [%s] %s" % [Updater.State.keys()[s], msg])
+	if _headless_mode == "repair" and s in [Updater.State.UP_TO_DATE, Updater.State.UPDATE_AVAILABLE] and not _repair_started:
+		_repair_started = true
+		_updater.verify_and_repair()
+		return
 	match s:
 		Updater.State.UP_TO_DATE:
-			if _headless_mode == "check" or _updater.installed_version() == _updater.latest_version:
+			if _headless_mode == "repair" or _headless_mode == "check" or _updater.installed_version() == _updater.latest_version:
 				print("LAUNCHER: installed=%s latest=%s" % [_updater.installed_version(), _updater.latest_version])
 				get_tree().quit(0)
 		Updater.State.UPDATE_AVAILABLE:
 			print("LAUNCHER: installed=%s latest=%s" % [_updater.installed_version(), _updater.latest_version])
 			if _headless_mode == "check":
 				get_tree().quit(10)
+			elif _headless_mode == "repair":
+				pass
 			else:
 				_updater.start_update()
 		Updater.State.OFFLINE_READY, Updater.State.OFFLINE_NONE:
@@ -172,6 +206,31 @@ func _play() -> void:
 		get_tree().quit()
 	else:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
+
+
+## Player picked a folder: offer to move an existing install into it.
+func _on_folder_chosen(dir: String) -> void:
+	if dir.simplify_path() == _updater.install_root().simplify_path():
+		return
+	_pending_root = dir
+	if _updater.installed_version() != "":
+		_confirm.dialog_text = "Move the installed game to\n%s ?" % dir
+		_confirm.popup_centered()
+	else:
+		_apply_root(dir, false)
+
+
+func _apply_root(dir: String, move: bool) -> void:
+	if move:
+		var err: String = _updater.move_install(dir)
+		if err != "":
+			_status.text = err
+			return
+	else:
+		_updater.setup(dir, _version_url)
+	_settings.install_root = dir
+	_settings.save_file()
+	_updater.check()
 
 
 func _version_text() -> String:
@@ -300,6 +359,38 @@ func _build_ui() -> void:
 	_skip.visible = false
 	_skip.pressed.connect(_play)
 	sv.add_child(_skip)
+
+	_repair = Button.new()
+	_repair.text = "Verify / repair files"
+	_repair.flat = true
+	_repair.pressed.connect(func() -> void: _updater.verify_and_repair())
+	sv.add_child(_repair)
+
+	_install_label = Label.new()
+	_install_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	_install_label.add_theme_font_size_override("font_size", 12)
+	_install_label.add_theme_color_override("font_color", Color("5b6676"))
+	_install_label.text = "Install folder: " + _updater.install_root()
+	sv.add_child(_install_label)
+	var change: Button = Button.new()
+	change.text = "Change install folder..."
+	change.flat = true
+	change.pressed.connect(func() -> void: _dialog.popup_centered(Vector2i(720, 460)))
+	sv.add_child(change)
+
+	_dialog = FileDialog.new()
+	_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_dialog.use_native_dialog = true
+	_dialog.title = "Choose the Cybergram install folder"
+	_dialog.dir_selected.connect(_on_folder_chosen)
+	add_child(_dialog)
+	_confirm = ConfirmationDialog.new()
+	_confirm.ok_button_text = "Move install"
+	_confirm.cancel_button_text = "Keep old, reinstall here"
+	_confirm.confirmed.connect(func() -> void: _apply_root(_pending_root, true))
+	_confirm.canceled.connect(func() -> void: _apply_root(_pending_root, false))
+	add_child(_confirm)
 
 	_version_label = Label.new()
 	_version_label.add_theme_color_override("font_color", Color("5b6676"))

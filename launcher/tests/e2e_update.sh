@@ -78,6 +78,23 @@ expect_exit 1 "update with wrong sha256 fails" run --update-to "$tmp/old2"
 [[ "$(cat "$tmp/old2/game/installed_version.txt")" == "0.4.1" ]] && ok "old install untouched" || bad "old install damaged"
 [[ ! -e "$tmp/old2/game.new" ]] && ok "no staging dir left" || bad "staging dir left"
 
+# --- 5. manifest, repair, move -------------------------------------------------
+echo "[5] manifest + repair + move"
+"$here/tools/make_update_feed.sh" v0.5.0 "$tmp/win" "$tmp/lin" "$tmp/notes.md" "$tmp/host" > /dev/null
+jq -e '.platforms.linux.files | map(.path) | contains(["Cybergram.x86_64","data/x.txt"])' "$tmp/host/version.json" > /dev/null && ok "feed lists linux files" || bad "feed linux file list"
+jq -e '.platforms.windows.files | map(.path) | contains(["Cybergram.exe"])' "$tmp/host/version.json" > /dev/null && ok "feed lists windows files" || bad "feed windows file list"
+jq -e '.platforms.linux.files[] | select(.path=="data/x.txt") | .sha256 | length == 64' "$tmp/host/version.json" > /dev/null && ok "file sha256 present" || bad "file sha256"
+expect_exit 0 "repair on intact install" run --repair --install-root "$tmp/install"
+echo "tampered" > "$tmp/install/game/data/x.txt"
+expect_exit 0 "repair fixes a tampered file" run --repair --install-root "$tmp/install"
+[[ "$(cat "$tmp/install/game/data/x.txt")" == "payload 0.5.0" ]] && ok "tampered file restored" || bad "tampered file not restored"
+rm "$tmp/install/game/data/x.txt"
+expect_exit 0 "repair fixes a missing file" run --repair --install-root "$tmp/install"
+[[ -f "$tmp/install/game/data/x.txt" ]] && ok "missing file restored" || bad "missing file not restored"
+expect_exit 0 "move install" run --install-root "$tmp/install" --move-install-to "$tmp/moved"
+[[ -f "$tmp/moved/game/data/x.txt" && ! -e "$tmp/install/game" ]] && ok "install moved" || bad "install not moved"
+expect_exit 0 "moved install is current" run --check-only --install-root "$tmp/moved"
+
 echo
 [[ "$fails" == 0 ]] && echo "E2E PASS" || echo "E2E FAILED ($fails)"
 exit "$fails"

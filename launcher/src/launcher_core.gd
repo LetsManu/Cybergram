@@ -91,6 +91,9 @@ static func parse_manifest(text: String) -> Dictionary:
 		for field in ["file", "sha256", "exe"]:
 			if typeof(entry.get(field)) != TYPE_STRING:
 				return {"ok": false, "error": "platform %s lacks \"%s\"" % [key, field]}
+		var listed: Variant = entry.get("files", [])
+		if typeof(listed) != TYPE_ARRAY:
+			return {"ok": false, "error": "platform %s has a malformed file list" % key}
 		var file_name: String = entry["file"]
 		if file_name.contains("/") or file_name.contains("\\") or file_name.contains(".."):
 			return {"ok": false, "error": "platform %s has an unsafe file name" % key}
@@ -235,3 +238,37 @@ static func remove_tree(dir_path: String) -> bool:
 		DirAccess.remove_absolute(dir_path.path_join(file_name))
 	DirAccess.remove_absolute(dir_path)
 	return not DirAccess.dir_exists_absolute(dir_path)
+
+
+## Checks an installed folder against the manifest's `files` array
+## ([{path,size,sha256}]). Returns the relative paths that are missing or
+## whose sha256 differs (empty = intact). Unsafe manifest paths count as bad.
+## Extra files in the folder are ignored (saves, logs, mods).
+static func verify_files(dir_path: String, files: Array) -> PackedStringArray:
+	var bad: PackedStringArray = PackedStringArray()
+	for item: Variant in files:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var e: Dictionary = item
+		var rel: String = String(e.get("path", ""))
+		if not is_safe_entry(rel) or not sha256_matches(dir_path.path_join(rel), String(e.get("sha256", ""))):
+			bad.append(rel)
+	return bad
+
+
+## Recursively copies a directory. Returns "" on success or an error text.
+static func copy_tree(from_dir: String, to_dir: String) -> String:
+	var err: Error = DirAccess.make_dir_recursive_absolute(to_dir)
+	if err != OK:
+		return "cannot create %s (%s)" % [to_dir, error_string(err)]
+	for sub in DirAccess.get_directories_at(from_dir):
+		var r: String = copy_tree(from_dir.path_join(sub), to_dir.path_join(sub))
+		if r != "":
+			return r
+	for file_name in DirAccess.get_files_at(from_dir):
+		var src: String = from_dir.path_join(file_name)
+		var dst: String = to_dir.path_join(file_name)
+		var cerr: Error = DirAccess.copy_absolute(src, dst)
+		if cerr != OK:
+			return "cannot copy %s (%s)" % [file_name, error_string(cerr)]
+	return ""
