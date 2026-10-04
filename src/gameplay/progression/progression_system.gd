@@ -163,13 +163,16 @@ func debug_set_level(h: HeroBody, level: int) -> void:
 
 # --- Skill tree (heroes.md §3.5, §11 reduced tree) ----------------------------------
 
-## Learns the next node of `slot` (basics: Unlock -> Boost; ultimate: rank
-## 1 -> 2 -> 3). `kind` (SkillNodeDef.Kind) must match the next node when given.
+## Learns the next node of `slot` (basics: Unlock -> Boost -> Fork A|B ->
+## Mastery; ultimate: rank 1 -> 2 -> 3). `kind` (SkillNodeDef.Kind) must match
+## the next node when given; at the Fork stage it is REQUIRED (FORK_A or
+## FORK_B, W10-T1: the choice is player input and permanent for the match).
 func learn(h: HeroBody, slot: int, kind: int = -1) -> int:
 	return _learn(h, slot, kind, false)
 
 
-## Dry run of learn() (HUD "+" markers, bots).
+## Dry run of learn() (HUD "+" markers, bots). At the Fork stage with no
+## `kind` it returns Result.FORK_CHOICE when a point could be spent.
 func can_learn(h: HeroBody, slot: int, kind: int = -1) -> int:
 	return _learn(h, slot, kind, true)
 
@@ -179,29 +182,51 @@ func _learn(h: HeroBody, slot: int, kind: int, dry: bool) -> int:
 	var s := h.combat.abilities.skill(slot)
 	if s == null:
 		return HeroProgress.Result.NO_SKILL
-	if kind == SkillNodeDef.Kind.FORK_A or kind == SkillNodeDef.Kind.FORK_B or kind == SkillNodeDef.Kind.MASTERY:
-		return HeroProgress.Result.NOT_IN_SLICE
 	var node: SkillNodeDef
+	var fork_stage := false
 	if s.def.ultimate:
+		if kind == SkillNodeDef.Kind.FORK_A or kind == SkillNodeDef.Kind.FORK_B or kind == SkillNodeDef.Kind.MASTERY:
+			return HeroProgress.Result.NOT_IN_SLICE  # ultimates have ranks, not forks
 		if s.rank >= 3:
 			return HeroProgress.Result.MAXED
 		node = s.node_of(SkillNodeDef.Kind.ULT_RANK, s.rank + 1)
 		if node == null:
 			return HeroProgress.Result.MAXED
 	elif not s.unlocked:
+		if kind == SkillNodeDef.Kind.FORK_A or kind == SkillNodeDef.Kind.FORK_B or kind == SkillNodeDef.Kind.MASTERY:
+			return HeroProgress.Result.REQUIRES
 		node = _unlock_node
 	elif not s.has_node(SkillNodeDef.Kind.BOOST):
+		if kind == SkillNodeDef.Kind.FORK_A or kind == SkillNodeDef.Kind.FORK_B or kind == SkillNodeDef.Kind.MASTERY:
+			return HeroProgress.Result.REQUIRES  # Fork needs the Boost
 		node = s.node_of(SkillNodeDef.Kind.BOOST)
 		if node == null:
 			return HeroProgress.Result.MAXED
+	elif s.fork() == 0:
+		if kind == SkillNodeDef.Kind.MASTERY:
+			return HeroProgress.Result.REQUIRES  # Mastery needs a Fork
+		fork_stage = true
+		node = s.node_of(kind if kind == SkillNodeDef.Kind.FORK_B else SkillNodeDef.Kind.FORK_A)
+		if node == null:
+			return HeroProgress.Result.MAXED  # no fork data authored
+		if kind >= 0 and kind != SkillNodeDef.Kind.FORK_A and kind != SkillNodeDef.Kind.FORK_B:
+			return HeroProgress.Result.REQUIRES
+	elif not s.has_node(SkillNodeDef.Kind.MASTERY):
+		if kind == SkillNodeDef.Kind.FORK_A or kind == SkillNodeDef.Kind.FORK_B:
+			return HeroProgress.Result.FORK_LOCKED  # the choice is permanent
+		node = s.node_of(SkillNodeDef.Kind.MASTERY)
+		if node == null:
+			return HeroProgress.Result.MAXED
 	else:
-		return HeroProgress.Result.MAXED  # Forks / Mastery arrive in M3
-	if kind >= 0 and kind != node.kind:
+		return HeroProgress.Result.MAXED
+	if kind >= 0 and not fork_stage and kind != node.kind:
 		return HeroProgress.Result.REQUIRES
 	if p.skill_points() < 1:
 		return HeroProgress.Result.NO_POINTS
 	if p.level < node.required_level:
 		return HeroProgress.Result.LEVEL_GATE
+	if fork_stage and kind < 0:
+		return HeroProgress.Result.FORK_CHOICE
 	if not dry:
 		s.learn(node, h.combat.stats)
 		p.spent += 1
@@ -341,12 +366,28 @@ func _track_mid(now_s: float) -> void:
 
 # --- Input actions ------------------------------------------------------------------
 
+## ACTION_LEARN `action_arg`: bits 0-1 = slot, bits 2-3 = Fork choice
+## (0 = none / next node, 1 = Fork A, 2 = Fork B). W10-T1, no wire change.
+static func learn_arg(slot: int, fork_choice: int = 0) -> int:
+	return (slot & 3) | ((fork_choice & 3) << 2)
+
+
+## SkillNodeDef.Kind encoded in an ACTION_LEARN arg (-1 = next node).
+static func learn_kind_of_arg(arg: int) -> int:
+	match (arg >> 2) & 3:
+		1:
+			return SkillNodeDef.Kind.FORK_A
+		2:
+			return SkillNodeDef.Kind.FORK_B
+	return -1
+
+
 ## Applies an InputCommand ACTION_* (called by ServerWorld before movement; also
 ## while dead: points can be spent and the spawn chosen any time).
 func handle_action(h: HeroBody, cmd: InputCommand) -> int:
 	match cmd.action:
 		InputCommand.ACTION_LEARN:
-			return learn(h, cmd.action_arg & 3)
+			return learn(h, cmd.action_arg & 3, learn_kind_of_arg(cmd.action_arg))
 		InputCommand.ACTION_BUY:
 			return buy_index(h, cmd.action_arg & 0xFF, cmd.action_arg >> 8)
 		InputCommand.ACTION_SELL:
@@ -556,7 +597,8 @@ func fill_own(s: SnapshotData, h: HeroBody) -> void:
 	s.progress = o
 	if s.own_combat != null:
 		for slot in 4:
-			if can_learn(h, slot) == HeroProgress.Result.OK:
+			var r := can_learn(h, slot)
+			if r == HeroProgress.Result.OK or r == HeroProgress.Result.FORK_CHOICE:
 				s.own_combat.skill_flags[slot] |= AbilityRunner.FLAG_LEARNABLE
 
 
