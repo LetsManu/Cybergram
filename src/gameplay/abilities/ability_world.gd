@@ -829,6 +829,10 @@ func _pin(ch: Charge) -> void:
 	if not t.combat.dead:
 		apply_status(ch.ctx, t, StatusComponent.Kind.STUN, ch.stun_ticks, 0.0)
 	add_fx(FX_BURST, ch.ctx.team, t.state.position, Vector3(1.5, 0.0, 0.0), 0.0, roundi(BURST_S * tick_hz))
+	var refund := ch.ctx.param(&"extra_b")  # W10-T1 Ram Charge Mastery: pinning a hero refunds cooldown
+	var rs := ch.ctx.skill
+	if refund > 0.0 and rs != null:
+		rs.cooldown_end_tick -= roundi(rs.cooldown_total_ticks * minf(refund, 1.0))
 	_end_charge(ch)
 
 

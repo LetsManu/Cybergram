@@ -5,13 +5,70 @@
 [ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s3"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s4"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s5"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/blast_effect_def.gd" id="w10_2"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/fork_gate_effect_def.gd" id="w10_3"]
 
 [sub_resource type="Resource" id="blast_effect_def_1"]
 script = ExtResource("s1")
 
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_2")
+radius_param = &"extra_b"
+damage_param = &"extra"
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_3")
+fork = 1
+effects = Array[Resource]([SubResource("w10_sub_1"), SubResource("w10_sub_1"), SubResource("w10_sub_1")])
+else_effects = Array[Resource]([SubResource("blast_effect_def_1")])
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_0")
+stat = &"extra"
+op = 0
+value = 60.0
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_0")
+stat = &"extra_b"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("w10_sub_4")])
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_0")
+stat = &"duration"
+op = 0
+value = -1.0
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_6")])
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_0")
+stat = &"charges"
+op = 0
+value = 1.0
+
+[sub_resource type="Resource" id="w10_sub_9"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_8")])
+
 [sub_resource type="Resource" id="thrown_effect_def_2"]
 script = ExtResource("s2")
-on_detonate = Array[Resource]([SubResource("blast_effect_def_1")])
+on_detonate = Array[Resource]([SubResource("w10_sub_2")])
 
 [sub_resource type="Resource" id="modifier_def_3"]
 script = ExtResource("s3")
@@ -46,4 +103,4 @@ params = {
 &"charges": 2.0
 }
 effects = Array[Resource]([SubResource("thrown_effect_def_2")])
-nodes = Array[ExtResource("s4")]([SubResource("skill_node_def_5")])
+nodes = Array[ExtResource("s4")]([SubResource("skill_node_def_5"), SubResource("w10_sub_5"), SubResource("w10_sub_7"), SubResource("w10_sub_9")])

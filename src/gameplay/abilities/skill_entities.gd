@@ -873,6 +873,8 @@ func _on_hero_died(victim_id: int, killer_id: int) -> void:
 	if b != null and b.bottomless_until >= 0 and b.extend_ticks > 0 and b.extended + b.extend_ticks <= b.max_extend:
 		b.extended += b.extend_ticks
 		b.bottomless_until += b.extend_ticks
+		if b.rate_until >= 0:  # W10-T1 Stim Mastery: the Stim's fire-rate window extends too
+			b.rate_until += b.extend_ticks
 		_od_modifier(killer, b)
 		if b.skill != null and b.skill.active and b.skill.active_until_tick >= 0:
 			b.skill.active_until_tick += b.extend_ticks

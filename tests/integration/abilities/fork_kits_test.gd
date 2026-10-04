@@ -199,3 +199,121 @@ func test_vesper_threadstep_forks_decoy_shield_and_two_charges() -> void:
 	assert_float(foe.combat.health.hp).is_less(250.0)
 	s.learn(s.node_of(SkillNodeDef.Kind.MASTERY), v.combat.stats)
 	assert_int(s.max_charges()).is_equal(2)
+
+
+# ------------------------------------------------------------------ Brannoc
+
+const BRANNOC := "res://assets/data/heroes/hero_brannoc.tres"
+
+
+func test_brannoc_wall_forks_and_mastery_heal() -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(BRANNOC, Vector3(3.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn(b, 0, SkillNodeDef.Kind.FORK_B, true)
+	ally.combat.health.hp = 100.0
+	var wall_hp := s.param(&"hp")
+	assert_bool(_cast(b, 0, 0.3)).is_true()
+	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Mirror approximation
+	# Mastery heals allies near the wall: ally at the wall point.
+	var ctx := _node_ctx(b, 0)
+	ctx.point = ally.state.position
+	ctx.run(s.node_of(SkillNodeDef.Kind.MASTERY).added_effects)
+	assert_float(ally.combat.health.hp).is_greater_equal(200.0 - 1e-3)
+	var a := SkillInstance.new(s.def, 0)
+	a.learn(a.node_of(SkillNodeDef.Kind.FORK_A))
+	assert_float(a.param(&"hp")).is_greater(1200.0)
+
+
+func test_brannoc_fortify_forks_and_mastery_dr() -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(BRANNOC, Vector3(3.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(BRANNOC, Vector3(0.0, 0.05, -5.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	_learn(b, 2, SkillNodeDef.Kind.FORK_A, true)
+	assert_bool(_cast(b, 2)).is_true()
+	assert_bool(foe.combat.status.has(StatusComponent.Kind.SLOW)).is_true()  # Challenge approximation
+	assert_bool(ally.combat.status.has(StatusComponent.Kind.DR)).is_true()  # Mastery: allies in 6 m
+	# Lifeblood heals the caster.
+	var b2 := _hero(BRANNOC, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var s2 := _learn(b2, 2, SkillNodeDef.Kind.FORK_B)
+	b2.combat.health.hp = 100.0
+	_node_ctx(b2, 2).run(s2.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
+	assert_float(b2.combat.health.hp).is_equal_approx(150.0, 1e-3)
+
+
+func test_brannoc_ram_forks_stun_shield_and_refund_data() -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn(b, 1, SkillNodeDef.Kind.FORK_A)
+	assert_float(s.param(&"stun")).is_equal_approx(1.5, 1e-4)  # Bulldozer stun 1.0 -> 1.5
+	var s2 := SkillInstance.new(s.def, 1)
+	s2.learn(s2.node_of(SkillNodeDef.Kind.FORK_B))
+	var rc := _node_ctx(b, 1)
+	rc.skill = s2
+	rc.run(s2.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
+	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Interceptor shield
+	s.learn(s.node_of(SkillNodeDef.Kind.MASTERY), b.combat.stats)
+	assert_float(s.param(&"extra_b")).is_equal(0.5)  # pin refund fraction
+
+
+# ------------------------------------------------------------------ Ryker Vance
+
+func test_ryker_frag_cluster_hits_harder_breacher_arms_faster_mastery_three_charges() -> void:
+	_world()
+	var r := _hero(RYKER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(VESPER, Vector3(10.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var s := _learn(r, 0, SkillNodeDef.Kind.FORK_A)
+	var det := (s.def.effects[0] as ThrownEffectDef).on_detonate
+	var ctx := _node_ctx(r, 0)
+	ctx.point = foe.state.position
+	ctx.run(det)
+	var cluster := 250.0 - foe.combat.health.hp
+	foe.combat.health.hp = 250.0
+	var b := SkillInstance.new(s.def, 0)
+	b.learn(b.node_of(SkillNodeDef.Kind.FORK_B))
+	ctx.skill = b
+	ctx.run(det)
+	var plain := 250.0 - foe.combat.health.hp
+	assert_float(cluster).is_greater(plain)
+	assert_float(b.param(&"duration")).is_less(0.5)  # Breacher: near-instant fuse
+	b.learn(b.node_of(SkillNodeDef.Kind.MASTERY))
+	assert_int(b.max_charges()).is_equal(3)
+
+
+func test_ryker_stim_forks_adrenal_overdrive_and_mastery_extension() -> void:
+	_world()
+	var r := _hero(RYKER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var r2 := _hero(RYKER, Vector3(20.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	_learn(r, 1, SkillNodeDef.Kind.FORK_A)
+	r.combat.health.hp = 100.0
+	assert_bool(_cast(r, 1)).is_true()
+	assert_float(r.combat.health.hp).is_equal_approx(160.0, 1e-3)  # Adrenal: net +60, no HP cost
+	_learn(r2, 1, SkillNodeDef.Kind.FORK_B, true)
+	var f := r2.combat.weapon.feed as MagazineFeed
+	f.rounds = 3
+	r2.combat.health.hp = 200.0
+	assert_bool(_cast(r2, 1)).is_true()
+	assert_int(f.rounds).is_equal(f.def.magazine)  # instant full reload
+	assert_float(r2.combat.health.hp).is_equal_approx(160.0, 1e-3)  # HP cost 40
+	var buff = _server.abilities.extras.buffs.get(r2)
+	assert_bool(buff != null and buff.extend_ticks > 0).is_true()  # Mastery: kills extend
+
+
+func test_ryker_slide_forks_momentum_rebound_and_mastery_dr() -> void:
+	_world()
+	var r := _hero(RYKER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var r2 := _hero(RYKER, Vector3(20.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn(r, 2, SkillNodeDef.Kind.FORK_A, true)
+	assert_bool(_cast(r, 2)).is_true()
+	assert_bool(_server.abilities.extras.buffs.has(r)).is_true()  # Momentum: +20% weapon damage window
+	assert_bool(r.combat.status.has(StatusComponent.Kind.DR)).is_true()  # Mastery: 30% DR while sliding
+	var s2 := _learn(r2, 2, SkillNodeDef.Kind.FORK_B)
+	assert_int(s2.max_charges()).is_equal(2)  # Rebound: a second slide
+	assert_float(s.param(&"dr")).is_equal_approx(0.3, 1e-4)
