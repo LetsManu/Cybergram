@@ -33,7 +33,7 @@ modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3")])
 
 [sub_resource type="Resource" id="w10_sub_5"]
 script = ExtResource("w10_0")
-stat = &"max_placed"
+stat = &"secondary_duration"
 op = 0
 value = 1.0
 
@@ -81,7 +81,6 @@ display_name = "Tripwire Lattice"
 short_label = "WIRE"
 targeting = 1
 params = {
-&"max_placed": 1.0,
 &"cooldown": 12.0,
 &"range": 20.0,
 &"damage": 70.0,
