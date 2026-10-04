@@ -191,7 +191,7 @@ func _install(zip_path: String) -> void:
 		_fail("The package does not contain %s. Nothing was changed." % _entry["exe"])
 		return
 	if _platform != "windows":
-		FileAccess.set_unix_permissions(exe_path, 0o755)
+		FileAccess.set_unix_permissions(exe_path, 493)  # 0755
 	var vf: FileAccess = FileAccess.open(staging.path_join(LauncherCore.VERSION_FILE), FileAccess.WRITE)
 	if vf == null:
 		LauncherCore.remove_tree(staging)
