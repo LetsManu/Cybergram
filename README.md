@@ -93,13 +93,19 @@ godot --headless --path . -- --server --bots-only --seed 3   # all-bot match, pr
 |---|---|
 | Move / jump / sprint / crouch | WASD / Space / Shift / Ctrl |
 | Fire / reload | Left mouse (click once to capture the mouse) / R |
+| Release the mouse | Esc |
 | Skills / ultimate | Q, E, C / G (ultimate unlocks at level 6) |
 | Learn a skill (spend a skill point) | hold Alt + Q/E/C/G |
 | Interact (pick up Mana Cell) / open Armory on your HQ pad | F |
 | Use Med-Pack | 4 |
+| Armory: move / buy / buy at tier 1-3 / sell mount / close | Up-Down / Enter / 1-3 / Backspace / Esc |
+| Respawn at Sanctum / at a Beacon (death screen) | 1 / 2 |
 | Squad: smart command / wheel / follow | tap Z / hold Z / X |
 | Scoreboard | Tab |
 | Net graph / colour-blind / UI scale / damage numbers | F3 / F6 / F7-F8 / F9 |
+
+The death screen and Armory also work with a gamepad (D-pad, A/B/X).
+To quit, close the window.
 
 Tests: `GODOT=/path/to/godot tools/ci/run_tests.sh` (gdUnit4) and
 `tools/ci/check_deps.sh`.
