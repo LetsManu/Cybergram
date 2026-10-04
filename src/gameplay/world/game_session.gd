@@ -82,6 +82,9 @@ func _ready() -> void:
 			dummy_heroes.append(load(path))
 	if match_rules == null:
 		match_rules = load(DEFAULT_MATCH_RULES) as MatchRulesDef
+	if look != null:
+		look = look.duplicate()  # player options must not touch the shared .tres
+		GameSettings.shared().apply_look(look)
 	Engine.physics_ticks_per_second = net_config.tick_rate_hz
 	clock = SimClock.new(net_config.tick_rate_hz)
 	if launch_config != null and launch_config.mode == LaunchConfig.Mode.CLIENT:
@@ -111,7 +114,7 @@ func _ready() -> void:
 		Engine.max_fps = net_config.tick_rate_hz * 2
 		enet.peer_connected.connect(func(id: int) -> void: print("[server] peer %d connected" % id))
 		enet.peer_disconnected.connect(func(id: int) -> void:
-			server.session.drop(id)
+			server.on_peer_left(id)
 			print("[server] peer %d disconnected" % id))
 		print("[server] online: listening on UDP %d (max %d clients)" % [launch_config.port, launch_config.max_clients])
 	server.setup(net_config, movement, map_scene, server_transport, player_hero, match_rules)

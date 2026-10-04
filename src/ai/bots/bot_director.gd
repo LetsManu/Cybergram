@@ -87,6 +87,34 @@ func adopt(b: BotBrain) -> void:
 	_by_hero[b.hero_id] = b
 
 
+## Online: a human took over this bot's hero; stop thinking for it.
+func release_hero(hero_id: int) -> void:
+	var b: BotBrain = _by_hero.get(hero_id)
+	if b == null:
+		return
+	_by_hero.erase(hero_id)
+	brains.erase(b)
+
+
+## Online: a human left; a new bot brain drives their hero from now on.
+func take_over(hero_id: int) -> BotBrain:
+	var h := server.hero(hero_id)
+	if h == null or _by_hero.has(hero_id):
+		return null
+	var b := BotBrain.new(server, profile, hash([seed_value, brains.size(), hero_id]), brains.size())
+	b.build_order = roster.build_order_for(h.combat.def)
+	b.team_brains = brains
+	b.claims = _claims
+	var src := BotInputSource.new(b, meter)
+	sources.append(src)
+	b.hero_id = hero_id
+	b.aim.yaw = h.look_yaw
+	brains.append(b)
+	_by_hero[hero_id] = b
+	server.attach_source(hero_id, src)
+	return b
+
+
 func brain_of(hero_id: int) -> BotBrain:
 	return _by_hero.get(hero_id)
 

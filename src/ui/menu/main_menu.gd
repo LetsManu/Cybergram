@@ -21,6 +21,7 @@ var notice: String = ""
 var _hero: OptionButton
 var _address: LineEdit
 var _status: Label
+var _settings: SettingsPanel
 
 
 func _ready() -> void:
@@ -75,11 +76,23 @@ func _ready() -> void:
 	col.add_child(row)
 	col.add_child(_spacer(6))
 	col.add_child(_button(tr("HUD_MENU_TEST_COURSE"), _course))
+	col.add_child(_button(tr("HUD_MENU_SETTINGS"), func() -> void:
+		col.visible = false
+		_settings.visible = true
+		_settings.focus_first()))
 	col.add_child(_button(tr("HUD_MENU_QUIT"), func() -> void: get_tree().quit()))
 	_status = _label(notice, 14, HudPalette.LUMEN)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_status)
 	_load_settings()
+	_settings = SettingsPanel.new()
+	_settings.visible = false
+	_settings.back_pressed.connect(func() -> void:
+		_settings.visible = false
+		col.visible = true
+		play.grab_focus())
+	center.add_child(_settings)
+	GameSettings.shared().apply_display()
 	play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
 
 

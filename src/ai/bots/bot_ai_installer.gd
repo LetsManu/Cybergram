@@ -30,6 +30,13 @@ func _ready() -> void:
 	director = BotDirector.new()
 	director.setup(server, roster, roster.profile(lc.bot_difficulty), lc.match_seed)
 	var n := director.fill(not lc.bots_only)
+	# Online slots: humans take over bots on join, bots take over leavers.
+	server.controller_taken.connect(func(id: int) -> void:
+		director.release_hero(id)
+		print("[bots] a player took over bot hero %d" % id))
+	server.controller_released.connect(func(id: int) -> void:
+		if director.take_over(id) != null:
+			print("[bots] a bot took over hero %d (player left)" % id))
 	report = BotMatchReport.new(server, director, lc.match_seed)
 	server.match_flow.match_ended.connect(_on_match_ended)
 	_quit_on_end = lc.bots_only and lc.mode == LaunchConfig.Mode.DEDICATED

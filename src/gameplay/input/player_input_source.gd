@@ -36,6 +36,10 @@ var _medpack_was_down: bool = false
 var quick_spend: bool = false
 ## UI panels (Armory) take the keyboard: skills and squad keys are ignored.
 var ui_captured: bool = false
+## Set by the pause menu: the hero gets neutral commands (no move, no buttons).
+var paused: bool = false
+## True when a pause menu handles Esc (it releases the mouse itself).
+var has_pause_menu: bool = false
 var _z_held_s: float = -1.0
 var _x_was_down: bool = false
 
@@ -53,9 +57,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		var dy: float = -event.relative.y if not look.invert_y else event.relative.y
 		live_yaw = fposmod(live_yaw - event.relative.x * sens, TAU)
 		live_pitch = clampf(live_pitch + dy * sens, -max_pitch_rad, max_pitch_rad)
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and not paused:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("ui_cancel"):
+	elif event.is_action_pressed("ui_cancel") and not has_pause_menu:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
@@ -107,6 +111,9 @@ func wheel_selection() -> int:
 ## Fills `out` for tick `seq` (quantized, ready for prediction and sending).
 func sample(seq: int, out: InputCommand) -> void:
 	out.seq = seq
+	if paused:
+		_sample_neutral(out)
+		return
 	out.move = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
 	out.yaw = live_yaw
 	out.pitch = live_pitch
@@ -146,6 +153,20 @@ func sample(seq: int, out: InputCommand) -> void:
 		var a: Array = _actions.pop_front()
 		out.action = a[0]
 		out.action_arg = a[1]
+	out.quantize()
+
+
+## Paused: keep the view where it was, no movement, no buttons, no actions.
+func _sample_neutral(out: InputCommand) -> void:
+	out.move = Vector2.ZERO
+	out.yaw = live_yaw
+	out.pitch = live_pitch
+	out.buttons = 0
+	out.squad_cmd = InputCommand.SQUAD_NONE
+	out.squad_target = 0
+	out.squad_point = Vector3.ZERO
+	out.action = InputCommand.ACTION_NONE
+	out.action_arg = 0
 	out.quantize()
 
 

@@ -4,11 +4,15 @@ The server is the normal game binary started headless with `--server --port`.
 It runs the 3v3 slice match. Bots fill every slot no player has taken, and
 players connect from the main menu (**Join**) or with `--connect`.
 
-> **Status: first online test (v0.2.0).** It works over the internet, but
-> there is no lag compensation or anti-cheat yet. Every player joins the
-> Concord team (bots keep one Concord slot free, so a second player makes it
-> 4v3), and a player who disconnects leaves an idle hero behind. Good
-> for testing with friends, not for public servers.
+> **Status: online test build (v0.3.0).** It works over the internet, but
+> there is no lag compensation or anti-cheat yet. Good for testing with
+> friends, not for public servers.
+>
+> **Team slots:** the first player gets the reserved Concord slot. Each
+> later player takes over a bot on the team with fewer humans (the bot with
+> the same hero if there is one), so two players play 3v3, one per side.
+> When a player leaves, a bot takes their hero back over. The server log
+> shows both events (`[bots] a player took over ...`).
 
 ## Requirements
 
