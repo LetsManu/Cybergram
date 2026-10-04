@@ -266,7 +266,7 @@ static func encode_state(phase: int, countdown_s: int, you: int, slots: Array, t
 	w.u8(phase)
 	w.u8(clampi(countdown_s, 0, 255))
 	w.u8(clampi(you, 0, 255))
-	w.u8(clampi(team_size, 1, MAX_PLAYERS / 2))
+	w.u8(clampi(team_size, 1, MAX_PLAYERS >> 1))
 	w.u8(n)
 	for i in n:
 		var s: Dictionary = slots[i]

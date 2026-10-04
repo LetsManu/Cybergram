@@ -296,16 +296,16 @@ func _on_state(s: Dictionary) -> void:
 			and s.phase != LobbyCodec.PHASE_IN_MATCH
 		_switch[t].disabled = counts[t] >= team_size
 	var locked: bool = s.phase == LobbyCodec.PHASE_LOCKED
-	var ready: bool = own.get("ready", false)
-	_ready_btn.set_pressed_no_signal(ready)
+	var own_ready: bool = own.get("ready", false)
+	_ready_btn.set_pressed_no_signal(own_ready)
 	_ready_btn.disabled = locked
-	_ready_btn.text = tr("HUD_LOBBY_LOCKED") if locked else (tr("HUD_LOBBY_UNREADY") if ready else tr("HUD_LOBBY_READY"))
+	_ready_btn.text = tr("HUD_LOBBY_LOCKED") if locked else (tr("HUD_LOBBY_UNREADY") if own_ready else tr("HUD_LOBBY_READY"))
 	if not own.is_empty() and int(own.hero_index) != 0:
 		_hero_index = int(own.hero_index)
 	for idx in _hero_buttons:
 		var b: Button = _hero_buttons[idx]
 		b.set_pressed_no_signal(idx == _hero_index)
-		b.disabled = ready or locked
+		b.disabled = own_ready or locked
 	match int(s.phase):
 		LobbyCodec.PHASE_COUNTDOWN:
 			_status.text = tr("HUD_LOBBY_STARTING") % s.countdown
