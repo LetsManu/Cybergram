@@ -72,6 +72,8 @@ const SKILL_PARAMS: Array[StringName] = [
 	# Hijack (s), recast window (s) / strength, expiry-hook amount.
 	&"reveal", &"bleed", &"bleed_time", &"heal_cut", &"heal_cut_time", &"hijack",
 	&"recast_window", &"recast_value", &"expiry_heal",
+	# W11-M1: a wall that blocks enemy hero movement (> 0).
+	&"block_move",
 ]
 
 

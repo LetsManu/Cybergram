@@ -41,11 +41,17 @@ stat = &"width"
 op = 0
 value = 2.0
 
+[sub_resource type="Resource" id="m11_bm"]
+script = ExtResource("2")
+stat = &"block_move"
+op = 0
+value = 1.0
+
 [sub_resource type="Resource" id="w10_sub_6"]
 script = ExtResource("w10_1")
 kind = 2
 required_level = 5
-modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_4"), SubResource("w10_sub_5")])
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_4"), SubResource("w10_sub_5"), SubResource("m11_bm")])
 
 [sub_resource type="Resource" id="w10_sub_7"]
 script = ExtResource("w10_0")

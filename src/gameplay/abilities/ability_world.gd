@@ -19,6 +19,7 @@ const FX_CIRCLE: int = 5    # cast / landing telegraph (radius in pos2.x)
 const FX_TRAIL: int = 6     # line pos -> pos2 (Threadstep trail)
 const FX_BURST: int = 7     # one-shot ring (slam, Rewrite)
 const FX_ARROW: int = 8     # charge wind-up / path pos -> pos2
+const FX_WALL_SOLID: int = 9 # W11-M1: a wall that also blocks enemy movement (client builds the collider)
 
 ## PLACEHOLDER. Beacon hit capsule (m).
 const BEACON_RADIUS_M: float = 0.45
@@ -50,6 +51,8 @@ class Deployable:
 	var fx: Fx
 	var source_id: int = 0
 	var absorbed: float = 0.0
+	## W11-M1 Rampart: server collider that blocks enemy heroes (null = none).
+	var body: StaticBody3D
 
 
 class Projectile:
@@ -159,6 +162,7 @@ func pre_move(h: HeroBody) -> void:
 		c.abilities.debug_grant_ult = true
 	c.stats.expire(server.tick)
 	c.status.step(server.tick)
+	h.collision_mask = (h.collision_mask & ~HeroBody.LAYERS_BLOCK_ALL) | HeroBody.block_layer(c.team)  # W11-M1 Rampart
 	_tick_bleed(h)
 	_zone_passive(h)
 	# Ratio against the block's own base (f32), so an unmodified hero is exactly 1.
@@ -468,6 +472,9 @@ func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployabl
 	d.source_id = Modifier.source(Modifier.SRC_ZONE, 0x800000 | d.id)
 	var kind := FX_WALL
 	var size := Vector3(d.width, d.height, d.thickness)
+	if def.kind == DeployableEffectDef.Kind.WALL and ctx.param(&"block_move") > 0.0:
+		kind = FX_WALL_SOLID
+		_make_wall_body(d)
 	if def.kind == DeployableEffectDef.Kind.BEACON:
 		kind = FX_BEACON
 		size = Vector3(d.radius, 0.0, 0.0)
@@ -682,7 +689,26 @@ func _block_bolt(from: Vector3, dir: Vector3, seg: float, team: int, damage: flo
 	return b[0]
 
 
+## W11-M1 Rampart: the wall's solid body, on the layer of the team it blocks.
+func _make_wall_body(d: Deployable) -> void:
+	var b := StaticBody3D.new()
+	b.collision_layer = HeroBody.block_layer(1 - d.team)
+	b.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(maxf(d.width, 0.1), maxf(d.height, 0.1), maxf(d.thickness, 0.1))
+	cs.shape = box
+	cs.position = Vector3(0.0, d.height * 0.5, 0.0)
+	b.add_child(cs)
+	server.add_child(b)
+	b.global_position = d.pos
+	b.rotation = Vector3(0.0, d.yaw, 0.0)
+	d.body = b
+
+
 func _tick_deployable(d: Deployable, t: int) -> void:
+	if d.body != null:  # a hacked wall does not block (as for shots)
+		d.body.collision_layer = 0 if traps.is_down(d) else HeroBody.block_layer(1 - d.team)
 	if d.fx != null:
 		d.fx.param = d.hp / d.max_hp if d.max_hp > 0.0 else 1.0
 	if d.kind >= TrapWorld.KIND_BASE or traps.is_down(d):
@@ -705,6 +731,9 @@ func _tick_deployable(d: Deployable, t: int) -> void:
 
 func _end_deployable(d: Deployable) -> void:
 	d.alive = false
+	if d.body != null:
+		d.body.queue_free()
+		d.body = null
 	traps.on_end(d)
 	_remove_fx(d.fx)
 	if d.ends_active and d.skill != null:

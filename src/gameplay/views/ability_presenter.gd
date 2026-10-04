@@ -71,6 +71,7 @@ func _process(_delta: float) -> void:
 	_update_blind()
 	if client == null or client.body == null:
 		return
+	client.body.collision_mask |= HeroBody.block_layer(client.own_team())  # W11-M1 Rampart
 	var me := client.body.state.position
 	var views := client.remote_views()
 	for id in views:
@@ -166,7 +167,7 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 	var c := _team_color(f.team)
 	var hostile := _hostile(f.team)
 	match f.kind:
-		AbilityWorld.FX_WALL:
+		AbilityWorld.FX_WALL, AbilityWorld.FX_WALL_SOLID:
 			var size := f.position2
 			# G1: holo-scanline barrier (art bible §10.4); the replicated `param`
 			# still drives the fade, through the shader's `alpha`.
@@ -179,6 +180,17 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 				post.position = Vector3(x * size.x, size.y * 0.5, 0.0)
 			var top := _mesh(root, _box(Vector3(size.x, 0.1, 0.45)), _mat(c, 0.95, true))
 			top.position.y = size.y
+			if f.kind == AbilityWorld.FX_WALL_SOLID:  # W11-M1 Rampart: the predicted body must collide too
+				var sb := StaticBody3D.new()
+				sb.collision_layer = HeroBody.block_layer(1 - f.team)
+				sb.collision_mask = 0
+				var cs := CollisionShape3D.new()
+				var bs := BoxShape3D.new()
+				bs.size = Vector3(size.x, size.y, maxf(size.z, 0.2))
+				cs.shape = bs
+				cs.position.y = size.y * 0.5
+				sb.add_child(cs)
+				root.add_child(sb)
 		AbilityWorld.FX_BEACON:
 			var pole := _mesh(root, _cyl(0.12, 1.6), _mat(VIOLET, 0.95, true))
 			pole.position.y = 0.8
@@ -250,7 +262,7 @@ func _update(n: Node3D, f: SnapshotData.FxState) -> void:
 		GadgetFx.update(n, f, client, _hostile(f.team))
 		return
 	match f.kind:
-		AbilityWorld.FX_WALL:
+		AbilityWorld.FX_WALL, AbilityWorld.FX_WALL_SOLID:
 			n.position = f.position
 			n.rotation = Vector3(0.0, f.yaw, 0.0)
 			var slab := n.get_node_or_null("Slab") as MeshInstance3D

@@ -10,6 +10,7 @@ const BRANNOC := "res://assets/data/heroes/hero_brannoc.tres"
 
 var _server: ServerWorld
 var _link: LoopbackLink
+var _walker: HeroBody
 
 
 class Holder extends ScriptedInputSource:
@@ -187,3 +188,52 @@ func test_hijack_reverts_when_the_window_ends() -> void:
 	assert_bool(trap.alive).is_true()
 	assert_int(trap.team).is_equal(ServerWorld.TEAM_DUMMIES)
 	assert_int(trap.owner_id).is_equal(j.net_id)
+
+
+# ------------------------------------------------------------------ Movement-blocking wall
+
+func _wall_walk(fork: bool, walker_team: int) -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, -12.0), ServerWorld.TEAM_PLAYERS)
+	var walker := _hero(VESPER, Vector3(0.0, 0.05, -5.0), walker_team, true)
+	await get_tree().physics_frame
+	var s := b.combat.abilities.skill(0)
+	if fork:
+		s.learn(s.node_of(SkillNodeDef.Kind.FORK_A))
+	var c := _ctx(b, null, 0)
+	c.point = Vector3(0.0, 0.05, 0.0)
+	c.yaw = 0.0
+	c.run(s.effects())
+	_walker = walker
+
+
+func test_rampart_wall_blocks_enemy_movement_but_not_allies() -> void:
+	await _wall_walk(true, ServerWorld.TEAM_DUMMIES)
+	var walker := _walker
+	assert_int(_server.abilities.deployables.size()).is_equal(1)
+	assert_object(_server.abilities.deployables[0].body).is_not_null()
+	_run(3 * HZ)
+	assert_float(walker.state.position.z).is_less(-0.2)  # stopped at the wall (z 0)
+
+
+func test_wall_without_rampart_does_not_block_and_ally_passes() -> void:
+	await _wall_walk(false, ServerWorld.TEAM_DUMMIES)
+	var walker := _walker
+	assert_object(_server.abilities.deployables[0].body).is_null()
+	_run(3 * HZ)
+	assert_float(walker.state.position.z).is_greater(2.0)  # walked through (shots only wall)
+	await _wall_walk(true, ServerWorld.TEAM_PLAYERS)
+	var ally := _walker
+	_run(3 * HZ)
+	assert_float(ally.state.position.z).is_greater(2.0)  # the owner's team walks through
+
+
+func test_rampart_body_is_freed_when_the_wall_ends() -> void:
+	await _wall_walk(true, ServerWorld.TEAM_DUMMIES)
+	var d := _server.abilities.deployables[0]
+	var body := d.body
+	d.hp = 0.0  # destroyed
+	_run(2)
+	assert_bool(d.alive).is_false()
+	assert_object(d.body).is_null()
+	assert_bool(not is_instance_valid(body) or body.is_queued_for_deletion()).is_true()
