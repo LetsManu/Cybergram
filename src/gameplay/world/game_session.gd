@@ -82,6 +82,9 @@ func _ready() -> void:
 			dummy_heroes.append(load(path))
 	if match_rules == null:
 		match_rules = load(DEFAULT_MATCH_RULES) as MatchRulesDef
+	if look != null:
+		look = look.duplicate()  # player options must not touch the shared .tres
+		GameSettings.shared().apply_look(look)
 	Engine.physics_ticks_per_second = net_config.tick_rate_hz
 	clock = SimClock.new(net_config.tick_rate_hz)
 	if launch_config != null and launch_config.mode == LaunchConfig.Mode.CLIENT:

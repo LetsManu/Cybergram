@@ -102,6 +102,8 @@ var port: int = 0
 var connect_address: String = ""
 ## Dedicated server: most simultaneous remote clients.
 var max_clients: int = 8
+## Debug: open the pause menu on start (UI evidence captures).
+var debug_pause_menu: bool = false
 
 
 ## `--map test_course` selects the movement test course (no MapDef).
@@ -123,6 +125,8 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if i + 1 < args.size():
 					i += 1
 					c.port = clampi(args[i].to_int(), 1, 65535)
+			"--debug-pause-menu":
+				c.debug_pause_menu = true
 			"--max-clients":
 				if i + 1 < args.size():
 					i += 1
