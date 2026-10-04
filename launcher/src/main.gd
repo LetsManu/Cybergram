@@ -40,6 +40,13 @@ var _no_launch: bool = false
 var _headless_mode: String = ""   ## "", "check", "update" or "repair"
 var _settings: LauncherSettings
 var _repair_started: bool = false
+var _login: LauncherLogin
+var _game_server: String = "cyber.djboeck.at:7777"
+var _login_box: VBoxContainer
+var _user_edit: LineEdit
+var _pass_edit: LineEdit
+var _login_btn: Button
+var _login_status: Label
 var _launcher_dir: String = ""
 var _own_version: String = ""
 var _self_done: bool = false
@@ -61,6 +68,7 @@ func _ready() -> void:
 		cfg.load(cfg_path)
 	var url: String = String(cfg.get_value("launcher", "version_url", LauncherCore.DEFAULT_VERSION_URL))
 	_close_on_launch = bool(cfg.get_value("launcher", "close_on_launch", true))
+	_game_server = String(cfg.get_value("launcher", "game_server", _game_server))
 	_no_launch = args.has("no-launch")
 	_settings = LauncherSettings.new(String(args.get("settings", "user://launcher_settings.cfg"))).load_file()
 	var root: String = OS.get_executable_path().get_base_dir()
@@ -101,6 +109,13 @@ func _ready() -> void:
 	_updater.check()
 	if _headless_mode == "":
 		_probe.probe(url)
+		_login = LauncherLogin.new()
+		add_child(_login)
+		_login.link_ready.connect(_on_link_ready)
+		_login.link_failed.connect(_on_link_failed)
+		_login.login_result.connect(_on_login_result)
+		_user_edit.text = _settings.username
+		_login.open(_game_server)
 
 
 ## Manifest arrived: replace the launcher first if the feed has a newer one.
@@ -142,6 +157,50 @@ func _on_self_updated(ok: bool, message: String, _new_version: String, entry: Di
 	args.append("--self-updated")
 	OS.create_process(exe, args)
 	get_tree().quit()
+
+
+# --- login (the game then starts already signed in) ------------------------
+
+func _on_link_ready(secure: bool) -> void:
+	_login_btn.disabled = false
+	_user_edit.editable = secure
+	_pass_edit.editable = secure
+	if secure:
+		_login_status.text = "Sign in so the game starts logged in, or just press PLAY."
+	else:
+		_login_status.text = "This server has no encrypted login yet. Press PLAY to play as a guest."
+		_login_btn.disabled = true
+
+
+func _on_link_failed(message: String) -> void:
+	_login_btn.disabled = true
+	_login_status.text = message + " You can still press PLAY."
+
+
+func _on_login_pressed() -> void:
+	if _login.is_logged_in():
+		_login.logout()
+		_login_btn.text = "Log in"
+		_login_status.text = "Signed out."
+		_user_edit.editable = true
+		_pass_edit.editable = true
+		return
+	_login_btn.disabled = true
+	_login_status.text = "Signing in..."
+	var pw: String = _pass_edit.text
+	_pass_edit.text = ""  # never keep the password around
+	_login.login(_user_edit.text, pw)
+
+
+func _on_login_result(ok: bool, message: String, _name: String) -> void:
+	_login_btn.disabled = false
+	_login_status.text = message
+	if ok:
+		_settings.username = _user_edit.text.strip_edges()  # "remember username" (no password, no token)
+		_settings.save_file()
+		_login_btn.text = "Log out"
+		_user_edit.editable = false
+		_pass_edit.editable = false
 
 
 func _on_probed(info: Dictionary) -> void:
@@ -265,7 +324,11 @@ func _play() -> void:
 	if _no_launch:
 		_status.text = "(--no-launch) would start the game now"
 		return
-	if not _updater.launch_game():
+	var signed_in: bool = _login != null and _login.hand_over_env()
+	var started: bool = _updater.launch_game()
+	if signed_in:
+		LauncherLogin.clear_env()
+	if not started:
 		_status.text = "Could not start the game. Try reinstalling (delete the game folder)."
 		return
 	if _close_on_launch:
@@ -385,6 +448,8 @@ func _build_ui() -> void:
 	sv.alignment = BoxContainer.ALIGNMENT_END
 	side.add_child(sv)
 
+	_build_login(sv)
+
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -462,6 +527,37 @@ func _build_ui() -> void:
 	_version_label.add_theme_color_override("font_color", Color("5b6676"))
 	_version_label.text = _version_text()
 	root.add_child(_version_label)
+
+
+func _build_login(parent: Control) -> void:
+	_login_box = VBoxContainer.new()
+	_login_box.add_theme_constant_override("separation", 6)
+	parent.add_child(_login_box)
+	var title: Label = Label.new()
+	title.text = "ACCOUNT"
+	title.add_theme_color_override("font_color", PINK)
+	_login_box.add_child(title)
+	_user_edit = LineEdit.new()
+	_user_edit.placeholder_text = "Username"
+	_user_edit.max_length = 32
+	_login_box.add_child(_user_edit)
+	_pass_edit = LineEdit.new()
+	_pass_edit.placeholder_text = "Password"
+	_pass_edit.secret = true
+	_pass_edit.max_length = 128
+	_pass_edit.text_submitted.connect(func(_t: String) -> void: _on_login_pressed())
+	_login_box.add_child(_pass_edit)
+	_login_btn = Button.new()
+	_login_btn.text = "Log in"
+	_login_btn.disabled = true
+	_login_btn.pressed.connect(_on_login_pressed)
+	_login_box.add_child(_login_btn)
+	_login_status = Label.new()
+	_login_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_login_status.add_theme_font_size_override("font_size", 12)
+	_login_status.add_theme_color_override("font_color", Color("8a97a8"))
+	_login_status.text = "Connecting to the game server..."
+	_login_box.add_child(_login_status)
 
 
 func _box(color: Color, pad: int, radius: int = 8) -> StyleBoxFlat:

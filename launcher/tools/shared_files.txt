@@ -1,0 +1,12 @@
+# Game scripts the launcher reuses for the login protocol (one repo path per line).
+# launcher/tools/sync_shared.sh copies them flat into launcher/src/shared/;
+# tests/unit/launcher/launcher_shared_sync_test.gd fails when a copy differs.
+src/networking/protocol/msg_type.gd
+src/networking/protocol/codecs/account_codec.gd
+src/networking/protocol/codecs/lobby_codec.gd
+src/networking/protocol/codecs/control_codec.gd
+src/networking/transport/transport.gd
+src/networking/transport/enet_transport.gd
+src/networking/auth/auth_config.gd
+src/networking/lobby/lobby_client.gd
+src/core/auth/auth_rules_def.gd
