@@ -30,9 +30,10 @@ the server's memory.
   **Tag** = first 4 hex digits, upper case, shown as `Name#1A2B` (Riot ID).
   Two players may share a name; the tag tells them apart.
 - **Key**: a second 16 random bytes that never leave the client except to the
-  server. The server remembers the first key it saw for an id and refuses a
-  join that claims the id with another key — nobody can steal a lobby slot by
-  copying a friend's (public) id.
+  server. While an id is connected (or its lobby seat is in the reconnect
+  grace), the server refuses a join that claims it with another key — nobody
+  can steal a seat by copying a friend's (public) id. The claim is forgotten
+  on disconnect (§4).
 - **Emblem**: one of 12 code-drawn emblems; **accent colour**: one of 10
   presets (indices on the wire, validated on the server). Presets rather than
   a free colour picker keep every combination readable on the dark panels.
@@ -60,10 +61,12 @@ the server's memory.
   gold — the Valorant/LoL "picks are final" beat. A leaver during LOCKED does
   not cancel the start.
 - **Reconnect-safe**: a player who drops keeps their slot (team + hero) for
-  15 s, shown as *reconnecting*; rejoining with the same id + key restores it.
-  A disconnected slot is not ready, so the countdown waits for them or for the
-  grace to run out. A second connection with the same id replaces the first.
-- **Leave**: LEAVE LOBBY closes the connection at once (slot freed, no grace).
+  15 s, shown as *reconnecting*; rejoining with the same id + key restores it
+  (the client retries on its own). A disconnected slot does not block the
+  countdown. A second connection with the same id + key replaces the first.
+- **Leave**: LEAVE LOBBY closes the connection; the seat is held for the
+  reconnect grace, but a disconnected seat never blocks the countdown and is
+  dropped when the match starts.
 - **Handover**: unchanged slot-token flow; the token now also maps to the
   player's name on the match server (§2.5).
 
@@ -76,8 +79,8 @@ the server's memory.
 - **Rate limit**: token bucket, 4 messages burst, 1 new message every 1.5 s;
   an over-limit message is dropped and only the sender gets a "slow down"
   system line.
-- The server keeps the last 20 lines and sends them to a joiner (reconnects
-  keep context).
+- The server keeps the last 20 lines **in memory** and sends them to a joiner
+  (reconnects keep context); the buffer is cleared when the match starts.
 - **System lines** (joined, left, reconnecting, switched team, locked in) are
   sent as codes + a name and composed client-side with `tr()`, so they are
   localisable.
@@ -87,10 +90,11 @@ the server's memory.
 - Friends are stored locally (`user://friends.cfg`): name, and the id once
   seen. Add by `Name` or `Name#TAG`; it resolves when the server (or the
   lobby roster) has seen exactly one matching player, or the tag matches.
-- The server keeps a presence table in memory (survives the scene reload
-  between matches): id, name, status. **Online** = the client's main menu
+- The server keeps a presence table **in memory, for connected players
+  only** (§4): id, key, name, status. **Online** = the client's main menu
   checked in within the last 25 s; **In lobby** / **In match** are set by the
-  lobby and the match server; anything else is **Offline**.
+  lobby and the match server; anything else (including unknown) is
+  **Offline**. An entry is forgotten on disconnect.
 - The main menu polls every 10 s with a short-lived connection
   (connect → PRESENCE_QUERY → PRESENCE → close) so it never holds one of the
   server's client slots. In the lobby the query rides the lobby connection.
@@ -111,7 +115,46 @@ the server's memory.
 - Names above heroes are left to the views owner (G1 wave owns
   `src/gameplay/views/*`); the data is on `ClientSession.player_names`.
 
-## 3. Not doing (yet)
+## 4. Privacy / GDPR (owner requirement, 2026-10-04)
+
+The owner is in Austria (EU); the full notice is `PRIVACY.md` (repo root).
+
+1. **Data minimisation.** No e-mail, password, real name, IP display,
+   analytics or tracking. The profile is name + emblem + colour + random id
+   (+ a private key that only goes to the server, to protect a seat), stored
+   only in `user://profile.cfg`. No server accounts.
+2. **Notice + acknowledgement.** The profile screen shows a short notice (what
+   is sent: name, emblem, colour, player id, chat; why; how long) and an
+   acknowledgement checkbox, versioned (`PlayerProfile.PRIVACY_VERSION`, saved
+   in `profile.cfg`). PLAY ONLINE, Join friend and the menu's presence
+   check-ins need it; otherwise the profile screen opens first with the
+   notice highlighted. Offline play needs nothing. Unticking withdraws it.
+   Automated `--auto-ready` runs create a generated profile with the notice
+   acknowledged (the tester is the user).
+3. **Server retention.** `PresenceRegistry` and the lobby seats live in memory
+   only and are connection-scoped: forgotten on disconnect (lobby seat after the
+   15 s reconnect grace, menu check-ins after 25 s, match players on leave and
+   at match end). Chat is relayed; the 20-line replay buffer is per lobby and
+   cleared at match start. **Logs** contain no chat text and no display names,
+   only `player #TAG` (the 4-hex id tag), peer numbers and game events. Log
+   rotation is still recommended (`docs/SERVER.md`, compose `logging:`).
+4. **Friends list** is local only (names + ids on the player's machine). The
+   server answers presence only for the ids/names the client asks about, from
+   what it holds for currently connected players.
+5. **Rights.** Profile screen: **Export my data** (`LocalData.export_json` →
+   `user://my_cybergram_data.json`, readable JSON, path shown) and
+   **Delete my profile & data** (two presses; removes profile, friends,
+   moderation, menu prefs and an earlier export; back to first launch).
+   Server-side data vanishes on disconnect, so there is nothing to delete
+   there.
+6. **Chat safety.** 120 chars / 240 bytes, 4-burst + 1 per 1.5 s rate limit,
+   control / bidi / zero-width characters stripped on the server; per-player
+   **Mute** (by id, local) and a **Report** stub that only records locally
+   (`user://moderation.cfg`). Offensive / impersonating names are refused by
+   a data list (`assets/data/social/name_filter.tres`, `NameFilterDef`) on
+   the client (hint) and the server (authoritative).
+
+## 5. Not doing (yet)
 
 Invites/notifications, blocking/muting, persistent server-side accounts,
 whispers, party chat, a hero grid with portraits (badges until hero art
