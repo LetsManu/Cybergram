@@ -13,7 +13,7 @@ extends Resource
 @export_file("*.tres") var dummy_hero: String = "res://assets/data/heroes/hero_brannoc.tres"
 ## Keyboard / gamepad keys (fixed, not part of the rebindable gameplay actions).
 @export var key_level_up: Key = KEY_F5
-@export var key_reset: Key = KEY_F6
+@export var key_reset: Key = KEY_F10  # F6-F9 are HUD settings keys (hud_root.gd)
 @export var key_tutorial: Key = KEY_F1
 @export var key_skip_step: Key = KEY_F2
 @export var key_skip_all: Key = KEY_F4
