@@ -5,7 +5,7 @@ extends RefCounted
 ## SfxBank synthesizes every archetype once at startup; weapons / skills reuse
 ## the cached stream and only vary pitch / gain (data in sfx_bank.tres).
 
-const RATE := 16000
+const RATE := 22050
 const PEAK := 0.9
 ## Archetype name -> [length_s, loops]. The names are the keys of SfxBankDef maps.
 const ARCHETYPES := {

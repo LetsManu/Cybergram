@@ -108,6 +108,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	sfx = ClientSfx.new()
 	sfx.name = "Sfx"
 	sfx.client = self
+	sfx.presenter = abilities
 	add_child(sfx)
 	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
@@ -426,6 +427,13 @@ func _draw_tracer(e: GameEvent) -> void:
 		return
 	var c := TRACER_ALLY if v.team == own_team() else TRACER_ENEMY
 	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c)
+
+
+## W10-W5: HeroDef id of a remote hero (&"" if unknown); lets presentation pick its weapon voice.
+func hero_id_of(net_id: int) -> StringName:
+	if not _hero_index.has(net_id):
+		return &""
+	return content.id_at(ContentDB.HERO, _hero_index[net_id])
 
 
 ## World position (chest height) of a remote hero's view, or null if unknown.
