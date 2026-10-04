@@ -20,6 +20,15 @@ const SHOT: int = 4
 ## Same 22-byte record: no layout change (clients that do not know the kind skip it).
 const PLAYER_STAT: int = 5
 
+## W11-V1: a hero cast a skill, to every client (clients skip their own: they detect
+## those from cooldowns). source_net_id = the caster, position = the caster's feet,
+## flags = slot (bits 0-1, 0..2 basic skills, 3 ultimate) | Fork (bits 2-3, 0 none /
+## 1 A / 2 B) | FLAG_CAST_MASTERY (bit 4). Same 22-byte record.
+const SKILL_CAST: int = 6
+const CAST_SLOT_MASK: int = 3
+const CAST_FORK_SHIFT: int = 2
+const FLAG_CAST_MASTERY: int = 16
+
 const FLAG_HEADSHOT: int = 1
 const FLAG_KILL: int = 2
 ## E9: the hit landed on a sealed (not Exposed) Uplink and was dropped (ImmuneHit cue).
@@ -82,3 +91,26 @@ static func player_stat(hero_net_id: int, stat: int, value: float) -> GameEvent:
 	e.flags = stat
 	e.amount = value
 	return e
+
+
+static func skill_cast(caster: int, slot: int, fork: int, mastery: bool, pos: Vector3) -> GameEvent:
+	var e := GameEvent.new()
+	e.kind = SKILL_CAST
+	e.source_net_id = caster
+	e.position = pos
+	e.flags = (slot & CAST_SLOT_MASK) | ((clampi(fork, 0, 2) << CAST_FORK_SHIFT) & 12) \
+		| (FLAG_CAST_MASTERY if mastery else 0)
+	return e
+
+
+## SKILL_CAST accessors.
+func cast_slot() -> int:
+	return flags & CAST_SLOT_MASK
+
+
+func cast_fork() -> int:
+	return (flags >> CAST_FORK_SHIFT) & 3
+
+
+func cast_mastery() -> bool:
+	return (flags & FLAG_CAST_MASTERY) != 0
