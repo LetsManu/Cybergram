@@ -83,6 +83,9 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	player_input = source as PlayerInputSource
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
+	if hero != null and hero.resource_path != "":
+		session.hero_index = ContentDB.shared().index_of(ContentDB.HERO,
+			StringName(hero.resource_path.get_file().get_basename()))
 	session.snapshot_received.connect(_on_snapshot)
 	session.event_received.connect(_on_event)
 	wardlings = WardlingPresenter.new()

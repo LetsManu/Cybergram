@@ -47,6 +47,11 @@ var launch_config: LaunchConfig
 var server: ServerWorld
 var client: ClientWorld
 var link: LoopbackLink
+## CLIENT mode (--connect): the UDP link to the remote server (no local server).
+var remote: ENetTransport
+## CLIENT mode: why the connection failed or ended ("" = fine). Read by the HUD/menu.
+var remote_status: String = ""
+var _remote_wait_ticks: int = 0
 var clock: SimClock
 var dedicated: bool = false
 var _quit_after_ticks: int = 0
@@ -79,6 +84,9 @@ func _ready() -> void:
 		match_rules = load(DEFAULT_MATCH_RULES) as MatchRulesDef
 	Engine.physics_ticks_per_second = net_config.tick_rate_hz
 	clock = SimClock.new(net_config.tick_rate_hz)
+	if launch_config != null and launch_config.mode == LaunchConfig.Mode.CLIENT:
+		_setup_remote_client()
+		return
 	link = LoopbackLink.new(net_sim)
 	server = ServerWorld.new()
 	if dedicated:
@@ -91,7 +99,22 @@ func _ready() -> void:
 		vp.size = Vector2i(2, 2)
 		add_child(vp)
 		vp.add_child(server)
-	server.setup(net_config, movement, map_scene, link.create_endpoint(SERVER_PEER), player_hero, match_rules)
+	var server_transport: Transport = link.create_endpoint(SERVER_PEER)
+	if dedicated and launch_config != null and launch_config.port > 0:
+		var enet := ENetTransport.listen(launch_config.port, launch_config.max_clients)
+		if enet.error_text != "":
+			push_error("GameSession: %s" % enet.error_text)
+			get_tree().quit(1)
+			return
+		server_transport = enet
+		# Headless main loops are uncapped; 2 frames per sim tick keeps a VPS core idle.
+		Engine.max_fps = net_config.tick_rate_hz * 2
+		enet.peer_connected.connect(func(id: int) -> void: print("[server] peer %d connected" % id))
+		enet.peer_disconnected.connect(func(id: int) -> void:
+			server.session.drop(id)
+			print("[server] peer %d disconnected" % id))
+		print("[server] online: listening on UDP %d (max %d clients)" % [launch_config.port, launch_config.max_clients])
+	server.setup(net_config, movement, map_scene, server_transport, player_hero, match_rules)
 	server.setup_objectives(map_def)
 	_setup_match()
 	_apply_debug_capture()
@@ -342,6 +365,11 @@ func _process(delta: float) -> void:
 
 ## One fixed tick of the whole session (also called directly by tests).
 func step_tick() -> void:
+	if remote != null:
+		client.session.poll()
+		client.tick()
+		_watch_remote()
+		return
 	if server == null or not is_instance_valid(server):
 		# A failed server build (e.g. a script parse error) must not loop an error per tick.
 		push_error("GameSession: no ServerWorld (script error at boot?); quitting")
@@ -383,3 +411,41 @@ func debug_text() -> String:
 	if own != null:
 		t += "\nhero %s | kills %d deaths %d" % [own.combat.def.display_name, own.combat.kills, own.combat.deaths]
 	return t
+
+
+## CLIENT mode: a ClientWorld joined to a remote dedicated server over UDP.
+func _setup_remote_client() -> void:
+	var lc := launch_config
+	remote = ENetTransport.connect_to(lc.connect_address, lc.port)
+	print("[client] connecting to %s:%d" % [lc.connect_address, lc.port])
+	client = ClientWorld.new()
+	add_child(client)
+	var input := PlayerInputSource.new()
+	input.setup(look, movement)
+	add_child(input)
+	client.setup(net_config, movement, look, map_scene, remote, input, player_hero)
+	client.setup_objectives(map_def)
+	var wardling_rules := load(WARDLING_RULES) as WardlingRulesDef
+	if wardling_rules != null:
+		client.wardlings.rules = wardling_rules
+	client.session.rejected.connect(func(reason: int) -> void:
+		remote_status = "server rejected the connection (reason %d: version mismatch?)" % reason)
+
+
+## Ticks to wait for the server's Welcome before giving up.
+const REMOTE_TIMEOUT_TICKS: int = 30 * 8
+
+
+func _watch_remote() -> void:
+	if remote.error_text != "" and remote_status == "":
+		remote_status = remote.error_text
+	if not client.session.is_welcomed:
+		_remote_wait_ticks += 1
+		if _remote_wait_ticks == REMOTE_TIMEOUT_TICKS and remote_status == "":
+			remote_status = "no answer from %s:%d (server down, wrong address, or UDP port blocked)" % [
+				launch_config.connect_address, launch_config.port]
+	if remote_status != "":
+		push_warning("[client] %s" % remote_status)
+		remote.close()
+		set_physics_process(false)
+		AppRoot.back_to_menu(get_tree(), remote_status)

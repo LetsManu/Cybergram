@@ -589,9 +589,21 @@ func _spawn_hero(spawn: Vector3, def: HeroDef, team: int) -> HeroBody:
 	return h
 
 
+## The hero a joining peer picked in Hello, or the server default.
+func _hero_for_peer(peer_id: int) -> HeroDef:
+	var idx: int = session.hello_hero.get(peer_id, ContentDB.NONE)
+	var id := ContentDB.shared().id_at(ContentDB.HERO, idx)
+	if id != &"":
+		var path := "%s/%s.tres" % [ContentDB.SOURCES[ContentDB.HERO][0], id]
+		var def := load(path) as HeroDef if ResourceLoader.exists(path) else null
+		if def != null:
+			return def
+	return player_hero
+
+
 func _on_client_joined(peer_id: int) -> void:
 	var at: Vector3 = debug_player_spawn if debug_player_spawn != null else spawn_point(PLAYER_SPAWN)
-	var h := _spawn_hero(at, player_hero, TEAM_PLAYERS)
+	var h := _spawn_hero(at, _hero_for_peer(peer_id), TEAM_PLAYERS)
 	_humans[peer_id] = h
 	_peer_of[h.net_id] = peer_id
 	session.accept(peer_id, h.net_id, tick)

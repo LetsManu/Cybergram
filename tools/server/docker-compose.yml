@@ -1,0 +1,9 @@
+# docker compose -f tools/server/docker-compose.yml up -d --build
+# (extract the Linux release into tools/server/game first, see Dockerfile)
+services:
+  cybergram:
+    build: .
+    container_name: cybergram
+    restart: unless-stopped
+    ports:
+      - "7777:7777/udp"

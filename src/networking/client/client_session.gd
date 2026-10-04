@@ -18,6 +18,8 @@ var is_welcomed: bool = false
 ## Newest snapshot tick received (acked in every InputBatch).
 var latest_snapshot_tick: int = 0
 var malformed_packets: int = 0
+## Hero the player picked (ContentDB HERO index, 0 = server default); sent in Hello.
+var hero_index: int = 0
 var _recent: Array[InputCommand] = []
 
 
@@ -27,7 +29,7 @@ func _init(t: Transport, net_config: NetConfig) -> void:
 
 
 func connect_to_server() -> void:
-	transport.send(SERVER_PEER, Transport.CH_CONTROL, ControlCodec.encode_hello(MsgType.PROTOCOL_VERSION))
+	transport.send(SERVER_PEER, Transport.CH_CONTROL, ControlCodec.encode_hello(MsgType.PROTOCOL_VERSION, hero_index))
 
 
 func poll() -> void:

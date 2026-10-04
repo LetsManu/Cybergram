@@ -6,8 +6,9 @@ over a war-like front line, each player leading their own squad of minions
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
 > Status: **pre-alpha, playable.** Latest release:
-> [**v0.1.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.1.0) for
-> Windows and Linux. The offline vertical slice (M1) is a 3v3 match against
+> [**v0.2.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.2.0) for
+> Windows and Linux, with a main menu and a first dedicated server for online
+> tests ([`docs/SERVER.md`](docs/SERVER.md)). The offline vertical slice (M1) is a 3v3 match against
 > bots on a 1-lane map. Its balance target (most matches ending by Uplink
 > kill) is not met yet; see `production/qa/m1-soak-report.md`.
 
@@ -54,9 +55,12 @@ All 15 M1 epics are built:
 | E14 | Integration, soak and playtest (balance target still open) |
 | E15 | Levels and a reduced skill tree |
 
+Since v0.1.0: main menu, bullet tracers, invisible edge walls so heroes can't
+fall off the lane, and a first online dedicated server (UDP / ENet).
+
 Next up:
 - Balance pass so most matches end by Uplink kill
-- Close the map's collision holes
+- Online: lag compensation, team choice, bot takeover on disconnect
 - Real art and audio
 
 The roadmap is in [`production/milestones/roadmap.md`](production/milestones/roadmap.md).
@@ -76,15 +80,18 @@ code-signed, so SmartScreen may warn: choose *More info → Run anyway*.
 Builds for every commit are also attached to each **Build** run under the
 *Actions* tab.
 
-The game starts straight into a **3v3 match on the slice map** with you as
-Vesper Loom and bots filling the other slots. Destroy the enemy Mana Uplink
+The game opens on the **main menu**: pick a hero, then **Play vs Bots** (a
+**3v3 match on the slice map**, bots fill the other slots) or **Join** a
+server by address. To host one, see [`docs/SERVER.md`](docs/SERVER.md). Destroy the enemy Mana Uplink
 to win. It only takes damage once your team holds the enemy's Inner
 hardpoint.
 
 From source (Godot 4.7): `godot --path .`. Options:
 
 ```bash
-godot --path . -- --hero brannoc        # play Brannoc instead of Vesper
+godot --path . -- --hero brannoc        # skip the menu: play Brannoc vs bots
+godot --headless --path . -- --server --port 7777   # online dedicated server
+godot --path . -- --connect 127.0.0.1:7777          # join it
 godot --path . -- --map test_course     # movement test course
 godot --headless --path . -- --server --bots-only --seed 3   # all-bot match, prints a summary
 ```

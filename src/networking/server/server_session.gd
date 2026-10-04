@@ -18,6 +18,8 @@ class ClientConnection:
 var transport: Transport
 var net: NetConfig
 var clients: Dictionary = {}  # peer id -> ClientConnection
+## Hero index each joining peer asked for in Hello (ContentDB HERO, 0 = default).
+var hello_hero: Dictionary = {}  # peer id -> int
 var _scratch: Array[InputCommand] = []
 
 
@@ -42,6 +44,12 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	c.inputs = InputBuffer.new(net.max_buffered_inputs)
 	clients[peer_id] = c
 	transport.send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
+
+
+## Forgets a disconnected peer: no more snapshots or events go to it. Its
+## hero stays in the match, idle (a bot takeover is future work).
+func drop(peer_id: int) -> void:
+	clients.erase(peer_id)
 
 
 func reject(peer_id: int, reason: int) -> void:
@@ -71,6 +79,7 @@ func _handle(pkt: Transport.Packet) -> void:
 			elif hello.protocol_version != MsgType.PROTOCOL_VERSION:
 				reject(pkt.from_peer, MsgType.REJECT_PROTOCOL_MISMATCH)
 			elif not clients.has(pkt.from_peer):
+				hello_hero[pkt.from_peer] = hello.hero_index
 				client_joined.emit(pkt.from_peer)
 		MsgType.INPUT_BATCH:
 			var c: ClientConnection = clients.get(pkt.from_peer)

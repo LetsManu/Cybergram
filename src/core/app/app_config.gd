@@ -10,3 +10,6 @@ extends Resource
 ## Simulation plugins added in EVERY mode, dedicated included (each receives
 ## `session`), e.g. the Wardling AI installer (src/ai), so gameplay never names AI.
 @export var sim_plugin_scenes: Array[PackedScene] = []
+## Title screen shown when the game starts without command-line arguments
+## (non-headless). It emits start_requested(args) with launch arguments.
+@export var menu_scene: PackedScene
