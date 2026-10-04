@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("s1")
 id = &"weapon_breakline_ar7"
+sfx_voice = &"rifle"
 display_name = "Breakline AR-7"
 feed_kind = 1
 damage = 18.0

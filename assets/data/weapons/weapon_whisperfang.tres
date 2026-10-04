@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("s1")
 id = &"weapon_whisperfang"
+sfx_voice = &"smg_burst"
 display_name = "Whisperfang"
 feed_kind = 0
 damage = 22.0

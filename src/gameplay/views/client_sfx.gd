@@ -15,8 +15,7 @@ const REMOTE_SHOT_DB := -2.0
 const HIT_DB := -8.0
 const KILL_DB := -6.0
 const REMOTE_MAX_DISTANCE_M := 90.0
-const POOL_2D := 6
-const POOL_3D := 10
+## Pool sizes live in SfxBankDef (pool_2d / pool_3d / pool_ui / pool_loops).
 ## Shotgun pellets arrive as several SHOT events in one tick: play one sound.
 const SAME_SHOOTER_GAP_MS := 40
 
@@ -26,6 +25,17 @@ var hit_tick: AudioStreamWAV
 var head_tick: AudioStreamWAV
 var kill_chime: AudioStreamWAV
 
+var bank: SfxBank
+var presenter: AbilityPresenter  ## W10-W5: set by ClientWorld (optional)
+var _pool_ui: Array[AudioStreamPlayer] = []
+var _next_ui: int = 0
+var _loops: Dictionary = {}  # fx id -> AudioStreamPlayer3D (heal-beam loops)
+var _loop_free: Array[AudioStreamPlayer3D] = []
+var _voice_cache: Dictionary = {}  # hero id -> weapon voice dict
+var _prev_cd: PackedInt32Array = PackedInt32Array()
+var _prev_flags: PackedInt32Array = PackedInt32Array()
+var _prev_level: int = -1
+var _prev_mounts: PackedInt32Array = PackedInt32Array()
 var _pool_2d: Array[AudioStreamPlayer] = []
 var _pool_3d: Array[AudioStreamPlayer3D] = []
 var _next_2d: int = 0
@@ -39,19 +49,39 @@ func _ready() -> void:
 	hit_tick = synth_tone(1700.0, 0.05)
 	head_tick = synth_tone(2600.0, 0.06)
 	kill_chime = synth_chime()
-	for i in POOL_2D:
+	bank = SfxBank.shared()
+	for i in bank.def.pool_2d:
 		var p := AudioStreamPlayer.new()
 		p.bus = GameSettings.BUS_EFFECTS
 		add_child(p)
 		_pool_2d.append(p)
-	for i in POOL_3D:
+	for i in bank.def.pool_3d:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = GameSettings.BUS_EFFECTS
 		p.max_distance = REMOTE_MAX_DISTANCE_M
 		p.unit_size = 8.0
 		add_child(p)
 		_pool_3d.append(p)
+	for i in bank.def.pool_ui:
+		var p := AudioStreamPlayer.new()
+		p.bus = GameSettings.BUS_UI
+		add_child(p)
+		_pool_ui.append(p)
+	for i in bank.def.pool_loops:
+		var p := AudioStreamPlayer3D.new()
+		p.bus = GameSettings.BUS_EFFECTS
+		p.max_distance = REMOTE_MAX_DISTANCE_M
+		p.unit_size = 6.0
+		p.volume_db = bank.def.beam_db
+		p.stream = bank.stream(&"beam_loop")
+		add_child(p)
+		_loop_free.append(p)
+	if presenter != null:
+		presenter.fx_started.connect(_on_fx_started)
+		presenter.fx_moved.connect(_on_fx_moved)
+		presenter.fx_ended.connect(_on_fx_ended)
 	if client != null:
+		client.session.snapshot_received.connect(_on_snapshot)
 		client.shot_received.connect(_on_shot)
 		client.hit_confirmed.connect(_on_hit)
 		client.kill_received.connect(_on_kill)
@@ -62,12 +92,107 @@ func _on_shot(e: GameEvent) -> void:
 	if now - int(_last_shot_ms.get(e.source_net_id, -1000)) < SAME_SHOOTER_GAP_MS:
 		return
 	_last_shot_ms[e.source_net_id] = now
-	if e.source_net_id == client.session.own_net_id:
-		play_2d(gunshot, OWN_SHOT_DB, randf_range(0.95, 1.05))
+	var own: bool = e.source_net_id == client.session.own_net_id
+	var w: WeaponDef = client.hero_def.weapon if own else _remote_weapon(e.source_net_id)
+	var voice := _voice_for(w)
+	var stream: AudioStream = voice.get("stream", gunshot)
+	var db_off: float = voice.get("db", 0.0)
+	var pitch: float = voice.get("pitch", 1.0)
+	if own:
+		play_2d(stream, OWN_SHOT_DB + db_off, pitch * randf_range(0.95, 1.05))
 		return
 	var at: Variant = client.call("hero_view_position", e.source_net_id)
 	if at != null:
-		play_3d(gunshot, at, REMOTE_SHOT_DB, randf_range(0.9, 1.1))
+		play_3d(stream, at, REMOTE_SHOT_DB + db_off, pitch * randf_range(0.9, 1.1))
+
+
+func _remote_weapon(net_id: int) -> WeaponDef:
+	var id: StringName = client.hero_id_of(net_id)
+	if id == &"":
+		return null
+	if not _voice_cache.has(id):
+		var path := "%s/%s.tres" % [ContentDB.SOURCES[ContentDB.HERO][0], id]
+		var h := load(path) as HeroDef if ResourceLoader.exists(path) else null
+		_voice_cache[id] = h.weapon if h != null else null
+	return _voice_cache[id]
+
+
+## Bank voice for a weapon ({} = generic fallback shot).
+func _voice_for(w: WeaponDef) -> Dictionary:
+	return {} if w == null else bank.weapon_voice(w.sfx_voice)
+
+
+## W10-W5: own-state sounds read from the snapshot (no protocol change): skill
+## cast (cooldown restarted), fork pick (skill flags changed), level up, shop
+## buy / sell (mount contents changed).
+func _on_snapshot(s: SnapshotData) -> void:
+	var c := s.own_combat
+	if c != null:
+		if _prev_cd.size() == c.skill_cd_left.size():
+			for i in c.skill_cd_left.size():
+				if c.skill_cd_left[i] > _prev_cd[i]:
+					_on_own_cast(i)
+				if c.skill_flags[i] != _prev_flags[i] and c.skill_flags[i] > _prev_flags[i]:
+					play_ui(&"fork")
+		_prev_cd = c.skill_cd_left.duplicate()
+		_prev_flags = c.skill_flags.duplicate()
+	var p := s.progress
+	if p != null:
+		if _prev_level >= 0 and p.level > _prev_level:
+			play_ui(&"level_up")
+		_prev_level = p.level
+		if _prev_mounts.size() == p.mount_item.size():
+			for i in p.mount_item.size():
+				if p.mount_item[i] != _prev_mounts[i]:
+					play_ui(&"buy" if p.mount_item[i] >= 0 else &"sell")
+		_prev_mounts = p.mount_item.duplicate()
+
+
+func _on_own_cast(slot: int) -> void:
+	if slot >= client.hero_def.skills.size() or client.hero_def.skills[slot] == null:
+		return
+	var c := bank.skill_cast(client.hero_def.skills[slot].id)
+	if not c.is_empty():
+		play_2d(c["stream"], bank.def.cast_db, c["pitch"])
+
+
+func _on_fx_started(kind: int, at: Vector3, id: int) -> void:
+	if kind == SkillEntities.FX_BEAM:
+		if _loop_free.is_empty() or _loops.has(id):
+			return
+		var p: AudioStreamPlayer3D = _loop_free.pop_back()
+		p.global_position = at
+		p.play()
+		_loops[id] = p
+		return
+	var st := bank.fx_impact(kind)
+	if st != null:
+		play_3d(st, at, bank.def.impact_db, randf_range(0.95, 1.05))
+
+
+func _on_fx_moved(_kind: int, at: Vector3, id: int) -> void:
+	if _loops.has(id):
+		(_loops[id] as AudioStreamPlayer3D).global_position = at
+
+
+func _on_fx_ended(kind: int, id: int) -> void:
+	if kind == SkillEntities.FX_BEAM and _loops.has(id):
+		var p: AudioStreamPlayer3D = _loops[id]
+		p.stop()
+		_loops.erase(id)
+		_loop_free.append(p)
+
+
+## Light UI sound (UI bus) by event name from SfxBankDef.ui.
+func play_ui(event: StringName) -> void:
+	var st := bank.ui_stream(event)
+	if st == null or _pool_ui.is_empty():
+		return
+	var p := _pool_ui[_next_ui]
+	_next_ui = (_next_ui + 1) % _pool_ui.size()
+	p.stream = st
+	p.volume_db = bank.def.ui_db
+	p.play()
 
 
 func _on_hit(e: GameEvent) -> void:
@@ -82,7 +207,7 @@ func _on_kill(e: GameEvent) -> void:
 
 func play_2d(stream: AudioStream, db: float, pitch: float) -> AudioStreamPlayer:
 	var p := _pool_2d[_next_2d]
-	_next_2d = (_next_2d + 1) % POOL_2D
+	_next_2d = (_next_2d + 1) % _pool_2d.size()
 	p.stream = stream
 	p.volume_db = db
 	p.pitch_scale = pitch
@@ -92,7 +217,7 @@ func play_2d(stream: AudioStream, db: float, pitch: float) -> AudioStreamPlayer:
 
 func play_3d(stream: AudioStream, at: Vector3, db: float, pitch: float) -> AudioStreamPlayer3D:
 	var p := _pool_3d[_next_3d]
-	_next_3d = (_next_3d + 1) % POOL_3D
+	_next_3d = (_next_3d + 1) % _pool_3d.size()
 	p.stream = stream
 	p.global_position = at
 	p.volume_db = db

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 id = &"weapon_ironmaw"
+sfx_voice = &"heavy"
 display_name = "Ironmaw"
 feed_kind = 1
 damage = 15.0

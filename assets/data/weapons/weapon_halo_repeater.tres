@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("s1")
 id = &"weapon_halo_repeater"
+sfx_voice = &"zap"
 display_name = "Halo Repeater"
 feed_kind = 0
 damage = 19.0
