@@ -34,16 +34,19 @@ var _last_shot_ms: Dictionary = {}  # shooter net id -> msec
 
 
 func _ready() -> void:
+	GameSettings.shared().apply_audio()  # creates the Effects / UI buses
 	gunshot = synth_gunshot()
 	hit_tick = synth_tone(1700.0, 0.05)
 	head_tick = synth_tone(2600.0, 0.06)
 	kill_chime = synth_chime()
 	for i in POOL_2D:
 		var p := AudioStreamPlayer.new()
+		p.bus = GameSettings.BUS_EFFECTS
 		add_child(p)
 		_pool_2d.append(p)
 	for i in POOL_3D:
 		var p := AudioStreamPlayer3D.new()
+		p.bus = GameSettings.BUS_EFFECTS
 		p.max_distance = REMOTE_MAX_DISTANCE_M
 		p.unit_size = 8.0
 		add_child(p)
