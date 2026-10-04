@@ -116,6 +116,8 @@ var projectiles: Array[Projectile] = []
 var fx: Array[Fx] = []
 var charges: Array[Charge] = []
 var leaps: Array[Leap] = []
+## Wave-9 kits (Ryker / Liora / Sable): grenades, drones, stealth... (SkillEntities).
+var extras: SkillEntities
 ## Debug (--grant-ult): heroes spawned from now on may cast their ultimate.
 var grant_ult: bool = false
 ## Diagnostics / tests.
@@ -138,6 +140,7 @@ func _init(world: ServerWorld) -> void:
 	dt = world.dt
 	_ray.collision_mask = HeroBody.LAYER_WORLD
 	traps = TrapWorld.new(self)
+	extras = SkillEntities.new(world)
 
 
 func tick() -> int:
@@ -165,6 +168,7 @@ func post_move(h: HeroBody, cmd: InputCommand) -> void:
 		if ch.hero == h:
 			_step_charge(ch)
 			break
+	extras.post_move(h, cmd)
 	h.combat.abilities.process(h, cmd, server.tick, self)
 
 
@@ -183,6 +187,7 @@ func step() -> void:
 		_tick_deployable(d, t)
 	traps.step()
 	_step_projectiles()
+	extras.step()
 	for i in range(leaps.size() - 1, -1, -1):
 		var lp := leaps[i]
 		if lp.hero.combat.dead:
@@ -344,7 +349,7 @@ func status_bits(h: HeroBody) -> int:
 		b |= StatusComponent.BIT_CASTING
 	if c.abilities.is_dashing():
 		b |= StatusComponent.BIT_DASHING
-	return b
+	return b | extras.status_bits(h)
 
 
 # --- Effect execution --------------------------------------------------------------

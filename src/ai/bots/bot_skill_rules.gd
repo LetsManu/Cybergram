@@ -6,6 +6,7 @@ extends RefCounted
 ## SkillUse (or null). Tuning numbers are PLACEHOLDER.
 ##   Brannoc: Aegis Wall when under fire, Ram Charge at a hero 3-11 m away,
 ##            Fortify when hurt under fire, Earthbreaker on a hero 6-24 m away.
+##   Ryker / Sable / Liora (wave 9): see the per-skill rules below.
 ##   Vesper:  Marionette Thread on a hero in thread range, Rally Beacon on the
 ##            hardpoint she is working (or at her feet when hurt), Rewrite when
 ##            enemies crowd her. Threadstep is not used by bots yet.
@@ -25,6 +26,24 @@ class SkillUse:
 
 ## Fraction of ground distance in front of Brannoc where the wall goes.
 const WALL_AHEAD_M: float = 5.0
+
+
+## PLACEHOLDER. Gravity of thrown bodies (ThrownEffectDef.gravity) and the lift
+## the throw adds to the aim, for the grenade lob.
+const THROW_GRAVITY: float = 20.0
+const THROW_LIFT: float = 0.18
+
+
+## Aim point that makes a thrown body (speed `v`) land near `target`: the low
+## launch angle for the range, minus the lift the throw adds itself.
+static func _lob_point(h: HeroBody, target: Vector3, v: float) -> Vector3:
+	var eye := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
+	var to := target + Vector3(0.0, 1.0, 0.0) - eye
+	var flat := Vector2(to.x, to.z).length()
+	var theta := 0.5 * asin(clampf(THROW_GRAVITY * flat / maxf(v * v, 1.0), 0.0, 1.0))
+	var phi := theta - THROW_LIFT * 0.9
+	var dir := Vector3(to.x, 0.0, to.z).normalized() * cos(phi) + Vector3.UP * sin(phi)
+	return eye + dir * maxf(flat, 1.0)
 
 
 ## First applicable skill use for this decision, or null. `ready` is a
@@ -62,6 +81,42 @@ static func choose(skills: Array[SkillInstance], bb: BotBlackboard, h: HeroBody,
 					return SkillUse.new(s.slot, Aim.POINT, zone_center)
 			&"skill_vesper_rewrite":
 				if bb.enemy_wardlings_seen >= 3 or (hero_t and bb.target_dist < 15.0):
+					return SkillUse.new(s.slot, Aim.NONE)
+			&"skill_ryker_frag_grenade":
+				if hero_t and bb.target_dist >= 6.0 and bb.target_dist <= 16.0:
+					return SkillUse.new(s.slot, Aim.POINT, _lob_point(h, bb.target_pos, s.param(&"speed")))
+			&"skill_ryker_combat_stim":
+				if hero_t and bb.target_dist <= 30.0 and bb.hp_frac > 0.5:
+					return SkillUse.new(s.slot, Aim.NONE)
+			&"skill_ryker_tactical_slide":
+				if hero_t and bb.target_dist >= 9.0 and bb.target_dist <= 22.0:
+					return SkillUse.new(s.slot, Aim.TRACK)
+			&"skill_ryker_overdrive":
+				if hero_t and bb.target_dist <= 35.0:
+					return SkillUse.new(s.slot, Aim.NONE)
+			&"skill_sable_veilwalk":
+				if hero_t and bb.target_dist > 14.0 and not hurt_now:
+					return SkillUse.new(s.slot, Aim.NONE)
+			&"skill_sable_phase_shift":
+				if hurt_now and bb.hp_frac < 0.5:
+					return SkillUse.new(s.slot, Aim.NONE)
+			&"skill_sable_sabotage_charge":
+				if zone_radius > 0.0 and BotBlackboard.flat_dist(pos, zone_center) < zone_radius:
+					return SkillUse.new(s.slot, Aim.POINT, zone_center)
+			&"skill_sable_eclipse_step":
+				if hero_t and bb.target_dist >= 8.0 and bb.target_dist <= s.param(&"range") - 5.0:
+					return SkillUse.new(s.slot, Aim.TRACK)
+			&"skill_liora_med_pack_drone":
+				if hurt_now and bb.hp_frac < 0.8:
+					return SkillUse.new(s.slot, Aim.POINT, pos)
+			&"skill_liora_prism_ward":
+				if hurt_now and bb.hp_frac < 0.7:
+					return SkillUse.new(s.slot, Aim.NONE)
+			&"skill_liora_flash_bloom":
+				if hero_t and bb.target_dist <= 9.0:
+					return SkillUse.new(s.slot, Aim.POINT, bb.target_pos)
+			&"skill_liora_aurora":
+				if (hurt_now and bb.hp_frac < 0.5) or (hero_t and bb.target_dist < 10.0 and bb.hp_frac < 0.8):
 					return SkillUse.new(s.slot, Aim.NONE)
 			# W9-H2 Juniper Quill (Trapper) and Hex (Hacker). Tripwire Lattice needs two
 			# presses (anchor A then B) and Relay Hop needs a gadget under the crosshair:

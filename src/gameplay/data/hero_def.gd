@@ -28,6 +28,9 @@ extends Resource
 ## Passive: hero-scope modifiers active only inside a hardpoint zone with an
 ## active task (Brannoc Anchor: +15% DR, knockback immune).
 @export var zone_passive_modifiers: Array[ModifierDef] = []
+## Passive: behaviours that need server logic beyond Modifiers (HeroPassiveDef:
+## Battle Rhythm, Shadowgraph, Triage Kit, Heal Beam).
+@export var passives: Array[HeroPassiveDef] = []
 ## Passive: radius of the WARDLING_AURA_DAMAGE aura (Vesper Conductor: 15 m).
 @export_range(0.0, 60.0, 0.5) var wardling_aura_radius_m: float = 0.0
 ## Passive: allied Vanguard waves with a member this close are "conducted"

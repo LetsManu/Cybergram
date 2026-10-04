@@ -172,6 +172,8 @@ func try_activate(slot: int, h: HeroBody, cmd: InputCommand, tick: int, world: A
 	if r != Reject.NONE:
 		return _reject(slot, r)
 	var s := skills[slot]
+	if world != null and world.extras.is_silenced(h):
+		return _reject(slot, Reject.STUNNED)  # heroes.md §3.6 Silence: no skills
 	if (s.on_cooldown(tick) or s.active) and not s.def.recast_effects.is_empty():
 		var rctx := _context(s, h, cmd, tick, world)
 		rctx.run(s.def.recast_effects)

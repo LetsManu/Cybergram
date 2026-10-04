@@ -276,3 +276,6 @@ HUD_STAT_WARDLING_HP,Wardling HP
 HUD_STAT_WARDLING_DMG,Wardling damage
 HUD_HERO_JUNIPER,Juniper Quill  (Trapper)
 HUD_HERO_HEX,Hex  (Hacker)
+HUD_MENU_HERO_RYKER,Ryker Vance  (Soldier)
+HUD_MENU_HERO_LIORA,Liora Vale  (Healer)
+HUD_MENU_HERO_SABLE,Sable  (Infiltrator)

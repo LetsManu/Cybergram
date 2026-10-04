@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/bloom_effect_def.gd" id="s1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/delayed_effect_def.gd" id="s2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s4"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s5"]
+
+[sub_resource type="Resource" id="bloom_effect_def_1"]
+script = ExtResource("s1")
+
+[sub_resource type="Resource" id="delayed_effect_def_2"]
+script = ExtResource("s2")
+delay_s = 0.3
+effects = Array[Resource]([SubResource("bloom_effect_def_1")])
+
+[sub_resource type="Resource" id="modifier_def_3"]
+script = ExtResource("s3")
+stat = &"duration"
+op = 0
+value = 0.3
+
+[sub_resource type="Resource" id="modifier_def_4"]
+script = ExtResource("s3")
+stat = &"cooldown"
+op = 0
+value = -2.0
+
+[sub_resource type="Resource" id="skill_node_def_5"]
+script = ExtResource("s4")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_3"), SubResource("modifier_def_4")])
+
+[resource]
+script = ExtResource("s5")
+id = &"skill_liora_flash_bloom"
+display_name = "Flash Bloom"
+short_label = "BLOM"
+targeting = 1
+params = {
+&"cooldown": 15.0,
+&"range": 15.0,
+&"radius": 10.0,
+&"duration": 1.0,
+&"distance": 3.0
+}
+effects = Array[Resource]([SubResource("delayed_effect_def_2")])
+nodes = Array[ExtResource("s4")]([SubResource("skill_node_def_5")])

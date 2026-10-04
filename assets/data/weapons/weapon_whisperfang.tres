@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WeaponDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/weapon_def.gd" id="s1"]
+
+[resource]
+script = ExtResource("s1")
+id = &"weapon_whisperfang"
+display_name = "Whisperfang"
+feed_kind = 0
+damage = 22.0
+pellets = 1
+fire_rate = 8.57
+semi_auto = false
+headshot_mult = 2.25
+falloff_start_m = 12.0
+falloff_end_m = 25.0
+falloff_min = 0.5
+spread_base_deg = 0.5
+spread_bloom_deg = 0.2
+spread_max_deg = 2.5
+range_m = 80.0
+mana_pool = 100
+mana_cost = 4.0
+mana_regen = 45.0
+mana_regen_delay_s = 0.6
+burnout_delay_mult = 1.5

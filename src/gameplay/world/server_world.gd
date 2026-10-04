@@ -436,7 +436,7 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 				abilities.blocked_shots += 1
 			continue
 		var raw := DamageMath.hit_damage(w.def, hit.distance, hit.headshot) * wm \
-			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO)
+			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO) * abilities.extras.shot_mult(h, hit.target)
 		var id := hit.target.net_id
 		if not per_target.has(id):
 			per_target[id] = [0.0, 0, hit.point]

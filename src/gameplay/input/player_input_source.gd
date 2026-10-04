@@ -142,6 +142,9 @@ func sample(seq: int, out: InputCommand) -> void:
 	# Fire only while the mouse is captured (the capturing click never shoots).
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _fire_down():
 		out.buttons |= InputCommand.BTN_FIRE
+	# Alt-fire (RMB): Liora's heal beam (weapons-and-mods.md §3.3.1).
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		out.buttons |= InputCommand.BTN_ALT
 	if _pressed("reload", KEY_R):
 		out.buttons |= InputCommand.BTN_RELOAD
 	# E14 (hud.md §13 binds: Interact F, hold): Cell pickup, plant, defuse.
