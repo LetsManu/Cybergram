@@ -40,6 +40,8 @@ const DEFAULT_EXE: Dictionary = {"windows": "Cybergram.exe", "linux": "Cybergram
 var state: State = State.IDLE
 var latest_version: String = ""
 var latest_notes_md: String = ""
+## The feed's "launcher" section ({} when the feed has none).
+var latest_launcher: Dictionary = {}
 var last_error: String = ""
 
 var _install_root: String = ""
@@ -56,6 +58,11 @@ func setup(install_root: String, version_url: String, os_name: String = "") -> v
 	_install_root = install_root
 	_version_url = version_url
 	_platform = LauncherCore.platform_key(os_name if os_name != "" else OS.get_name())
+
+
+## Platform key ("windows" / "linux" / "").
+func platform() -> String:
+	return _platform
 
 
 ## Folder that holds game/.
@@ -116,6 +123,7 @@ func _on_manifest_done(result: int, code: int, _headers: PackedStringArray, body
 		return
 	latest_version = m["version"]
 	latest_notes_md = m["notes_md"]
+	latest_launcher = m["launcher"]
 	_entry = plats[_platform]
 	manifest_loaded.emit()
 	var installed: String = installed_version()

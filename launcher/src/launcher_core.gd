@@ -102,6 +102,7 @@ static func parse_manifest(text: String) -> Dictionary:
 		"version": String(d["version"]).trim_prefix("v"),
 		"notes_md": String(d.get("notes_md", "")),
 		"platforms": plat_dict,
+		"launcher": d.get("launcher", {}) if typeof(d.get("launcher", {})) == TYPE_DICTIONARY else {},
 	}
 
 
@@ -272,3 +273,26 @@ static func copy_tree(from_dir: String, to_dir: String) -> String:
 		if cerr != OK:
 			return "cannot copy %s (%s)" % [file_name, error_string(cerr)]
 	return ""
+
+
+## Picks this platform's launcher package from the feed's "launcher" section
+## if it is newer than `own_version`. Returns {} when there is nothing to do
+## or the entry is malformed, else {"version","file","sha256","exe","size"}.
+static func launcher_update_for(launcher: Dictionary, platform: String, own_version: String) -> Dictionary:
+	if launcher.is_empty() or typeof(launcher.get("version")) != TYPE_STRING:
+		return {}
+	var plats: Variant = launcher.get("platforms")
+	if typeof(plats) != TYPE_DICTIONARY or typeof((plats as Dictionary).get(platform)) != TYPE_DICTIONARY:
+		return {}
+	var e: Dictionary = (plats as Dictionary)[platform]
+	for field in ["file", "sha256", "exe"]:
+		if typeof(e.get(field)) != TYPE_STRING:
+			return {}
+	var f: String = e["file"]
+	var exe: String = e["exe"]
+	if f.contains("/") or f.contains("\\") or f.contains("..") or not is_safe_entry(exe) or exe.contains("/"):
+		return {}
+	var v: String = String(launcher["version"]).trim_prefix("v")
+	if compare_versions(own_version, v) >= 0:
+		return {}
+	return {"version": v, "file": f, "sha256": e["sha256"], "exe": exe, "size": int(e.get("size", 0))}

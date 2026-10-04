@@ -95,6 +95,28 @@ expect_exit 0 "move install" run --install-root "$tmp/install" --move-install-to
 [[ -f "$tmp/moved/game/data/x.txt" && ! -e "$tmp/install/game" ]] && ok "install moved" || bad "install not moved"
 expect_exit 0 "moved install is current" run --check-only --install-root "$tmp/moved"
 
+# --- 6. launcher self-update -----------------------------------------------------
+echo "[6] launcher self-update"
+for d in lw ll; do mkdir -p "$tmp/$d"; done
+echo "launcher cfg shipped" > "$tmp/lw/launcher.cfg"; echo "launcher cfg shipped" > "$tmp/ll/launcher.cfg"
+echo "NEW LAUNCHER EXE" > "$tmp/lw/CybergramLauncher.exe"
+printf '#!/bin/sh\necho new launcher\n' > "$tmp/ll/CybergramLauncher.x86_64"
+"$here/tools/make_update_feed.sh" v0.5.0 "$tmp/win" "$tmp/lin" "$tmp/notes.md" "$tmp/host" "$tmp/lw" "$tmp/ll" > /dev/null
+jq -e '.launcher.version == "0.5.0" and (.launcher.platforms.linux.sha256|length)==64 and (.launcher.platforms.windows.file|endswith(".zip"))' "$tmp/host/version.json" > /dev/null && ok "feed has launcher section" || bad "launcher section"
+[[ -f "$tmp/host/CybergramLauncher-v0.5.0-linux-x86_64.zip" ]] && ok "launcher zip served" || bad "launcher zip missing"
+mkdir -p "$tmp/ldir"
+printf '#!/bin/sh\necho old launcher\n' > "$tmp/ldir/CybergramLauncher.x86_64"; chmod +x "$tmp/ldir/CybergramLauncher.x86_64"
+echo "user edited cfg" > "$tmp/ldir/launcher.cfg"
+expect_exit 11 "launcher already current" run --self-update --launcher-dir "$tmp/ldir" --launcher-version 0.5.0 --install-root "$tmp/install"
+expect_exit 0 "self-update applies" run --self-update --launcher-dir "$tmp/ldir" --launcher-version 0.4.0 --install-root "$tmp/install"
+[[ "$("$tmp/ldir/CybergramLauncher.x86_64")" == "new launcher" ]] && ok "new launcher in place and executable" || bad "launcher not replaced"
+[[ "$(cat "$tmp/ldir/launcher.cfg")" == "user edited cfg" ]] && ok "launcher.cfg preserved" || bad "launcher.cfg overwritten"
+[[ -f "$tmp/ldir/CybergramLauncher.x86_64.old" ]] && ok "old launcher kept aside until next start" || bad "no .old file"
+jq '.launcher.platforms.linux.sha256 = "deadbeef"' "$tmp/host/version.json" > "$tmp/host/v.tmp" && mv "$tmp/host/v.tmp" "$tmp/host/version.json"
+printf '#!/bin/sh\necho old launcher\n' > "$tmp/ldir/CybergramLauncher.x86_64"
+expect_exit 1 "self-update with bad sha256 fails" run --self-update --launcher-dir "$tmp/ldir" --launcher-version 0.4.0 --install-root "$tmp/install"
+[[ "$("$tmp/ldir/CybergramLauncher.x86_64")" == "old launcher" ]] && ok "launcher untouched after bad sha256" || bad "launcher damaged"
+
 echo
 [[ "$fails" == 0 ]] && echo "E2E PASS" || echo "E2E FAILED ($fails)"
 exit "$fails"

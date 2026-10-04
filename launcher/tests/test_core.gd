@@ -101,5 +101,30 @@ func _init() -> void:
 	_check(not FileAccess.get_file_as_string(sp).to_lower().contains("token"), "settings hold no token")
 	DirAccess.remove_absolute(sp)
 
+	# Launcher self-update selection and swap.
+	var lau: Dictionary = {"version": "1.2.0", "platforms": {"linux": {"file": "L.zip", "sha256": "x", "exe": "CybergramLauncher.x86_64", "size": 3}}}
+	_check(LauncherCore.launcher_update_for(lau, "linux", "1.1.0").get("version") == "1.2.0", "launcher update offered")
+	_check(LauncherCore.launcher_update_for(lau, "linux", "1.2.0").is_empty(), "launcher current: nothing")
+	_check(LauncherCore.launcher_update_for(lau, "linux", "2.0.0").is_empty(), "launcher newer than feed: nothing")
+	_check(LauncherCore.launcher_update_for(lau, "windows", "1.0.0").is_empty(), "launcher no platform entry")
+	_check(LauncherCore.launcher_update_for({}, "linux", "1.0.0").is_empty(), "launcher no section")
+	lau["platforms"]["linux"]["file"] = "../L.zip"
+	_check(LauncherCore.launcher_update_for(lau, "linux", "1.0.0").is_empty(), "launcher unsafe file name")
+	var sb: String = OS.get_cache_dir().path_join("cybergram_selfupd")
+	LauncherCore.remove_tree(sb)
+	DirAccess.make_dir_recursive_absolute(sb.path_join("new"))
+	DirAccess.make_dir_recursive_absolute(sb.path_join("live"))
+	for pair in [["new/L.x86_64", "NEW"], ["new/launcher.cfg", "newcfg"], ["live/L.x86_64", "OLD"], ["live/launcher.cfg", "mycfg"]]:
+		var wf: FileAccess = FileAccess.open(sb.path_join(pair[0]), FileAccess.WRITE)
+		wf.store_string(pair[1])
+		wf.close()
+	_check(SelfUpdater.apply_update(sb.path_join("new"), sb.path_join("live")) == "", "apply_update ok")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW", "exe replaced")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/launcher.cfg")) == "mycfg", "launcher.cfg kept")
+	_check(FileAccess.file_exists(sb.path_join("live/L.x86_64.old")), "old exe renamed aside")
+	SelfUpdater.cleanup_old(sb.path_join("live"))
+	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old")), "cleanup removes .old")
+	LauncherCore.remove_tree(sb)
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

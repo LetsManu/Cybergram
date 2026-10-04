@@ -11,6 +11,11 @@ extends Control
 ##   --repair               headless: verify files against the manifest, re-download
 ##                          if anything is bad; exit 0 intact/repaired, 1 failed
 ##   --move-install-to <d>  headless: move the install from --install-root to <d>
+##   --self-update          headless: replace the launcher files in --launcher-dir with
+##                          the feed's newer launcher; exit 0 updated / 11 current / 1 failed
+##   --launcher-dir <dir>   where the launcher files live (default: next to the exe)
+##   --launcher-version <v> pretend to be this launcher version (tests)
+##   --self-updated         set by the restart after a self-update (skips another one)
 ##   --settings <file>      launcher settings file (default user://launcher_settings.cfg)
 ##   --no-launch            window mode: never start the game (screenshots)
 
@@ -35,6 +40,12 @@ var _no_launch: bool = false
 var _headless_mode: String = ""   ## "", "check", "update" or "repair"
 var _settings: LauncherSettings
 var _repair_started: bool = false
+var _launcher_dir: String = ""
+var _own_version: String = ""
+var _self_done: bool = false
+var _self: SelfUpdater
+var _self_busy: bool = false
+var _restart_args: PackedStringArray = PackedStringArray()
 var _install_label: Label
 var _repair: Button
 var _dialog: FileDialog
@@ -63,6 +74,13 @@ func _ready() -> void:
 		_headless_mode = "check"
 	elif args.has("repair"):
 		_headless_mode = "repair"
+	elif args.has("self-update"):
+		_headless_mode = "selfupdate"
+	_launcher_dir = String(args.get("launcher-dir", OS.get_executable_path().get_base_dir()))
+	_own_version = String(args.get("launcher-version", ProjectSettings.get_setting("application/config/version", "0.0.0")))
+	_self_done = args.has("self-updated") or (OS.has_feature("editor") and not args.has("launcher-dir"))
+	_restart_args = OS.get_cmdline_user_args()
+	SelfUpdater.cleanup_old(_launcher_dir)
 	_updater = Updater.new()
 	add_child(_updater)
 	_updater.setup(root, url)
@@ -75,6 +93,7 @@ func _ready() -> void:
 	_probe = StatusProbe.new()
 	add_child(_probe)
 	_probe.probed.connect(_on_probed)
+	_updater.manifest_loaded.connect(_on_manifest)
 	_updater.state_changed.connect(_on_state)
 	_updater.progress_changed.connect(_on_progress)
 	if _headless_mode == "":
@@ -82,6 +101,47 @@ func _ready() -> void:
 	_updater.check()
 	if _headless_mode == "":
 		_probe.probe(url)
+
+
+## Manifest arrived: replace the launcher first if the feed has a newer one.
+func _on_manifest() -> void:
+	if _self_done and _headless_mode != "selfupdate":
+		return
+	var entry: Dictionary = LauncherCore.launcher_update_for(_updater.latest_launcher, _updater.platform(), _own_version)
+	if entry.is_empty():
+		if _headless_mode == "selfupdate":
+			print("LAUNCHER: self-update: launcher %s is current" % _own_version)
+			get_tree().quit(11)
+		return
+	_self_done = true
+	print("LAUNCHER: self-update %s -> %s" % [_own_version, entry["version"]])
+	if _status != null:
+		_status.text = "Updating the launcher to %s..." % entry["version"]
+		_button.disabled = true
+	_self_busy = true
+	_self = SelfUpdater.new()
+	add_child(_self)
+	_self.setup(_launcher_dir, _launcher_dir.path_join("downloads"), LauncherCore.base_url(_version_url))
+	_self.finished.connect(_on_self_updated.bind(entry))
+	_self.start(entry)
+
+
+func _on_self_updated(ok: bool, message: String, _new_version: String, entry: Dictionary) -> void:
+	print("LAUNCHER: self-update: %s" % message)
+	if _headless_mode == "selfupdate":
+		get_tree().quit(0 if ok else 1)
+		return
+	if not ok:
+		_self_busy = false
+		if _status != null:
+			_status.text = message
+			_on_state(_updater.state, message)
+		return
+	var exe: String = _launcher_dir.path_join(String(entry["exe"]))
+	var args: PackedStringArray = _restart_args.duplicate()
+	args.append("--self-updated")
+	OS.create_process(exe, args)
+	get_tree().quit()
 
 
 func _on_probed(info: Dictionary) -> void:
@@ -99,10 +159,10 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 		var a: String = all[i]
 		if a.begins_with("--") and a.length() > 2:
 			var key: String = a.substr(2)
-			if key in ["config", "install-root", "update-to", "settings", "move-install-to"] and i + 1 < all.size():
+			if key in ["config", "install-root", "update-to", "settings", "move-install-to", "launcher-dir", "launcher-version"] and i + 1 < all.size():
 				out[key] = all[i + 1]
 				i += 1
-			elif key in ["check-only", "no-launch", "repair"]:
+			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated"]:
 				out[key] = true
 		i += 1
 	return out
@@ -113,6 +173,8 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 func _on_state(s: Updater.State, msg: String) -> void:
 	if _headless_mode != "":
 		_headless_state(s, msg)
+		return
+	if _self_busy:
 		return
 	_status.text = msg
 	_version_label.text = _version_text()
@@ -151,6 +213,10 @@ func _on_state(s: Updater.State, msg: String) -> void:
 
 func _headless_state(s: Updater.State, msg: String) -> void:
 	print("LAUNCHER: [%s] %s" % [Updater.State.keys()[s], msg])
+	if _headless_mode == "selfupdate":
+		if s in [Updater.State.OFFLINE_READY, Updater.State.OFFLINE_NONE, Updater.State.ERROR]:
+			get_tree().quit(1)
+		return  # the self-update result quits (see _on_manifest)
 	if _headless_mode == "repair" and s in [Updater.State.UP_TO_DATE, Updater.State.UPDATE_AVAILABLE] and not _repair_started:
 		_repair_started = true
 		_updater.verify_and_repair()
