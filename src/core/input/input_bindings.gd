@@ -27,6 +27,7 @@ const ACTIONS: Array = [
 	["crouch", GROUP_MOVE, "k:4194326"],
 	["sprint", GROUP_MOVE, "k:4194325"],
 	["fire", GROUP_COMBAT, "m:1"],
+	["alt_fire", GROUP_COMBAT, "m:2"],
 	["reload", GROUP_COMBAT, "k:82"],
 	["interact", GROUP_COMBAT, "k:70"],
 	["use_medpack", GROUP_COMBAT, "k:52"],

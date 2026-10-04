@@ -142,8 +142,8 @@ func sample(seq: int, out: InputCommand) -> void:
 	# Fire only while the mouse is captured (the capturing click never shoots).
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _fire_down():
 		out.buttons |= InputCommand.BTN_FIRE
-	# Alt-fire (RMB): Liora's heal beam (weapons-and-mods.md §3.3.1).
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+	# Alt-fire (RMB, rebindable): Liora's heal beam (weapons-and-mods.md §3.3.1).
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _alt_fire_down():
 		out.buttons |= InputCommand.BTN_ALT
 	if _pressed("reload", KEY_R):
 		out.buttons |= InputCommand.BTN_RELOAD
@@ -189,6 +189,12 @@ func _sample_neutral(out: InputCommand) -> void:
 
 
 ## Held-state of the fire action (InputMap, rebindable; default left mouse).
+func _alt_fire_down() -> bool:
+	if InputMap.has_action(&"alt_fire"):
+		return Input.is_action_pressed(&"alt_fire")
+	return Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+
+
 func _fire_down() -> bool:
 	if InputMap.has_action(&"fire"):
 		return Input.is_action_pressed(&"fire")

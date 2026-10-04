@@ -18,6 +18,7 @@ func test_every_action_has_a_unique_valid_default() -> void:
 		assert_bool(seen.has(a[2])).is_false()
 		seen[a[2]] = true
 	assert_str(InputBindings.default_spec("move_forward")).is_equal("k:%d" % KEY_W)
+	assert_str(InputBindings.default_spec("alt_fire")).is_equal("m:%d" % MOUSE_BUTTON_RIGHT)
 	assert_str(InputBindings.default_spec("open_shop")).is_equal("k:%d" % KEY_B)
 	assert_str(InputBindings.default_spec("scoreboard")).is_equal("k:%d" % KEY_TAB)
 	assert_str(InputBindings.default_spec("net_graph")).is_equal("k:%d" % KEY_F3)

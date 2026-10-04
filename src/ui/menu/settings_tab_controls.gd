@@ -16,7 +16,7 @@ const ACTION_KEYS := {
 	"move_forward": "HUD_ACT_MOVE_FORWARD", "move_back": "HUD_ACT_MOVE_BACK",
 	"move_left": "HUD_ACT_MOVE_LEFT", "move_right": "HUD_ACT_MOVE_RIGHT",
 	"jump": "HUD_ACT_JUMP", "crouch": "HUD_ACT_CROUCH", "sprint": "HUD_ACT_SPRINT",
-	"fire": "HUD_ACT_FIRE", "reload": "HUD_ACT_RELOAD", "interact": "HUD_ACT_INTERACT",
+	"fire": "HUD_ACT_FIRE", "alt_fire": "HUD_ACT_ALT_FIRE", "reload": "HUD_ACT_RELOAD", "interact": "HUD_ACT_INTERACT",
 	"use_medpack": "HUD_ACT_MEDPACK", "skill_1": "HUD_ACT_SKILL_1", "skill_2": "HUD_ACT_SKILL_2",
 	"skill_3": "HUD_ACT_SKILL_3", "skill_4": "HUD_ACT_SKILL_4", "quick_spend": "HUD_ACT_QUICK_SPEND",
 	"squad_smart": "HUD_ACT_SQUAD_SMART", "squad_follow": "HUD_ACT_SQUAD_FOLLOW",
