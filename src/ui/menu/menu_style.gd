@@ -24,6 +24,7 @@ static func button(text: String, on_press: Callable, primary := false, height :=
 	b.custom_minimum_size.y = height if height > 0 else (52 if primary else 40)
 	b.add_theme_font_size_override("font_size", 20 if primary else 15)
 	style_button(b, Color(HudPalette.NEUTRAL, 0.85) if primary else HudPalette.PANEL_STRONG)
+	UiSfx.attach(b)  # hover / click blips on the UI bus
 	if on_press.is_valid():
 		b.pressed.connect(on_press)
 	return b
