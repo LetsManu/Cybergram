@@ -420,8 +420,9 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 				ends.append(origin + dir * end_d)
 				if not per_wardling.has(wl[0]):
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
+				# heroes.md §3.7: Wardlings are gadgets (Hex Signal Sight +50 %).
 				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false) * wm \
-					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT)
+					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT) * c.def.gadget_damage_mult
 				continue
 		ends.append(origin + dir * end_d)
 		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, wm):
