@@ -144,7 +144,9 @@ func _draw_fork(r: Rect2, def: SkillDef, flags: int) -> void:
 func _key_text(action: StringName, fallback: String) -> String:
 	if InputMap.has_action(action):
 		for e in InputMap.action_get_events(action):
-			return e.as_text().trim_suffix(" (Physical)")
+			if e is InputEventKey:
+				return (e as InputEventKey).as_text_physical_keycode()
+			return e.as_text()
 	return fallback
 
 
