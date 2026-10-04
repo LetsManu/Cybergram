@@ -50,7 +50,9 @@ func _hero(path: String, at: Vector3, team: int, yaw_deg: float = 0.0) -> HeroBo
 	var def := ScriptedInputDef.new()
 	def.segments = PackedVector2Array([Vector2.ZERO])
 	def.start_yaw_deg = yaw_deg
-	var h := _server.hero(_server.add_scripted_hero(Holder.new(def), at, load(path) as HeroDef, team))
+	var holder := Holder.new(def)
+	holder.yaw = deg_to_rad(yaw_deg)
+	var h := _server.hero(_server.add_scripted_hero(holder, at, load(path) as HeroDef, team))
 	h.combat.abilities.debug_grant_ult = true
 	return h
 
@@ -84,7 +86,7 @@ func _start(spawn_marker: String = "PlayerSpawn") -> Vector3:
 func test_frag_grenade_two_charges_recharge_and_damage() -> void:
 	_world()
 	var ryker := _hero(RYKER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
-	var foe := _hero("res://assets/data/heroes/hero_vesper_loom.tres", Vector3(0.0, 0.05, -12.0), ServerWorld.TEAM_DUMMIES)
+	var foe := _hero("res://assets/data/heroes/hero_vesper_loom.tres", Vector3(0.0, 0.05, -15.0), ServerWorld.TEAM_DUMMIES)
 	await get_tree().physics_frame
 	var s := ryker.combat.abilities.skill(0)
 	assert_bool(_cast(ryker, 0, 0.08)).is_true()
@@ -126,10 +128,12 @@ func test_grenade_blast_falloff_and_wardling_multiplier() -> void:
 	ctx.point = Vector3(10.0, 0.05, 0.0)
 	var blast := (ryker.combat.abilities.skill(0).def.effects[0] as ThrownEffectDef).on_detonate[0]
 	ctx.run([blast])
-	assert_float(near.combat.health.hp).is_equal_approx(250.0 - 110.0, 0.6)
-	# 4 m of 5 m: 1 - 0.6 * 0.8 = 52% (chest-distance based, so allow slack).
-	var took := 250.0 - edge.combat.health.hp
-	assert_float(took).is_between(110.0 * 0.4, 110.0 * 0.62)
+	# Falloff is measured to the chest (1.2 m up): 1 - 0.6 * 1.2/5 = 86% right at the point.
+	var took_near := 250.0 - near.combat.health.hp
+	var took_edge := 250.0 - edge.combat.health.hp
+	assert_float(took_near).is_between(110.0 * 0.82, 110.0)
+	assert_float(took_edge).is_between(110.0 * 0.4, 110.0 * 0.62)
+	assert_float(took_edge).is_less(took_near)
 
 
 func test_combat_stim_costs_hp_and_boosts_rate_and_speed() -> void:
@@ -185,7 +189,7 @@ func test_overdrive_protocol_bottomless_damage_and_kill_extension() -> void:
 	_run(2)
 	assert_int(feed.rounds).is_equal(30)  # bottomless: no reload, no reserve drain
 	assert_int(feed.reserve).is_equal(0)
-	var until := _server.abilities.extras.buffs[ryker].bottomless_until
+	var until: int = _server.abilities.extras.buffs[ryker].bottomless_until
 	_server.hero_died.emit(foe.net_id, ryker.net_id)  # a kill extends it 2 s
 	assert_int(_server.abilities.extras.buffs[ryker].bottomless_until).is_equal(until + 2 * HZ)
 	for i in 5:  # capped at +6 s in total
@@ -477,17 +481,18 @@ func test_flash_bloom_blinds_and_knocks_back_enemies_facing_it() -> void:
 	_world()
 	var liora := _hero(LIORA, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
 	var facing := _hero("res://assets/data/heroes/hero_vesper_loom.tres", Vector3(0.0, 0.05, -6.0), ServerWorld.TEAM_DUMMIES, 180.0)
-	var turned := _hero("res://assets/data/heroes/hero_vesper_loom.tres", Vector3(3.0, 0.05, -6.0), ServerWorld.TEAM_DUMMIES, 0.0)
+	var turned := _hero("res://assets/data/heroes/hero_vesper_loom.tres", Vector3(3.0, 0.05, -8.0), ServerWorld.TEAM_DUMMIES, 0.0)
 	await get_tree().physics_frame
 	_run(2)
-	assert_bool(_cast(liora, 2, -atan2(1.62, 6.0))).is_true()
+	assert_bool(_cast(liora, 2, -atan2(1.62, 4.0))).is_true()  # blooms 4 m ahead
 	assert_bool(_server.abilities.extras.is_blinded(facing)).is_false()  # 0.3 s fuse
 	_run(12)
 	assert_bool(_server.abilities.extras.is_blinded(facing)).is_true()
 	assert_int(_server.abilities.status_bits(facing) & SkillStatusBits.BLIND).is_equal(SkillStatusBits.BLIND)
 	assert_bool(_server.abilities.extras.is_blinded(turned)).is_false()  # looked away
+	_run(8)
 	assert_float(facing.state.position.z).is_less(-6.0 - 1.5)  # pushed away from the bloom
-	_run(HZ + 2)
+	_run(HZ)
 	assert_bool(_server.abilities.extras.is_blinded(facing)).is_false()  # 1.0 s
 
 

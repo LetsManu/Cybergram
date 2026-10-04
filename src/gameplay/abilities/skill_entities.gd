@@ -861,6 +861,7 @@ func _on_hero_damaged(victim_id: int, _attacker: int, amount: float) -> void:
 func _on_hero_died(victim_id: int, killer_id: int) -> void:
 	var victim := server.hero(victim_id)
 	var killer := server.hero(killer_id)
+	var mk: Mark = marks.get(victim) if victim != null else null
 	if victim != null:
 		_clear_hero(victim)
 	if killer == null or killer.combat == null or killer.combat.dead or killer == victim:
@@ -876,7 +877,6 @@ func _on_hero_died(victim_id: int, killer_id: int) -> void:
 		if b.skill != null and b.skill.active and b.skill.active_until_tick >= 0:
 			b.skill.active_until_tick += b.extend_ticks
 		kills_extended += 1
-	var mk: Mark = marks.get(victim)
 	if mk != null and mk.caster == killer and server.tick < mk.until and mk.rider:
 		_eclipse_rider(killer, mk)
 
