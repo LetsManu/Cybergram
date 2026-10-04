@@ -13,7 +13,9 @@ extends RefCounted
 ## Same kind + same source refreshes; different sources stack.
 ## Server-only; visual_bits() is what clients see.
 
-enum Kind { SLOW, ROOT, STUN, KNOCKBACK, DR, CC_IMMUNE, SHIELD }
+## W11-M1: BLEED (magnitude = HP per second, ticked by AbilityWorld) and HEAL_CUT
+## (magnitude = fraction of incoming heals removed; sources add, capped at 1).
+enum Kind { SLOW, ROOT, STUN, KNOCKBACK, DR, CC_IMMUNE, SHIELD, BLEED, HEAL_CUT }
 
 ## Replicated visual bits (SnapshotData.EntityState.status).
 const BIT_SLOW: int = 1
@@ -34,6 +36,10 @@ class Entry:
 	var magnitude: float
 	var expires_tick: int
 	var source_id: int
+	## Hero that applied it (kill credit of a bleed).
+	var attacker_id: int = 0
+	## Bleed damage not yet dealt (HP).
+	var carry: float = 0.0
 
 
 var stats: StatBlock
@@ -63,7 +69,7 @@ static func is_hard_cc(kind: int) -> bool:
 
 ## Applies a status for `duration_ticks`. Returns the ticks actually applied
 ## (0 when blocked by immunity or diminishing returns).
-func apply(kind: int, duration_ticks: int, magnitude: float, source: int, tick: int) -> int:
+func apply(kind: int, duration_ticks: int, magnitude: float, source: int, tick: int, attacker_id: int = 0) -> int:
 	if duration_ticks <= 0:
 		return 0
 	var ticks := duration_ticks
@@ -79,6 +85,7 @@ func apply(kind: int, duration_ticks: int, magnitude: float, source: int, tick: 
 		if e.kind == kind and e.source_id == source:
 			e.expires_tick = maxi(e.expires_tick, tick + ticks)
 			e.magnitude = magnitude
+			e.attacker_id = attacker_id
 			_after_change(kind, tick + ticks, magnitude)
 			return ticks
 	var n := Entry.new()
@@ -86,6 +93,7 @@ func apply(kind: int, duration_ticks: int, magnitude: float, source: int, tick: 
 	n.magnitude = magnitude
 	n.expires_tick = tick + ticks
 	n.source_id = source
+	n.attacker_id = attacker_id
 	entries.append(n)
 	_after_change(kind, n.expires_tick, magnitude)
 	return ticks
@@ -223,5 +231,10 @@ func _fold() -> void:
 			dr += e.magnitude
 	if dr > 0.0:
 		stats.add_modifier(Modifier.make(StatCatalog.DAMAGE_REDUCTION, Modifier.Op.ADD, dr, source_id))
+	var cut := 0.0
+	for e in entries:
+		if e.kind == Kind.HEAL_CUT:
+			cut += e.magnitude
+	health.heal_mult = 1.0 - clampf(cut, 0.0, 1.0)
 	if has(Kind.CC_IMMUNE):
 		stats.add_modifier(Modifier.make(StatCatalog.CC_IMMUNE, Modifier.Op.ADD, 1.0, source_id))

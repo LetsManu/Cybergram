@@ -159,6 +159,7 @@ func pre_move(h: HeroBody) -> void:
 		c.abilities.debug_grant_ult = true
 	c.stats.expire(server.tick)
 	c.status.step(server.tick)
+	_tick_bleed(h)
 	_zone_passive(h)
 	# Ratio against the block's own base (f32), so an unmodified hero is exactly 1.
 	var base := maxf(0.01, c.stats.get_base(StatCatalog.MOVE_SPEED))
@@ -390,11 +391,43 @@ func apply_status(ctx: EffectContext, target: Node3D, kind: int, ticks: int, mag
 			return 0
 		if h != ctx.caster and h.combat.team == ctx.team and StatusComponent.is_hard_cc(kind):
 			return 0
-		return h.combat.status.apply(kind, ticks, magnitude, src, server.tick)
+		return h.combat.status.apply(kind, ticks, magnitude, src, server.tick, ctx.caster.net_id)
 	if target is WardlingSim and kind == StatusComponent.Kind.STUN and server.wardlings != null:
 		MinionmancerHooks.stun(target as WardlingSim, server.tick + ticks)
 		return ticks
 	return 0
+
+
+## W11-M1: the skill's damage-over-time and healing-reduction params applied to
+## `target` (Barbed Coil: `bleed` total HP over `bleed_time`, `heal_cut` fraction
+## for `heal_cut_time`). No-ops when the params are 0.
+func apply_skill_dots(ctx: EffectContext, target: Node3D) -> void:
+	var bt := ctx.ticks(&"bleed_time")
+	var total := ctx.power_param(&"bleed")
+	if total > 0.0 and bt > 0:
+		apply_status(ctx, target, StatusComponent.Kind.BLEED, bt, total / (bt / float(tick_hz)))
+	var ct := ctx.ticks(&"heal_cut_time")
+	var cut := ctx.param(&"heal_cut")
+	if cut > 0.0 and ct > 0:
+		apply_status(ctx, target, StatusComponent.Kind.HEAL_CUT, ct, cut)
+
+
+## Deals this tick's bleed of `h` (true damage; whole HP chunks so the feed is not spammed).
+func _tick_bleed(h: HeroBody) -> void:
+	var c := h.combat
+	if c.dead:
+		return
+	for e in c.status.entries:
+		if e.kind != StatusComponent.Kind.BLEED:
+			continue
+		e.carry += e.magnitude * dt
+		var last := server.tick + 1 >= e.expires_tick
+		if e.carry >= 1.0 or (last and e.carry > 0.0):
+			var amount := e.carry
+			e.carry = 0.0
+			server.damage_hero(h, DamageInfo.make(amount, e.attacker_id, 1 - c.team, 0, DamageInfo.Type.TRUE))
+			if c.dead:
+				return
 
 
 func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployable:

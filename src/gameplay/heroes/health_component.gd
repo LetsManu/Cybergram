@@ -26,6 +26,8 @@ var team: int
 var last_attacker: int = 0
 ## HP that damage cannot reduce below (Aurora's 2 s floor of 1 HP; 0 = none).
 var floor_hp: float = 0.0
+## W11-M1 Healing reduction: incoming heals are multiplied by this (StatusComponent HEAL_CUT).
+var heal_mult: float = 1.0
 
 
 func _init(max_hp_: float, armor_: float, team_: int) -> void:
@@ -74,7 +76,7 @@ func apply_damage(info: DamageInfo) -> float:
 func heal(amount: float, source_net_id: int = 0) -> float:
 	if not is_alive():
 		return 0.0
-	var applied := minf(maxf(amount, 0.0), max_hp - hp)
+	var applied := minf(maxf(amount, 0.0) * heal_mult, max_hp - hp)
 	hp += applied
 	if applied > 0.0:
 		healed.emit(applied, source_net_id)

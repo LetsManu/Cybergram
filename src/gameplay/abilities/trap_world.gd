@@ -451,6 +451,7 @@ func _trigger(rec: Data, victims: Array[Node3D], dmult: float, t: int) -> void:
 			var root := ctx.ticks(&"duration")
 			for v in victims:
 				world.skill_damage(ctx, v, dmg)
+				world.apply_skill_dots(ctx, v)  # Barbed fork: bleed + healing reduction
 				_reveal(ctx, v)  # Mastery: snared enemies are revealed to her team
 				if push > 0.0 and v is HeroBody:
 					_knock_away(ctx, v as HeroBody, rec.d.pos, push)
