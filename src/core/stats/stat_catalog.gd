@@ -67,7 +67,7 @@ const SKILL_PARAMS: Array[StringName] = [
 	# W9-H2 (Trapper / Hacker): arm delay, Scramble, Lag (s), traps placed at once.
 	&"arm_time", &"scramble", &"lag", &"max_placed",
 	# W10-T1 fork nodes: hero heal/s of a beacon, effect-specific extras (s / fraction / count).
-	&"ally_heal", &"extra", &"extra_b", &"count",
+	&"ally_heal", &"extra", &"extra_b", &"count", &"splits",
 ]
 
 

@@ -4,9 +4,92 @@
 [ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="2"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="3"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="4"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/damage_effect_def.gd" id="w10_2"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/area_effect_def.gd" id="w10_3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/delayed_effect_def.gd" id="w10_4"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/fork_gate_effect_def.gd" id="w10_5"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="w10_6"]
+
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_2")
+amount_param = &"damage"
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_3")
+radius_param = &"radius"
+effects = Array[Resource]([SubResource("w10_sub_1")])
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_4")
+delay_s = 1.5
+effects = Array[Resource]([SubResource("w10_sub_2")])
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_5")
+fork = 1
+effects = Array[Resource]([SubResource("w10_sub_3")])
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_6")
+kind = 6
+duration_param = &"secondary_duration"
+magnitude_param = &"hp"
+on_caster = true
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_0")
+stat = &"radius"
+op = 0
+value = 4.0
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_0")
+stat = &"damage"
+op = 0
+value = 70.0
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_6"), SubResource("w10_sub_7")])
+
+[sub_resource type="Resource" id="w10_sub_9"]
+script = ExtResource("w10_0")
+stat = &"hp"
+op = 0
+value = 100.0
+
+[sub_resource type="Resource" id="w10_sub_10"]
+script = ExtResource("w10_0")
+stat = &"secondary_duration"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="w10_sub_11"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_9"), SubResource("w10_sub_10")])
+added_effects = Array[Resource]([SubResource("w10_sub_5")])
+
+[sub_resource type="Resource" id="w10_sub_12"]
+script = ExtResource("w10_0")
+stat = &"extra"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="w10_sub_13"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_12")])
 
 [sub_resource type="Resource" id="r1"]
 script = ExtResource("1")
+origin_effects = Array[Resource]([SubResource("w10_sub_4")])
 
 [sub_resource type="Resource" id="r2"]
 script = ExtResource("2")
@@ -39,4 +122,4 @@ params = {
 &"cast_time": 0.5
 }
 effects = Array[Resource]([SubResource("r1")])
-nodes = Array[ExtResource("3")]([SubResource("r4")])
+nodes = Array[ExtResource("3")]([SubResource("r4"), SubResource("w10_sub_8"), SubResource("w10_sub_11"), SubResource("w10_sub_13")])

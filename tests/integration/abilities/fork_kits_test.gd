@@ -423,3 +423,130 @@ func test_sable_phase_shift_forks_and_sabotage_cascade_and_snare() -> void:
 	assert_int(_server.abilities.extras.charges.size()).is_equal(0)  # Cascade: both detonated
 	assert_float(f2.combat.health.hp).is_less(250.0)
 	assert_bool(f1.combat.status.has(StatusComponent.Kind.ROOT)).is_true()  # Snare Charge
+
+
+# ------------------------------------------------------------------ Juniper Quill
+
+const JUNIPER := "res://assets/data/heroes/hero_juniper_quill.tres"
+const HEX := "res://assets/data/heroes/hero_hex.tres"
+
+
+func _trap_at(j: HeroBody, slot: int, s: SkillInstance, p: Vector3) -> void:
+	var c := _node_ctx(j, slot)
+	c.skill = s
+	c.point = p
+	c.run(s.effects())
+
+
+func test_juniper_snare_spring_knocks_back_and_coil_mastery_slows() -> void:
+	_world()
+	var j := _hero(JUNIPER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(VESPER, Vector3(10.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var s := _learn(j, 0, SkillNodeDef.Kind.FORK_B, true)
+	var p0 := foe.state.position
+	_trap_at(j, 0, s, p0 + Vector3(-0.3, 0.0, 0.0))
+	_run(3 * HZ)
+	assert_float(foe.combat.health.hp).is_less(250.0)
+	assert_bool(foe.combat.status.has(StatusComponent.Kind.ROOT)).is_false()  # Spring replaces the root
+	assert_float(foe.state.position.distance_to(p0)).is_greater(2.0)
+	assert_bool(foe.combat.status.has(StatusComponent.Kind.SLOW)).is_true()  # Mastery mark
+
+
+func test_juniper_tripwire_razor_survives_three_triggers() -> void:
+	_world()
+	var j := _hero(JUNIPER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(VESPER, Vector3(10.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var s := _learn(j, 1, SkillNodeDef.Kind.FORK_A)
+	var c := _node_ctx(j, 1)
+	c.skill = s
+	_server.abilities.traps.spawn_trap(c, s.def.effects[0] as TrapEffectDef, Vector3(10.0, 0.05, -3.0), Vector3(10.0, 0.05, 3.0))
+	_run(HZ + 6)
+	assert_int(_server.abilities.traps.triggers).is_greater_equal(2)
+	var alive := 0
+	for d in _server.abilities.deployables:
+		if d.alive:
+			alive += 1
+	assert_int(alive).is_greater_equal(1)  # still up after more than one trigger
+
+
+func test_juniper_mine_cluster_and_gravity_and_rearm() -> void:
+	_world()
+	var j := _hero(JUNIPER, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var trig := _hero(VESPER, Vector3(10.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	var side := _hero(VESPER, Vector3(14.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var s := _learn(j, 2, SkillNodeDef.Kind.FORK_A, true)
+	_trap_at(j, 2, s, trig.state.position)
+	_run(3 * HZ)
+	assert_float(side.combat.health.hp).is_less(250.0)  # a bomblet landed 4 m away
+	assert_float(trig.combat.health.hp).is_equal(250.0)  # the centre is between bomblets
+	# Mastery: the mine re-arms once (two detonations).
+	assert_int(_server.abilities.traps.triggers).is_greater_equal(1)
+	_run(3 * HZ)
+	assert_int(_server.abilities.traps.triggers).is_equal(2)
+	# Gravity Mine: pulls, then 110 damage.
+	var j2 := _hero(JUNIPER, Vector3(20.0, 0.05, 12.0), ServerWorld.TEAM_PLAYERS)
+	var t2 := _hero(VESPER, Vector3(20.0, 0.05, 6.0), ServerWorld.TEAM_DUMMIES)
+	var far := _hero(VESPER, Vector3(24.0, 0.05, 6.0), ServerWorld.TEAM_DUMMIES)
+	var s2 := _learn(j2, 2, SkillNodeDef.Kind.FORK_B)
+	_trap_at(j2, 2, s2, t2.state.position)
+	_run(2 * HZ + 10)
+	assert_float(far.state.position.x).is_less(23.0)  # pulled toward the mine
+	_run(HZ)
+	assert_float(t2.combat.health.hp).is_less(250.0 - 60.0)
+
+
+# ------------------------------------------------------------------ Hex
+
+func test_hex_spike_worm_spreads_field_blackout_and_attach_relay_bomb_and_shield() -> void:
+	_world()
+	var hx := _hero(HEX, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var j := _hero(JUNIPER, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	var foe := _hero(VESPER, Vector3(0.0, 0.05, 3.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var js := _learn(j, 0, SkillNodeDef.Kind.UNLOCK)
+	_trap_at(j, 0, js, Vector3(30.0, 0.05, 10.0))
+	_trap_at(j, 0, js, Vector3(33.0, 0.05, 10.0))
+	assert_int(_server.abilities.deployables.size()).is_greater_equal(2)
+	var spike := _learn(hx, 0, SkillNodeDef.Kind.FORK_B)
+	var ctx := _node_ctx(hx, 0)
+	ctx.skill = spike
+	var first := _server.abilities.deployables[0]
+	(spike.def.effects[0].on_hit[0] as HackEffectDef).hack_gadget(ctx, first)
+	var down := 0
+	for d in _server.abilities.deployables:
+		if _server.abilities.traps.is_down(d):
+			down += 1
+	assert_int(down).is_equal(2)  # Worm: hit + one more within 8 m
+	# Static Field: Blackout scrambles, Mastery moves it with Hex.
+	var fld := _learn(hx, 1, SkillNodeDef.Kind.FORK_A, true)
+	var fc := _node_ctx(hx, 1)
+	fc.point = Vector3(0.0, 0.05, 2.0)
+	fc.run(fld.effects())
+	_run(HZ)
+	assert_bool(_server.abilities.traps.is_scrambled(foe)).is_true()
+	_server.abilities.teleport(hx, Vector3(-20.0, 0.05, 0.0))
+	_run(3)
+	var field_pos := Vector3.ZERO
+	for d in _server.abilities.deployables:
+		if d.kind == TrapWorld.KIND_FIELD:
+			field_pos = d.pos
+	assert_float(field_pos.x).is_less(-10.0)
+	# Relay Hop: Firmware Bomb at the origin, 70 dmg after 1.5 s; Mastery extension is data.
+	var hop := _learn(hx, 2, SkillNodeDef.Kind.FORK_A, true)
+	hx.combat.health.hp = 225.0
+	var foe2 := _hero(VESPER, Vector3(-20.0, 0.05, 2.0), ServerWorld.TEAM_DUMMIES)
+	var hc := _node_ctx(hx, 2)
+	hc.point = Vector3(-20.0, 0.05, -20.0)
+	hc.run(hop.effects())
+	_run(2 * HZ)
+	assert_float(foe2.combat.health.hp).is_less(250.0)
+	assert_float(hop.param(&"extra")).is_equal(3.0)
+	var hop_b := SkillInstance.new(hop.def, 2)
+	hop_b.learn(hop_b.node_of(SkillNodeDef.Kind.FORK_B))
+	var bc := _node_ctx(hx, 2)
+	bc.skill = hop_b
+	bc.run(hop_b.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
+	assert_bool(hx.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Encrypted
