@@ -51,6 +51,7 @@ var _online: LobbyClient
 var _server: String = ""
 ## Runs once the session is up (open the lobby, the profile, ...).
 var _then: Callable
+var _link_up: bool = false  # the server link completed its handshake
 var _auto_guest_sent: bool = false
 
 
@@ -218,9 +219,28 @@ func _connect(addr: String) -> bool:
 		_enet = null
 		return false
 	_server = addr
+	_link_up = false
 	_online = LobbyClient.new(_enet)
 	_online.account_result.connect(_on_account)
 	return true
+
+
+## The encrypted handshake never completed: the server has no certificate yet
+## (guest-only). Retry once in plain UDP; the login screen then offers guest
+## play only, so no password ever travels unencrypted.
+func _fall_back_to_plain() -> void:
+	var addr := _server
+	var host := addr.rsplit(":", true, 1)[0]
+	push_warning("[net] encrypted connection to %s failed; retrying unencrypted (guest only)" % host)
+	_close_login()
+	_disconnect()
+	if AuthConfig.plain_hosts.has(host):
+		_status.text = tr("HUD_LOBBY_CONNECTION_LOST")
+		_refresh_chip()
+		return
+	AuthConfig.plain_hosts[host] = true
+	_auto_guest_sent = false
+	_with_session(_then, addr)
 
 
 func _disconnect() -> void:
@@ -235,6 +255,11 @@ func _process(_delta: float) -> void:
 	if _online == null or _lobby != null:
 		return  # the lobby view steps the client while it is open
 	_online.step()
+	if _enet != null and _enet.is_server_connected():
+		_link_up = true
+	if _enet != null and _enet.error_text != "" and _enet.is_secure and not _link_up:
+		_fall_back_to_plain()
+		return
 	if _enet != null and _enet.error_text != "":
 		_status.text = tr("HUD_LOBBY_CONNECTION_LOST")
 		_disconnect()

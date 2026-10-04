@@ -105,11 +105,17 @@ func load_server_tls() -> TLSOptions:
 	return server_tls
 
 
+## Hosts whose DTLS handshake failed this run (a server without a certificate
+## yet): later links to them use plain UDP. Plain links never carry a password:
+## the login screen offers guest play only (see MainMenu._show_login).
+static var plain_hosts: Dictionary = {}
+
+
 ## Client TLS for `host`: null = plain UDP. IP addresses and localhost are
 ## plain unless a CA is pinned or --dtls-insecure is given; host names use
 ## DTLS with the system CA bundle (Let's Encrypt) and hostname check.
 func client_tls_for(host: String) -> TLSOptions:
-	if no_dtls:
+	if no_dtls or plain_hosts.has(host):
 		return null
 	if insecure:
 		push_warning("[net] --dtls-insecure: the server certificate is NOT verified (debug only)")
