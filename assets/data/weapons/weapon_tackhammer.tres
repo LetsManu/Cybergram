@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 id = &"weapon_tackhammer"
+sfx_voice = &"tack"
 display_name = "Tackhammer"
 feed_kind = 1
 damage = 90.0

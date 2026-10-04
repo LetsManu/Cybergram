@@ -91,6 +91,9 @@ static func parse_manifest(text: String) -> Dictionary:
 		for field in ["file", "sha256", "exe"]:
 			if typeof(entry.get(field)) != TYPE_STRING:
 				return {"ok": false, "error": "platform %s lacks \"%s\"" % [key, field]}
+		var listed: Variant = entry.get("files", [])
+		if typeof(listed) != TYPE_ARRAY:
+			return {"ok": false, "error": "platform %s has a malformed file list" % key}
 		var file_name: String = entry["file"]
 		if file_name.contains("/") or file_name.contains("\\") or file_name.contains(".."):
 			return {"ok": false, "error": "platform %s has an unsafe file name" % key}
@@ -99,7 +102,36 @@ static func parse_manifest(text: String) -> Dictionary:
 		"version": String(d["version"]).trim_prefix("v"),
 		"notes_md": String(d.get("notes_md", "")),
 		"platforms": plat_dict,
+		"launcher": d.get("launcher", {}) if typeof(d.get("launcher", {})) == TYPE_DICTIONARY else {},
 	}
+
+
+## Parses status.json text into {"has_counts": true, "online", "in_lobby",
+## "in_match"} (non-negative ints), or {} when it is not a valid status file.
+static func parse_status(text: String) -> Dictionary:
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	var d: Dictionary = parsed
+	for key in ["online", "in_lobby", "in_match"]:
+		if typeof(d.get(key)) != TYPE_FLOAT and typeof(d.get(key)) != TYPE_INT:
+			return {}
+	return {
+		"has_counts": true,
+		"online": maxi(int(d["online"]), 0),
+		"in_lobby": maxi(int(d["in_lobby"]), 0),
+		"in_match": maxi(int(d["in_match"]), 0),
+	}
+
+
+## One-line text for the server status badge.
+static func status_text(info: Dictionary) -> String:
+	if not bool(info.get("reachable", false)):
+		return "Server unreachable"
+	if not bool(info.get("has_counts", false)):
+		return "Server reachable"
+	return "Server online: %d players (%d in lobby, %d in match)" % [
+		info["online"], info["in_lobby"], info["in_match"]]
 
 
 ## Base URL (with trailing slash) that the manifest's file names hang off.
@@ -207,3 +239,60 @@ static func remove_tree(dir_path: String) -> bool:
 		DirAccess.remove_absolute(dir_path.path_join(file_name))
 	DirAccess.remove_absolute(dir_path)
 	return not DirAccess.dir_exists_absolute(dir_path)
+
+
+## Checks an installed folder against the manifest's `files` array
+## ([{path,size,sha256}]). Returns the relative paths that are missing or
+## whose sha256 differs (empty = intact). Unsafe manifest paths count as bad.
+## Extra files in the folder are ignored (saves, logs, mods).
+static func verify_files(dir_path: String, files: Array) -> PackedStringArray:
+	var bad: PackedStringArray = PackedStringArray()
+	for item: Variant in files:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var e: Dictionary = item
+		var rel: String = String(e.get("path", ""))
+		if not is_safe_entry(rel) or not sha256_matches(dir_path.path_join(rel), String(e.get("sha256", ""))):
+			bad.append(rel)
+	return bad
+
+
+## Recursively copies a directory. Returns "" on success or an error text.
+static func copy_tree(from_dir: String, to_dir: String) -> String:
+	var err: Error = DirAccess.make_dir_recursive_absolute(to_dir)
+	if err != OK:
+		return "cannot create %s (%s)" % [to_dir, error_string(err)]
+	for sub in DirAccess.get_directories_at(from_dir):
+		var r: String = copy_tree(from_dir.path_join(sub), to_dir.path_join(sub))
+		if r != "":
+			return r
+	for file_name in DirAccess.get_files_at(from_dir):
+		var src: String = from_dir.path_join(file_name)
+		var dst: String = to_dir.path_join(file_name)
+		var cerr: Error = DirAccess.copy_absolute(src, dst)
+		if cerr != OK:
+			return "cannot copy %s (%s)" % [file_name, error_string(cerr)]
+	return ""
+
+
+## Picks this platform's launcher package from the feed's "launcher" section
+## if it is newer than `own_version`. Returns {} when there is nothing to do
+## or the entry is malformed, else {"version","file","sha256","exe","size"}.
+static func launcher_update_for(launcher: Dictionary, platform: String, own_version: String) -> Dictionary:
+	if launcher.is_empty() or typeof(launcher.get("version")) != TYPE_STRING:
+		return {}
+	var plats: Variant = launcher.get("platforms")
+	if typeof(plats) != TYPE_DICTIONARY or typeof((plats as Dictionary).get(platform)) != TYPE_DICTIONARY:
+		return {}
+	var e: Dictionary = (plats as Dictionary)[platform]
+	for field in ["file", "sha256", "exe"]:
+		if typeof(e.get(field)) != TYPE_STRING:
+			return {}
+	var f: String = e["file"]
+	var exe: String = e["exe"]
+	if f.contains("/") or f.contains("\\") or f.contains("..") or not is_safe_entry(exe) or exe.contains("/"):
+		return {}
+	var v: String = String(launcher["version"]).trim_prefix("v")
+	if compare_versions(own_version, v) >= 0:
+		return {}
+	return {"version": v, "file": f, "sha256": e["sha256"], "exe": exe, "size": int(e.get("size", 0))}

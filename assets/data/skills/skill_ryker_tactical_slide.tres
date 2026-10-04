@@ -4,6 +4,73 @@
 [ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s2"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s3"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s4"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/overdrive_effect_def.gd" id="w10_2"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="w10_3"]
+
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_2")
+duration_param = &"extra"
+bonus_param = &"extra_b"
+extend_param = &"count"
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_3")
+kind = 4
+duration_param = &"secondary_duration"
+magnitude_param = &"dr"
+on_caster = true
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_0")
+stat = &"extra"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_0")
+stat = &"extra_b"
+op = 0
+value = 0.2
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("w10_sub_4")])
+added_effects = Array[Resource]([SubResource("w10_sub_1")])
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_0")
+stat = &"charges"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_6")])
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_0")
+stat = &"secondary_duration"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="w10_sub_9"]
+script = ExtResource("w10_0")
+stat = &"dr"
+op = 0
+value = 0.3
+
+[sub_resource type="Resource" id="w10_sub_10"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_8"), SubResource("w10_sub_9")])
+added_effects = Array[Resource]([SubResource("w10_sub_2")])
 
 [sub_resource type="Resource" id="slide_effect_def_1"]
 script = ExtResource("s1")
@@ -33,4 +100,4 @@ params = {
 &"distance": 7.0
 }
 effects = Array[Resource]([SubResource("slide_effect_def_1")])
-nodes = Array[ExtResource("s3")]([SubResource("skill_node_def_3")])
+nodes = Array[ExtResource("s3")]([SubResource("skill_node_def_3"), SubResource("w10_sub_5"), SubResource("w10_sub_7"), SubResource("w10_sub_10")])

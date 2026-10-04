@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("s1")
 id = &"weapon_whisperfang"
+sfx_voice = &"smg_burst"
 display_name = "Whisperfang"
 feed_kind = 0
 damage = 22.0
@@ -19,6 +20,9 @@ spread_base_deg = 0.5
 spread_bloom_deg = 0.2
 spread_max_deg = 2.5
 range_m = 80.0
+burst_size = 3
+burst_rate = 15.0
+burst_cycle_s = 0.35
 mana_pool = 100
 mana_cost = 4.0
 mana_regen = 45.0

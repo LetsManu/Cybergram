@@ -21,6 +21,11 @@ const CHARGE_SEE_M: float = 6.0
 const SHIMMER_FADE: float = 0.8
 const BLIND_ALPHA: float = 0.7
 
+## W10-W5 sfx hooks (presentation only): an FX appeared / moved (heal beam only) / ended.
+signal fx_started(kind: int, position: Vector3, id: int)
+signal fx_moved(kind: int, position: Vector3, id: int)
+signal fx_ended(kind: int, id: int)
+
 var client: ClientWorld
 var _nodes: Dictionary = {}  # fx id -> [Node3D, kind]
 ## net id -> true while a remote hero is stealthed (from the replicated status).
@@ -47,10 +52,14 @@ func apply_snapshot(s: SnapshotData) -> void:
 				(rec[0] as Node3D).queue_free()
 			rec = [_build(f), f.kind]
 			_nodes[f.id] = rec
+			fx_started.emit(f.kind, f.position, f.id)
+		elif f.kind == SkillEntities.FX_BEAM:
+			fx_moved.emit(f.kind, f.position, f.id)
 		_update(rec[0], f)
 	for id in _nodes.keys():
 		if not seen.has(id):
 			(_nodes[id][0] as Node3D).queue_free()
+			fx_ended.emit(_nodes[id][1], id)
 			_nodes.erase(id)
 
 

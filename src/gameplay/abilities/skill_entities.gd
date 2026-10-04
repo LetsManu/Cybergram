@@ -50,6 +50,7 @@ class Drone:
 	var wait_until: int = 0
 	var heal_until: int = 0
 	var per_tick: float = 0.0
+	var hover_until: int = -1  # W10-T1 Mastery: pulses after the heal
 	var fx: AbilityWorld.Fx
 
 
@@ -383,6 +384,9 @@ func _step_drones(tick: int) -> void:
 				d.heal_until = tick + d.ctx.ticks(d.def.duration_param)
 			elif tick >= d.wait_until:
 				done = true
+		elif d.hover_until >= 0:
+			_hover_pulse(d, tick)
+			done = tick >= d.hover_until
 		else:
 			if not _entity_alive(d.target):
 				done = true
@@ -390,8 +394,14 @@ func _step_drones(tick: int) -> void:
 				var goal := _chest(d.target) + Vector3(0.0, 0.5, 0.0)
 				d.pos = d.pos.move_toward(goal, d.def.fly_speed * dt)
 				healed_total += _heal(d.target, d.per_tick)
+				if d.ctx.param(&"extra") > 0.0 and d.target is HeroBody:  # Cleanse fork
+					cleanse(d.target as HeroBody)
 				if tick >= d.heal_until:
-					done = true
+					var hover := d.ctx.ticks(&"secondary_duration")  # Mastery: hover and pulse
+					if hover > 0:
+						d.hover_until = tick + hover
+					else:
+						done = true
 		if d.fx != null:
 			d.fx.pos = d.pos
 			d.fx.pos2 = d.pos
@@ -402,11 +412,32 @@ func _step_drones(tick: int) -> void:
 		i -= 1
 
 
+## W10-T1 Cleanse fork: removes Slow, Root, Silence and Scramble from `h`.
+func cleanse(h: HeroBody) -> void:
+	h.combat.status.remove_kinds([StatusComponent.Kind.SLOW, StatusComponent.Kind.ROOT])
+	silenced.erase(h)
+	server.abilities.traps.scramble_until.erase(h)
+
+
+## W10-T1 Mastery: the hovering drone pulses `extra_b` HP/s to allies and
+## Wardlings within `width` m.
+func _hover_pulse(d: Drone, _tick: int) -> void:
+	var amount := d.ctx.power_param(&"extra_b") * dt
+	for e in server.abilities.entities_in_radius(d.pos, d.ctx.param(&"width"), d.ctx.team, false, true, true, true):
+		healed_total += _heal(e, amount)
+
+
 func _most_injured(ctx: EffectContext, def: DroneEffectDef) -> Node3D:
 	var best: Node3D = null
 	var best_frac := 0.999
 	var at := drones_landing(ctx)
 	for e in server.abilities.entities_in_radius(at, ctx.param(def.radius_param), ctx.team, false, true, true, true):
+		var taken := false  # W10-T1 Swarm fork: drones of one caster pick different allies
+		for o in drones:
+			if o.target == e and o.ctx.caster == ctx.caster:
+				taken = true
+		if taken:
+			continue
 		var hp := _hp_frac(e)
 		if hp < best_frac:
 			best_frac = hp
@@ -513,6 +544,8 @@ func overdrive(ctx: EffectContext, def: OverdriveEffectDef) -> void:
 	b.max_extend = roundi(def.max_extension_s * tick_hz)
 	b.extended = 0
 	b.od_bonus = ctx.param(def.bonus_param)
+	if h.combat.weapon != null:
+		h.combat.weapon.recoil_mult = def.recoil_mult
 	b.od_src = Modifier.source(Modifier.SRC_PASSIVE, 0x500000 | (h.net_id & 0xFFF))
 	_od_modifier(h, b)
 
@@ -555,6 +588,8 @@ func _step_buffs(tick: int) -> void:
 		if b.bottomless_until >= 0:
 			if tick >= b.bottomless_until:
 				b.bottomless_until = -1
+				if w != null:
+					w.recoil_mult = 1.0
 			elif w != null and w.feed is MagazineFeed:
 				var f := w.feed as MagazineFeed
 				f.rounds = f.def.magazine
@@ -566,6 +601,7 @@ func _step_buffs(tick: int) -> void:
 func _end_buffs(b: Buff) -> void:
 	if b.hero.combat.weapon != null:
 		b.hero.combat.weapon.rate_mult = 1.0
+		b.hero.combat.weapon.recoil_mult = 1.0
 	b.hero.combat.stats.remove_by_source(b.od_src)
 
 
@@ -643,6 +679,11 @@ func break_stealth(h: HeroBody) -> void:
 func _drop_stealth(h: HeroBody, s: Stealth) -> void:
 	stealth.erase(h)
 	h.combat.stats.remove_by_source(s.src)
+	var ambush := s.skill.param(&"extra")  # W10-T1 Ambush fork: weapon bonus after leaving stealth
+	if ambush > 0.0 and not h.combat.dead:
+		h.combat.stats.add_modifier(Modifier.make(StatCatalog.WEAPON_DAMAGE, Modifier.Op.MUL, 1.0 + ambush,
+			Modifier.source(Modifier.SRC_PASSIVE, 0xA00000 | (h.net_id & 0xFF)),
+			server.tick + roundi(s.skill.param(&"extra_b") * tick_hz)))
 	var cb := _on_skill_cast.bind(h)
 	if h.combat.abilities.skill_activated.is_connected(cb):
 		h.combat.abilities.skill_activated.disconnect(cb)
@@ -733,7 +774,17 @@ func _explode_charge(c: SabCharge) -> void:
 		server.abilities.skill_damage(ctx, e, dmg)
 	for g in server.generators:
 		if g.is_up() and g.attackable_by(ctx.team) and g.global_position.distance_to(c.pos) <= r + g.hit_radius:
-			server.damage_generator(g, g.hp_sim.generator_hp() * c.def.structure_frac, ctx.team, c.pos, false)
+			server.damage_generator(g, g.hp_sim.generator_hp() * (c.def.structure_frac + ctx.param(&"extra")),
+				ctx.team, c.pos, false)  # `extra`: Demolition fork
+	var root := ctx.ticks(&"extra_b")  # Snare Charge fork: heroes hit are rooted
+	if root > 0:
+		for e in server.abilities.entities_in_radius(c.pos, r, ctx.team, true, false, true, false):
+			server.abilities.apply_status(ctx, e, StatusComponent.Kind.ROOT, root, 0.0)
+	var chain := ctx.param(&"width")  # Mastery Cascade: the caster's other charges within `width` m go off
+	if chain > 0.0:
+		for o in charges.duplicate():
+			if o.ctx.caster == c.ctx.caster and o.armed_tick <= server.tick and o.pos.distance_to(c.pos) <= chain:
+				_explode_charge(o)
 
 
 # --- Eclipse Step ----------------------------------------------------------------------------------------
@@ -855,6 +906,9 @@ func _on_hero_damaged(victim_id: int, _attacker: int, amount: float) -> void:
 		return
 	var v := server.hero(victim_id)
 	if v != null and stealth.has(v):
+		var st: Stealth = stealth[v]
+		if st.skill.param(&"count") > 0.0:
+			return  # W10-T1 Veilwalk Mastery: damage no longer breaks stealth
 		break_stealth(v)
 
 
@@ -873,6 +927,8 @@ func _on_hero_died(victim_id: int, killer_id: int) -> void:
 	if b != null and b.bottomless_until >= 0 and b.extend_ticks > 0 and b.extended + b.extend_ticks <= b.max_extend:
 		b.extended += b.extend_ticks
 		b.bottomless_until += b.extend_ticks
+		if b.rate_until >= 0:  # W10-T1 Stim Mastery: the Stim's fire-rate window extends too
+			b.rate_until += b.extend_ticks
 		_od_modifier(killer, b)
 		if b.skill != null and b.skill.active and b.skill.active_until_tick >= 0:
 			b.skill.active_until_tick += b.extend_ticks

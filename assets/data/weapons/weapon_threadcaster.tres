@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 id = &"weapon_threadcaster"
+sfx_voice = &"thread"
 display_name = "Threadcaster"
 feed_kind = 0
 damage = 29.0

@@ -49,6 +49,8 @@ var crosshair_style: int = Crosshair.CROSS_DOT
 var crosshair_color: int = 0
 ## Key bindings (applied to the InputMap by apply_bindings()).
 var bindings: InputBindings = InputBindings.new()
+## W10-W4: the first-time Practice Range tutorial was finished or skipped.
+var tutorial_done: bool = false
 
 static var _shared: GameSettings
 ## Bumped when the Gameplay tab rewrites the [hud] section, so a running HUD
@@ -104,12 +106,14 @@ func read_config(cfg: ConfigFile) -> void:
 	vsync = cfg.get_value("display", "vsync", vsync)
 	fps_cap_index = clampi(int(cfg.get_value("display", "fps_cap_index", fps_cap_index)), 0, FPS_CAPS.size() - 1)
 	graphics_quality = clampi(int(cfg.get_value("display", "quality", graphics_quality)), Quality.LOW, Quality.ULTRA)
+	tutorial_done = bool(cfg.get_value("tutorial", "done", tutorial_done))
 	crosshair_style = clampi(int(cfg.get_value("crosshair", "style", crosshair_style)), 0, Crosshair.CIRCLE)
 	crosshair_color = clampi(int(cfg.get_value("crosshair", "color", crosshair_color)), 0, CROSSHAIR_COLORS.size() - 1)
 	bindings.read_config(cfg)
 
 
 func write_config(cfg: ConfigFile) -> void:
+	cfg.set_value("tutorial", "done", tutorial_done)
 	cfg.set_value("look", "sensitivity_deg", mouse_sensitivity_deg)
 	cfg.set_value("look", "invert_y", invert_y)
 	cfg.set_value("look", "fov_deg", fov_deg)

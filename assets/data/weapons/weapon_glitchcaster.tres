@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 id = &"weapon_glitchcaster"
+sfx_voice = &"glitch"
 display_name = "Glitchcaster"
 feed_kind = 0
 damage = 7.0

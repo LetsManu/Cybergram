@@ -23,6 +23,7 @@ const PLAYER_SPAWN := "PlayerSpawn"
 ## Optional per-team respawn markers in the map ("TeamSpawn0", "TeamSpawn1").
 ## Without one, a hero respawns at its first spawn point.
 const TEAM_SPAWN := "TeamSpawn%d"
+const MVP_FORMULA_PATH := "res://assets/data/match/mvp_formula.tres"
 const TEAM_PLAYERS: int = 0
 const TEAM_DUMMIES: int = 1
 ## Bullet tracers sent per shot (shotguns send an even subset of their pellets).
@@ -46,6 +47,9 @@ var _dummies: Array = []      # [HeroBody, ScriptedInputSource]
 var _map: Node3D
 var _cmd := InputCommand.new()
 var _tracer := HitscanTracer.new()
+## Hero weapon bolts in flight (Halo Repeater); see WeaponBolts.
+var bolts := WeaponBolts.new()
+var _no_targets: Array[HeroBody] = []
 var _events: Dictionary = {}  # peer id -> Array[GameEvent] (flushed every tick)
 ## E7 presence seam: non-hero sources (Wardlings) counted by hardpoint zones.
 var _presence_sources: Array = []
@@ -66,6 +70,9 @@ var match_flow: MatchRules
 var abilities: AbilityWorld
 ## E13/E15 Lumen, Armory, Resonance, levels, skill tree; null until enable_progression().
 var progression: ProgressionSystem
+## W10-W4 per-hero match statistics (post-match screen); sent at match end.
+var stats: MatchStats = MatchStats.new()
+var _stats_sent: bool = false
 ## Stable content indices for the wire (hero identity in snapshots).
 var content: ContentDB = ContentDB.shared()
 
@@ -84,8 +91,36 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 	session = ServerSession.new(transport, net)
 	session.client_joined.connect(_on_client_joined)
 	abilities = AbilityWorld.new(self)
+	_setup_stats()
 	_map = map_scene.instantiate()
 	add_child(_map)
+
+
+## W10-W4: counters fed by the damage / death signals (healing: _spawn_hero).
+func _setup_stats() -> void:
+	var f := load(MVP_FORMULA_PATH) as MvpFormulaDef
+	if f != null:
+		stats.assist_window_ticks = roundi(f.assist_window_s * net.tick_rate_hz)
+	hero_damaged.connect(func(victim: int, attacker: int, amount: float) -> void:
+		stats.record_damage(attacker, victim, amount, tick))
+	hero_died.connect(func(victim: int, killer: int) -> void:
+		stats.record_death(victim, killer, tick, hero(killer) != null))
+
+
+## Final per-hero rows (net id -> {MatchStats.Stat -> float}).
+func match_summary() -> Dictionary:
+	var identity := {}
+	for h: HeroBody in _hero_bodies():
+		var d := {"team": h.combat.team, "level": h.combat.level}
+		if h.combat.def != null:
+			d["hero"] = content.index_of(ContentDB.HERO, h.combat.def.id)
+		if progression != null:
+			var p: HeroProgress = progression.progress.get(h.net_id)
+			if p != null:
+				d["lumen"] = p.total_earned()
+				d["level"] = p.level
+		identity[h.net_id] = d
+	return stats.summary(identity)
 
 
 ## E7: builds the hardpoints from `map_def` (call after setup()).
@@ -248,6 +283,7 @@ func tick_time_summary() -> Dictionary:
 ## One server tick.
 func step() -> void:
 	var t0 := Time.get_ticks_usec()
+	bolts.launched.clear()
 	session.poll()
 	for peer in session.clients:
 		var h: HeroBody = _humans.get(peer)
@@ -261,6 +297,7 @@ func step() -> void:
 	for d in _dummies:
 		d[1].sample(tick, _cmd)
 		_step_hero(d[0], _cmd)
+	_step_bolts()
 	if wardlings != null:
 		wardlings.step()
 	abilities.step()
@@ -329,6 +366,12 @@ func _step_match() -> void:
 		for peer in session.clients:
 			_queue_event(peer, ev)
 	match_flow.phase_events.clear()
+	if match_flow.is_over() and not _stats_sent:
+		_stats_sent = true
+		var evs := MatchStats.to_events(match_summary())
+		for peer in session.clients:
+			for ev in evs:
+				_queue_event(peer, ev)
 	if match_flow.is_over() and wardlings != null:
 		wardlings.vanguard_enabled = false
 
@@ -390,14 +433,48 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		_fire(h, cmd)
 
 
-## Resolves the shot the weapon just fired: pellets -> hitscan -> damage.
+## Resolves the shot the weapon just fired: pellets -> hitscan -> damage, or
+## (projectile weapons) launches one bolt per pellet into `bolts`.
 func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var c := h.combat
 	var w := c.weapon
-	var targets := _hurtable_enemies(c.team)
 	var origin := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
 	var fwd := Basis(Vector3.UP, h.look_yaw) * Basis(Vector3.RIGHT, h.look_pitch) * Vector3.FORWARD
 	var dirs := w.pellet_directions(fwd)
+	if w.def.projectile_speed > 0.0:
+		var space := h.get_world_3d().direct_space_state
+		for dir in dirs:
+			bolts.spawn(h.net_id, w.def, origin, dir, cmd.view_tick, cmd.view_alpha)
+			# Client visual: the bolt's flight line up to the first wall.
+			_tracer.trace(space, origin, dir, w.def.range_m, _no_targets, 0, 0.0)
+			bolts.launched.append([origin, origin + dir * _tracer.last_limit])
+		return
+	_resolve_pellets(h, w.def, origin, dirs, w.def.range_m, cmd.view_tick, cmd.view_alpha, 0.0, true)
+
+
+## One tick of hero bolts (WeaponBolts documents the lag-compensation choice).
+func _step_bolts() -> void:
+	if bolts.bolts.is_empty():
+		return
+	bolts.step(1.0 / net.tick_rate_hz, _resolve_bolt, func(id: int) -> bool: return hero(id) != null)
+
+
+## Sweeps one bolt segment; true when the bolt stopped. Poses are rewound to the
+## shooter's view time advanced by the bolt's age (0 = current poses).
+func _resolve_bolt(b: WeaponBolts.Bolt, seg: float) -> bool:
+	var h := hero(b.owner_id)
+	var vt := b.view_tick + b.age if b.view_tick > 0 else 0
+	return _resolve_pellets(h, b.def, b.pos, [b.dir] as Array[Vector3], seg, vt, b.view_alpha, b.traveled, false)
+
+
+## Traces `dirs` from `origin` for up to `max_range` with poses at the given view
+## time and applies the damage. `dist_off` is the distance already flown (bolt
+## falloff). Returns true if any pellet was stopped (hero, Wardling, structure, wall).
+func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array[Vector3], max_range: float,
+		view_tick: int, view_alpha: float, dist_off: float, tracers: bool) -> bool:
+	var c := h.combat
+	var stopped := false
+	var targets := _hurtable_enemies(c.team)
 	var space := h.get_world_3d().direct_space_state
 	var ends: Array[Vector3] = []  # where each pellet stopped, for client tracers
 	var per_target := {}  # net id -> [raw damage, flags, first point]
@@ -410,32 +487,37 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var wm := c.weapon_damage_mult()  # E15 level L + E13 mod M_dmg
 	var ammo := c.ammo_type  # E13 Chamber
 	for dir in dirs:
-		var clip := abilities.clip_shot(origin, dir, w.def.range_m, c.team)  # E10: enemy shield walls
-		var hit := _tracer.trace(space, origin, dir, clip[0], targets, cmd.view_tick, cmd.view_alpha)
+		var clip := abilities.clip_shot(origin, dir, max_range, c.team)  # E10: enemy shield walls
+		var hit := _tracer.trace(space, origin, dir, clip[0], targets, view_tick, view_alpha)
 		var end_d := hit.distance if hit.target != null else minf(_tracer.last_limit, clip[0])
 		if wardlings != null:
 			var wl := wardlings.trace_wardlings(origin, dir, hit.distance if hit.target != null else _tracer.last_limit, c.team)
 			if not wl.is_empty():
 				end_d = float(wl[1])
+				stopped = true
 				ends.append(origin + dir * end_d)
 				if not per_wardling.has(wl[0]):
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
 				# heroes.md §3.7: Wardlings are gadgets (Hex Signal Sight +50 %).
-				per_wardling[wl[0]][0] += DamageMath.hit_damage(w.def, wl[1], false) * wm \
+				per_wardling[wl[0]][0] += DamageMath.hit_damage(wdef, wl[1] + dist_off, false) * wm \
 					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT) * c.def.gadget_damage_mult
 				continue
 		ends.append(origin + dir * end_d)
-		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, w.def, wm):
+		if hit.target != null or end_d < max_range - 1e-3:
+			stopped = true
+		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, wdef, wm, dist_off):
+			stopped = true
 			continue
-		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, w.def, wm):
+		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, wdef, wm, dist_off):
+			stopped = true
 			continue
 		if hit.target == null:
 			if clip[1] != null and _tracer.last_limit >= clip[0] - 1e-3:
-				abilities.damage_deployable(clip[1], DamageMath.hit_damage(w.def, clip[0], false) * wm * dealt
+				abilities.damage_deployable(clip[1], DamageMath.hit_damage(wdef, clip[0] + dist_off, false) * wm * dealt
 					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT, true))
 				abilities.blocked_shots += 1
 			continue
-		var raw := DamageMath.hit_damage(w.def, hit.distance, hit.headshot) * wm \
+		var raw := DamageMath.hit_damage(wdef, hit.distance + dist_off, hit.headshot) * wm \
 			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO) * abilities.extras.shot_mult(h, hit.target)
 		var id := hit.target.net_id
 		if not per_target.has(id):
@@ -443,7 +525,8 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 		per_target[id][0] += raw
 		if hit.headshot:
 			per_target[id][1] |= GameEvent.FLAG_HEADSHOT
-	_broadcast_tracers(h.net_id, ends)
+	if tracers:
+		_broadcast_tracers(h.net_id, ends)
 	for id in per_target:
 		var target := hero(id)
 		var rec: Array = per_target[id]
@@ -466,26 +549,29 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	for g in per_gen:
 		var grec: Array = per_gen[g]
 		var gapplied := damage_generator(g, grec[0], c.team, h.state.position, false)
+		stats.record_objective(h.net_id, gapplied)
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(g.net_id, h.net_id, gapplied,
 			0 if gapplied > 0.0 else GameEvent.FLAG_IMMUNE, grec[1]))
 	for u in per_uplink:
 		var urec: Array = per_uplink[u]
 		var uapplied := damage_uplink(u, urec[0], false)
+		stats.record_objective(h.net_id, uapplied)
 		var uflags: int = 0 if u.exposed else GameEvent.FLAG_IMMUNE
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(u.net_id, h.net_id, uapplied, uflags, urec[1]))
+	return stopped
 
 
 ## E9: nearest Uplink in front of the hero hit and the static wall; accumulates
 ## the raw weapon damage (no headshot, no ammo effects: C7). True if it took the pellet.
 func _pellet_hits_uplink(uplinks: Array[UplinkSim], origin: Vector3, dir: Vector3, hit: HitscanTracer.Hit,
-		acc: Dictionary, wdef: WeaponDef, mult: float) -> bool:
+		acc: Dictionary, wdef: WeaponDef, mult: float, dist_off: float = 0.0) -> bool:
 	var limit := hit.distance if hit.target != null else _tracer.last_limit + 0.5
 	for u in uplinks:
 		var t := u.ray_hit(origin, dir)
 		if t >= 0.0 and t <= limit:
 			if not acc.has(u):
 				acc[u] = [0.0, origin + dir * t]
-			acc[u][0] += DamageMath.hit_damage(wdef, t, false) * mult  # no ammo effects (C7)
+			acc[u][0] += DamageMath.hit_damage(wdef, t + dist_off, false) * mult  # no ammo effects (C7)
 			return true
 	return false
 
@@ -502,14 +588,14 @@ func _enemy_generators(team: int) -> Array[GeneratorTarget]:
 
 ## E14: like _pellet_hits_uplink, for Ward Generators (weapon damage, no ammo effects).
 func _pellet_hits_generator(gens: Array[GeneratorTarget], origin: Vector3, dir: Vector3, hit: HitscanTracer.Hit,
-		acc: Dictionary, wdef: WeaponDef, mult: float) -> bool:
+		acc: Dictionary, wdef: WeaponDef, mult: float, dist_off: float = 0.0) -> bool:
 	var limit := hit.distance if hit.target != null else _tracer.last_limit + 0.5
 	for g in gens:
 		var t := g.ray_hit(origin, dir)
 		if t >= 0.0 and t <= limit:
 			if not acc.has(g):
 				acc[g] = [0.0, origin + dir * t]
-			acc[g][0] += DamageMath.hit_damage(wdef, t, false) * mult
+			acc[g][0] += DamageMath.hit_damage(wdef, t + dist_off, false) * mult
 			return true
 	return false
 
@@ -597,6 +683,9 @@ func _spawn_hero(spawn: Vector3, def: HeroDef, team: int) -> HeroBody:
 	h.net_id = registry.register(h, EntityRegistry.KIND_HERO, tick)
 	h.combat = HeroCombat.new(def, team, net.tick_rate_hz, h.net_id)
 	h.combat.home_spawn = spawn
+	var hid := h.net_id
+	h.combat.health.healed.connect(func(amount: float, src: int) -> void:
+		stats.record_heal(src if src > 0 else hid, amount))
 	return h
 
 
@@ -743,6 +832,7 @@ func _send_snapshots() -> void:
 		abilities.write_snapshot(s)  # E10 skill FX
 		if wardlings != null:
 			wardlings.write_snapshot(s)
+		s.bolts.append_array(bolts.launched)  # hero bolts reuse the Wardling bolt block
 		session.send_snapshot(peer, s)
 
 

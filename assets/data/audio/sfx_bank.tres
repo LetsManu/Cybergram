@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="SfxBankDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/sfx_bank_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_voices = {
+&"rifle": {"archetype": &"gun_rifle", "db": 0.0, "pitch": 1.0},
+&"smg_burst": {"archetype": &"gun_smg", "db": -1.0, "pitch": 1.0},
+&"heavy": {"archetype": &"gun_heavy", "db": 2.0, "pitch": 0.95},
+&"zap": {"archetype": &"gun_zap", "db": -1.0, "pitch": 1.0},
+&"tack": {"archetype": &"gun_tack", "db": 0.0, "pitch": 0.9},
+&"glitch": {"archetype": &"gun_glitch", "db": -3.0, "pitch": 1.1},
+&"thread": {"archetype": &"gun_thread", "db": -2.0, "pitch": 1.0}
+}
+skills = {
+&"skill_brannoc_aegis_wall": {"cast": &"shield_up", "pitch": 0.8},
+&"skill_brannoc_earthbreaker": {"cast": &"ult_rise", "pitch": 0.8},
+&"skill_brannoc_fortify": {"cast": &"shield_up", "pitch": 1.0},
+&"skill_brannoc_ram_charge": {"cast": &"whoosh", "pitch": 0.8},
+&"skill_hex_breach_spike": {"cast": &"hack_glitch", "pitch": 1.0},
+&"skill_hex_relay_hop": {"cast": &"whoosh", "pitch": 1.3},
+&"skill_hex_static_field": {"cast": &"hack_glitch", "pitch": 0.8},
+&"skill_hex_zero_day": {"cast": &"ult_rise", "pitch": 1.2},
+&"skill_juniper_killbox": {"cast": &"ult_rise", "pitch": 0.9},
+&"skill_juniper_pressure_mine": {"cast": &"trap_click", "pitch": 0.9},
+&"skill_juniper_snare_coil": {"cast": &"trap_click", "pitch": 1.1},
+&"skill_juniper_tripwire_lattice": {"cast": &"trap_click", "pitch": 1.3},
+&"skill_liora_aurora": {"cast": &"ult_rise", "pitch": 1.1},
+&"skill_liora_flash_bloom": {"cast": &"whoosh", "pitch": 1.1},
+&"skill_liora_med_pack_drone": {"cast": &"heal_chime", "pitch": 1.0},
+&"skill_liora_prism_ward": {"cast": &"shield_up", "pitch": 1.25},
+&"skill_ryker_combat_stim": {"cast": &"buff_up", "pitch": 1.0},
+&"skill_ryker_frag_grenade": {"cast": &"whoosh", "pitch": 0.9},
+&"skill_ryker_overdrive": {"cast": &"ult_rise", "pitch": 1.0},
+&"skill_ryker_tactical_slide": {"cast": &"whoosh", "pitch": 1.0},
+&"skill_sable_eclipse_step": {"cast": &"ult_rise", "pitch": 1.4},
+&"skill_sable_phase_shift": {"cast": &"shimmer", "pitch": 1.0},
+&"skill_sable_sabotage_charge": {"cast": &"trap_click", "pitch": 0.8},
+&"skill_sable_veilwalk": {"cast": &"shimmer", "pitch": 0.8},
+&"skill_vesper_marionette_thread": {"cast": &"hack_glitch", "pitch": 1.2},
+&"skill_vesper_rally_beacon": {"cast": &"buff_up", "pitch": 0.8},
+&"skill_vesper_rewrite": {"cast": &"ult_rise", "pitch": 1.3},
+&"skill_vesper_threadstep": {"cast": &"whoosh", "pitch": 1.2}
+}
+fx_impacts = {
+1: &"deploy",
+2: &"deploy",
+3: &"shield_up",
+7: &"explosion",
+21: &"deploy",
+22: &"heal_chime",
+24: &"trap_click",
+25: &"whoosh",
+40: &"trap_click",
+41: &"trap_click",
+42: &"trap_click",
+43: &"shield_up",
+44: &"hack_glitch",
+45: &"hack_glitch",
+46: &"explosion"
+}
+ui = {
+&"buy": &"ui_buy",
+&"sell": &"ui_sell",
+&"level_up": &"ui_levelup",
+&"fork": &"ui_fork",
+&"hover": &"ui_hover",
+&"click": &"ui_click"
+}

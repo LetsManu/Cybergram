@@ -4,6 +4,56 @@
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="2"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="3"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/trap_effect_def.gd" id="4"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_0")
+stat = &"damage"
+op = 0
+value = 40.0
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_1")])
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_0")
+stat = &"distance"
+op = 0
+value = 6.0
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_0")
+stat = &"duration"
+op = 3
+value = 0.0
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("w10_sub_4")])
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_0")
+stat = &"extra"
+op = 0
+value = 0.3
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_0")
+stat = &"secondary_duration"
+op = 0
+value = 5.0
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_6"), SubResource("w10_sub_7")])
 
 [sub_resource type="Resource" id="r1"]
 script = ExtResource("4")
@@ -53,4 +103,4 @@ params = {
 &"max_placed": 2.0
 }
 effects = Array[Resource]([SubResource("r1")])
-nodes = Array[ExtResource("2")]([SubResource("r5")])
+nodes = Array[ExtResource("2")]([SubResource("r5"), SubResource("w10_sub_2"), SubResource("w10_sub_5"), SubResource("w10_sub_8")])

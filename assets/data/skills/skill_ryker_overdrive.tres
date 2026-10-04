@@ -7,6 +7,7 @@
 
 [sub_resource type="Resource" id="overdrive_effect_def_1"]
 script = ExtResource("s1")
+recoil_mult = 0.5
 
 [sub_resource type="Resource" id="skill_node_def_2"]
 script = ExtResource("s2")

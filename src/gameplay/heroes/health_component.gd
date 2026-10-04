@@ -6,6 +6,8 @@ extends RefCounted
 ## Deviation: a RefCounted held by HeroCombat, not a Node (no tree cost).
 
 signal died(killer_net_id: int)
+## HP restored (applied amount) and who healed (0 = unknown / self); feeds MatchStats.
+signal healed(amount: float, source_net_id: int)
 
 var max_hp: float
 var hp: float
@@ -69,11 +71,13 @@ func apply_damage(info: DamageInfo) -> float:
 	return applied
 
 
-func heal(amount: float) -> float:
+func heal(amount: float, source_net_id: int = 0) -> float:
 	if not is_alive():
 		return 0.0
 	var applied := minf(maxf(amount, 0.0), max_hp - hp)
 	hp += applied
+	if applied > 0.0:
+		healed.emit(applied, source_net_id)
 	return applied
 
 

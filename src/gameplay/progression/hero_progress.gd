@@ -10,6 +10,8 @@ extends RefCounted
 enum Result {
 	OK, NOT_AT_ARMORY, DEAD, UNKNOWN_ITEM, NO_FUNDS, WRONG_FAMILY, REQUIRES, LIMIT, NOT_OWNED,
 	NO_POINTS, LEVEL_GATE, MAXED, NO_SKILL, NOT_IN_SLICE, DISABLED,
+	# W10-T1 skill tree: a Fork needs an A/B choice; a Fork is already chosen.
+	FORK_CHOICE, FORK_LOCKED,
 }
 
 ## Spawn choice on the death screen (match-flow-and-map.md §3.5, hud.md §9).

@@ -20,6 +20,11 @@ signal shot_received(event: GameEvent)
 signal match_ended(winner: int, reason: int)
 ## E15: the own hero's level changed (HUD level-up flash).
 signal level_changed(level: int)
+## W10-W4: the final per-hero stats arrived (net id -> {MatchStats.Stat -> float}).
+signal match_summary_received(rows: Dictionary)
+## Latest summary rows (empty until the match ends).
+var match_summary: Dictionary = {}
+var _summary_dirty: bool = false
 
 var net: NetConfig
 var movement: MovementDef
@@ -86,6 +91,8 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	_look = look
 	input_source = source
 	player_input = source as PlayerInputSource
+	if player_input != null:
+		player_input.fork_slot_fn = fork_pending_slot
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
 	session.token = hello_token
@@ -106,6 +113,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	sfx = ClientSfx.new()
 	sfx.name = "Sfx"
 	sfx.client = self
+	sfx.presenter = abilities
 	add_child(sfx)
 	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
@@ -395,9 +403,22 @@ func _on_event(e: GameEvent, _server_tick: int) -> void:
 			kill_received.emit(e)
 		GameEvent.MATCH_PHASE:
 			match_phase_changed.emit(e.target_net_id)
+		GameEvent.PLAYER_STAT:
+			if not _summary_dirty:
+				match_summary = {}
+				_summary_dirty = true
+				_emit_summary_deferred.call_deferred()
+			var row: Dictionary = match_summary.get(e.target_net_id, {})
+			row[e.flags] = e.amount
+			match_summary[e.target_net_id] = row
 		GameEvent.SHOT:
 			_draw_tracer(e)
 			shot_received.emit(e)
+
+
+func _emit_summary_deferred() -> void:
+	_summary_dirty = false
+	match_summary_received.emit(match_summary)
 
 
 ## Tracer colours (saturated so they read on both the pale floor and dark sky):
@@ -426,9 +447,26 @@ func _draw_tracer(e: GameEvent) -> void:
 	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c)
 
 
+## W10-W5: HeroDef id of a remote hero (&"" if unknown); lets presentation pick its weapon voice.
+func hero_id_of(net_id: int) -> StringName:
+	if not _hero_index.has(net_id):
+		return &""
+	return content.id_at(ContentDB.HERO, _hero_index[net_id])
+
+
 ## World position (chest height) of a remote hero's view, or null if unknown.
 func hero_view_position(net_id: int) -> Variant:
 	var v: HeroView = _views.get(net_id)
 	if v == null:
 		return null
 	return v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0)
+
+
+## W10-T1: the basic-skill slot whose Fork A/B choice is on offer (-1 = none).
+func fork_pending_slot() -> int:
+	if combat == null or hero_def == null:
+		return -1
+	for i in mini(3, hero_def.skills.size()):
+		if hero_def.skills[i] != null and AbilityRunner.fork_offered(combat.skill_flags[i], hero_def.skills[i].ultimate):
+			return i
+	return -1

@@ -36,6 +36,9 @@ const ACTIONS: Array = [
 	["skill_3", GROUP_SKILLS, "k:67"],
 	["skill_4", GROUP_SKILLS, "k:71"],
 	["quick_spend", GROUP_SKILLS, "k:4194328"],
+	# W10-T1: pick Fork A / B when the HUD offers the choice (1 / 2; gamepad L1 / R1).
+	["fork_a", GROUP_SKILLS, "k:49"],
+	["fork_b", GROUP_SKILLS, "k:50"],
 	["squad_smart", GROUP_SQUAD, "k:90"],
 	["squad_follow", GROUP_SQUAD, "k:88"],
 	["squad_wheel", GROUP_SQUAD, "k:86"],

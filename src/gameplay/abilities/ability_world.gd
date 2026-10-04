@@ -44,6 +44,7 @@ class Deployable:
 	var max_hp: float = 0.0
 	var expires_tick: int = 0
 	var heal_per_s: float = 0.0
+	var hero_heal_per_s: float = 0.0
 	var dr: float = 0.0
 	var alive: bool = true
 	var fx: Fx
@@ -398,9 +399,14 @@ func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployabl
 		return null  # W9-H2: enemy Static Field forbids placing
 	var t := server.tick
 	if def.kind == DeployableEffectDef.Kind.BEACON:
-		var old := deployable_of(ctx.skill)
-		if old != null:
-			old.alive = false  # heroes.md: one beacon (two at Mastery)
+		# heroes.md: one beacon (two with Mastery: `max_placed` param, W10-T1).
+		var cap := maxi(1, roundi(ctx.param(&"max_placed")))
+		var mine: Array[Deployable] = []
+		for e in deployables:
+			if e.alive and e.skill == ctx.skill and e.kind == DeployableEffectDef.Kind.BEACON:
+				mine.append(e)
+		if mine.size() >= cap:
+			mine[0].alive = false
 	var d := Deployable.new()
 	d.id = _next_id
 	_next_id += 1
@@ -418,6 +424,7 @@ func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployabl
 	d.max_hp = ctx.param(def.hp_param) if def.kind != DeployableEffectDef.Kind.BASTION else 0.0
 	d.hp = d.max_hp
 	d.heal_per_s = ctx.power_param(def.heal_param)
+	d.hero_heal_per_s = ctx.power_param(&"ally_heal")
 	d.dr = ctx.param(def.dr_param)
 	d.expires_tick = t + ctx.ticks(def.duration_param)
 	d.source_id = Modifier.source(Modifier.SRC_ZONE, 0x800000 | d.id)
@@ -644,6 +651,9 @@ func _tick_deployable(d: Deployable, t: int) -> void:
 		return  # traps are TrapWorld's; hacked beacons / bastions are off
 	match d.kind:
 		DeployableEffectDef.Kind.BEACON:
+			if d.hero_heal_per_s > 0.0:  # W10-T1 Bastion fork: also heals allied heroes
+				for e in entities_in_radius(d.pos, d.radius, d.team, false, true, true, false):
+					(e as HeroBody).combat.health.heal(d.hero_heal_per_s * dt, d.source_id)
 			if server.wardlings != null:
 				for e in entities_in_radius(d.pos, d.radius, d.team, false, true, false, true):
 					var w := e as WardlingSim
@@ -819,6 +829,10 @@ func _pin(ch: Charge) -> void:
 	if not t.combat.dead:
 		apply_status(ch.ctx, t, StatusComponent.Kind.STUN, ch.stun_ticks, 0.0)
 	add_fx(FX_BURST, ch.ctx.team, t.state.position, Vector3(1.5, 0.0, 0.0), 0.0, roundi(BURST_S * tick_hz))
+	var refund := ch.ctx.param(&"extra_b")  # W10-T1 Ram Charge Mastery: pinning a hero refunds cooldown
+	var rs := ch.ctx.skill
+	if refund > 0.0 and rs != null:
+		rs.cooldown_end_tick -= roundi(rs.cooldown_total_ticks * minf(refund, 1.0))
 	_end_charge(ch)
 
 
