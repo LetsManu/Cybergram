@@ -340,22 +340,25 @@ static func decode_chat_send(b: PackedByteArray) -> Dictionary:
 
 
 ## One chat line. System lines carry `code` (SYS_*) and the subject's name.
-static func encode_chat(kind: int, code: int, team: int, accent: int, name: String, text: String) -> PackedByteArray:
+## `id`: the sender / subject's player id (lets clients mute by id).
+static func encode_chat(kind: int, code: int, team: int, accent: int, name: String, text: String,
+		id: String = "") -> PackedByteArray:
 	var w := Writer.new(MsgType.LOBBY_CHAT)
 	w.u8(kind)
 	w.u8(code)
 	w.u8(team)
 	w.u8(accent)
+	w.id(id)
 	w.str8(name, NAME_MAX_BYTES)
 	w.str8(text, CHAT_MAX_BYTES)
 	return w.b
 
 
 static func decode_chat(b: PackedByteArray) -> Dictionary:
-	if b.size() < 7 or b.decode_u8(0) != MsgType.LOBBY_CHAT:
+	if b.size() < 23 or b.decode_u8(0) != MsgType.LOBBY_CHAT:
 		return {}
 	var r := Reader.new(b)
-	var d := {"kind": r.u8(), "code": r.u8(), "team": r.u8(), "accent": r.u8(),
+	var d := {"kind": r.u8(), "code": r.u8(), "team": r.u8(), "accent": r.u8(), "id": r.id(),
 		"name": r.str8(NAME_MAX_BYTES), "text": r.str8(CHAT_MAX_BYTES)}
 	if not r.done() or d.kind > CHAT_SYSTEM or d.code >= SYS_COUNT:
 		return {}

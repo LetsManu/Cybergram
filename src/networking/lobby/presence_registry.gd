@@ -1,21 +1,23 @@
 class_name PresenceRegistry
 extends RefCounted
-## Server-side presence (design/ux/lobby-and-social.md §2.4): every player id
-## the server has seen, its last validated name and its status (online in the
-## menu / in the lobby / in a match / offline). Also the id -> key claims that
-## stop one player from taking another's id. `shared()` lives for the whole
-## server process, so it survives the scene reload between matches; tests
-## build their own with new().
+## Server-side presence (design/ux/lobby-and-social.md §2.4, §4 Privacy):
+## who is connected right now and where (lobby / match / menu check-in), with
+## their current display name, and the id -> key claim of each connected
+## player (so nobody can take a seat with a copied id). **Memory only and
+## connection-scoped**: an entry is forgotten when the player disconnects
+## (forget()), when a menu check-in expires (ONLINE_TTL_S) or when the match
+## ends (end_match()). Nothing is written to disk and nothing is logged.
+## `shared()` is per server process; tests build their own with new().
 ##
 ## Example:
 ##   var reg := PresenceRegistry.shared()
 ##   if reg.claim(id, key, name): reg.set_status(id, LobbyCodec.STATUS_IN_LOBBY, now)
-##   transport.send(peer, ch0, LobbyCodec.encode_presence(reg.answer(ids, names, now)))
+##   reg.forget(id)  # on disconnect
 
-## A menu check-in counts as "online" for this long.
+## A main-menu check-in (short presence query) counts as "online" this long.
 const ONLINE_TTL_S: float = 25.0
-## Most ids remembered (oldest offline entries are forgotten first).
-const MAX_ENTRIES: int = 4096
+## Most simultaneous entries (a flood of check-ins cannot grow memory).
+const MAX_ENTRIES: int = 1024
 ## A name lookup returns at most this many players per name.
 const MAX_MATCHES_PER_NAME: int = 3
 
@@ -38,15 +40,18 @@ static func now_s() -> float:
 
 
 ## Registers / verifies `id` with `key` and records its (already validated)
-## name. False when the id is malformed or claimed with a different key.
-func claim(id: String, key: String, name: String) -> bool:
+## name. False when the id is malformed, claimed right now with a different
+## key, or the registry is full.
+func claim(id: String, key: String, name: String, now: float = now_s()) -> bool:
 	if not PlayerProfile.is_hex_id(id) or not PlayerProfile.is_hex_id(key):
 		return false
 	var e: Dictionary = entries.get(id, {})
 	if e.is_empty():
 		if entries.size() >= MAX_ENTRIES:
-			_evict()
-		entries[id] = {"key": key, "name": name, "status": LobbyCodec.STATUS_OFFLINE, "seen_s": 0.0}
+			purge(now)
+			if entries.size() >= MAX_ENTRIES:
+				return false
+		entries[id] = {"key": key, "name": name, "status": LobbyCodec.STATUS_ONLINE, "seen_s": now}
 		return true
 	if e.key != key:
 		return false
@@ -63,7 +68,12 @@ func set_status(id: String, status: int, now: float) -> void:
 	e.seen_s = now
 
 
-## Effective status of `id` at `now` (an expired menu check-in is offline).
+## Drops everything about `id` (the player disconnected).
+func forget(id: String) -> void:
+	entries.erase(id)
+
+
+## Effective status of `id` at `now` (unknown or expired = offline).
 func status_of(id: String, now: float) -> int:
 	var e: Dictionary = entries.get(id, {})
 	if e.is_empty():
@@ -73,19 +83,27 @@ func status_of(id: String, now: float) -> int:
 	return e.status
 
 
-## Players marked in a match go offline (a new lobby opened; returning
-## players re-join it and become "in lobby" again).
+## Forgets expired menu check-ins.
+func purge(now: float) -> void:
+	for id in entries.keys():
+		if status_of(id, now) == LobbyCodec.STATUS_OFFLINE:
+			entries.erase(id)
+
+
+## The match ended: its players are forgotten (those who return re-join the
+## new lobby and are registered again).
 func end_match(now: float) -> void:
-	for id in entries:
+	for id in entries.keys():
 		if entries[id].status == LobbyCodec.STATUS_IN_MATCH:
-			entries[id].status = LobbyCodec.STATUS_OFFLINE
-			entries[id].seen_s = now
+			entries.erase(id)
+	purge(now)
 
 
-## Presence reply entries ({id, status, name}) for `ids` plus every player
-## whose name matches one of `names` (case-insensitive; "Name#TAG" also
-## matches the tag). Unknown ids come back offline with an empty name.
+## Presence reply entries ({id, status, name}) for `ids` plus the connected
+## players whose name matches one of `names` (case-insensitive; "Name#TAG"
+## also matches the tag). Unknown ids come back offline with no name.
 func answer(ids: PackedStringArray, names: PackedStringArray, now: float) -> Array:
+	purge(now)
 	var out: Array = []
 	var seen := {}
 	for id in ids:
@@ -112,15 +130,3 @@ func answer(ids: PackedStringArray, names: PackedStringArray, now: float) -> Arr
 			hits += 1
 			out.append({"id": id, "status": status_of(id, now), "name": entries[id].name})
 	return out
-
-
-func _evict() -> void:
-	var oldest := ""
-	var oldest_s := INF
-	for id in entries:
-		var e: Dictionary = entries[id]
-		if e.status != LobbyCodec.STATUS_IN_LOBBY and e.status != LobbyCodec.STATUS_IN_MATCH and e.seen_s < oldest_s:
-			oldest_s = e.seen_s
-			oldest = id
-	if oldest != "":
-		entries.erase(oldest)

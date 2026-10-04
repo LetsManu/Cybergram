@@ -14,6 +14,11 @@ extends RefCounted
 ## LobbyCodec, values below). Malformed packets count as violations; a peer
 ## over MAX_VIOLATIONS is ignored from then on.
 ##
+## Privacy (design/ux/lobby-and-social.md §4): seats, names and the chat
+## replay buffer live in memory only, for this lobby (the buffer is cleared
+## when the match starts). Logs never contain chat text or display names,
+## only the 4-char id tag ("player #1A2B").
+##
 ## Example (GameSession):
 ##   lobby = LobbyServer.new(enet, team_size())
 ##   lobby.match_started.connect(_on_lobby_started)
@@ -134,9 +139,9 @@ func on_peer_left(peer: int) -> void:
 	p.peer = -1
 	p.ready = false
 	p.left_at = now
-	registry.set_status(p.id, LobbyCodec.STATUS_OFFLINE, PresenceRegistry.now_s())
+	registry.forget(p.id)
 	print("[lobby] %s (peer %d) disconnected; seat kept %d s, %d connected" % [
-		p.name, peer, int(RECONNECT_GRACE_S), _connected_count()])
+		_who(p), peer, int(RECONNECT_GRACE_S), _connected_count()])
 	_system(LobbyCodec.SYS_RECONNECTING, p)
 	_broadcast()
 
@@ -178,12 +183,13 @@ func _on_join(peer: int, j: Dictionary) -> void:
 		return
 	if index_of_peer(peer) >= 0:
 		return  # duplicate join on the same connection
-	if not registry.claim(j.id, j.key, j.name):
+	var seat := _seat_of_id(j.id)
+	if (seat != null and seat.key != j.key) or not registry.claim(j.id, j.key, j.name):
 		print("[lobby] peer %d rejected: id %s is held by another key" % [peer, PlayerProfile.tag_of(j.id)])
 		transport.send(peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_ID_TAKEN))
 		return
 	var hero := _valid_hero(int(j.hero_index))
-	var p := _seat_of_id(j.id)
+	var p := seat
 	if p != null:
 		# Reconnect (or a second connection taking over the seat).
 		var old_peer := p.peer
@@ -193,7 +199,7 @@ func _on_join(peer: int, j: Dictionary) -> void:
 		p.accent = j.accent
 		if not p.ready and phase != LobbyCodec.PHASE_LOCKED:
 			p.hero_index = hero
-		print("[lobby] %s reconnected (peer %d%s)" % [p.name, peer,
+		print("[lobby] %s reconnected (peer %d%s)" % [_who(p), peer,
 			", replacing peer %d" % old_peer if old_peer >= 0 else ""])
 		_system(LobbyCodec.SYS_RECONNECTED, p)
 	else:
@@ -211,8 +217,8 @@ func _on_join(peer: int, j: Dictionary) -> void:
 		p.hero_index = hero
 		p.team = _team_for_joiner(str(j.get("party_id", "")))
 		players.append(p)
-		print("[lobby] %s#%s joined (peer %d, team %d, hero %d), %d in lobby" % [
-			p.name, PlayerProfile.tag_of(p.id), peer, p.team, p.hero_index, players.size()])
+		print("[lobby] %s joined (peer %d, team %d, hero %d), %d in lobby" % [
+			_who(p), peer, p.team, p.hero_index, players.size()])
 		_system(LobbyCodec.SYS_JOINED, p)
 	registry.set_status(p.id, LobbyCodec.STATUS_IN_LOBBY, PresenceRegistry.now_s())
 	for line in history:
@@ -240,7 +246,7 @@ func _on_pick(peer: int, d: Dictionary) -> void:
 		p.ready = d.ready
 		changed = true
 	if changed:
-		print("[lobby] %s: hero %d, %s" % [p.name, p.hero_index, "READY" if p.ready else "not ready"])
+		print("[lobby] %s: hero %d, %s" % [_who(p), p.hero_index, "READY" if p.ready else "not ready"])
 	if p.ready and p.announced_hero != p.hero_index:
 		p.announced_hero = p.hero_index
 		_system(LobbyCodec.SYS_LOCKED_IN, p)
@@ -266,7 +272,7 @@ func _on_team(peer: int, d: Dictionary) -> void:
 		return
 	p.team = d.team
 	p.ready = false
-	print("[lobby] %s switched to team %d" % [p.name, p.team])
+	print("[lobby] %s switched to team %d" % [_who(p), p.team])
 	_system(LobbyCodec.SYS_SWITCHED, p)
 	_broadcast()
 
@@ -285,13 +291,14 @@ func _on_chat(peer: int, d: Dictionary) -> void:
 	if not p.chat.allow(now):
 		_system_to(peer, LobbyCodec.SYS_SLOW_DOWN, p)
 		return
-	_push(LobbyCodec.encode_chat(LobbyCodec.CHAT_PLAYER, 0, p.team, p.accent, p.name, text))
+	_push(LobbyCodec.encode_chat(LobbyCodec.CHAT_PLAYER, 0, p.team, p.accent, p.name, text, p.id))
 
 
 ## Validates a decoded profile (join): ids, name charset/length, emblem, accent.
 static func valid_profile(j: Dictionary) -> bool:
 	return PlayerProfile.is_hex_id(str(j.get("id", ""))) and PlayerProfile.is_hex_id(str(j.get("key", ""))) \
 		and PlayerProfile.validate_name(str(j.get("name", ""))) == PlayerProfile.NameError.OK \
+		and PlayerProfile.name_allowed(str(j.get("name", ""))) \
 		and int(j.get("emblem", -1)) >= 0 and int(j.get("emblem", -1)) < PlayerProfile.EMBLEM_COUNT \
 		and int(j.get("accent", -1)) >= 0 and int(j.get("accent", -1)) < PlayerProfile.ACCENTS.size()
 
@@ -333,7 +340,7 @@ func _expire_disconnected() -> void:
 		var p := players[i]
 		if p.peer < 0 and now - p.left_at >= RECONNECT_GRACE_S:
 			players.remove_at(i)
-			print("[lobby] %s left (no reconnect), %d in lobby" % [p.name, players.size()])
+			print("[lobby] %s left (no reconnect), %d in lobby" % [_who(p), players.size()])
 			_system(LobbyCodec.SYS_LEFT, p)
 			_broadcast()
 
@@ -386,13 +393,18 @@ func _push(line: PackedByteArray) -> void:
 
 
 func _system(code: int, about: Player) -> void:
-	_push(LobbyCodec.encode_chat(LobbyCodec.CHAT_SYSTEM, code, about.team, about.accent, about.name, ""))
+	_push(LobbyCodec.encode_chat(LobbyCodec.CHAT_SYSTEM, code, about.team, about.accent, about.name, "", about.id))
 
 
 ## A system line for one peer only (not kept in the history).
 func _system_to(peer: int, code: int, about: Player) -> void:
 	transport.send(peer, Transport.CH_CONTROL,
-		LobbyCodec.encode_chat(LobbyCodec.CHAT_SYSTEM, code, about.team, about.accent, about.name, ""))
+		LobbyCodec.encode_chat(LobbyCodec.CHAT_SYSTEM, code, about.team, about.accent, about.name, "", about.id))
+
+
+## Log label of a player: the id tag only (no display name in server logs).
+static func _who(p: Player) -> String:
+	return "player #" + PlayerProfile.tag_of(p.id)
 
 
 func _violation(peer: int, what: String) -> void:
@@ -421,4 +433,5 @@ func _start() -> void:
 		out.append(slot)
 		registry.set_status(p.id, LobbyCodec.STATUS_IN_MATCH, at_s)
 		transport.send(p.peer, Transport.CH_CONTROL, LobbyCodec.encode_start(token, p.team, p.hero_index))
+	history.clear()  # chat is not kept beyond the lobby
 	match_started.emit(out)

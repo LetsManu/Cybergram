@@ -14,6 +14,11 @@ extends RefCounted
 ##   p.display_id()  # "Neo#1A2B"
 
 const DEFAULT_PATH := "user://profile.cfg"
+## Version of the privacy notice (PRIVACY.md). Online play needs
+## `privacy_ack >= PRIVACY_VERSION`; offline play needs nothing.
+const PRIVACY_VERSION: int = 1
+## Offensive / impersonating name fragments (NameFilterDef data).
+const NAME_FILTER_PATH := "res://assets/data/social/name_filter.tres"
 const NAME_MIN: int = 3
 const NAME_MAX: int = 16
 ## Bytes in an id / key (hex strings are twice as long).
@@ -36,6 +41,10 @@ var key: String = ""
 var name: String = ""
 var emblem: int = 0
 var accent: int = 0
+## Privacy notice version the player acknowledged (0 = not yet).
+var privacy_ack: int = 0
+
+static var _filter: NameFilterDef
 
 
 ## A fresh profile with a new random id and key. `name_` must be valid.
@@ -67,6 +76,7 @@ static func load_or_null(path: String) -> PlayerProfile:
 	p.name = str(cfg.get_value("profile", "name", ""))
 	p.emblem = int(cfg.get_value("profile", "emblem", 0))
 	p.accent = int(cfg.get_value("profile", "accent", 0))
+	p.privacy_ack = int(cfg.get_value("privacy", "acknowledged_version", 0))
 	return p if p.is_valid() else null
 
 
@@ -78,6 +88,7 @@ func save(path: String) -> int:
 	cfg.set_value("profile", "name", name)
 	cfg.set_value("profile", "emblem", emblem)
 	cfg.set_value("profile", "accent", accent)
+	cfg.set_value("privacy", "acknowledged_version", privacy_ack)
 	return cfg.save(path)
 
 
@@ -90,6 +101,19 @@ func to_wire() -> Dictionary:
 func is_valid() -> bool:
 	return is_hex_id(id) and is_hex_id(key) and validate_name(name) == NameError.OK \
 		and emblem >= 0 and emblem < EMBLEM_COUNT and accent >= 0 and accent < ACCENTS.size()
+
+
+## True when the current privacy notice was acknowledged (online play).
+func can_play_online() -> bool:
+	return privacy_ack >= PRIVACY_VERSION
+
+
+## False when the name contains a blocked fragment (NameFilterDef data;
+## missing data = everything allowed).
+static func name_allowed(n: String) -> bool:
+	if _filter == null:
+		_filter = load(NAME_FILTER_PATH) as NameFilterDef if ResourceLoader.exists(NAME_FILTER_PATH) else NameFilterDef.new()
+	return _filter.allows(n)
 
 
 ## 4-char tag shown after the name (Riot-ID style "Name#TAG").

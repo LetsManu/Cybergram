@@ -18,7 +18,7 @@ const LOBBY_PICK: int = 21   ## C->S: u16 hero index, u8 ready
 const LOBBY_STATE: int = 22  ## S->C: u8 phase, u8 countdown s, u8 your slot, u8 team size, u8 n, n x slot (team, hero, flags, emblem, accent, id, str8 name)
 const LOBBY_START: int = 23  ## S->C: u16 slot token (0 = join the running match), u8 team, u16 hero index
 const LOBBY_CHAT_SEND: int = 24  ## C->S: str8 text (<= 240 bytes)
-const LOBBY_CHAT: int = 25       ## S->C: u8 kind, u8 system code, u8 team, u8 accent, str8 name, str8 text
+const LOBBY_CHAT: int = 25       ## S->C: u8 kind, u8 system code, u8 team, u8 accent, id, str8 name, str8 text
 const LOBBY_TEAM: int = 26       ## C->S: u8 wanted team
 ## Presence (any connection, lobby or match server; ch0).
 const PRESENCE_QUERY: int = 27   ## C->S: u16 protocol_version, id, key, str8 name, u8 n, n x id, u8 m, m x str8 name

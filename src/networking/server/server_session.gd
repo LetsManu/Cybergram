@@ -66,8 +66,11 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 func drop(peer_id: int) -> void:
 	var c: ClientConnection = clients.get(peer_id)
 	clients.erase(peer_id)
+	token_names.erase(hello_token.get(peer_id, 0))
+	hello_token.erase(peer_id)
+	hello_hero.erase(peer_id)
 	if c != null and names.has(c.own_net_id):
-		registry.set_status(str(names[c.own_net_id].id), LobbyCodec.STATUS_OFFLINE, PresenceRegistry.now_s())
+		registry.forget(str(names[c.own_net_id].id))  # privacy: nothing kept after a disconnect
 		names.erase(c.own_net_id)
 		_send_names()
 
