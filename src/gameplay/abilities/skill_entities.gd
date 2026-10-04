@@ -539,8 +539,9 @@ func _buff(h: HeroBody) -> Buff:
 
 
 func _step_buffs(tick: int) -> void:
-	for h in buffs.keys():
-		var b: Buff = buffs[h]
+	for key in buffs.keys():
+		var h := key as HeroBody
+		var b: Buff = buffs[key]
 		if not _alive(h) or h.combat.dead:
 			if _alive(h):
 				_end_buffs(b)
@@ -654,8 +655,9 @@ func _on_skill_cast(slot: int, _tick: int, h: HeroBody) -> void:
 
 
 func _step_stealth(tick: int) -> void:
-	for h in stealth.keys():
-		var s: Stealth = stealth[h]
+	for key in stealth.keys():
+		var h := key as HeroBody
+		var s: Stealth = stealth[key]
 		if not _alive(h):
 			stealth.erase(h)
 			continue
@@ -668,10 +670,11 @@ func _step_stealth(tick: int) -> void:
 			break_stealth(h)
 
 
-## True when `viewer_pos` cannot see stealthed hero `h` (beyond the fully
-## visible 3 m ... shimmer 8 m bands of heroes.md §4.2). Used by bots.
-func hidden_from(h: HeroBody, viewer_pos: Vector3, shimmer_m: float) -> bool:
-	return stealth.has(h) and h.state.position.distance_to(viewer_pos) > shimmer_m
+## True when `viewer_pos` cannot see stealthed hero `h`: beyond the Veilwalk
+## shimmer radius (the skill's `radius` param, heroes.md §4.2). Used by bots.
+func hidden_from(h: HeroBody, viewer_pos: Vector3) -> bool:
+	var s: Stealth = stealth.get(h)
+	return s != null and h.state.position.distance_to(viewer_pos) > s.skill.param(&"radius")
 
 
 # --- Sabotage Charges ---------------------------------------------------------------------------------

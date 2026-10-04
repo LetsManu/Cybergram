@@ -42,7 +42,7 @@ params = {
 &"damage": 110.0,
 &"radius": 5.0,
 &"duration": 1.2,
-&"speed": 16.0,
+&"speed": 20.0,
 &"charges": 2.0
 }
 effects = Array[Resource]([SubResource("thrown_effect_def_2")])

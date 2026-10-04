@@ -165,3 +165,6 @@ HUD_LOBBY_WAITING,Pick a hero and press Ready. The match starts when everyone is
 HUD_LOBBY_STARTING,Match starts in %d ...
 HUD_LOBBY_NO_ANSWER,"No answer from %s (server down, wrong address, or UDP port blocked)"
 HUD_MENU_PLAY_ONLINE,PLAY ONLINE
+HUD_MENU_HERO_RYKER,Ryker Vance  (Soldier)
+HUD_MENU_HERO_LIORA,Liora Vale  (Healer)
+HUD_MENU_HERO_SABLE,Sable  (Infiltrator)
