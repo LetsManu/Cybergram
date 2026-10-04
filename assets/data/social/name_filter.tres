@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="NameFilterDef" format=3]
+
+[ext_resource type="Script" path="res://src/core/profile/name_filter_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+blocked = PackedStringArray("admin", "moderator", "official", "cybergramteam", "fuck", "shit", "cunt", "bitch", "nigger", "nigga", "faggot", "retard", "nazi", "hitler", "whore", "slut", "kike", "chink")

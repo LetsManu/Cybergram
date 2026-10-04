@@ -10,6 +10,9 @@ extends Transport
 ## Example:
 ##   var t := ENetTransport.listen(7777, 16)        # dedicated server
 ##   var t := ENetTransport.connect_to("1.2.3.4", 7777)  # client
+##   DTLS (v0.5): ENetTransport.listen(7777, 16, TLSOptions.server(key, cert)) and
+##   ENetTransport.connect_to("cyber.djboeck.at", 7777, TLSOptions.client());
+##   `is_secure` says whether the link is encrypted (accounts need it).
 ##   t.poll() every tick, then pop_packet() as with any Transport.
 
 const SERVER_PEER: int = 1
@@ -30,29 +33,47 @@ var _peer_of: Dictionary = {}  # peer id -> ENetPacketPeer
 var _ready_q: Array[Transport.Packet] = []
 var _outbox: Array = []  # [to_peer, channel, data] queued until the server link is up
 var _connected: bool = false
+## True when this endpoint runs DTLS (encrypted, server authenticated).
+var is_secure: bool = false
 ## Last error text ("" = fine), for menus and logs.
 var error_text: String = ""
 
 
 ## Server endpoint bound to `port` on all interfaces. Check error_text.
-static func listen(port: int, max_clients: int) -> ENetTransport:
+## With `tls` (TLSOptions.server) every client must speak DTLS.
+static func listen(port: int, max_clients: int, tls: TLSOptions = null) -> ENetTransport:
 	var t := ENetTransport.new()
 	t._is_server = true
 	t._local_id = SERVER_PEER
 	var err := t._host.create_host_bound("*", port, max_clients, CHANNEL_COUNT)
 	if err != OK:
 		t.error_text = "cannot listen on UDP port %d (%s)" % [port, error_string(err)]
+		return t
+	if tls != null:
+		err = t._host.dtls_server_setup(tls)
+		if err != OK:
+			t.error_text = "cannot start DTLS on UDP port %d (%s)" % [port, error_string(err)]
+			return t
+		t.is_secure = true
 	return t
 
 
 ## Client endpoint connecting to `address:port`. Sends are queued until the
 ## connection is up. Check error_text / is_connected().
-static func connect_to(address: String, port: int) -> ENetTransport:
+## With `tls` (TLSOptions.client) the link is DTLS; `tls_hostname` is the
+## name checked against the certificate ("" = `address`).
+static func connect_to(address: String, port: int, tls: TLSOptions = null, tls_hostname: String = "") -> ENetTransport:
 	var t := ENetTransport.new()
 	var err := t._host.create_host(1, CHANNEL_COUNT)
 	if err != OK:
 		t.error_text = "cannot create ENet client (%s)" % error_string(err)
 		return t
+	if tls != null:
+		err = t._host.dtls_client_setup(tls_hostname if tls_hostname != "" else address, tls)
+		if err != OK:
+			t.error_text = "cannot start DTLS (%s)" % error_string(err)
+			return t
+		t.is_secure = true
 	var ip := address
 	if not address.is_valid_ip_address():
 		ip = IP.resolve_hostname(address, IP.TYPE_IPV4)  # DNS (e.g. cyber.djboeck.at)

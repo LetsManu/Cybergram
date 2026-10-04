@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AuthRulesDef" format=3]
+
+[ext_resource type="Script" path="res://src/core/auth/auth_rules_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+pbkdf2_iterations = 60000
+salt_bytes = 16
+password_min = 8
+password_max = 64
+max_failures_per_account = 5
+max_failures_per_peer = 10
+failure_window_s = 300.0
+lockout_s = 300.0
+session_grace_s = 60.0
+retention_days = 365
+min_age = 14
+max_accounts = 50000
+max_friends = 200
+max_pending_requests = 50
+max_blocks = 200
