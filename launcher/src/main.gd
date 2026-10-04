@@ -444,7 +444,7 @@ func _build_ui() -> void:
 	side.add_theme_stylebox_override("panel", _box(PANEL, 18))
 	body.add_child(side)
 	var sv: VBoxContainer = VBoxContainer.new()
-	sv.add_theme_constant_override("separation", 12)
+	sv.add_theme_constant_override("separation", 6)
 	sv.alignment = BoxContainer.ALIGNMENT_END
 	side.add_child(sv)
 
@@ -469,8 +469,8 @@ func _build_ui() -> void:
 	sv.add_child(_bar_label)
 
 	_button = Button.new()
-	_button.custom_minimum_size = Vector2(0, 76)
-	_button.add_theme_font_size_override("font_size", 28)
+	_button.custom_minimum_size = Vector2(0, 56)
+	_button.add_theme_font_size_override("font_size", 26)
 	_button.add_theme_color_override("font_color", BG)
 	_button.add_theme_color_override("font_hover_color", BG)
 	_button.add_theme_color_override("font_pressed_color", BG)
@@ -487,27 +487,27 @@ func _build_ui() -> void:
 	_skip = Button.new()
 	_skip.text = "Play installed version without updating"
 	_skip.flat = true
+	_skip.add_theme_font_size_override("font_size", 13)
 	_skip.visible = false
 	_skip.pressed.connect(_play)
 	sv.add_child(_skip)
 
 	_repair = Button.new()
-	_repair.text = "Verify / repair files"
+	_repair.text = "Verify / repair"
 	_repair.flat = true
+	_repair.add_theme_font_size_override("font_size", 13)
 	_repair.pressed.connect(func() -> void: _updater.verify_and_repair())
-	sv.add_child(_repair)
+	var tools_row: HBoxContainer = HBoxContainer.new()
+	tools_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	sv.add_child(tools_row)
+	tools_row.add_child(_repair)
 
-	_install_label = Label.new()
-	_install_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	_install_label.add_theme_font_size_override("font_size", 12)
-	_install_label.add_theme_color_override("font_color", Color("5b6676"))
-	_install_label.text = "Install folder: " + _updater.install_root()
-	sv.add_child(_install_label)
 	var change: Button = Button.new()
-	change.text = "Change install folder..."
+	change.text = "Install folder..."
 	change.flat = true
+	change.add_theme_font_size_override("font_size", 13)
 	change.pressed.connect(func() -> void: _dialog.popup_centered(Vector2i(720, 460)))
-	sv.add_child(change)
+	tools_row.add_child(change)
 
 	_dialog = FileDialog.new()
 	_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
@@ -522,6 +522,14 @@ func _build_ui() -> void:
 	_confirm.confirmed.connect(func() -> void: _apply_root(_pending_root, true))
 	_confirm.canceled.connect(func() -> void: _apply_root(_pending_root, false))
 	add_child(_confirm)
+
+	_install_label = Label.new()
+	_install_label.clip_text = true
+	_install_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_install_label.add_theme_font_size_override("font_size", 11)
+	_install_label.add_theme_color_override("font_color", Color("5b6676"))
+	_install_label.text = "Install folder: " + _updater.install_root()
+	sv.add_child(_install_label)
 
 	_version_label = Label.new()
 	_version_label.add_theme_color_override("font_color", Color("5b6676"))
