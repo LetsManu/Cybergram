@@ -280,3 +280,53 @@ HUD_HERO_HEX,Hex  (Hacker)
 HUD_MENU_HERO_RYKER,Ryker Vance  (Soldier)
 HUD_MENU_HERO_LIORA,Liora Vale  (Healer)
 HUD_MENU_HERO_SABLE,Sable  (Infiltrator)
+HUD_ACT_FORK_A,Fork A (choose)
+HUD_ACT_FORK_B,Fork B (choose)
+HUD_NODE_FORK,FORK A / B (L5)
+HUD_NODE_MASTERY,MASTERY (L9)
+HUD_FORK_CHOOSE,Choose a Fork (permanent)
+HUD_FORK_KEYS,[%s] A     [%s] B
+HUD_FORK_BADGE_A,A
+HUD_FORK_BADGE_B,B
+HUD_FORK_VESPER_MARIONETTE_THREAD_A,Pounce: +25% damage
+HUD_FORK_VESPER_MARIONETTE_THREAD_B,Puppet String: slows heroes
+HUD_FORK_VESPER_RALLY_BEACON_A,Bastion: also heals heroes
+HUD_FORK_VESPER_RALLY_BEACON_B,Muster Point: wider and tougher
+HUD_FORK_VESPER_THREADSTEP_A,Decoy: delayed 80 dmg blast
+HUD_FORK_VESPER_THREADSTEP_B,Cloak: 150 shield for 3s
+HUD_FORK_SABLE_VEILWALK_A,Ambush: +40% damage on exit
+HUD_FORK_SABLE_VEILWALK_B,Ghost Lane: tighter shimmer
+HUD_FORK_SABLE_PHASE_SHIFT_A,Echo: shorter cooldown
+HUD_FORK_SABLE_PHASE_SHIFT_B,Slipstream: speeds nearby allies
+HUD_FORK_SABLE_SABOTAGE_CHARGE_A,Demolition: 40% structure dmg
+HUD_FORK_SABLE_SABOTAGE_CHARGE_B,Snare Charge: roots heroes
+HUD_FORK_JUNIPER_SNARE_COIL_A,Barbed: extra damage
+HUD_FORK_JUNIPER_SNARE_COIL_B,Spring: knockback not root
+HUD_FORK_JUNIPER_TRIPWIRE_LATTICE_A,Razor: survives 3 triggers
+HUD_FORK_JUNIPER_TRIPWIRE_LATTICE_B,Alarm Net: +30% damage
+HUD_FORK_JUNIPER_PRESSURE_MINE_A,Cluster: 3 bomblets
+HUD_FORK_JUNIPER_PRESSURE_MINE_B,Gravity Mine: pulls then blasts
+HUD_FORK_RYKER_FRAG_GRENADE_A,Cluster: 3 sub-munitions
+HUD_FORK_RYKER_FRAG_GRENADE_B,Breacher: near-instant fuse
+HUD_FORK_RYKER_COMBAT_STIM_A,Adrenal: no HP cost and heal
+HUD_FORK_RYKER_COMBAT_STIM_B,Overdrive: reload and 40 HP cost
+HUD_FORK_RYKER_TACTICAL_SLIDE_A,Momentum: +20% damage
+HUD_FORK_RYKER_TACTICAL_SLIDE_B,Rebound: second slide
+HUD_FORK_BRANNOC_AEGIS_WALL_A,Rampart: bigger tougher wall
+HUD_FORK_BRANNOC_AEGIS_WALL_B,Mirror: 150 shield
+HUD_FORK_BRANNOC_RAM_CHARGE_A,Bulldozer: longer stun
+HUD_FORK_BRANNOC_RAM_CHARGE_B,Interceptor: 150 shield
+HUD_FORK_BRANNOC_FORTIFY_A,Challenge: slows enemies near
+HUD_FORK_BRANNOC_FORTIFY_B,Lifeblood: heal on cast
+HUD_FORK_LIORA_MED_PACK_DRONE_A,Swarm: 2 drones
+HUD_FORK_LIORA_MED_PACK_DRONE_B,Cleanse: removes slow and root
+HUD_FORK_LIORA_PRISM_WARD_A,Haste: +25% move speed
+HUD_FORK_LIORA_PRISM_WARD_B,Overcharge: +15% damage
+HUD_FORK_LIORA_FLASH_BLOOM_A,Sanctuary: heals allies 60
+HUD_FORK_LIORA_FLASH_BLOOM_B,Bloom Jump: speed burst
+HUD_FORK_HEX_BREACH_SPIKE_A,Turncoat: longer hack
+HUD_FORK_HEX_BREACH_SPIKE_B,Worm: spreads to 2 gadgets
+HUD_FORK_HEX_STATIC_FIELD_A,Blackout: scrambles enemies
+HUD_FORK_HEX_STATIC_FIELD_B,Firewall: allied Wardlings -20%
+HUD_FORK_HEX_RELAY_HOP_A,Firmware Bomb: 70 dmg decoy
+HUD_FORK_HEX_RELAY_HOP_B,Encrypted: 100 shield

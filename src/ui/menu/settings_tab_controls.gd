@@ -19,6 +19,7 @@ const ACTION_KEYS := {
 	"fire": "HUD_ACT_FIRE", "alt_fire": "HUD_ACT_ALT_FIRE", "reload": "HUD_ACT_RELOAD", "interact": "HUD_ACT_INTERACT",
 	"use_medpack": "HUD_ACT_MEDPACK", "skill_1": "HUD_ACT_SKILL_1", "skill_2": "HUD_ACT_SKILL_2",
 	"skill_3": "HUD_ACT_SKILL_3", "skill_4": "HUD_ACT_SKILL_4", "quick_spend": "HUD_ACT_QUICK_SPEND",
+	"fork_a": "HUD_ACT_FORK_A", "fork_b": "HUD_ACT_FORK_B",
 	"squad_smart": "HUD_ACT_SQUAD_SMART", "squad_follow": "HUD_ACT_SQUAD_FOLLOW",
 	"squad_wheel": "HUD_ACT_SQUAD_WHEEL", "open_shop": "HUD_ACT_OPEN_SHOP",
 	"scoreboard": "HUD_ACT_SCOREBOARD", "net_graph": "HUD_ACT_NET_GRAPH", "pause": "HUD_ACT_PAUSE",

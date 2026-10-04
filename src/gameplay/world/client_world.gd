@@ -86,6 +86,8 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	_look = look
 	input_source = source
 	player_input = source as PlayerInputSource
+	if player_input != null:
+		player_input.fork_slot_fn = fork_pending_slot
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
 	session.token = hello_token
@@ -432,3 +434,13 @@ func hero_view_position(net_id: int) -> Variant:
 	if v == null:
 		return null
 	return v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0)
+
+
+## W10-T1: the basic-skill slot whose Fork A/B choice is on offer (-1 = none).
+func fork_pending_slot() -> int:
+	if combat == null or hero_def == null:
+		return -1
+	for i in mini(3, hero_def.skills.size()):
+		if hero_def.skills[i] != null and AbilityRunner.fork_offered(combat.skill_flags[i], hero_def.skills[i].ultimate):
+			return i
+	return -1

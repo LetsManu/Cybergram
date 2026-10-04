@@ -252,6 +252,17 @@ func _execute(s: SkillInstance, ctx: EffectContext, world: AbilityWorld) -> void
 	skill_activated.emit(s.slot, _now)
 
 
+## W10-T1: Fork choice (0 none, 1 A, 2 B) of a basic skill's replicated flags.
+static func fork_of_flags(flags: int) -> int:
+	return (flags & RANK_MASK) >> RANK_SHIFT
+
+
+## W10-T1: a point can be spent on this basic skill's Fork (A/B choice offered).
+static func fork_offered(flags: int, ultimate: bool) -> bool:
+	return not ultimate and (flags & FLAG_BOOSTED) != 0 and (flags & FLAG_LEARNABLE) != 0 \
+		and fork_of_flags(flags) == 0
+
+
 ## Replicated HUD state for `slot`: [ticks left, total ticks, flags].
 func hud_state(slot: int, tick: int) -> Array:
 	var s := skill(slot)

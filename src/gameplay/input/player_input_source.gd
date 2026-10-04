@@ -65,6 +65,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
+## W10-T1: returns the basic-skill slot with a Fork choice on offer (-1 = none);
+## ClientWorld sets it to its own fork_pending_slot().
+var fork_slot_fn: Callable
+var _fork_a_was_down: bool = false
+var _fork_b_was_down: bool = false
+
+
 ## Queues an InputCommand.ACTION_* (sent on the next ticks, one per tick).
 func request_action(action: int, arg: int = 0) -> void:
 	_actions.append([action, arg])
@@ -78,6 +85,17 @@ func _process(delta: float) -> void:
 		if down and not _learn_was_down[i]:
 			request_action(InputCommand.ACTION_LEARN, i)
 		_learn_was_down[i] = down
+	# W10-T1: Fork choice (keys 1 / 2 or L1 / R1) for the slot the HUD offers it on.
+	var fa := not ui_captured and (_pressed("fork_a", KEY_1) or Input.is_joy_button_pressed(0, JOY_BUTTON_LEFT_SHOULDER))
+	var fb := not ui_captured and (_pressed("fork_b", KEY_2) or Input.is_joy_button_pressed(0, JOY_BUTTON_RIGHT_SHOULDER))
+	if fork_slot_fn.is_valid():
+		var fs: int = fork_slot_fn.call()
+		if fs >= 0 and fa and not _fork_a_was_down:
+			request_action(InputCommand.ACTION_LEARN, ProgressionSystem.learn_arg(fs, 1))
+		if fs >= 0 and fb and not _fork_b_was_down:
+			request_action(InputCommand.ACTION_LEARN, ProgressionSystem.learn_arg(fs, 2))
+	_fork_a_was_down = fa
+	_fork_b_was_down = fb
 	var med := not ui_captured and _pressed("use_medpack", KEY_4)
 	if med and not _medpack_was_down:
 		request_action(InputCommand.ACTION_USE_MEDPACK)
