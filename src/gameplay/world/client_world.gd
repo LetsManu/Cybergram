@@ -16,6 +16,8 @@ signal hardpoint_owner_changed(index: int, old_team: int, new_team: int)
 signal match_phase_changed(phase: int)
 ## A shot was fired (any hero): drives bullet tracers.
 signal shot_received(event: GameEvent)
+## W11-V1: any hero's skill cast (own included; ClientSfx skips own, it hears them from cooldowns).
+signal skill_cast_received(event: GameEvent)
 ## E9: the match ended (winner -1 = draw; reason = MatchRules.EndReason).
 signal match_ended(winner: int, reason: int)
 ## E15: the own hero's level changed (HUD level-up flash).
@@ -67,6 +69,7 @@ var catalog: ArmoryCatalogDef
 var _mote_views: Array[MeshInstance3D] = []
 ## Stable content indices (hero identity of remote views).
 var content: ContentDB = ContentDB.shared()
+var _fork_bits: Dictionary = {}  # net id -> replicated Fork / Mastery bits (W11-V1)
 var _hero_index: Dictionary = {}  # net id -> replicated hero index
 
 var _views: Dictionary = {}  # net id -> HeroView
@@ -255,6 +258,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 		own_speed_scale = s.own_state.speed_scale
 	var seen := {}
 	for e in s.entities:
+		_fork_bits[e.net_id] = e.fork_bits
 		if e.net_id == s.own_net_id:
 			continue
 		seen[e.net_id] = true
@@ -276,6 +280,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_views.erase(id)
 			_buffers.erase(id)
 			_hero_index.erase(id)
+			_fork_bits.erase(id)
 
 
 ## Replicated hero identity -> the view's model (ContentDB index -> HeroDef id).
@@ -414,6 +419,9 @@ func _on_event(e: GameEvent, _server_tick: int) -> void:
 		GameEvent.SHOT:
 			_draw_tracer(e)
 			shot_received.emit(e)
+		GameEvent.SKILL_CAST:
+			abilities.on_skill_cast(e.cast_fork(), _team_of_hero(e.source_net_id), e.position)
+			skill_cast_received.emit(e)
 
 
 func _emit_summary_deferred() -> void:
@@ -470,3 +478,16 @@ func fork_pending_slot() -> int:
 		if hero_def.skills[i] != null and AbilityRunner.fork_offered(combat.skill_flags[i], hero_def.skills[i].ultimate):
 			return i
 	return -1
+
+
+## W11-V1: replicated team of a hero (-1 unknown).
+func _team_of_hero(net_id: int) -> int:
+	if net_id == session.own_net_id:
+		return own_team()
+	var v := _views.get(net_id) as HeroView
+	return v.team if v != null else -1
+
+
+## W11-V1: latest replicated Fork / Mastery bits of a hero (SnapshotData.EntityState.fork_bits).
+func fork_bits_of(net_id: int) -> int:
+	return int(_fork_bits.get(net_id, 0))

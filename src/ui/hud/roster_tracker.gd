@@ -113,5 +113,6 @@ func rows() -> Array:
 		r.alive = not h.dead
 		r.is_self = id == own_id
 		r.is_bot = h.is_bot
+		r.fork_bits = h.fork_bits
 		out.append(r)
 	return out
