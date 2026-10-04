@@ -80,3 +80,28 @@ respawns and invalidate the tempo).
 - **F4. Not tried (they need design approval):** asymmetric bot profiles (excluded by brief), Sudden Death /
   Stagnation in the slice (the Stagnation ×0.85 rule is not implemented), and a second spawn exit
   or HQ geometry change.
+
+## 3v3 tuning attempt (2026-10-04, after the M1 3v3 switch)
+
+Four bot matches per variant (seeds 1-4, real clock, `--match-rules` overrides). Nothing was adopted.
+The slice values above are unchanged.
+
+| Variant | Change vs slice | Uplink kills | Cells planted / defused | Outer flips | Max Uplink dmg |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| base | current slice values, 3v3 | 0/4 | 27 / 25 | 2 | 0 % |
+| C2 | Plant ×0.5, defuse 9 s, Integrity 7,200, Generator regen 1.5 %/s after 12 s, Exposed respawn ×2.0, Wardling Uplink dmg ×1.0 | 0/4 | 34 / 22 | 12 | 58.7 % |
+| C3 | C2 + Integrity 4,000, Exposed respawn ×2.5 | 0/4 | 32 / 14 | 18 | 52.8 % |
+| final | C2 without the Integrity / Wardling changes | 0/4 | 26 / 22 | 4 | 0 % |
+
+- **F5. At 3v3 the front never passes the Mid.** The Mid flips 14-21 times per match. Almost every
+  planted Cell is defused (25 of 27 at base), so the Outers do not fall and the Uplink is never Exposed.
+- **F6. Bots do not siege.** The Siege goal share is about 0 % even while an Uplink is Exposed. C2/C3
+  exposed an Uplink in most matches, but the damage stayed at 0-59 % and an Outer is retaken in about
+  1 minute.
+- **F7. Four seeds per variant is too noisy.** "final" differs from C2 only in Uplink knobs that cannot
+  affect Plants, yet its Plant numbers fell back to the baseline. The C2/C3 gains are within the noise.
+  A real comparison needs about 12-20 seeds per variant (about 15-25 min of CPU on 4 cores per variant).
+- **Not adopted, and why:** a low Integrity only helps bots. A human team (about 150 DPS per hero)
+  would kill a 4,000-HP Uplink in seconds. The bot-only goal needs AI work instead: siege commitment
+  while Exposed, and defuse contesting. That is the recommended next step, not more rule tuning.
+
