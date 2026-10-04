@@ -10,7 +10,7 @@ players connect from the main menu (**Join**) or with `--connect`.
 
 ### How a session works (lobby → match → lobby)
 
-1. **Lobby.** Players press **JOIN** in the main menu. The server puts them on
+1. **Lobby.** Players press **PLAY ONLINE** in the main menu. The server puts them on
    Concord / Syndicate by join order (one each side, then the next pair).
    Everyone picks a hero and presses **READY**.
 2. **Countdown.** When every player in the lobby is ready, a 5 s countdown
@@ -25,8 +25,7 @@ with fewer humans. A player who leaves is replaced by a bot. The server log
 narrates all of it (`[lobby] ...`, `[bots] ...`, `[server] player joined ...`).
 Use `--no-lobby` for the old behaviour (match starts at once, players drop in).
 
-Shortcut for players: `Cybergram.exe -- --open-lobby myserver.example.com:7777`
-opens the game straight in that server's lobby.
+Players reach it with **PLAY ONLINE** (see *Connecting*).
 
 ## Requirements
 
@@ -73,16 +72,18 @@ folder (with `game/` filled) to the NAS, and create a *Project* from its
 
 ## Connecting
 
-Start the game, enter the server address in the main menu (for example
-`203.0.113.5` or `myserver.example.com:7777`), pick a hero and press
-**JOIN**. From a terminal:
+Players just press **PLAY ONLINE** in the main menu. The game knows the
+official server, **`cyber.djboeck.at:7777`**, which is set in
+`assets/data/app/app_config.tres` (`online_server`).
 
-```bash
-./Cybergram.x86_64 -- --connect 203.0.113.5:7777 --hero brannoc
-```
+For that to work:
+1. **DNS:** an `A` record `cyber.djboeck.at` → the server's public IPv4.
+2. **Server:** runs v0.4.0 on UDP 7777 (see above), with the port open in the
+   firewall / forwarded on the router.
 
-If the server does not answer within 8 s, the game goes back to the menu and
-names the likely cause.
+For testing another server without a rebuild:
+`Cybergram.exe -- --open-lobby 203.0.113.5:7777` (or `--connect host:port`
+to skip the lobby).
 
 ## Server options
 

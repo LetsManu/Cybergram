@@ -84,8 +84,8 @@ Builds for every commit are also attached to each **Build** run under the
 *Actions* tab.
 
 The game opens on the **main menu**: pick a hero, then **Play vs Bots** (a
-**3v3 match on the slice map**, bots fill the other slots) or **Join** a
-server by address. To host one, see [`docs/SERVER.md`](docs/SERVER.md). Destroy the enemy Mana Uplink
+**3v3 match on the slice map**, bots fill the other slots) or **Play Online**
+on the official server (`cyber.djboeck.at`). To host one, see [`docs/SERVER.md`](docs/SERVER.md). Destroy the enemy Mana Uplink
 to win. It only takes damage once your team holds the enemy's Inner
 hardpoint.
 

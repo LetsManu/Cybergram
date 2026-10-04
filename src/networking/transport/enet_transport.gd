@@ -53,7 +53,13 @@ static func connect_to(address: String, port: int) -> ENetTransport:
 	if err != OK:
 		t.error_text = "cannot create ENet client (%s)" % error_string(err)
 		return t
-	var p := t._host.connect_to_host(address, port, CHANNEL_COUNT)
+	var ip := address
+	if not address.is_valid_ip_address():
+		ip = IP.resolve_hostname(address, IP.TYPE_IPV4)  # DNS (e.g. cyber.djboeck.at)
+		if ip == "":
+			t.error_text = "cannot find server %s (DNS lookup failed)" % address
+			return t
+	var p := t._host.connect_to_host(ip, port, CHANNEL_COUNT)
 	if p == null:
 		t.error_text = "cannot resolve %s:%d" % [address, port]
 		return t

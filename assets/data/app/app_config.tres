@@ -15,3 +15,4 @@ session_scene = ExtResource("2")
 overlay_scenes = Array[PackedScene]([ExtResource("e12_hud"), ExtResource("3"), ExtResource("pause")])
 sim_plugin_scenes = Array[PackedScene]([ExtResource("6"), ExtResource("e11_bots")])
 menu_scene = ExtResource("menu")
+online_server = "cyber.djboeck.at:7777"
