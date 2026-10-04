@@ -156,6 +156,7 @@ func session() -> Dictionary:
 
 
 func _refresh_chip() -> void:
+	_chip.visible = _lobby == null
 	for c in _chip.get_children():
 		_chip.remove_child(c)
 		c.queue_free()
@@ -168,12 +169,12 @@ func _refresh_chip() -> void:
 		login.add_theme_font_size_override("font_size", 12)
 		row.add_child(login)
 	else:
-		row.add_child(EmblemIcon.make(int(s.emblem), int(s.accent), 44.0))
+		row.add_child(EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 44.0))
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 0)
-		v.add_child(MenuStyle.label(str(s.display_name), 18,
-			PlayerProfile.accent_of(int(s.accent)).lerp(HudPalette.TEXT, 0.4)))
-		var sub := tr("HUD_ACCOUNT_GUEST_LINE") if int(s.guest) != 0 else "#" + PlayerProfile.tag_of(str(s.id))
+		v.add_child(MenuStyle.label(str(s.get("display_name", "")), 18,
+			PlayerProfile.accent_of(int(s.get("accent", 0))).lerp(HudPalette.TEXT, 0.4)))
+		var sub := tr("HUD_ACCOUNT_GUEST_LINE") if int(s.get("guest", 1)) != 0 else "#" + PlayerProfile.tag_of(str(s.get("id", "")))
 		v.add_child(MenuStyle.label(sub, 12, HudPalette.TEXT_OFF))
 		row.add_child(v)
 		var edit := MenuStyle.button(tr("HUD_MENU_PROFILE_EDIT"), func() -> void: _with_session(_show_profile), false, 30)
@@ -181,8 +182,7 @@ func _refresh_chip() -> void:
 		edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(edit)
 	_chip.add_child(row)
-	_chip.visible = _lobby == null
-	var account := not s.is_empty() and int(s.guest) == 0
+	var account := not s.is_empty() and int(s.get("guest", 1)) == 0
 	_friends.set_session(account, _request if not s.is_empty() else Callable())
 
 

@@ -140,15 +140,21 @@ func _build() -> void:
 		b.toggle_mode = true
 		b.button_group = group
 		b.custom_minimum_size = Vector2(142, 44)
-		b.text = "        " + str(e.name)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.add_theme_font_size_override("font_size", 13)
-		b.clip_text = true
+		b.tooltip_text = str(e.name)
 		MenuStyle.style_button(b, Color(0.03, 0.035, 0.07, 0.9))
-		var badge := HeroBadge.make(int(e.index), 34.0)
-		badge.position = Vector2(5, 5)
-		badge.size = Vector2(34, 34)
-		b.add_child(badge)
+		var inner := HBoxContainer.new()
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.position = Vector2(5, 5)
+		inner.size = Vector2(132, 34)
+		inner.add_theme_constant_override("separation", 8)
+		inner.add_child(HeroBadge.make(int(e.index), 34.0))
+		var hl := MenuStyle.label(str(e.name), 13, HudPalette.TEXT)
+		hl.clip_text = true
+		hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(hl)
+		b.add_child(inner)
 		var idx: int = e.index
 		b.pressed.connect(func() -> void:
 			_hero_index = idx
