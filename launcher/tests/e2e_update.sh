@@ -117,6 +117,31 @@ printf '#!/bin/sh\necho old launcher\n' > "$tmp/ldir/CybergramLauncher.x86_64"
 expect_exit 1 "self-update with bad sha256 fails" run --self-update --launcher-dir "$tmp/ldir" --launcher-version 0.4.0 --install-root "$tmp/install"
 [[ "$("$tmp/ldir/CybergramLauncher.x86_64")" == "old launcher" ]] && ok "launcher untouched after bad sha256" || bad "launcher damaged"
 
+# --- 7. login hand-over against a real game server -------------------------------
+# Needs openssl and the game project (two levels up). Skipped when unavailable.
+echo "[7] login hand-over"
+root="$(cd "$here/.." && pwd)"
+if command -v openssl > /dev/null && [[ -f "$root/project.godot" ]]; then
+  mkdir -p "$tmp/tls" "$tmp/acc" "$tmp/acc2" "$tmp/out"
+  openssl req -x509 -newkey rsa:2048 -nodes -keyout "$tmp/tls/key.pem" -out "$tmp/tls/cert.pem" -subj "/CN=localhost" -days 1 > /dev/null 2>&1
+  srv() { # <port> <datadir> [extra...]
+    local port="$1" dd="$2"; shift 2
+    "$godot" --headless --path "$root" -- --server --port "$port" --max-clients 4 --data-dir "$dd" "$@" > "$tmp/game_$port.log" 2>&1 &
+    echo $!
+  }
+  s1=$(srv 7791 "$tmp/acc" --tls-cert "$tmp/tls/cert.pem" --tls-key "$tmp/tls/key.pem")
+  s2=$(srv 7792 "$tmp/acc2")
+  for _ in $(seq 1 60); do grep -q "open on UDP 7791" "$tmp/game_7791.log" && grep -q "open on UDP 7792" "$tmp/game_7792.log" && break; sleep 0.5; done
+  login() { timeout 90 "$godot" --headless --path "$here" -s tests/login_e2e.gd -- "$@" 2>&1 | grep -a "LOGIN-E2E"; }
+  res="$(login secure 127.0.0.1:7791 "$tmp/out" "$here/tests/stub_game.sh" --dtls-insecure)"; echo "$res"
+  echo "$res" | grep -q "LOGIN-E2E: PASS" && ok "secure login and token hand-over" || bad "secure login hand-over"
+  res="$(login plain 127.0.0.1:7792 "$tmp/out" "$here/tests/stub_game.sh")"; echo "$res"
+  echo "$res" | grep -q "LOGIN-E2E: PASS" && ok "plain server: password never sent, guest only" || bad "plain server behaviour"
+  kill "$s1" "$s2" 2>/dev/null
+else
+  echo "  skipped (no openssl or no game project)"
+fi
+
 echo
 [[ "$fails" == 0 ]] && echo "E2E PASS" || echo "E2E FAILED ($fails)"
 exit "$fails"
