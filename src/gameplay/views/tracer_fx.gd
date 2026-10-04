@@ -19,6 +19,8 @@ var _sparks: Array[MeshInstance3D] = []
 var _age: PackedFloat32Array = PackedFloat32Array()
 var _spark_age: PackedFloat32Array = PackedFloat32Array()
 var _next: int = 0
+## Combat VFX director (null on the headless server).
+var fx: FxDirector
 
 
 func _ready() -> void:
@@ -36,6 +38,13 @@ func _ready() -> void:
 	_spark_age.resize(POOL_SIZE)
 	_age.fill(INF)
 	_spark_age.fill(INF)
+	# G1: muzzle flash / impact / hit / death VFX, client only (the parent is the
+	# ClientWorld; the headless server builds no visuals).
+	if not GfxQuality.is_headless():
+		fx = FxDirector.new()
+		fx.name = "Fx"
+		fx.client = get_parent()
+		add_child(fx)
 
 
 func _make(mesh: Mesh) -> MeshInstance3D:
@@ -45,6 +54,8 @@ func _make(mesh: Mesh) -> MeshInstance3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Additive so streaks glow on both the pale floor and the dark sky.
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mi.material_override = m
 	mi.visible = false
 	mi.top_level = true
