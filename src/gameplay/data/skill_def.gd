@@ -11,6 +11,7 @@ enum TargetMode {
 	PROJECTILE,     ## aimed direction; an effect launches the projectile
 	DIRECTION,      ## flat facing direction (dashes)
 	ALLY_WARDLING,  ## an own / conducted Wardling under the crosshair within `range`
+	GADGET,         ## W9-H2 Relay Hop: an allied gadget or a Malfunctioning enemy gadget under the crosshair
 }
 
 @export var id: StringName = &""

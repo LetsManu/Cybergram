@@ -33,4 +33,8 @@ static func resolve(def: SkillDef, ctx: EffectContext) -> bool:
 				return false
 			ctx.point = ctx.target.global_position
 			return true
+		SkillDef.TargetMode.GADGET:
+			if ctx.world == null:
+				return false
+			return ctx.world.traps.aim_gadget(ctx, ctx.param(&"range"), deg_to_rad(ALLY_CONE_DEG))
 	return false
