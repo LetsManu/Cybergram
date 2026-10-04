@@ -738,7 +738,7 @@ func _draw_detail() -> void:
 				HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 150.0)
 			text(("+" + HudFormat.thousands(row["upgrade"])) if t > 1 else "-", Vector2(0.0, by), 15, HudPalette.TEXT_DIM,
 				ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 28.0)
-		ty += 110.0
+		ty += 130.0
 	elif it.values.size() > 0:
 		text(_effect_text(it, model.tier_rows(idx)[0]), Vector2(x, ty + 10.0), 17, HudPalette.TEXT)
 		text(tr("HUD_SHOP_PRICE") % HudFormat.thousands(it.prices[0]), Vector2(x, ty + 40.0), 17, HudPalette.LUMEN,
@@ -751,7 +751,7 @@ func _draw_detail() -> void:
 	if it.stat == &"mod_damage" and it.fits(ctx.client.hero_def.weapon) and st != ShopModel.State.MAXED:
 		text(_damage_delta(p, it), Vector2(x, ty + 10.0), 16, HudPalette.HEAL, ctx.font_numbers)
 		ty += 30.0
-	var note := _note(idx, st)
+	var note := _note(idx, st) if st != ShopModel.State.MAXED and st != ShopModel.State.OWNED else ""
 	if note != "":
 		text(note, Vector2(x, ty + 10.0), 15, HudPalette.WARN if st != ShopModel.State.AVAILABLE else HudPalette.TEXT_DIM)
 		ty += 28.0
