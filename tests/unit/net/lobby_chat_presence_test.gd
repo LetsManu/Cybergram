@@ -39,10 +39,7 @@ func test_forget_drops_everything_about_the_player() -> void:
 	reg.set_status(ProfileFixtures.id(1), LobbyCodec.STATUS_IN_LOBBY, 0.0)
 	reg.forget(ProfileFixtures.id(1))
 	assert_int(reg.entries.size()).is_equal(0)
-	var a := reg.answer(PackedStringArray([ProfileFixtures.id(1)]), PackedStringArray(["Ann"]), 1.0)
-	assert_int(a.size()).is_equal(1)
-	assert_int(a[0].status).is_equal(LobbyCodec.STATUS_OFFLINE)
-	assert_str(a[0].name).is_equal("")
+	assert_int(reg.status_of(ProfileFixtures.id(1), 1.0)).is_equal(LobbyCodec.STATUS_OFFLINE)
 	# After forgetting, the id can be claimed with a new key (nothing remembered).
 	assert_bool(reg.claim(ProfileFixtures.id(1), ProfileFixtures.id(55), "Ann", 2.0)).is_true()
 
@@ -63,15 +60,3 @@ func test_end_match_forgets_match_players() -> void:
 	reg.set_status(ProfileFixtures.id(1), LobbyCodec.STATUS_IN_MATCH, 0.0)
 	reg.end_match(1.0)
 	assert_int(reg.entries.size()).is_equal(0)
-
-
-func test_answer_resolves_names_and_tags() -> void:
-	var reg := PresenceRegistry.new()
-	reg.claim(ProfileFixtures.id(0x1a), ProfileFixtures.id(101), "Neo", 0.0)
-	reg.claim(ProfileFixtures.id(0x2b), ProfileFixtures.id(102), "Neo", 0.0)
-	reg.set_status(ProfileFixtures.id(0x2b), LobbyCodec.STATUS_IN_LOBBY, 0.0)
-	assert_int(reg.answer(PackedStringArray(), PackedStringArray(["neo"]), 1.0).size()).is_equal(2)
-	var tagged := reg.answer(PackedStringArray(), PackedStringArray(["Neo#2B2B"]), 1.0)
-	assert_int(tagged.size()).is_equal(1)
-	assert_str(tagged[0].id).is_equal(ProfileFixtures.id(0x2b))
-	assert_int(tagged[0].status).is_equal(LobbyCodec.STATUS_IN_LOBBY)

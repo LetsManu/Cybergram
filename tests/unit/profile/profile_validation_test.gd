@@ -56,43 +56,30 @@ func test_shipped_name_filter_blocks_impersonation() -> void:
 	assert_bool(PlayerProfile.name_allowed("Pilot-1A2B")).is_true()
 
 
-func test_friend_parse_name_and_tag() -> void:
-	assert_array(FriendList.parse("Neo")).contains_exactly(["Neo", ""])
-	assert_array(FriendList.parse("Neo#0a1b")).contains_exactly(["Neo", "0A1B"])
-	assert_array(FriendList.parse("Neo#zz")).is_empty()
-	assert_array(FriendList.parse("x")).is_empty()
 
 
-func test_friend_add_rejects_duplicates_and_resolves_by_name_and_tag() -> void:
-	var fl := FriendList.new()
-	assert_object(fl.add("Neo")).is_not_null()
-	assert_object(fl.add("neo")).is_null()
-	var t := fl.add("Trin#0B0B")
-	assert_object(t).is_not_null()
-	# A Trin with another tag does not resolve the tagged friend.
-	assert_bool(fl.resolve(ProfileFixtures.id(0x0c), "Trin")).is_false()
-	assert_bool(fl.resolve(ProfileFixtures.id(0x0b), "Trin")).is_true()
-	assert_str(t.id).is_equal(ProfileFixtures.id(0x0b))
-	assert_bool(fl.resolve(ProfileFixtures.id(5), "NEO")).is_true()
-	assert_int(fl.ids().size()).is_equal(2)
-	assert_int(fl.unresolved().size()).is_equal(0)
 
 
-func test_friend_add_known_and_rename() -> void:
-	var fl := FriendList.new()
-	assert_object(fl.add_known(ProfileFixtures.id(3), "Ann")).is_not_null()
-	assert_object(fl.add_known(ProfileFixtures.id(3), "Ann")).is_null()
-	assert_bool(fl.resolve(ProfileFixtures.id(3), "Annie")).is_true()
-	assert_str(fl.find_id(ProfileFixtures.id(3)).name).is_equal("Annie")
 
 
-func test_moderation_mute_block_report() -> void:
+func test_legacy_profile_round_trip_for_import() -> void:
+	var path := "user://test_legacy_profile.cfg"
+	var p := PlayerProfile.create("Neo", 5, 3)
+	assert_int(p.save(path)).is_equal(OK)
+	var q := PlayerProfile.load_or_null(path)
+	assert_str(q.name).is_equal("Neo")
+	assert_int(q.emblem).is_equal(5)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	assert_object(PlayerProfile.load_or_null(path)).is_null()
+
+
+func test_moderation_mute_and_report_in_memory() -> void:
 	var m := LocalModeration.new()
 	m.mute(ProfileFixtures.id(1), "Ann")
 	assert_bool(m.is_muted(ProfileFixtures.id(1))).is_true()
 	m.unmute(ProfileFixtures.id(1))
 	assert_bool(m.is_muted(ProfileFixtures.id(1))).is_false()
-	m.block(ProfileFixtures.id(2), "Bo")
+	m.mute(ProfileFixtures.id(2), "Bo")
 	assert_bool(m.is_muted(ProfileFixtures.id(2))).is_true()
 	m.report(ProfileFixtures.id(2), "Bo", "x".repeat(500), 1000.0)
 	assert_int(m.reports.size()).is_equal(1)

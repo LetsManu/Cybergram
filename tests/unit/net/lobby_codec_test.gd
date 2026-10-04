@@ -3,23 +3,24 @@ extends GdUnitTestSuite
 ## truncated / trailing-byte packets decode to {} (the server's violation path).
 
 
-func test_join_round_trip_keeps_profile_hero_and_party() -> void:
-	var w := ProfileFixtures.wire(3, "Neo")
-	var b := LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, w, 2, ProfileFixtures.id(9))
-	var j := LobbyCodec.decode_join(b)
+
+
+
+
+func test_join_v12_round_trip_and_party() -> void:
+	var j := LobbyCodec.decode_join(LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, 2, ProfileFixtures.id(9)))
 	assert_int(j.protocol_version).is_equal(MsgType.PROTOCOL_VERSION)
-	assert_str(j.id).is_equal(w.id)
-	assert_str(j.key).is_equal(w.key)
-	assert_str(j.name).is_equal("Neo")
-	assert_int(j.emblem).is_equal(w.emblem)
-	assert_int(j.accent).is_equal(w.accent)
 	assert_int(j.hero_index).is_equal(2)
 	assert_str(j.party_id).is_equal(ProfileFixtures.id(9))
+	assert_str(LobbyCodec.decode_join(LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, 1)).party_id).is_equal("")
 
 
-func test_join_without_party_decodes_empty_party() -> void:
-	var j := LobbyCodec.decode_join(LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, ProfileFixtures.wire(1, "Ann"), 1))
-	assert_str(j.party_id).is_equal("")
+func test_join_other_layouts_decode_as_legacy() -> void:
+	var b := LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, 2)
+	var longer := b.duplicate()
+	longer.append(0)
+	assert_bool(LobbyCodec.decode_join(longer).get("legacy", false)).is_true()
+	assert_dict(LobbyCodec.decode_join(PackedByteArray([MsgType.LOBBY_JOIN, 1]))).is_empty()
 
 
 func test_join_legacy_v10_form_decodes_version_only() -> void:
@@ -29,28 +30,8 @@ func test_join_legacy_v10_form_decodes_version_only() -> void:
 	assert_int(j.protocol_version).is_equal(10)
 
 
-func test_join_truncated_or_trailing_bytes_rejected() -> void:
-	var b := LobbyCodec.encode_join(MsgType.PROTOCOL_VERSION, ProfileFixtures.wire(3, "Neo"), 2)
-	assert_dict(LobbyCodec.decode_join(b.slice(0, b.size() - 1))).is_empty()
-	var longer := b.duplicate()
-	longer.append(0)
-	assert_dict(LobbyCodec.decode_join(longer)).is_empty()
 
 
-func test_name_longer_than_wire_limit_rejected() -> void:
-	# Hand-built join whose name claims 40 bytes (limit 16).
-	var w := LobbyCodec.Writer.new(MsgType.LOBBY_JOIN)
-	w.u16(MsgType.PROTOCOL_VERSION)
-	w.id(ProfileFixtures.id(1))
-	w.id(ProfileFixtures.id(2))
-	w.u8(40)
-	for i in 40:
-		w.u8(65)
-	w.u8(0)
-	w.u8(0)
-	w.u16(1)
-	w.id("")
-	assert_dict(LobbyCodec.decode_join(w.b)).is_empty()
 
 
 func test_invalid_utf8_string_rejected() -> void:
@@ -126,33 +107,8 @@ func test_encode_truncates_long_text_on_char_boundary() -> void:
 	assert_str(d.text).is_equal("é".repeat(120))
 
 
-func test_presence_query_and_reply_round_trip() -> void:
-	var ids := PackedStringArray([ProfileFixtures.id(5), ProfileFixtures.id(6)])
-	var names := PackedStringArray(["Neo", "Trin#0A0A"])
-	var q := LobbyCodec.decode_presence_query(LobbyCodec.encode_presence_query(MsgType.PROTOCOL_VERSION,
-		ProfileFixtures.wire(1, "Ann"), ids, names))
-	assert_str(q.name).is_equal("Ann")
-	assert_array(Array(q.ids)).contains_exactly(Array(ids))
-	assert_array(Array(q.names)).contains_exactly(Array(names))
-	var r := LobbyCodec.decode_presence(LobbyCodec.encode_presence([
-		{"id": ProfileFixtures.id(5), "status": LobbyCodec.STATUS_IN_MATCH, "name": "Neo"}]))
-	assert_int(r.entries[0].status).is_equal(LobbyCodec.STATUS_IN_MATCH)
-	assert_str(r.entries[0].name).is_equal("Neo")
 
 
-func test_presence_query_too_many_ids_or_oversized_rejected() -> void:
-	var b := LobbyCodec.encode_presence_query(MsgType.PROTOCOL_VERSION, ProfileFixtures.wire(1, "Ann"),
-		PackedStringArray(), PackedStringArray())
-	var idx := 1 + 2 + 16 + 16 + 1 + 3  # the ids count byte (name "Ann")
-	b.encode_u8(idx, LobbyCodec.MAX_PRESENCE_IDS + 1)
-	assert_dict(LobbyCodec.decode_presence_query(b)).is_empty()
-	var huge := PackedByteArray()
-	huge.resize(LobbyCodec.MAX_C2S_BYTES + 1)
-	huge.encode_u8(0, MsgType.PRESENCE_QUERY)
-	assert_dict(LobbyCodec.decode_presence_query(huge)).is_empty()
-	var bad_status := LobbyCodec.encode_presence([{"id": ProfileFixtures.id(5), "status": 1, "name": ""}])
-	bad_status.encode_u8(18, 9)
-	assert_dict(LobbyCodec.decode_presence(bad_status)).is_empty()
 
 
 func test_player_names_round_trip_and_malformed() -> void:
@@ -169,4 +125,3 @@ func test_wrong_type_byte_rejected_everywhere() -> void:
 	assert_dict(LobbyCodec.decode_join(b)).is_empty()
 	assert_dict(LobbyCodec.decode_state(b)).is_empty()
 	assert_dict(LobbyCodec.decode_chat(b)).is_empty()
-	assert_dict(LobbyCodec.decode_presence(b)).is_empty()
