@@ -19,6 +19,8 @@ var spread_deg: float
 ## Cone used by the shot fired in the latest step().
 var shot_spread_deg: float = 0.0
 var shots_fired: int = 0
+## Fire-rate multiplier of timed buffs (Combat Stim +25% = 1.25).
+var rate_mult: float = 1.0
 
 var _interval: float
 var _next_fire_tick: float = 0.0
@@ -54,7 +56,7 @@ func step(cmd: InputCommand, tick: int, allowed: bool) -> bool:
 		feed.consume(tick)
 		if tick > _next_fire_tick + 1.0:
 			_next_fire_tick = tick  # idle: no banked shots
-		_next_fire_tick += _interval
+		_next_fire_tick += _interval / rate_mult
 		_last_shot_tick = tick
 		shot_spread_deg = spread_deg
 		spread_deg = minf(def.spread_max_deg, spread_deg + def.spread_bloom_deg)

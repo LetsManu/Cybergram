@@ -1,0 +1,97 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/dart_effect_def.gd" id="s1"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/eclipse_rider_effect_def.gd" id="s4"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s5"]
+
+[sub_resource type="Resource" id="dart_effect_def_1"]
+script = ExtResource("s1")
+
+[sub_resource type="Resource" id="skill_node_def_2"]
+script = ExtResource("s2")
+kind = 5
+required_level = 6
+rank = 1
+modifiers = Array[ExtResource("s3")]([])
+
+[sub_resource type="Resource" id="modifier_def_3"]
+script = ExtResource("s3")
+stat = &"duration"
+op = 0
+value = 0.25
+
+[sub_resource type="Resource" id="modifier_def_4"]
+script = ExtResource("s3")
+stat = &"bonus_damage"
+op = 0
+value = 0.1
+
+[sub_resource type="Resource" id="modifier_def_5"]
+script = ExtResource("s3")
+stat = &"secondary_duration"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="modifier_def_6"]
+script = ExtResource("s3")
+stat = &"cooldown"
+op = 0
+value = -10.0
+
+[sub_resource type="Resource" id="skill_node_def_7"]
+script = ExtResource("s2")
+kind = 5
+required_level = 10
+rank = 2
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_3"), SubResource("modifier_def_4"), SubResource("modifier_def_5"), SubResource("modifier_def_6")])
+
+[sub_resource type="Resource" id="eclipse_rider_effect_def_8"]
+script = ExtResource("s4")
+refund_frac = 0.3
+
+[sub_resource type="Resource" id="modifier_def_9"]
+script = ExtResource("s3")
+stat = &"duration"
+op = 0
+value = 0.25
+
+[sub_resource type="Resource" id="modifier_def_10"]
+script = ExtResource("s3")
+stat = &"secondary_duration"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="modifier_def_11"]
+script = ExtResource("s3")
+stat = &"cooldown"
+op = 0
+value = -10.0
+
+[sub_resource type="Resource" id="skill_node_def_12"]
+script = ExtResource("s2")
+kind = 5
+required_level = 14
+rank = 3
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_9"), SubResource("modifier_def_10"), SubResource("modifier_def_11")])
+added_effects = Array[Resource]([SubResource("eclipse_rider_effect_def_8")])
+
+[resource]
+script = ExtResource("s5")
+id = &"skill_sable_eclipse_step"
+display_name = "Eclipse Step"
+short_label = "ECLP"
+ultimate = true
+required_level = 6
+targeting = 2
+params = {
+&"cooldown": 100.0,
+&"range": 40.0,
+&"speed": 80.0,
+&"duration": 2.0,
+&"bonus_damage": 0.4,
+&"secondary_duration": 2.0
+}
+effects = Array[Resource]([SubResource("dart_effect_def_1")])
+nodes = Array[ExtResource("s2")]([SubResource("skill_node_def_2"), SubResource("skill_node_def_7"), SubResource("skill_node_def_12")])

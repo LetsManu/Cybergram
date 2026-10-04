@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="HeroDef" format=3]
+
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_whisperfang.tres" id="r1"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_sable_veilwalk.tres" id="r2"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_sable_phase_shift.tres" id="r3"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_sable_sabotage_charge.tres" id="r4"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_sable_eclipse_step.tres" id="r5"]
+[ext_resource type="Resource" path="res://assets/data/passives/passive_sable_shadowgraph.tres" id="r6"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s7"]
+[ext_resource type="Script" path="res://src/gameplay/data/hero_passive_def.gd" id="s8"]
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="s9"]
+
+[resource]
+script = ExtResource("s9")
+id = &"hero_sable"
+display_name = "Sable"
+max_hp = 225
+armor = 0.0
+move_speed = 6.6
+weapon = ExtResource("r1")
+skills = Array[ExtResource("s7")]([ExtResource("r2"), ExtResource("r3"), ExtResource("r4"), ExtResource("r5")])
+passives = Array[ExtResource("s8")]([ExtResource("r6")])
+hitbox_scale = 1.0

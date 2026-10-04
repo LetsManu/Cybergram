@@ -69,6 +69,21 @@ jobs:
           $GODOT --headless --path . --export-release "Linux" build/linux/Cybergram.x86_64
           ls -la build/linux
 
+      - name: Export launcher
+        run: |
+          $GODOT --headless --path launcher --import || true
+          mkdir -p build/launcher-windows build/launcher-linux
+          $GODOT --headless --path launcher --export-release "Windows Desktop" ../build/launcher-windows/CybergramLauncher.exe
+          $GODOT --headless --path launcher --export-release "Linux" ../build/launcher-linux/CybergramLauncher.x86_64
+          cp launcher/launcher.cfg build/launcher-windows/launcher.cfg
+          cp launcher/launcher.cfg build/launcher-linux/launcher.cfg
+          ls -la build/launcher-windows build/launcher-linux
+
+      - name: Launcher tests
+        run: |
+          $GODOT --headless --path launcher -s tests/test_core.gd
+          GODOT=$GODOT launcher/tests/e2e_update.sh
+
       - name: Smoke-test the exported dedicated server
         run: |
           # Match mode (no lobby): runs 90 ticks and exits.
@@ -100,6 +115,16 @@ jobs:
           name: Cybergram-Linux
           path: build/linux/
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CybergramLauncher-Windows
+          path: build/launcher-windows/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CybergramLauncher-Linux
+          path: build/launcher-linux/
+
   release:
     needs: export
     if: startsWith(github.ref, 'refs/tags/v') || inputs.release_version != ''
@@ -121,7 +146,10 @@ jobs:
           chmod +x Cybergram-Linux/Cybergram.x86_64
           (cd Cybergram-Windows && zip -q -r "../Cybergram-$VERSION-windows-x86_64.zip" .)
           tar -czf "Cybergram-$VERSION-linux-x86_64.tar.gz" -C Cybergram-Linux .
-          sha256sum Cybergram-*.zip Cybergram-*.tar.gz > SHA256SUMS.txt
+          chmod +x CybergramLauncher-Linux/CybergramLauncher.x86_64
+          (cd CybergramLauncher-Windows && zip -q -r "../CybergramLauncher-windows.zip" .)
+          tar -czf "CybergramLauncher-linux.tar.gz" -C CybergramLauncher-Linux .
+          sha256sum Cybergram-*.zip Cybergram-*.tar.gz CybergramLauncher-windows.zip CybergramLauncher-linux.tar.gz > SHA256SUMS.txt
           ls -la
 
       - name: Release notes
@@ -140,6 +168,8 @@ jobs:
           files: |
             dist/Cybergram-*.zip
             dist/Cybergram-*.tar.gz
+            dist/CybergramLauncher-windows.zip
+            dist/CybergramLauncher-linux.tar.gz
             dist/SHA256SUMS.txt
 
   # Dedicated-server Docker image (x86_64) for NAS / VPS hosting:
@@ -162,6 +192,18 @@ jobs:
           name: Cybergram-Linux
           path: tools/server/game
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cybergram-Windows
+          path: build-windows
+
+      - name: Bake the update feed (launcher downloads)
+        run: |
+          notes="production/releases/$VERSION.md"
+          [[ -f "$notes" ]] || { echo "Cybergram $VERSION" > /tmp/notes.md; notes=/tmp/notes.md; }
+          launcher/tools/make_update_feed.sh "$VERSION" build-windows tools/server/game "$notes" tools/server/updates
+          cat tools/server/updates/version.json | head -c 600
+
       - name: Build image
         run: |
           chmod +x tools/server/game/Cybergram.x86_64
@@ -176,6 +218,11 @@ jobs:
           echo "$out" | tail -5
           echo "$out" | grep -q "\[lobby\] open on UDP 7777"
           echo "$out" | grep -q "\[lobby\] quit after 30 ticks"
+          # The update host answers on TCP 8080.
+          docker run -d --name upd -p 8080:8080 $IMAGE:$VERSION > /dev/null
+          for _ in $(seq 1 20); do curl -sf localhost:8080/version.json -o /tmp/v.json && break; sleep 1; done
+          jq -e ".version" /tmp/v.json
+          docker rm -f upd > /dev/null
 
       - name: Push to GitHub Container Registry
         run: |

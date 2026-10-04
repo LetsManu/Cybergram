@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="HeroDef" format=3]
+
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_breakline_ar7.tres" id="r1"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_ryker_frag_grenade.tres" id="r2"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_ryker_combat_stim.tres" id="r3"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_ryker_tactical_slide.tres" id="r4"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_ryker_overdrive.tres" id="r5"]
+[ext_resource type="Resource" path="res://assets/data/passives/passive_ryker_battle_rhythm.tres" id="r6"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s7"]
+[ext_resource type="Script" path="res://src/gameplay/data/hero_passive_def.gd" id="s8"]
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="s9"]
+
+[resource]
+script = ExtResource("s9")
+id = &"hero_ryker_vance"
+display_name = "Ryker Vance"
+max_hp = 250
+armor = 0.0
+move_speed = 6.2
+weapon = ExtResource("r1")
+skills = Array[ExtResource("s7")]([ExtResource("r2"), ExtResource("r3"), ExtResource("r4"), ExtResource("r5")])
+passives = Array[ExtResource("s8")]([ExtResource("r6")])
+hitbox_scale = 1.0

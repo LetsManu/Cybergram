@@ -1,15 +1,20 @@
-[gd_resource type="Resource" script_class="BotRosterDef" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="BotRosterDef" load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://src/ai/bots/bot_roster_def.gd" id="1"]
 [ext_resource type="Resource" path="res://assets/data/heroes/hero_vesper_loom.tres" id="2"]
 [ext_resource type="Resource" path="res://assets/data/heroes/hero_brannoc.tres" id="3"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_ryker_vance.tres" id="h1_ryker"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_liora_vale.tres" id="h1_liora"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_sable.tres" id="h1_sable"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_juniper_quill.tres" id="h2a"]
+[ext_resource type="Resource" path="res://assets/data/heroes/hero_hex.tres" id="h2b"]
 [ext_resource type="Resource" path="res://assets/data/ai/bot_profile_easy.tres" id="4"]
 [ext_resource type="Resource" path="res://assets/data/ai/bot_profile_normal.tres" id="5"]
 [ext_resource type="Resource" path="res://assets/data/ai/bot_profile_hard.tres" id="6"]
 
 [resource]
 script = ExtResource("1")
-heroes = Array[Resource]([ExtResource("2"), ExtResource("3")])
+heroes = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("h2a"), ExtResource("h2b"), ExtResource("h1_ryker"), ExtResource("h1_liora"), ExtResource("h1_sable")])
 profiles = {
 &"easy": ExtResource("4"),
 &"hard": ExtResource("6"),
@@ -17,6 +22,11 @@ profiles = {
 }
 build_orders = {
 &"hero_brannoc": PackedInt32Array(3, 1, 0, 2, 1, 0, 2),
+&"hero_liora_vale": PackedInt32Array(3, 1, 0, 2, 1, 0, 2),
+&"hero_ryker_vance": PackedInt32Array(3, 0, 1, 2, 0, 1, 2),
+&"hero_sable": PackedInt32Array(3, 0, 2, 1, 0, 2, 1),
+&"hero_hex": PackedInt32Array(3, 0, 1, 2, 0, 1, 2),
+&"hero_juniper_quill": PackedInt32Array(3, 2, 0, 1, 2, 0, 1),
 &"hero_vesper_loom": PackedInt32Array(3, 0, 1, 2, 0, 1, 2)
 }
 default_difficulty = &"normal"

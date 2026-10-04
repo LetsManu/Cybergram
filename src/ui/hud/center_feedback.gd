@@ -47,14 +47,8 @@ func _draw() -> void:
 
 
 func _crosshair(c: Vector2) -> void:
-	var col := Color(1, 1, 1, 0.95)
-	var dark := Color(0, 0, 0, 0.7)
-	for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
-		draw_line(c + d * 6.0, c + d * 14.0, dark, 4.0)
-	for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
-		draw_line(c + d * 6.0, c + d * 14.0, col, 2.0)
-	draw_circle(c, 2.2, dark)
-	draw_circle(c, 1.4, col)
+	var gs := GameSettings.shared()
+	SettingsCrosshair.draw(self, c, gs.crosshair_style, GameSettings.CROSSHAIR_COLORS[gs.crosshair_color])
 
 
 func _marker(c: Vector2, t: float) -> void:

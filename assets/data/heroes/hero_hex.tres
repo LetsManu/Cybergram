@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="HeroDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="1"]
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_glitchcaster.tres" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="3"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_hex_breach_spike.tres" id="4"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_hex_static_field.tres" id="5"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_hex_relay_hop.tres" id="6"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_hex_zero_day.tres" id="7"]
+
+[resource]
+script = ExtResource("1")
+id = &"hero_hex"
+display_name = "Hex"
+max_hp = 250
+armor = 0.0
+move_speed = 6.0
+weapon = ExtResource("2")
+skills = Array[ExtResource("3")]([ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7")])
+gadget_damage_mult = 1.5
+hitbox_scale = 1.0

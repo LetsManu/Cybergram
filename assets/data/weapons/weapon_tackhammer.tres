@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/weapon_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weapon_tackhammer"
+display_name = "Tackhammer"
+feed_kind = 1
+damage = 90.0
+pellets = 1
+fire_rate = 1.5
+semi_auto = true
+headshot_mult = 2.0
+falloff_start_m = 30.0
+falloff_end_m = 55.0
+falloff_min = 0.7
+spread_base_deg = 0.1
+spread_bloom_deg = 0.6
+spread_max_deg = 2.0
+spread_recovery_deg_s = 1.6
+spread_recovery_delay_s = 0.3
+range_m = 150.0
+magazine = 8
+reserve = 40
+reload_s = 2.0
+reload_empty_s = 2.4

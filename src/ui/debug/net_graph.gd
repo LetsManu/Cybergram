@@ -37,7 +37,7 @@ func _place() -> void:
 
 
 func _process(_delta: float) -> void:
-	var down := Input.is_physical_key_pressed(_KEY)
+	var down := InputBindings.is_down(&"net_graph", _KEY)
 	if down and not _was_down:
 		visible = not visible
 	_was_down = down

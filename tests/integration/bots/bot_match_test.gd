@@ -118,9 +118,11 @@ func test_slice_data_fills_three_v_three_with_a_hero_mix() -> void:
 		ids[h.combat.def.id] = int(ids.get(h.combat.def.id, 0)) + 1
 	for t in 2:
 		var ids: Dictionary = per_team[t]
-		assert_int(ids.get(&"hero_vesper_loom", 0) + ids.get(&"hero_brannoc", 0)).is_equal(3)
-		assert_int(ids.get(&"hero_vesper_loom", 0)).is_greater(0)
-		assert_int(ids.get(&"hero_brannoc", 0)).is_greater(0)
+		var total := 0
+		for n in ids.values():
+			total += int(n)
+		assert_int(total).is_equal(3)
+		assert_int(ids.size()).is_greater(1)  # a hero mix (the roster has four heroes since W9-H2)
 	# With the local player in team 0 slot 0, the bots fill the other 5 slots.
 	var d2 := BotDirector.new()
 	d2.setup(server, roster, roster.profile("normal"), 2)

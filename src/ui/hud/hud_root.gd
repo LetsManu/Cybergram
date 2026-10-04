@@ -94,7 +94,7 @@ func _build() -> void:
 	_squad = _add(SquadStrip.new(), z_bl, Rect2(0, 1, 1, 1), Vector2(-(VitalsPanel.H + 72.0), -(VitalsPanel.H + 8.0))) as SquadStrip
 	_skills = _fill(SkillBar.new(), _zone("BottomCentre", 0.35, 0.80, 0.65, 1.0)) as SkillBar
 	_weapon = _fill(WeaponPanel.new(), _zone("BottomRight", 0.70, 0.78, 1.0, 1.0)) as WeaponPanel
-	_armory = _fill(ArmoryPanel.new(), _zone("Armory", 0.0, 0.17, 0.60, 0.84)) as ArmoryPanel
+	_armory = _fill(ArmoryPanel.new(), _zone("Armory", 0.02, 0.04, 0.98, 0.96)) as ArmoryPanel
 	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.50, 0.8, 0.84)) as DeathScreen
 	_end = _fill(EndBanner.new(), _zone("End", 0.0, 0.20, 1.0, 0.36)) as EndBanner
 	_scoreboard = _fill(Scoreboard.new(), _zone("Scoreboard", 0.0, 0.0, 1.0, 1.0)) as Scoreboard
@@ -160,7 +160,7 @@ func _process(delta: float) -> void:
 	ctx.armory_open = _armory.open
 	var at := c.progress != null and (c.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) != 0
 	ctx.armory_prompt = at and not _armory.open and not c.is_dead()
-	var held := Input.is_physical_key_pressed(KEY_TAB) or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
+	var held := InputBindings.is_down(&"scoreboard", KEY_TAB) or Input.is_joy_button_pressed(0, JOY_BUTTON_BACK)
 	ctx.scoreboard_open = (held or ctx.settings.debug_scoreboard) and not _armory.open
 	_apply_context(c)
 
@@ -183,14 +183,23 @@ func _apply_context(c: ClientWorld) -> void:
 	_vitals.visible = not dead
 	_skills.visible = not board and not shop
 	_weapon.visible = gameplay
-	_armory.visible = shop
+	_armory.visible = shop or _armory.wants_draw()
 	_death.visible = dead and not board
 	_end.visible = not board
 	_scoreboard.visible = board
 
 
+var _hud_rev: int = GameSettings.hud_revision
+
+
 func _settings_keys() -> void:
 	var s := ctx.settings
+	if _hud_rev != GameSettings.hud_revision:  # the settings menu rewrote [hud]
+		_hud_rev = GameSettings.hud_revision
+		var cfg := ConfigFile.new()
+		if cfg.load(HudSettings.PATH) == OK:
+			s.read_config(cfg)
+			_relayout()
 	if _fedge(KEY_F6):
 		s.cycle_colorblind()
 		_toasts.push(tr("HUD_TOAST_COLORBLIND") % tr(HudPalette.PRESET_KEYS[s.colorblind]))

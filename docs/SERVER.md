@@ -88,6 +88,64 @@ settings** and set the visibility to **Public**. Alternatively, run
 
 Requires an **x86_64** NAS (Intel/AMD CPU). ARM models cannot run it.
 
+### Update host for the launcher (TCP 8080)
+
+The same image also serves the latest client builds, so the **Cybergram
+launcher** can update players without GitHub (works while the repo is
+private). Inside the container, `busybox httpd` starts next to the game
+server and serves `/version.json` (version, patch notes, per-platform file,
+size, sha256) plus the Windows and Linux zips. They are baked into the image
+at release time, so **updating the container updates the launcher feed**.
+
+- **Portainer / compose:** map **8080/tcp → 8080** as well as UDP 7777. The
+  compose file in `tools/server/` already does.
+- **Router:** forward **TCP 8080** to the NAS if players outside your LAN
+  should auto-update. Optional: without it they download the zip from the
+  GitHub release by hand.
+- **Check it:** `curl http://cyber.djboeck.at:8080/version.json`.
+- The launcher reads the URL from `launcher.cfg` (`version_url`), default
+  `http://cyber.djboeck.at:8080/version.json`.
+- The image gets bigger by the two client zips. An image built without
+  them (empty `tools/server/updates/`) simply has the update host off.
+
+### Player accounts and encrypted login (`/data`)
+
+Since v0.5.0, the server keeps player accounts: the login, the profile,
+friends, friend requests and blocks. The game PC stores none of this. The
+accounts live in the container's **`/data` volume**. The compose file names
+it `cybergram-data`.
+
+- **Keep the volume.** Removing it deletes every account. Recreating the
+  container or re-pulling the image keeps it.
+- **Backup:** copy the volume's `accounts/` folder. It contains password
+  *hashes* only, but treat it as personal data.
+- **What is stored, and for how long:** see [`PRIVACY.md`](../PRIVACY.md).
+  Chat is never stored. Inactive accounts are deleted automatically.
+
+**Encrypted login needs a TLS certificate.** Passwords never travel in the
+clear. Without a certificate the server runs **guest-only**, and the log shows
+`[accounts] no TLS certificate ...; guest-only`. To enable accounts:
+
+1. **Get a certificate for your server's domain** (e.g. `cyber.djboeck.at`).
+   Let's Encrypt is free. Use any of these:
+   - **Synology:** *Control Panel → Security → Certificate → Add → Let's
+     Encrypt*, then *Export* it.
+   - **Your reverse proxy:** Nginx Proxy Manager, Traefik and Caddy already
+     hold one.
+   - **certbot:** `certbot certonly --standalone -d cyber.djboeck.at`.
+     This needs TCP 80 open briefly.
+2. **Copy the files into the TLS folder** as `fullchain.pem` (certificate plus
+   chain) and `privkey.pem`. The folder is `/srv/cybergram/tls` in the compose
+   file; change the left side of that mount to a folder on your NAS.
+3. **Make the files readable by the container user:**
+   `chmod 644 fullchain.pem privkey.pem`, or `chown` them to the uid that
+   `docker exec cybergram id -u` prints.
+4. **Restart the stack.** The log should show
+   `[accounts] encrypted login enabled`.
+5. **Renew it.** Let's Encrypt certificates last 90 days: copy the renewed
+   files over and restart the container. A scheduled task on the NAS can do
+   this.
+
 ## Connecting
 
 Players just press **PLAY ONLINE** in the main menu. The game knows the
