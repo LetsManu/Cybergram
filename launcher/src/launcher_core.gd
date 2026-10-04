@@ -102,6 +102,34 @@ static func parse_manifest(text: String) -> Dictionary:
 	}
 
 
+## Parses status.json text into {"has_counts": true, "online", "in_lobby",
+## "in_match"} (non-negative ints), or {} when it is not a valid status file.
+static func parse_status(text: String) -> Dictionary:
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	var d: Dictionary = parsed
+	for key in ["online", "in_lobby", "in_match"]:
+		if typeof(d.get(key)) != TYPE_FLOAT and typeof(d.get(key)) != TYPE_INT:
+			return {}
+	return {
+		"has_counts": true,
+		"online": maxi(int(d["online"]), 0),
+		"in_lobby": maxi(int(d["in_lobby"]), 0),
+		"in_match": maxi(int(d["in_match"]), 0),
+	}
+
+
+## One-line text for the server status badge.
+static func status_text(info: Dictionary) -> String:
+	if not bool(info.get("reachable", false)):
+		return "Server unreachable"
+	if not bool(info.get("has_counts", false)):
+		return "Server reachable"
+	return "Server online: %d players (%d in lobby, %d in match)" % [
+		info["online"], info["in_lobby"], info["in_match"]]
+
+
 ## Base URL (with trailing slash) that the manifest's file names hang off.
 static func base_url(version_url: String) -> String:
 	var cut: int = version_url.rfind("/")

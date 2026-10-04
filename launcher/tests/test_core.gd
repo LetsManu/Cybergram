@@ -64,5 +64,15 @@ func _init() -> void:
 	_check(wrapped.contains("first line second line"), "md joins wrapped lines")
 	_check(wrapped.ends_with("\npara"), "md keeps paragraph break")
 
+	# Server status.
+	var st: Dictionary = LauncherCore.parse_status('{"online":3,"in_lobby":1,"in_match":2,"updated":5}')
+	_check(st.get("online") == 3 and st.get("in_match") == 2, "status parsed")
+	_check(LauncherCore.parse_status("{}").is_empty(), "status missing keys")
+	_check(LauncherCore.parse_status("<html>").is_empty(), "status garbage")
+	st["reachable"] = true
+	_check(LauncherCore.status_text(st).contains("3 players"), "status text counts")
+	_check(LauncherCore.status_text({"reachable": true}) == "Server reachable", "status text reachable only")
+	_check(LauncherCore.status_text({"reachable": false}) == "Server unreachable", "status text down")
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

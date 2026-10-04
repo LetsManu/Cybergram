@@ -23,6 +23,9 @@ var _bar_label: Label
 var _button: Button
 var _skip: Button
 var _version_label: Label
+var _server_label: Label
+var _probe: StatusProbe
+var _version_url: String = ""
 var _close_on_launch: bool = true
 var _no_launch: bool = false
 var _headless_mode: String = ""   ## "", "check" or "update"
@@ -46,11 +49,25 @@ func _ready() -> void:
 	_updater = Updater.new()
 	add_child(_updater)
 	_updater.setup(root, url)
+	_version_url = url
+	_probe = StatusProbe.new()
+	add_child(_probe)
+	_probe.probed.connect(_on_probed)
 	_updater.state_changed.connect(_on_state)
 	_updater.progress_changed.connect(_on_progress)
 	if _headless_mode == "":
 		_build_ui()
 	_updater.check()
+	if _headless_mode == "":
+		_probe.probe(url)
+
+
+func _on_probed(info: Dictionary) -> void:
+	if _server_label == null:
+		return
+	_server_label.text = "● " + LauncherCore.status_text(info)
+	_server_label.add_theme_color_override("font_color",
+		Color("3ddc84") if info.get("reachable", false) else Color("ff5470"))
 
 
 func _parse_args(all: PackedStringArray) -> Dictionary:
@@ -141,6 +158,7 @@ func _on_button() -> void:
 			_updater.start_update()
 		_:
 			_updater.check()
+			_probe.probe(_version_url)
 
 
 func _play() -> void:
@@ -202,6 +220,14 @@ func _build_ui() -> void:
 	sub.text = "PvP first-person MOBA shooter"
 	sub.add_theme_color_override("font_color", Color("8a97a8"))
 	titles.add_child(sub)
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(spacer)
+	_server_label = Label.new()
+	_server_label.text = "● Checking server..."
+	_server_label.add_theme_color_override("font_color", Color("8a97a8"))
+	_server_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(_server_label)
 
 	# Body: news (left) + action panel (right).
 	var body: HBoxContainer = HBoxContainer.new()
