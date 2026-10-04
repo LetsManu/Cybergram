@@ -10,7 +10,7 @@ signal back_pressed
 
 const TAB_KEYS: Array[String] = ["HUD_SET_TAB_VIDEO", "HUD_SET_TAB_AUDIO", "HUD_SET_TAB_CONTROLS",
 	"HUD_SET_TAB_GAMEPLAY"]
-const CONTENT_H := 470.0
+const CONTENT_H := 420.0
 
 var _s: GameSettings
 var _tab_buttons: Array[Button] = []
@@ -79,7 +79,8 @@ func current_tab() -> int:
 ## Shows tab `i` (rebuilt from the current settings).
 func show_tab(i: int) -> void:
 	_index = posmod(i, TAB_KEYS.size())
-	_tab_buttons[_index].set_pressed_no_signal(true)
+	for k in _tab_buttons.size():
+		_tab_buttons[k].set_pressed_no_signal(k == _index)
 	if _tab != null:
 		_tab.queue_free()
 		_tab = null
