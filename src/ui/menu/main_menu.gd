@@ -121,7 +121,9 @@ func _ready() -> void:
 		# Back to the server's lobby after a match (resumes the session).
 		_open_lobby.call_deferred(addr)
 		return
-	if session_token != "" and session_server != "":
+	if _resume_from_launcher():
+		pass  # signed in by the launcher: connected, OP_RESUME sent
+	elif session_token != "" and session_server != "":
 		_connect(session_server)  # still logged in (memory): friends panel online
 	_play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
 
@@ -206,6 +208,25 @@ func _with_session(then: Callable, addr: String = "") -> void:
 		_auto_guest()
 	else:
 		_show_login()
+
+
+## Launcher hand-over: the launcher logged in and passed the session in the
+## environment (CYBERGRAM_SESSION_TOKEN / CYBERGRAM_SESSION_SERVER), not on the
+## command line. Read once, then cleared so nothing inherits it. Connects and
+## resumes the session; false when the launcher gave nothing.
+func _resume_from_launcher() -> bool:
+	var token := OS.get_environment("CYBERGRAM_SESSION_TOKEN")
+	var server := OS.get_environment("CYBERGRAM_SESSION_SERVER")
+	OS.unset_environment("CYBERGRAM_SESSION_TOKEN")
+	OS.unset_environment("CYBERGRAM_SESSION_SERVER")
+	if token == "" or server == "":
+		return false
+	session_token = token
+	session_server = server
+	if not _connect(server):
+		return false
+	_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": token})
+	return true
 
 
 func _connect(addr: String) -> bool:

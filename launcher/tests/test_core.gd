@@ -64,5 +64,67 @@ func _init() -> void:
 	_check(wrapped.contains("first line second line"), "md joins wrapped lines")
 	_check(wrapped.ends_with("\npara"), "md keeps paragraph break")
 
+	# Server status.
+	var st: Dictionary = LauncherCore.parse_status('{"online":3,"in_lobby":1,"in_match":2,"updated":5}')
+	_check(st.get("online") == 3 and st.get("in_match") == 2, "status parsed")
+	_check(LauncherCore.parse_status("{}").is_empty(), "status missing keys")
+	_check(LauncherCore.parse_status("<html>").is_empty(), "status garbage")
+	st["reachable"] = true
+	_check(LauncherCore.status_text(st).contains("3 players"), "status text counts")
+	_check(LauncherCore.status_text({"reachable": true}) == "Server reachable", "status text reachable only")
+	_check(LauncherCore.status_text({"reachable": false}) == "Server unreachable", "status text down")
+
+	# Verify, copy, settings.
+	var base: String = OS.get_cache_dir().path_join("cybergram_launcher_verify")
+	LauncherCore.remove_tree(base)
+	DirAccess.make_dir_recursive_absolute(base.path_join("sub"))
+	var vf: FileAccess = FileAccess.open(base.path_join("sub/a.txt"), FileAccess.WRITE)
+	vf.store_string("abc")
+	vf.close()
+	var files: Array = [{"path": "sub/a.txt", "sha256": abc}, {"path": "gone.txt", "sha256": abc}]
+	var bad: PackedStringArray = LauncherCore.verify_files(base, files)
+	_check(bad.size() == 1 and bad[0] == "gone.txt", "verify finds the missing file")
+	files[0]["sha256"] = "00" + abc.substr(2)
+	_check(LauncherCore.verify_files(base, files).size() == 2, "verify finds the corrupt file")
+	_check(LauncherCore.verify_files(base, [{"path": "../x", "sha256": abc}]).size() == 1, "verify rejects unsafe path")
+	_check(LauncherCore.copy_tree(base, base + "_copy") == "", "copy tree ok")
+	_check(FileAccess.get_file_as_string(base + "_copy/sub/a.txt") == "abc", "copy tree content")
+	LauncherCore.remove_tree(base)
+	LauncherCore.remove_tree(base + "_copy")
+	var sp: String = OS.get_cache_dir().path_join("cybergram_launcher_settings_test.cfg")
+	var ls: LauncherSettings = LauncherSettings.new(sp)
+	ls.install_root = "/x/y"
+	ls.username = "neo"
+	_check(ls.save_file(), "settings save")
+	var ls2: LauncherSettings = LauncherSettings.new(sp).load_file()
+	_check(ls2.install_root == "/x/y" and ls2.username == "neo", "settings roundtrip")
+	_check(not FileAccess.get_file_as_string(sp).to_lower().contains("token"), "settings hold no token")
+	DirAccess.remove_absolute(sp)
+
+	# Launcher self-update selection and swap.
+	var lau: Dictionary = {"version": "1.2.0", "platforms": {"linux": {"file": "L.zip", "sha256": "x", "exe": "CybergramLauncher.x86_64", "size": 3}}}
+	_check(LauncherCore.launcher_update_for(lau, "linux", "1.1.0").get("version") == "1.2.0", "launcher update offered")
+	_check(LauncherCore.launcher_update_for(lau, "linux", "1.2.0").is_empty(), "launcher current: nothing")
+	_check(LauncherCore.launcher_update_for(lau, "linux", "2.0.0").is_empty(), "launcher newer than feed: nothing")
+	_check(LauncherCore.launcher_update_for(lau, "windows", "1.0.0").is_empty(), "launcher no platform entry")
+	_check(LauncherCore.launcher_update_for({}, "linux", "1.0.0").is_empty(), "launcher no section")
+	lau["platforms"]["linux"]["file"] = "../L.zip"
+	_check(LauncherCore.launcher_update_for(lau, "linux", "1.0.0").is_empty(), "launcher unsafe file name")
+	var sb: String = OS.get_cache_dir().path_join("cybergram_selfupd")
+	LauncherCore.remove_tree(sb)
+	DirAccess.make_dir_recursive_absolute(sb.path_join("new"))
+	DirAccess.make_dir_recursive_absolute(sb.path_join("live"))
+	for pair in [["new/L.x86_64", "NEW"], ["new/launcher.cfg", "newcfg"], ["live/L.x86_64", "OLD"], ["live/launcher.cfg", "mycfg"]]:
+		var wf: FileAccess = FileAccess.open(sb.path_join(pair[0]), FileAccess.WRITE)
+		wf.store_string(pair[1])
+		wf.close()
+	_check(SelfUpdater.apply_update(sb.path_join("new"), sb.path_join("live")) == "", "apply_update ok")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW", "exe replaced")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/launcher.cfg")) == "mycfg", "launcher.cfg kept")
+	_check(FileAccess.file_exists(sb.path_join("live/L.x86_64.old")), "old exe renamed aside")
+	SelfUpdater.cleanup_old(sb.path_join("live"))
+	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old")), "cleanup removes .old")
+	LauncherCore.remove_tree(sb)
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

@@ -71,6 +71,8 @@ var now: float = 0.0
 var _since_state: float = 0.0
 var _violations: Dictionary = {}  # peer -> count
 var _rng := RandomNumberGenerator.new()
+## Optional anonymous counts for the launcher (see LobbyStatusWriter).
+var _status := LobbyStatusWriter.new()
 
 
 ## `registry_` / `accounts_` default to the process-wide instances.
@@ -96,6 +98,7 @@ func step(delta: float) -> void:
 		_handle(pkt)
 		pkt = transport.pop_packet()
 	_expire_disconnected()
+	_status.tick(delta, _connected_count(), phase == LobbyCodec.PHASE_IN_MATCH, 0)
 	if phase == LobbyCodec.PHASE_COUNTDOWN or phase == LobbyCodec.PHASE_LOCKED:
 		if phase == LobbyCodec.PHASE_COUNTDOWN and not _all_ready():
 			print("[lobby] countdown cancelled (someone is not ready)")

@@ -15,13 +15,14 @@ touch "$tmp/w/Cybergram.exe" "$tmp/l/Cybergram.x86_64" "$tmp/inst/game/Cybergram
 echo 0.4.0 > "$tmp/inst/game/installed_version.txt"
 notes="$(ls "$repo"/production/releases/v*.md | sort -V | tail -1)"
 "$here/tools/make_update_feed.sh" v0.4.1 "$tmp/w" "$tmp/l" "$notes" "$tmp/host" > /dev/null
+echo '{"online":5,"in_lobby":2,"in_match":3,"max_players":0,"updated":1}' > "$tmp/host/status.json"
 printf '[launcher]\nversion_url="http://127.0.0.1:8091/version.json"\n' > "$tmp/l.cfg"
 if [[ "$mode" != "offline" ]]; then
   (cd "$tmp/host" && exec python3 -m http.server 8091 --bind 127.0.0.1 > /dev/null 2>&1) &
   srv=$!
   sleep 1
 fi
-xvfb-run -a -s "-screen 0 960x560x24" timeout 90 "$godot" --path "$here" --resolution 960x560 \
+xvfb-run -a -s "-screen 0 960x560x24" timeout 90 "$godot" --path "$here" --rendering-driver opengl3 --resolution 960x560 \
   --write-movie "$tmp/frames/f.png" --quit-after 60 -- --config "$tmp/l.cfg" --install-root "$tmp/inst" --no-launch > /dev/null 2>&1
 mkdir -p "$(dirname "$out")"
 cp "$(ls "$tmp"/frames/*.png | sort | tail -n 1)" "$out"
