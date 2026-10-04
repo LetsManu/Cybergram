@@ -57,7 +57,10 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 	match f.kind:
 		AbilityWorld.FX_WALL:
 			var size := f.position2
-			var slab := _mesh(root, _box(Vector3(size.x, size.y, maxf(size.z, 0.2))), _mat(c.lightened(0.25), 0.45, true))
+			# G1: holo-scanline barrier (art bible §10.4); the replicated `param`
+			# still drives the fade, through the shader's `alpha`.
+			var wall_mat := ModelMaterials.holo(c.lightened(0.25), 1.3, false, 0.0).duplicate() as ShaderMaterial
+			var slab := _mesh(root, _box(Vector3(size.x, size.y, maxf(size.z, 0.2))), wall_mat)
 			slab.name = "Slab"
 			slab.position.y = size.y * 0.5
 			for x in [-0.5, 0.5]:
@@ -68,17 +71,32 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 		AbilityWorld.FX_BEACON:
 			var pole := _mesh(root, _cyl(0.12, 1.6), _mat(VIOLET, 0.95, true))
 			pole.position.y = 0.8
-			var gem := _mesh(root, _sphere(0.28), _mat(Color.WHITE, 1.0, true))
+			var gem := _mesh(root, _sphere(0.28), ModelMaterials.crystal(VIOLET, 2.0, 3.0, 0.5))
 			gem.position.y = 1.75
 			_area(root, f.position2.x, HEAL.lerp(c, 0.4), hostile)
 		AbilityWorld.FX_BASTION:
 			_area(root, f.position2.x, c.lightened(0.3), hostile)
 		AbilityWorld.FX_CIRCLE, AbilityWorld.FX_BURST:
 			_area(root, f.position2.x, c if f.kind == AbilityWorld.FX_CIRCLE else Color.WHITE.lerp(c, 0.5), hostile)
+			if f.kind == AbilityWorld.FX_BURST:
+				# G1: bright inner shock ring + dome flash on top of the area ring.
+				var br := maxf(f.position2.x, 0.5)
+				var shock := TorusMesh.new()
+				shock.inner_radius = br * 0.7
+				shock.outer_radius = br * 0.74
+				shock.rings = 48
+				_mesh(root, shock, _mat(Color.WHITE, 0.9, true)).position.y = 0.15
+				var dome := SphereMesh.new()
+				dome.radius = br * 0.6
+				dome.height = dome.radius
+				dome.is_hemisphere = true
+				_mesh(root, dome, _mat(Color.WHITE.lerp(c, 0.4), 0.18, true))
 			if f.kind == AbilityWorld.FX_CIRCLE:
 				# Ultimate / cast telegraph: vertical light column (art bible §8.2).
-				var col := _mesh(root, _cyl(0.25, 14.0), _mat(c.lightened(0.4), 0.35, true))
+				var col := _mesh(root, _cyl(0.25, 14.0), ModelMaterials.holo(c.lightened(0.4), 1.6, false, 0.0))
 				col.position.y = 7.0
+				var halo := _mesh(root, _cyl(0.7, 14.0), _mat(c, 0.12, true))
+				halo.position.y = 7.0
 		AbilityWorld.FX_THREAD, AbilityWorld.FX_TRAIL, AbilityWorld.FX_ARROW:
 			var w := 0.06 if f.kind != AbilityWorld.FX_ARROW else 0.5
 			if hostile:
@@ -102,7 +120,7 @@ func _update(n: Node3D, f: SnapshotData.FxState) -> void:
 			n.rotation = Vector3(0.0, f.yaw, 0.0)
 			var slab := n.get_node_or_null("Slab") as MeshInstance3D
 			if slab != null:
-				(slab.material_override as StandardMaterial3D).albedo_color.a = 0.2 + 0.35 * f.param
+				(slab.material_override as ShaderMaterial).set_shader_parameter("alpha", 0.3 + 0.5 * f.param)
 		AbilityWorld.FX_THREAD, AbilityWorld.FX_TRAIL, AbilityWorld.FX_ARROW:
 			var a := f.position2 if f.kind == AbilityWorld.FX_THREAD else f.position
 			var b := f.position if f.kind == AbilityWorld.FX_THREAD else f.position2
