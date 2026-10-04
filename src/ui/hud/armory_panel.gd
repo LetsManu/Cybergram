@@ -17,7 +17,8 @@ extends HudWidget
 ## and the server re-checks every rule (ShopModel holds the pure logic).
 
 const TIER_NAMES := ["", "I", "II", "III"]
-const COLS: int = 3
+## Card columns: 3 when the left side is wide enough, else 2.
+const WIDE_CARD_W: float = 270.0
 const PAD: float = 20.0
 const HEADER_H: float = 68.0
 const TAB_Y: float = 76.0
@@ -60,6 +61,8 @@ var _pending: Dictionary = {}
 var _last_socket: int = -1
 var _mouse_before: int = -1
 var _was_open: bool = false
+## --debug-armory: open once when the hero first stands on the pad.
+var _auto_open: bool = false
 
 const _KEYS: Array[int] = [KEY_F, KEY_B, KEY_ESCAPE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_KP_ENTER,
 	KEY_1, KEY_2, KEY_3, KEY_BACKSPACE, KEY_Q, KEY_E, KEY_PAGEUP, KEY_PAGEDOWN, KEY_SLASH, KEY_R, KEY_Z]
@@ -73,8 +76,7 @@ func bind(c: HudContext) -> void:
 	_econ = load(GameSession.ECONOMY_RULES) as EconomyRulesDef
 	_builds = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
 	var lc = c.session.get("launch_config") if c.session != null else null
-	if lc != null and lc.get("debug_armory") == true:
-		open = true
+	_auto_open = lc != null and lc.get("debug_armory") == true
 
 
 ## True while something must be drawn: the shop or the off-pad hint.
@@ -107,6 +109,9 @@ func poll() -> void:
 	var at := (client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) != 0
 	if not at or client.is_dead():
 		open = false
+	elif _auto_open:
+		_auto_open = false
+		open = true
 	if not searching:
 		if _e(KEY_F) or _je(JOY_BUTTON_Y) or _open_edge():
 			if at and not client.is_dead():
@@ -189,9 +194,9 @@ func _panel_keys() -> void:
 	if _e(KEY_SLASH) or (_e(KEY_F) and Input.is_key_pressed(KEY_CTRL)):
 		searching = true
 	if _e(KEY_DOWN) or _je(JOY_BUTTON_DPAD_DOWN):
-		_move(COLS)
+		_move(_cols())
 	if _e(KEY_UP) or _je(JOY_BUTTON_DPAD_UP):
-		_move(-COLS)
+		_move(-_cols())
 	if _e(KEY_RIGHT) or _je(JOY_BUTTON_DPAD_RIGHT):
 		_move(1)
 	if _e(KEY_LEFT) or _je(JOY_BUTTON_DPAD_LEFT):
@@ -224,8 +229,8 @@ func _move(delta: int) -> void:
 	if n == 0:
 		return
 	var to := selected + delta
-	if absi(delta) == COLS and (to < 0 or to >= n):
-		to = clampi(to, 0, n - 1) if (selected / COLS) != ((n - 1) / COLS) and delta > 0 else selected
+	if absi(delta) == _cols() and (to < 0 or to >= n):
+		to = clampi(to, 0, n - 1) if (selected / _cols()) != ((n - 1) / _cols()) and delta > 0 else selected
 	selected = clampi(to, 0, n - 1)
 	_ensure_visible()
 
@@ -248,13 +253,13 @@ func _sel_index() -> int:
 
 
 func _ensure_visible() -> void:
-	var row := selected / COLS
+	var row := selected / _cols()
 	var vis := _visible_rows()
 	if row < _scroll:
 		_scroll = row
 	elif row >= _scroll + vis:
 		_scroll = row - vis + 1
-	_scroll = clampi(_scroll, 0, maxi(0, ceili(_rows.size() / float(COLS)) - vis))
+	_scroll = clampi(_scroll, 0, maxi(0, ceili(_rows.size() / float(_cols())) - vis))
 
 
 # --- Requests -----------------------------------------------------------------------
@@ -379,7 +384,7 @@ func _gui_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN or mb.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_scroll = clampi(_scroll + (1 if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1), 0,
-				maxi(0, ceili(_rows.size() / float(COLS)) - _visible_rows()))
+				maxi(0, ceili(_rows.size() / float(_cols())) - _visible_rows()))
 		elif mb.button_index == MOUSE_BUTTON_LEFT:
 			_click(mb.position, mb.double_click)
 		accept_event()
@@ -428,6 +433,10 @@ func _click(pos: Vector2, double: bool) -> void:
 
 # --- Layout (design units, shared by drawing and hit tests) ----------------------------
 
+func _cols() -> int:
+	return 3 if (_left_w() - 2.0 * GAP) / 3.0 >= WIDE_CARD_W else 2
+
+
 func _left_w() -> float:
 	return size.x * 0.585 - PAD
 
@@ -446,19 +455,19 @@ func _visible_rows() -> int:
 
 
 func _card_w() -> float:
-	return (_left_w() - GAP * (COLS - 1)) / COLS
+	return (_left_w() - GAP * (_cols() - 1)) / _cols()
 
 
 ## Card rectangle of the visible row slot `pos` (position in the row list).
 func _card_rect(pos: int) -> Rect2:
-	var row := pos / COLS - _scroll
-	var col := pos % COLS
+	var row := pos / _cols() - _scroll
+	var col := pos % _cols()
 	return Rect2(PAD + col * (_card_w() + GAP), GRID_Y + row * (CARD_H + GAP), _card_w(), CARD_H)
 
 
 func _card_at(p: Vector2) -> int:
 	for i in _rows.size():
-		var row := i / COLS - _scroll
+		var row := i / _cols() - _scroll
 		if row < 0 or row >= _visible_rows():
 			continue
 		if _card_rect(i).has_point(p):
@@ -478,7 +487,7 @@ func _tab_w(t: int) -> float:
 
 
 func _search_rect() -> Rect2:
-	return Rect2(_left_w() + PAD - 300.0, TAB_Y, 300.0, TAB_H)
+	return Rect2(size.x * 0.34, 14.0, 300.0, 40.0)
 
 
 func _close_rect() -> Rect2:
@@ -486,11 +495,12 @@ func _close_rect() -> Rect2:
 
 
 func _buy_rect() -> Rect2:
-	return Rect2(size.x * 0.60, size.y - FOOTER_H + 6.0, 300.0, 56.0)
+	return Rect2(size.x * 0.60, size.y - FOOTER_H + 6.0, 250.0, 56.0)
 
 
 func _sell_rect() -> Rect2:
-	return Rect2(size.x * 0.60 + 312.0, size.y - FOOTER_H + 6.0, 230.0, 56.0)
+	var x := size.x * 0.60 + 262.0
+	return Rect2(x, size.y - FOOTER_H + 6.0, size.x - PAD - x, 56.0)
 
 
 func _tier_rect(t: int) -> Rect2:
@@ -499,7 +509,9 @@ func _tier_rect(t: int) -> Rect2:
 
 
 func _chip_rect(step: int) -> Rect2:
-	return Rect2(PAD + step * 84.0, size.y - FOOTER_H - BUILD_H + 38.0, 78.0, 52.0)
+	var n := maxi(1, model.build().steps() if model != null and model.build() != null else 1)
+	var w := minf(84.0, (_left_w() + GAP) / n)
+	return Rect2(PAD + step * w, size.y - FOOTER_H - BUILD_H + 38.0, w - 6.0, 52.0)
 
 
 # --- Drawing ------------------------------------------------------------------------
@@ -513,7 +525,8 @@ func _draw() -> void:
 			_draw_hint()
 		return
 	var p := client.progress
-	panel(Rect2(Vector2.ZERO, size), ctx.panel_strong)
+	draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.04, 0.075, 0.97))
+	draw_rect(Rect2(Vector2.ZERO, size), HudPalette.KEYLINE, false, 1.0)
 	_draw_header(p)
 	_draw_tabs()
 	_draw_cards()
@@ -535,12 +548,12 @@ func _draw_header(p: SnapshotData.ProgressState) -> void:
 	text(tr("HUD_ARMORY"), Vector2(PAD, 44.0), 32, HudPalette.TEXT, ctx.font_display)
 	var b := model.build()
 	if b != null:
-		text(tr("HUD_SHOP_BUILD_FOR") % b.display_name, Vector2(220.0, 42.0), 16, HudPalette.TEXT_DIM, ctx.font_body)
+		text(tr("HUD_SHOP_BUILD_FOR") % b.display_name, Vector2(PAD, 62.0), 14, HudPalette.TEXT_DIM, ctx.font_body)
 	var lumen := HudFormat.thousands(p.lumen)
-	text(lumen, Vector2(0.0, 48.0), 38, HudPalette.LUMEN, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, size.x - PAD - 80.0)
-	text(tr("HUD_LUMEN"), Vector2(0.0, 22.0), 14, HudPalette.TEXT_DIM, ctx.font_display, HORIZONTAL_ALIGNMENT_RIGHT,
+	text(lumen, Vector2(0.0, 54.0), 38, HudPalette.LUMEN, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, size.x - PAD - 80.0)
+	text(tr("HUD_LUMEN"), Vector2(0.0, 18.0), 13, HudPalette.TEXT_DIM, ctx.font_display, HORIZONTAL_ALIGNMENT_RIGHT,
 		size.x - PAD - 80.0)
-	diamond(Vector2(size.x - PAD - 80.0 - text_width(lumen, 38, ctx.font_numbers) - 50.0, 36.0), 11.0, HudPalette.LUMEN)
+	diamond(Vector2(size.x - PAD - 80.0 - text_width(lumen, 38, ctx.font_numbers) - 24.0, 42.0), 11.0, HudPalette.LUMEN)
 	var cr := _close_rect()
 	draw_rect(cr, CARD_BG)
 	draw_rect(cr, HudPalette.KEYLINE, false, 1.0)
@@ -575,7 +588,7 @@ func _draw_cards() -> void:
 		return
 	var next := model.recommended_next()
 	for i in _rows.size():
-		var row := i / COLS - _scroll
+		var row := i / _cols() - _scroll
 		if row < 0 or row >= _visible_rows():
 			continue
 		var idx := _rows[i]
@@ -667,7 +680,7 @@ func _draw_build_strip() -> void:
 		draw_rect(r, CARD_BG)
 		draw_rect(r, HudPalette.HEAL if s == next else HudPalette.KEYLINE, false, 2.5 if s == next else 1.0)
 		ShopIcons.draw(self, it, Rect2(r.position + Vector2(4.0, 6.0), Vector2(40.0, 40.0)), Color(it.hue, a))
-		var lab := TIER_NAMES[b.target_at(s)] if it.tiers() > 1 else ("x%d" % b.target_at(s) if it.kind == ArmoryItemDef.Kind.CONSUMABLE else "")
+		var lab: String = TIER_NAMES[b.target_at(s)] if it.tiers() > 1 else ("x%d" % b.target_at(s) if it.kind == ArmoryItemDef.Kind.CONSUMABLE else "")
 		text(lab, r.position + Vector2(48.0, 32.0), 16, Color(HudPalette.TEXT, a), ctx.font_numbers)
 		if done:
 			ShopIcons.check(self, r.position + Vector2(r.size.x - 12.0, 12.0), 6.0, HudPalette.HEAL)
