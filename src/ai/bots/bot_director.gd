@@ -54,7 +54,7 @@ func fill_around(humans: Array[int]) -> int:
 				if s < hq.spawn_points.size():
 					spawn = hq.spawn_points[s]
 				yaw = deg_to_rad(hq.spawn_yaw_deg)
-			add_bot(team, roster.hero_for(s), spawn, yaw)
+			add_bot(team, roster.hero_for_seeded(team, s, team_size(), seed_value), spawn, yaw)
 			n += 1
 	return n
 
@@ -73,6 +73,7 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 	var b := BotBrain.new(server, profile, hash([seed_value, idx]), idx)
 	b.build_order = roster.build_order_for(hero_def)
 	b.fork_prefs = roster.fork_prefs_for(hero_def)
+	b.tuning = roster.tuning()
 	b.team_brains = brains  # E14: shared, for Cell job claims
 	b.claims = _claims
 	var src := BotInputSource.new(b, meter)
@@ -112,6 +113,7 @@ func take_over(hero_id: int) -> BotBrain:
 	var b := BotBrain.new(server, profile, hash([seed_value, brains.size(), hero_id]), brains.size())
 	b.build_order = roster.build_order_for(h.combat.def)
 	b.fork_prefs = roster.fork_prefs_for(h.combat.def)
+	b.tuning = roster.tuning()
 	b.team_brains = brains
 	b.claims = _claims
 	var src := BotInputSource.new(b, meter)

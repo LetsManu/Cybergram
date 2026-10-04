@@ -60,6 +60,7 @@ func _physics_process(_delta: float) -> void:
 	b.hero_id = client.session.own_net_id
 	b.build_order = director.roster.build_order_for(server.hero(b.hero_id).combat.def)
 	b.fork_prefs = director.roster.fork_prefs_for(server.hero(b.hero_id).combat.def)
+	b.tuning = director.roster.tuning()
 	b.aim.yaw = server.hero(b.hero_id).look_yaw
 	director.adopt(b)
 	client.input_source = BotClientSource.new(b, server)
