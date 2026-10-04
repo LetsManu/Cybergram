@@ -8,31 +8,6 @@
 [ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
 
-[sub_resource type="Resource" id="deploy_1"]
-script = ExtResource("1")
-kind = 1
-
-[sub_resource type="Resource" id="order_2"]
-script = ExtResource("4")
-
-[sub_resource type="Resource" id="mod_3"]
-script = ExtResource("2")
-stat = &"heal_per_s"
-op = 0
-value = 7.0
-
-[sub_resource type="Resource" id="mod_4"]
-script = ExtResource("2")
-stat = &"hp"
-op = 0
-value = 100.0
-
-[sub_resource type="Resource" id="node_5"]
-script = ExtResource("3")
-kind = 1
-required_level = 3
-modifiers = Array[ExtResource("2")]([SubResource("mod_3"), SubResource("mod_4")])
-
 [sub_resource type="Resource" id="w10_sub_1"]
 script = ExtResource("w10_0")
 stat = &"ally_heal"
@@ -74,6 +49,31 @@ script = ExtResource("w10_1")
 kind = 4
 required_level = 9
 modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_6")])
+
+[sub_resource type="Resource" id="deploy_1"]
+script = ExtResource("1")
+kind = 1
+
+[sub_resource type="Resource" id="order_2"]
+script = ExtResource("4")
+
+[sub_resource type="Resource" id="mod_3"]
+script = ExtResource("2")
+stat = &"heal_per_s"
+op = 0
+value = 7.0
+
+[sub_resource type="Resource" id="mod_4"]
+script = ExtResource("2")
+stat = &"hp"
+op = 0
+value = 100.0
+
+[sub_resource type="Resource" id="node_5"]
+script = ExtResource("3")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("2")]([SubResource("mod_3"), SubResource("mod_4")])
 
 [resource]
 script = ExtResource("5")
