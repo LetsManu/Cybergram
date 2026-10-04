@@ -1,6 +1,6 @@
 class_name FileAccountStore
 extends AccountStore
-## AccountStore on plain JSON files: `<data_dir>/accounts/<id>.json`, one per
+## AccountStore on plain JSON files: `<data_dir>/<id>.json`, one per
 ## account, written atomically (write `<id>.json.tmp`, flush, rename over the
 ## old file), so a crash never leaves a half-written account. All accounts are
 ## indexed in memory at open() (username -> id). No SQLite, no GDExtension.
@@ -19,8 +19,9 @@ func _init(data_dir_: String) -> void:
 	data_dir = data_dir_
 
 
+## Where the account files live (created by open() when missing).
 func accounts_dir() -> String:
-	return data_dir.path_join("accounts")
+	return data_dir
 
 
 func open() -> int:

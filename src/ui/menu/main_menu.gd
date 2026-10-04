@@ -3,17 +3,14 @@ extends CanvasLayer
 ## Title screen (shown when the game starts without command-line arguments).
 ## It only chooses launch arguments: AppRoot turns them into a LaunchConfig and
 ## builds the session, exactly as if they had been typed on the command line.
-##   Play vs Bots     -> --hero <id>                 (slice 3v3 vs bots)
-##   Play Online      -> the official server's lobby (AppConfig.online_server)
+##   Play vs Bots     -> --hero <id>                 (slice 3v3 vs bots, offline: no login)
+##   Play Online      -> log in (or guest) on the official server, then its lobby
 ##   Movement Course  -> --map test_course
-## Also (design/ux/lobby-and-social.md): the profile chip + PROFILE screen
-## (first launch asks for a profile before anything else), and the friends
-## panel docked on the right with presence from the official server.
-## Privacy (PRIVACY.md): offline play needs no consent; PLAY ONLINE, Join
-## friend and the presence check-ins need the acknowledged privacy notice
-## (PlayerProfile.can_play_online), otherwise the profile screen asks first.
-## The hero pick is remembered in user://menu.cfg; the hero list comes from
-## ContentDB (HeroCatalog), so new heroes appear without code changes.
+## Online (design/ux/lobby-and-social.md §6): accounts live on the server.
+## The client stores nothing but the hero pick and an optional "remember
+## username" (user://menu.cfg). The session token stays in memory
+## (`session_token`) so the game can resume the session after a match.
+## The friends panel (docked right, LoL client) and PROFILE use the session.
 
 ## Emitted with the chosen launch arguments.
 signal start_requested(args: PackedStringArray)
@@ -21,18 +18,18 @@ signal start_requested(args: PackedStringArray)
 const SETTINGS_PATH := "user://menu.cfg"
 const DEFAULT_ADDRESS := "127.0.0.1:7777"
 const DEFAULT_HERO := "vesper_loom"
+## Pre-accounts local files (v0.5 dev builds): imported once, then deleted.
+const LEGACY_FILES: Array[String] = ["user://profile.cfg", "user://friends.cfg", "user://moderation.cfg",
+	"user://my_cybergram_data.json"]
 
-## Where the profile and the friends list live (evidence captures override).
-static var profile_path: String = PlayerProfile.DEFAULT_PATH
-static var friends_path: String = FriendList.DEFAULT_PATH
-static var moderation_path: String = LocalModeration.DEFAULT_PATH
-## Poll the official server for friends' presence (off in evidence captures).
-static var presence_enabled: bool = true
+## Memory only: resumes the server session after a match (never on disk).
+static var session_token: String = ""
+static var session_server: String = ""
+## Where the legacy profile is looked for (tests override).
+static var legacy_profile_path: String = "user://profile.cfg"
 
 ## Shown under the buttons (e.g. why the last online session ended).
 var notice: String = ""
-## The local profile (null until created on first launch).
-var profile: PlayerProfile
 
 var _hero: OptionButton
 var _heroes: Array = []
@@ -45,11 +42,16 @@ var _chip: PanelContainer
 var _friends: FriendsPanel
 var _lobby_box: MarginContainer
 var _lobby: LobbyScreen
+var _login: LoginScreen
 var _profile_screen: ProfileScreen
-var _presence: PresenceClient
-var _resolve_id: int = -1
-var _server_ip: String = ""
-var _pending_query: Array = []
+var _import_dialog: ConfirmationDialog
+## The online connection (null = offline).
+var _enet: ENetTransport
+var _online: LobbyClient
+var _server: String = ""
+## Runs once the session is up (open the lobby, the profile, ...).
+var _then: Callable
+var _auto_guest_sent: bool = false
 
 
 func _ready() -> void:
@@ -78,7 +80,6 @@ func _ready() -> void:
 	col.add_child(MenuStyle.label("CYBERGRAM", 64, HudPalette.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
 	col.add_child(MenuStyle.label(tr("HUD_MENU_TAGLINE") % _version(), 16, HudPalette.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
 	col.add_child(MenuStyle.spacer(18))
-
 	col.add_child(MenuStyle.label(tr("HUD_MENU_HERO"), 14, HudPalette.TEXT_DIM))
 	_hero = OptionButton.new()
 	_heroes = HeroCatalog.entries()
@@ -87,14 +88,13 @@ func _ready() -> void:
 	_hero.custom_minimum_size.y = 40
 	col.add_child(_hero)
 	col.add_child(MenuStyle.spacer(6))
-
 	_play = MenuStyle.button(tr("HUD_MENU_PLAY_BOTS"), _play_bots, true)
 	col.add_child(_play)
 	col.add_child(MenuStyle.spacer(6))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_PLAY_ONLINE"), _join, true))
 	col.add_child(MenuStyle.spacer(6))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_TEST_COURSE"), _course, false, 44))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_PROFILE"), func() -> void: _show_profile(), false, 44))
+	col.add_child(MenuStyle.button(tr("HUD_MENU_PROFILE"), func() -> void: _with_session(_show_profile), false, 44))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_SETTINGS"), func() -> void:
 		col.visible = false
 		_settings.visible = true
@@ -113,37 +113,22 @@ func _ready() -> void:
 	center.add_child(_settings)
 	_build_social()
 	GameSettings.shared().apply_display()
-
-	profile = PlayerProfile.load_or_null(profile_path)
-	if profile == null and AppRoot.auto_ready:
-		# Automated test runs (--auto-ready) never block on the profile screen;
-		# the tester running them acknowledges the notice for this local profile.
-		profile = PlayerProfile.generated()
-		profile.privacy_ack = PlayerProfile.PRIVACY_VERSION
-		profile.save(profile_path)
 	_refresh_chip()
-	if profile == null:
-		_show_profile(true)  # first launch: who are you?
-		return
-	_continue_boot()
-
-
-## After the profile exists: back to the lobby after a match, or the menu.
-func _continue_boot() -> void:
 	if AppRoot.rejoin_address != "":
 		var addr := AppRoot.rejoin_address
 		AppRoot.rejoin_address = ""
-		_open_lobby.call_deferred(addr)  # back to the server's lobby after a match
+		# Back to the server's lobby after a match (resumes the session).
+		_open_lobby.call_deferred(addr)
 		return
+	if session_token != "" and session_server != "":
+		_connect(session_server)  # still logged in (memory): friends panel online
 	_play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
 
 
 func _build_social() -> void:
-	# Profile chip, top left.
 	_chip = MenuStyle.panel_container(HudPalette.PANEL_STRONG, 8)
 	_chip.position = Vector2(16, 16)
 	add_child(_chip)
-	# Friends panel, docked right (LoL client).
 	var dock := MarginContainer.new()
 	dock.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 	dock.offset_left = -312
@@ -152,12 +137,9 @@ func _build_social() -> void:
 	dock.add_theme_constant_override("margin_right", 16)
 	add_child(dock)
 	_friends = FriendsPanel.new()
-	_friends.friends = FriendList.load_from(friends_path)
-	_friends.save_path = friends_path
 	_friends.join_requested.connect(func(id: String) -> void: _open_lobby(online_server(), id))
+	_friends.login_requested.connect(func() -> void: _with_session(Callable()))
 	dock.add_child(_friends)
-	_use_menu_presence()
-	# Lobby area: everything left of the friends panel.
 	_lobby_box = MarginContainer.new()
 	_lobby_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_lobby_box.add_theme_constant_override("margin_left", 24)
@@ -168,70 +150,250 @@ func _build_social() -> void:
 	add_child(_lobby_box)
 
 
+## The logged-in session ({} = none).
+func session() -> Dictionary:
+	return _online.session if _online != null else {}
+
+
 func _refresh_chip() -> void:
 	for c in _chip.get_children():
 		_chip.remove_child(c)
 		c.queue_free()
-	_chip.visible = profile != null
-	if profile == null:
-		return
+	var s := session()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	row.add_child(EmblemIcon.make(profile.emblem, profile.accent, 44.0))
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
-	v.add_child(MenuStyle.label(profile.name, 18, PlayerProfile.accent_of(profile.accent).lerp(HudPalette.TEXT, 0.4)))
-	v.add_child(MenuStyle.label("#" + profile.tag(), 12, HudPalette.TEXT_OFF))
-	row.add_child(v)
-	var edit := MenuStyle.button(tr("HUD_MENU_PROFILE_EDIT"), func() -> void: _show_profile(), false, 30)
-	edit.add_theme_font_size_override("font_size", 12)
-	edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(edit)
+	if s.is_empty():
+		row.add_child(MenuStyle.label(tr("HUD_MENU_NOT_LOGGED_IN"), 14, HudPalette.TEXT_DIM))
+		var login := MenuStyle.button(tr("HUD_FRIENDS_LOGIN"), func() -> void: _with_session(Callable()), false, 30)
+		login.add_theme_font_size_override("font_size", 12)
+		row.add_child(login)
+	else:
+		row.add_child(EmblemIcon.make(int(s.emblem), int(s.accent), 44.0))
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 0)
+		v.add_child(MenuStyle.label(str(s.display_name), 18,
+			PlayerProfile.accent_of(int(s.accent)).lerp(HudPalette.TEXT, 0.4)))
+		var sub := tr("HUD_ACCOUNT_GUEST_LINE") if int(s.guest) != 0 else "#" + PlayerProfile.tag_of(str(s.id))
+		v.add_child(MenuStyle.label(sub, 12, HudPalette.TEXT_OFF))
+		row.add_child(v)
+		var edit := MenuStyle.button(tr("HUD_MENU_PROFILE_EDIT"), func() -> void: _with_session(_show_profile), false, 30)
+		edit.add_theme_font_size_override("font_size", 12)
+		edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(edit)
 	_chip.add_child(row)
+	_chip.visible = _lobby == null
+	var account := not s.is_empty() and int(s.guest) == 0
+	_friends.set_session(account, _request if not s.is_empty() else Callable())
 
 
-## Local data files (export / delete in the profile screen).
-static func data_files() -> LocalData.Files:
-	var f := LocalData.Files.new()
-	f.profile = profile_path
-	f.friends = friends_path
-	f.moderation = moderation_path
-	f.menu = SETTINGS_PATH
-	return f
+# --- online connection --------------------------------------------------------
+
+## Runs `then` once logged in: re-uses the session, resumes it, or shows the
+## login screen. An invalid `then` just logs in.
+func _with_session(then: Callable, addr: String = "") -> void:
+	var a := addr if addr != "" else online_server()
+	_then = then
+	if _online != null and not _online.session.is_empty() and _server == a:
+		_run_then()
+		return
+	if _online == null or _server != a:
+		if not _connect(a):
+			return
+	if session_token != "" and session_server == a:
+		_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": session_token})
+	elif AppRoot.auto_ready and not _auto_guest_sent:
+		_auto_guest()
+	else:
+		_show_login()
 
 
-## The profile screen (first = first launch, no Cancel). `then` runs after a
-## save (e.g. open the lobby once the privacy notice is acknowledged).
-func _show_profile(first := false, online_required := false, then := Callable()) -> void:
-	if _profile_screen != null:
+func _connect(addr: String) -> bool:
+	_disconnect()
+	var hp := addr.rsplit(":", true, 1)
+	var host := hp[0]
+	var port := clampi(hp[1].to_int(), 1, 65535) if hp.size() == 2 and hp[1].is_valid_int() else ENetTransport.DEFAULT_PORT
+	_enet = ENetTransport.connect_to(host, port, AuthConfig.from_os().client_tls_for(host))
+	if _enet.error_text != "":
+		_status.text = _enet.error_text
+		_enet = null
+		return false
+	_server = addr
+	_online = LobbyClient.new(_enet)
+	_online.account_result.connect(_on_account)
+	return true
+
+
+func _disconnect() -> void:
+	if _enet != null:
+		_enet.close()
+	_enet = null
+	_online = null
+	_server = ""
+
+
+func _process(_delta: float) -> void:
+	if _online == null or _lobby != null:
+		return  # the lobby view steps the client while it is open
+	_online.step()
+	if _enet != null and _enet.error_text != "":
+		_status.text = tr("HUD_LOBBY_CONNECTION_LOST")
+		_disconnect()
+		if _login != null:
+			_login.show_error(tr("HUD_LOGIN_NO_SERVER") % online_server())
+		_refresh_chip()
+
+
+## The request Callable handed to panels and screens.
+func _request(op: int, fields: Dictionary) -> void:
+	if _online != null:
+		_online.request(op, fields)
+
+
+func _on_account(d: Dictionary) -> void:
+	var op: int = d.op
+	var ok: bool = d.code == AccountCodec.OK
+	if d.has("token") and ok:
+		session_token = str(d.token)
+		session_server = _server
+		var was_login := _login != null
+		_close_login()
+		_refresh_chip()
+		if was_login and int(d.guest) == 0:
+			_offer_legacy_import()
+		else:
+			_delete_legacy_files(false)
+		_run_then()
+		return
+	match op:
+		AccountCodec.OP_RESUME:
+			session_token = ""
+			_show_login()  # the session expired: log in again
+		AccountCodec.OP_REGISTER, AccountCodec.OP_LOGIN, AccountCodec.OP_GUEST:
+			if _login != null:
+				_login.show_error(_error_text(d.code))
+			else:
+				_status.text = _error_text(d.code)
+		AccountCodec.OP_LOGOUT, AccountCodec.OP_DELETE_ACCOUNT:
+			if ok:
+				session_token = ""
+				_close_profile()
+				_status.text = tr("HUD_ACCOUNT_DELETED") if op == AccountCodec.OP_DELETE_ACCOUNT else tr("HUD_ACCOUNT_LOGGED_OUT")
+				_refresh_chip()
+			elif _profile_screen != null:
+				_profile_screen.on_result(d)
+		AccountCodec.OP_UPDATE_PROFILE:
+			if _profile_screen != null:
+				_profile_screen.on_result(d)
+			_refresh_chip()
+		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_EXPORT:
+			if _profile_screen != null:
+				_profile_screen.on_result(d)
+		_:
+			_friends.on_result(d)
+
+
+func _error_text(code: int) -> String:
+	var t := tr(LobbyClient.account_error_key(code))
+	return t % AuthConfig.rules().min_age if code == AccountCodec.E_AGE else t
+
+
+func _run_then() -> void:
+	var t := _then
+	_then = Callable()
+	if t.is_valid():
+		t.call()
+
+
+## Automated runs (--auto-ready): join as a generated guest (the tester is the user).
+func _auto_guest() -> void:
+	_auto_guest_sent = true
+	var p := PlayerProfile.generated()
+	_online.request(AccountCodec.OP_GUEST, {"ver": MsgType.PROTOCOL_VERSION, "display_name": p.name,
+		"emblem": p.emblem, "accent": p.accent, "flags": AccountCodec.FLAG_PRIVACY})
+
+
+func _show_login() -> void:
+	if _login != null:
+		return
+	_col.visible = false
+	_login = LoginScreen.new()
+	var hp := _server.rsplit(":", true, 1)
+	var secure := _enet != null and _enet.is_secure
+	_login.server_text = tr("HUD_LOGIN_SERVER") % [_server, tr("HUD_LOGIN_ENCRYPTED") if secure else tr("HUD_LOGIN_PLAIN")]
+	_login.accounts_available = secure
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) == OK:
+		_login.remembered_username = str(cfg.get_value("online", "username", ""))
+		_login.remember = _login.remembered_username != ""
+	var legacy := PlayerProfile.load_or_null(legacy_profile_path)
+	if legacy != null:
+		_login.prefill_name = legacy.name
+		_login.prefill_emblem = legacy.emblem
+		_login.prefill_accent = legacy.accent
+	_login.submitted.connect(func(op: int, f: Dictionary) -> void:
+		if op == AccountCodec.OP_LOGIN:
+			_save_username(_login.login_username() if _login.remember_username() else "")
+		_request(op, f))
+	_login.cancelled.connect(func() -> void:
+		_close_login()
+		_then = Callable())
+	_center.add_child(_login)
+	if hp.size() > 0 and not secure:
+		_login.show_error(tr("HUD_LOGIN_NO_TLS"))
+
+
+func _close_login() -> void:
+	if _login != null:
+		_login.queue_free()
+		_login = null
+	_col.visible = _lobby == null and _profile_screen == null
+
+
+## Pre-accounts local profile: offer once to import it, then delete the files.
+func _offer_legacy_import() -> void:
+	var legacy := PlayerProfile.load_or_null(legacy_profile_path)
+	if legacy == null:
+		_delete_legacy_files(false)
+		return
+	_import_dialog = ConfirmationDialog.new()
+	_import_dialog.title = tr("HUD_IMPORT_TITLE")
+	_import_dialog.dialog_text = tr("HUD_IMPORT_BODY") % legacy.name
+	_import_dialog.ok_button_text = tr("HUD_IMPORT_YES")
+	_import_dialog.cancel_button_text = tr("HUD_IMPORT_NO")
+	_import_dialog.confirmed.connect(func() -> void:
+		_request(AccountCodec.OP_UPDATE_PROFILE, {"display_name": legacy.name, "emblem": legacy.emblem,
+			"accent": legacy.accent, "favourite_hero": ""})
+		_delete_legacy_files(true))
+	_import_dialog.canceled.connect(func() -> void: _delete_legacy_files(false))
+	add_child(_import_dialog)
+	_import_dialog.popup_centered()
+
+
+## Removes every pre-accounts local file (the client stores nothing now).
+static func _delete_legacy_files(_imported: bool) -> void:
+	var paths := LEGACY_FILES.duplicate()
+	if not paths.has(legacy_profile_path):
+		paths.append(legacy_profile_path)
+	for p in paths:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
+
+
+func _save_username(u: String) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("online", "username", u)
+	cfg.save(SETTINGS_PATH)
+
+
+func _show_profile() -> void:
+	if _profile_screen != null or _online == null:
 		return
 	_col.visible = false
 	_profile_screen = ProfileScreen.new()
-	_profile_screen.profile = null if first else profile
-	_profile_screen.path = profile_path
-	_profile_screen.files = data_files()
-	_profile_screen.online_required = online_required
-	_profile_screen.saved.connect(func(p: PlayerProfile) -> void:
-		profile = p
-		_close_profile()
-		_refresh_chip()
-		_use_menu_presence()
-		if first:
-			_continue_boot()
-		if then.is_valid() and p.can_play_online():
-			then.call())
-	_profile_screen.cancelled.connect(_close_profile)
-	_profile_screen.deleted.connect(func() -> void:
-		# Right to erasure: everything local is gone; start over as on first launch.
-		profile = null
-		_friends.friends = FriendList.new()
-		_friends.status.clear()
-		_friends.rebuild()
-		_close_profile()
-		_refresh_chip()
-		_use_menu_presence()
-		_status.text = tr("HUD_PRIVACY_DELETED")
-		_show_profile(true))
+	_profile_screen.session = _online.session
+	_profile_screen.requested.connect(_request)
+	_profile_screen.closed.connect(_close_profile)
 	_center.add_child(_profile_screen)
 
 
@@ -239,15 +401,17 @@ func _close_profile() -> void:
 	if _profile_screen != null:
 		_profile_screen.queue_free()
 		_profile_screen = null
-	_col.visible = true
+	_col.visible = _lobby == null and _login == null
 	_play.grab_focus.call_deferred()
 
+
+# --- play -------------------------------------------------------------------
 
 func _play_bots() -> void:
 	_start(PackedStringArray(["--hero", _hero_id()]))
 
 
-## PLAY ONLINE: the official server from AppConfig (no address to type).
+## PLAY ONLINE: log in on the official server (AppConfig), then its lobby.
 func _join() -> void:
 	_open_lobby(online_server())
 
@@ -258,104 +422,49 @@ static func online_server() -> String:
 	return cfg.online_server if cfg != null and cfg.online_server != "" else DEFAULT_ADDRESS
 
 
-## Online: the server's lobby (teams, hero pick, Ready, chat) before each
-## match. `party_id`: a friend to be seated with ("Join friend").
+## Online: the server's lobby. `party_id`: a friend to be seated with.
 func _open_lobby(addr: String, party_id := "") -> void:
-	if _lobby != null or profile == null:
+	if _lobby != null:
 		return
-	if not profile.can_play_online():
-		_show_profile(false, true, func() -> void: _open_lobby(addr, party_id))
+	_with_session(func() -> void: _show_lobby(addr, party_id), addr)
+
+
+func _show_lobby(addr: String, party_id: String) -> void:
+	if _lobby != null or _online == null:
 		return
 	_save_settings()
 	_col.visible = false
-	_chip.visible = false
 	var lobby := LobbyScreen.new()
 	_lobby = lobby
 	lobby.address = addr
-	lobby.profile = profile
+	lobby.online = _online
+	lobby.link = _enet
 	lobby.party_id = party_id
-	lobby.hero_id = _hero_id()
+	var fav := str(_online.session.get("favourite_hero", ""))
+	lobby.hero_id = fav if fav != "" and not HeroCatalog.find_stem(fav).is_empty() else _hero_id()
 	lobby.auto_ready = AppRoot.auto_ready
-	lobby.friend_ids = _friends.friends.ids()
-	lobby.moderation_path = moderation_path
-	lobby.start_requested.connect(func(args: PackedStringArray) -> void: start_requested.emit(args))
+	for e: Dictionary in _friends.entries:
+		lobby.friend_ids.append(str(e.id))
+	lobby.start_requested.connect(func(args: PackedStringArray) -> void:
+		_disconnect()  # the match opens its own connection; the session token stays in memory
+		start_requested.emit(args))
 	lobby.cancelled.connect(func(reason: String) -> void:
 		lobby.queue_free()
 		_lobby = null
-		_use_menu_presence()
 		_col.visible = true
-		_chip.visible = true
 		_status.text = reason
+		# Leaving frees the seat: reconnect and resume the session for the friends panel.
+		_disconnect()
+		if session_token != "":
+			_connect(addr)
+			_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": session_token})
+		_friends.allow_join = true
+		_refresh_chip()
 		_play.grab_focus.call_deferred())
-	lobby.presence_received.connect(_friends.apply_presence)
-	lobby.add_friend_requested.connect(func(id: String, n: String) -> void: _friends.add_known(id, n))
-	lobby.roster_seen.connect(func(slots: Array) -> void:
-		var changed := false
-		for sl: Dictionary in slots:
-			if _friends.friends.resolve(str(sl.id), str(sl.name)):
-				changed = true
-			if _friends.friends.find_id(str(sl.id)) != null:
-				_friends.status[str(sl.id)] = LobbyCodec.STATUS_IN_LOBBY if sl.connected else LobbyCodec.STATUS_OFFLINE
-		if changed:
-			_friends.friends.save(friends_path)
-			lobby.friend_ids = _friends.friends.ids()
-		_friends.rebuild())
+	# Account answers keep reaching _on_account through the shared client.
 	_lobby_box.add_child(lobby)
 	_friends.allow_join = false
-	_friends.query = lobby.query_presence
-	_friends.rebuild()
-
-
-## Friends presence from the main menu: short-lived queries to the server.
-func _use_menu_presence() -> void:
-	_friends.allow_join = true
-	var online_ok := profile != null and profile.can_play_online()
-	_friends.query = _menu_query if online_ok and presence_enabled and DisplayServer.get_name() != "headless" \
-		else Callable()
-	_friends.rebuild()
-
-
-func _menu_query(ids: PackedStringArray, names: PackedStringArray) -> void:
-	if _presence != null or _resolve_id >= 0 or profile == null or not profile.can_play_online():
-		return
-	var hp := online_server().rsplit(":", true, 1)
-	_pending_query = [ids, names]
-	if hp[0].is_valid_ip_address():
-		_server_ip = hp[0]
-	if _server_ip != "":
-		_start_presence()
-	else:
-		# Non-blocking DNS: the menu must never stall on a slow resolver.
-		_resolve_id = IP.resolve_hostname_queue_item(hp[0], IP.TYPE_IPV4)
-
-
-func _process(delta: float) -> void:
-	if _resolve_id >= 0:
-		var st := IP.get_resolve_item_status(_resolve_id)
-		if st == IP.RESOLVER_STATUS_DONE:
-			_server_ip = IP.get_resolve_item_address(_resolve_id)
-			IP.erase_resolve_item(_resolve_id)
-			_resolve_id = -1
-			if _server_ip != "":
-				_start_presence()
-		elif st == IP.RESOLVER_STATUS_ERROR or st == IP.RESOLVER_STATUS_NONE:
-			IP.erase_resolve_item(_resolve_id)
-			_resolve_id = -1
-	if _presence != null:
-		_presence.step(delta)
-
-
-func _start_presence() -> void:
-	var hp := online_server().rsplit(":", true, 1)
-	var port := hp[1].to_int() if hp.size() == 2 and hp[1].is_valid_int() else ENetTransport.DEFAULT_PORT
-	var t := ENetTransport.connect_to(_server_ip, port)
-	if t.error_text != "":
-		return
-	_presence = PresenceClient.new(t, profile.to_wire(), _pending_query[0], _pending_query[1])
-	_presence.finished.connect(func(entries: Array, ok: bool) -> void:
-		_presence = null
-		if ok and _lobby == null:
-			_friends.apply_presence(entries))
+	_refresh_chip()
 
 
 func _course() -> void:
@@ -385,6 +494,7 @@ func _load_settings() -> void:
 
 func _save_settings() -> void:
 	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
 	cfg.set_value("menu", "hero_id", _hero_id())
 	cfg.save(SETTINGS_PATH)
 

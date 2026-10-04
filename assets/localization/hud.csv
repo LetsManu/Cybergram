@@ -187,11 +187,11 @@ HUD_PROFILE_CONTINUE,CONTINUE
 HUD_PROFILE_CANCEL,CANCEL
 HUD_FRIENDS_TITLE,FRIENDS  %d / %d online
 HUD_FRIENDS_ADD,ADD
-HUD_FRIENDS_ADD_HINT,Name or Name#TAG
+HUD_FRIENDS_ADD_HINT,Username
 HUD_FRIENDS_ADDED,Added %s. They show up once the server has seen them.
 HUD_FRIENDS_ADD_BAD,"Not a valid name (3-16 characters, optional #TAG)."
 HUD_FRIENDS_ADD_DUP,Already on your list.
-HUD_FRIENDS_EMPTY,"No friends yet. Add one by name, or press + next to a player in the lobby."
+HUD_FRIENDS_EMPTY,"No friends yet. Add one by username, or press + next to a player in the lobby."
 HUD_FRIENDS_ONLINE,Online
 HUD_FRIENDS_IN_LOBBY,In lobby
 HUD_FRIENDS_IN_MATCH,In match
@@ -245,3 +245,88 @@ HUD_LOBBY_MUTE_TIP,Hide this player's chat messages (only for you)
 HUD_LOBBY_REPORT,Report
 HUD_LOBBY_REPORT_TIP,Record a report on this computer
 HUD_LOBBY_REPORTED,Report about %s recorded on this computer.
+HUD_ACCOUNT_ERR_0,Done.
+HUD_ACCOUNT_ERR_1,The server did not understand the request.
+HUD_ACCOUNT_ERR_2,"This server has no encryption yet, so accounts are switched off. Play as guest."
+HUD_ACCOUNT_ERR_3,Wrong username or password.
+HUD_ACCOUNT_ERR_4,Too many failed attempts. Please wait a few minutes.
+HUD_ACCOUNT_ERR_5,That username is taken.
+HUD_ACCOUNT_ERR_6,"Usernames are 3-16 letters, digits, _ - or . (no spaces)."
+HUD_ACCOUNT_ERR_7,The password is too short or too long.
+HUD_ACCOUNT_ERR_8,That display name is not allowed (3-16 characters).
+HUD_ACCOUNT_ERR_9,Please accept the privacy notice first.
+HUD_ACCOUNT_ERR_10,You must be at least %d years old to create an account.
+HUD_ACCOUNT_ERR_11,Please log in first.
+HUD_ACCOUNT_ERR_12,No such player.
+HUD_ACCOUNT_ERR_13,A limit was reached (friends or requests).
+HUD_ACCOUNT_ERR_14,Version mismatch: update the game to the server's version.
+HUD_ACCOUNT_ERR_15,Still working on the last request ...
+HUD_ACCOUNT_ERR_16,Your session ended. Please log in again.
+HUD_ACCOUNT_ERR_17,The server could not save your account. Try again later.
+HUD_ACCOUNT_ERR_18,Guests cannot do that. Create an account.
+HUD_ACCOUNT_ERR_19,This server needs an account. Please log in or create one.
+HUD_ACCOUNT_LINE,Account: %s
+HUD_ACCOUNT_GUEST_LINE,Guest (nothing is stored)
+HUD_ACCOUNT_GUEST_INFO,"You are playing as a guest. Nothing is stored on the server and the name is gone when you disconnect. Create an account to keep friends."
+HUD_ACCOUNT_FAV_HERO,Favourite hero
+HUD_ACCOUNT_NO_FAV,None
+HUD_ACCOUNT_SAVED,Profile saved.
+HUD_ACCOUNT_OLD_PW,Current password
+HUD_ACCOUNT_NEW_PW,New password
+HUD_ACCOUNT_CHANGE_PW,CHANGE PASSWORD
+HUD_ACCOUNT_PW_CHANGED,Password changed.
+HUD_ACCOUNT_DELETE_PW,Password to delete
+HUD_ACCOUNT_DELETE,DELETE ACCOUNT
+HUD_ACCOUNT_DELETE_NEEDS_PW,Type your password to delete the account.
+HUD_ACCOUNT_DELETED,"Your account and everything stored about it were deleted."
+HUD_ACCOUNT_LOGOUT,LOG OUT
+HUD_ACCOUNT_LOGGED_OUT,Logged out.
+HUD_FRIENDS_TITLE_PLAIN,FRIENDS
+HUD_FRIENDS_LOGIN_HINT,Log in to see your friends.
+HUD_FRIENDS_GUEST_HINT,Guests have no friends list. Create an account to add friends.
+HUD_FRIENDS_LOGIN,LOG IN
+HUD_FRIENDS_INCOMING,Wants to be your friend
+HUD_FRIENDS_OUTGOING,Request sent
+HUD_FRIENDS_BLOCKED,Blocked
+HUD_FRIENDS_ACCEPT,✔
+HUD_FRIENDS_BLOCK,Block
+HUD_FRIENDS_UNBLOCK,Unblock
+HUD_FRIENDS_REQUEST_SENT,Friend request sent.
+HUD_IMPORT_TITLE,Import your old profile?
+HUD_IMPORT_BODY,"This computer still has a profile from an older version (%s). Import its name, emblem and colour into your account? The local file is deleted either way."
+HUD_IMPORT_YES,IMPORT
+HUD_IMPORT_NO,NO THANKS
+HUD_LOBBY_BLOCKED,You blocked %s. You will not see their chat.
+HUD_LOBBY_BLOCK_TIP,Block this player (saved on your account)
+HUD_LOBBY_CONNECTION_LOST,Connection to the server lost.
+HUD_LOBBY_JOINING,Joining the lobby ...
+HUD_LOBBY_REJECT_LOGIN,Please log in first.
+HUD_LOGIN_TITLE,Play online
+HUD_LOGIN_SERVER,%s  ·  %s
+HUD_LOGIN_ENCRYPTED,encrypted
+HUD_LOGIN_PLAIN,not encrypted
+HUD_LOGIN_TAB_LOGIN,LOG IN
+HUD_LOGIN_TAB_REGISTER,CREATE ACCOUNT
+HUD_LOGIN_TAB_GUEST,GUEST
+HUD_LOGIN_USERNAME,Username
+HUD_LOGIN_PASSWORD,Password
+HUD_LOGIN_PASSWORD_AGAIN,Password again
+HUD_LOGIN_DISPLAY_NAME,Display name
+HUD_LOGIN_REMEMBER,Remember my username on this computer
+HUD_LOGIN_SUBMIT,LOG IN
+HUD_LOGIN_CREATE,CREATE ACCOUNT
+HUD_LOGIN_WORKING,Checking ...
+HUD_LOGIN_BACK,BACK
+HUD_LOGIN_ERR_EMPTY,Please fill in both fields.
+HUD_LOGIN_ERR_PASSWORD,The password needs %d to %d characters.
+HUD_LOGIN_ERR_MISMATCH,The two passwords are not the same.
+HUD_LOGIN_PRIVACY_BODY,"Your account (username, password hash, display name, emblem, colour, favourite hero, friends, blocks, sign-up and last-login dates) is stored on the game server to run the online game. Chat is passed on, never stored. Accounts unused for a year are deleted. You can export or delete your account at any time under PROFILE."
+HUD_LOGIN_PRIVACY_ACK,I have read the privacy notice and agree.
+HUD_LOGIN_AGE,I am at least %d years old.
+HUD_LOGIN_NO_RECOVERY,"There is no e-mail and no password recovery: if you forget your password, the account cannot be recovered."
+HUD_LOGIN_GUEST_INFO,"Play without an account: the server keeps your name only while you are connected."
+HUD_LOGIN_GUEST_PRIVACY,"I agree that my display name, emblem, colour and chat are sent to the server for this session."
+HUD_LOGIN_GUEST_SUBMIT,PLAY AS GUEST
+HUD_LOGIN_NO_TLS,"This server is not encrypted yet: login is off, you can play as guest."
+HUD_LOGIN_NO_SERVER,No answer from %s.
+HUD_MENU_NOT_LOGGED_IN,Not logged in

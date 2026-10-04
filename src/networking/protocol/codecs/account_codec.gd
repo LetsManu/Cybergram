@@ -84,7 +84,8 @@ const E_BUSY: int = 15
 const E_SESSION: int = 16
 const E_STORE: int = 17
 const E_GUEST: int = 18          ## not available to guests
-const CODE_COUNT: int = 19
+const E_GUESTS_OFF: int = 19     ## this server needs an account (no guests)
+const CODE_COUNT: int = 20
 
 ## Friend relations in the FRIENDS list.
 const REL_FRIEND: int = 0

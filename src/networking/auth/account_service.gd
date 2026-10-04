@@ -32,6 +32,8 @@ var store: AccountStore
 var rules: AuthRulesDef
 ## The transport is DTLS (accounts allowed). Tests may set it on loopback.
 var secure: bool = false
+## Guests may play (AuthConfig.allow_guests; always on without DTLS).
+var allow_guests: bool = true
 var hasher := PasswordHasher.new()
 var registry: PresenceRegistry
 var rl_account: LoginRateLimiter
@@ -55,11 +57,13 @@ static func shared() -> AccountService:
 
 
 ## Sets up the process-wide service once (later calls only update `secure`).
-static func configure_shared(store_: AccountStore, rules_: AuthRulesDef, secure_: bool) -> AccountService:
+static func configure_shared(store_: AccountStore, rules_: AuthRulesDef, secure_: bool,
+		allow_guests_: bool = true) -> AccountService:
 	if _shared == null or _shared.store == null:
 		_shared = AccountService.new(store_, rules_, secure_)
 	else:
 		_shared.secure = secure_
+	_shared.allow_guests = allow_guests_ or not secure_
 	return _shared
 
 
@@ -237,6 +241,9 @@ func _guest(t: Transport, peer: int, r: Dictionary) -> void:
 	var op := AccountCodec.OP_GUEST
 	if int(r.ver) != MsgType.PROTOCOL_VERSION:
 		_reply(t, peer, op, AccountCodec.E_VERSION)
+		return
+	if not allow_guests:
+		_reply(t, peer, op, AccountCodec.E_GUESTS_OFF)
 		return
 	if (int(r.flags) & AccountCodec.FLAG_PRIVACY) == 0:
 		_reply(t, peer, op, AccountCodec.E_CONSENT)

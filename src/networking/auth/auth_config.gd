@@ -4,7 +4,9 @@ extends RefCounted
 ## environment (design/ux/lobby-and-social.md §6):
 ##   --tls-cert <pem>   / env CYBERGRAM_TLS_CERT   certificate chain (PEM), e.g. Let's Encrypt fullchain.pem
 ##   --tls-key <pem>    / env CYBERGRAM_TLS_KEY    private key (PEM), e.g. privkey.pem
-##   --data-dir <dir>   / env CYBERGRAM_DATA_DIR   account store root (default user://accounts; Docker: /data)
+##   --data-dir <dir>   / env CYBERGRAM_DATA_DIR   account files (default user://accounts; Docker: /data/accounts)
+##   --allow-guests     / env CYBERGRAM_ALLOW_GUESTS=1|true|yes   let players join without an account
+##                      (default off; forced on while there is no TLS certificate, so the game stays playable)
 ## Flags win over env. Without a readable cert + key the server runs
 ## guest-only (no DTLS; login / register are refused, never sent in plain).
 ## Client side:
@@ -22,6 +24,7 @@ var data_dir: String = DEFAULT_DATA_DIR
 var ca_path: String = ""
 var insecure: bool = false
 var no_dtls: bool = false
+var allow_guests: bool = false
 ## Loaded server TLS (null = guest-only) and why it is missing.
 var server_tls: TLSOptions
 var tls_error: String = ""
@@ -35,6 +38,7 @@ static func parse(args: PackedStringArray, env: Dictionary) -> AuthConfig:
 	var dd := str(env.get("CYBERGRAM_DATA_DIR", ""))
 	if dd != "":
 		c.data_dir = dd
+	c.allow_guests = str(env.get("CYBERGRAM_ALLOW_GUESTS", "")).to_lower() in ["1", "true", "yes", "on"]
 	var i := 0
 	while i < args.size():
 		var has_value := i + 1 < args.size()
@@ -59,6 +63,8 @@ static func parse(args: PackedStringArray, env: Dictionary) -> AuthConfig:
 				c.insecure = true
 			"--no-dtls":
 				c.no_dtls = true
+			"--allow-guests":
+				c.allow_guests = true
 		i += 1
 	return c
 
@@ -66,7 +72,7 @@ static func parse(args: PackedStringArray, env: Dictionary) -> AuthConfig:
 ## This process's settings (OS args + env).
 static func from_os() -> AuthConfig:
 	var env := {}
-	for k in ["CYBERGRAM_TLS_CERT", "CYBERGRAM_TLS_KEY", "CYBERGRAM_DATA_DIR"]:
+	for k in ["CYBERGRAM_TLS_CERT", "CYBERGRAM_TLS_KEY", "CYBERGRAM_DATA_DIR", "CYBERGRAM_ALLOW_GUESTS"]:
 		if OS.has_environment(k):
 			env[k] = OS.get_environment(k)
 	return parse(OS.get_cmdline_user_args(), env)
@@ -77,15 +83,22 @@ static func from_os() -> AuthConfig:
 func load_server_tls() -> TLSOptions:
 	server_tls = null
 	if cert_path == "" or key_path == "":
-		tls_error = "no --tls-cert / --tls-key (or CYBERGRAM_TLS_CERT / CYBERGRAM_TLS_KEY)"
+		tls_error = "no TLS certificate configured (--tls-cert / CYBERGRAM_TLS_CERT)"
+		return null
+	# The Docker image always sets the env: a missing file is normal (guest-only).
+	if not FileAccess.file_exists(cert_path):
+		tls_error = "no TLS certificate at %s" % cert_path
+		return null
+	if not FileAccess.file_exists(key_path):
+		tls_error = "no TLS private key at %s" % key_path
 		return null
 	var cert := X509Certificate.new()
 	if cert.load(cert_path) != OK:
-		tls_error = "cannot read certificate %s" % cert_path
+		tls_error = "unreadable TLS certificate at %s" % cert_path
 		return null
 	var key := CryptoKey.new()
 	if key.load(key_path) != OK:
-		tls_error = "cannot read private key %s" % key_path
+		tls_error = "unreadable TLS private key at %s" % key_path
 		return null
 	tls_error = ""
 	server_tls = TLSOptions.server(key, cert)

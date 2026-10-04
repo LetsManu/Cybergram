@@ -503,9 +503,13 @@ func _start_lobby() -> void:
 			if store.open() != OK:
 				push_error("[accounts] cannot open the account store in %s" % auth.data_dir)
 				store = null
-		AccountService.configure_shared(store, AuthConfig.rules(), tls != null and store != null)
-		print("[accounts] %s" % ("DTLS on; accounts in %s (%d)" % [auth.data_dir, store.count()] if store != null
-			else "guest-only (%s)" % (auth.tls_error if tls == null else "no account store")))
+		var svc := AccountService.configure_shared(store, AuthConfig.rules(), tls != null and store != null,
+			auth.allow_guests)
+		if store != null:
+			print("[accounts] encrypted login enabled (%d account(s) in %s); guests %s" % [store.count(),
+				auth.data_dir, "allowed" if svc.allow_guests else "off (login required)"])
+		else:
+			print("[accounts] %s; guest-only (login disabled)" % (auth.tls_error if tls == null else "no account store"))
 	if _lobby_enet.error_text != "":
 		push_error("GameSession: %s" % _lobby_enet.error_text)
 		get_tree().quit(1)

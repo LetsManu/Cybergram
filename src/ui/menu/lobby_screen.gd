@@ -5,9 +5,9 @@ extends VBoxContainer
 ## player's emblem, name, hero badge and ready / locked state; SWITCH TEAM when
 ## the other side has room; a data-driven hero picker (HeroCatalog); Ready =
 ## lock in; the countdown and its locked final seconds; lobby chat; leave.
-## A dropped connection is retried within the server's reconnect grace.
-## Chat safety: MUTE hides a player's chat lines (by player id) and REPORT
-## records a report on this computer only (LocalModeration; nothing is sent).
+## It runs on the menu's logged-in connection (`online`, a LobbyClient).
+## Chat safety: MUTE hides a player's chat for this session (memory only);
+## BLOCK and "+" (friend request) go to the server account (not for guests).
 ## Display only: the server decides every seat, team, pick and chat line.
 ## When the server starts the match it emits start_requested with the
 ## --connect/--hero/--token args.
@@ -15,7 +15,7 @@ extends VBoxContainer
 ## Example (MainMenu):
 ##   var lobby := LobbyScreen.new()
 ##   lobby.address = "cyber.djboeck.at:7777"
-##   lobby.profile = profile
+##   lobby.online = logged_in_client
 ##   lobby.start_requested.connect(...)
 ##   add_child(lobby)
 
@@ -24,43 +24,36 @@ signal start_requested(args: PackedStringArray)
 signal cancelled(reason: String)
 ## "+" on another player's row.
 signal add_friend_requested(id: String, name: String)
-## Presence reply that arrived over the lobby connection.
-signal presence_received(entries: Array)
+## An account answer that arrived while the lobby is open (friends panel).
+signal account_result(result: Dictionary)
 ## Every lobby state: the seats (lets the friends list resolve names to ids).
 signal roster_seen(slots: Array)
 
 const CONNECT_TIMEOUT_S := 8.0
-const RECONNECT_EVERY_S := 3.0
-const RECONNECT_TRIES := 4
 const SYS_KEYS := ["", "HUD_LOBBY_SYS_JOINED", "HUD_LOBBY_SYS_LEFT", "HUD_LOBBY_SYS_RECONNECTING",
 	"HUD_LOBBY_SYS_RECONNECTED", "HUD_LOBBY_SYS_SWITCHED", "HUD_LOBBY_SYS_LOCKED_IN", "HUD_LOBBY_SYS_SLOW_DOWN",
 	"HUD_LOBBY_SYS_TEAM_FULL"]
 
 var address: String = ""
-## The local player's profile (required).
-var profile: PlayerProfile
+## The logged-in connection (required): account session + lobby messages.
+var online: LobbyClient
+## Its ENet link (for disconnect detection; null on loopback tests).
+var link: ENetTransport
 ## Hero id stem pre-selected ("vesper_loom").
 var hero_id: String = "vesper_loom"
 ## A friend's id to sit with ("Join friend"; "" = none).
 var party_id: String = ""
 ## Debug / testing: press Ready as soon as the lobby answers (--auto-ready).
 var auto_ready: bool = false
-## Injected transport (tests, evidence captures); null = ENet to `address`.
-var transport: Transport
 ## Ids that are already friends (no "+" on their rows).
 var friend_ids: PackedStringArray = PackedStringArray()
-## Local mutes / reports (LocalModeration) and where they are saved.
-var moderation_path: String = LocalModeration.DEFAULT_PATH
+## Session mutes (memory only).
 var moderation: LocalModeration
 
-var _enet: ENetTransport
 var _lobby: LobbyClient
 var _host: String = ""
 var _port: int = ENetTransport.DEFAULT_PORT
 var _waited: float = 0.0
-var _seated: bool = false
-var _retry_left: float = 0.0
-var _tries: int = 0
 var _status: Label
 var _count: Label
 var _team_cols: Array[VBoxContainer] = []
@@ -76,10 +69,8 @@ var _chat_lines: int = 0
 
 func _ready() -> void:
 	HudStrings.ensure_loaded()
-	if profile == null:
-		profile = PlayerProfile.generated()
 	if moderation == null:
-		moderation = LocalModeration.load_from(moderation_path)
+		moderation = LocalModeration.shared()
 	add_theme_constant_override("separation", 8)
 	custom_minimum_size = Vector2(900, 0)
 	var h := HeroCatalog.find_stem(hero_id)
@@ -89,7 +80,7 @@ func _ready() -> void:
 	_host = hp[0]
 	if hp.size() == 2 and hp[1].is_valid_int():
 		_port = clampi(hp[1].to_int(), 1, 65535)
-	_status.text = tr("HUD_MENU_CONNECTING") % address
+	_status.text = tr("HUD_LOBBY_JOINING")
 	_open()
 	_ready_btn.grab_focus.call_deferred()
 
@@ -201,25 +192,31 @@ func _build() -> void:
 
 
 func _open() -> void:
-	var t := transport
-	if t == null:
-		_enet = ENetTransport.connect_to(_host, _port)
-		if _enet.error_text != "":
-			_cancel.call_deferred(_enet.error_text)
-			return
-		t = _enet
-	_lobby = LobbyClient.new(t, profile.to_wire(), _hero_index, party_id)
+	_lobby = online
 	_lobby.state_changed.connect(_on_state)
 	_lobby.chat_received.connect(_on_chat)
-	_lobby.presence_received.connect(func(e: Array) -> void: presence_received.emit(e))
+	_lobby.account_result.connect(_on_account)
 	_lobby.match_starting.connect(_on_start)
-	_lobby.failed.connect(func(key: String) -> void: _cancel(tr(key)))
+	_lobby.failed.connect(_on_failed)
+	_lobby.join(_hero_index, party_id)
 
 
-## Sends a presence query over the lobby connection (FriendsPanel.query).
-func query_presence(ids: PackedStringArray, names: PackedStringArray) -> void:
-	if _lobby != null:
-		_lobby.query_presence(ids, names)
+## The shared client outlives this view: drop every connection to it.
+func _exit_tree() -> void:
+	if online == null:
+		return
+	for pair in [[online.state_changed, _on_state], [online.chat_received, _on_chat],
+			[online.account_result, _on_account], [online.match_starting, _on_start], [online.failed, _on_failed]]:
+		if (pair[0] as Signal).is_connected(pair[1]):
+			(pair[0] as Signal).disconnect(pair[1])
+
+
+func _on_account(d: Dictionary) -> void:
+	account_result.emit(d)
+
+
+func _on_failed(key: String) -> void:
+	_cancel(tr(key))
 
 
 ## The lobby client (tests / evidence captures); null once left or started.
@@ -229,23 +226,13 @@ func client() -> LobbyClient:
 
 func _process(delta: float) -> void:
 	if _lobby == null:
-		if _retry_left > 0.0:
-			_retry_left -= delta
-			if _retry_left <= 0.0:
-				_reconnect()
 		return
 	var lobby := _lobby  # keep a reference: a handler below may drop _lobby
 	lobby.step()
 	if _lobby == null:
 		return  # the match is starting (or the lobby was left) during step()
-	if _enet != null and _enet.error_text != "":
-		if _seated and _tries < RECONNECT_TRIES:
-			_drop_link()
-			_retry_left = RECONNECT_EVERY_S
-			_status.text = tr("HUD_LOBBY_RECONNECTING")
-			_status.add_theme_color_override("font_color", HudPalette.WARN)
-		else:
-			_cancel(_enet.error_text)
+	if link != null and link.error_text != "":
+		_cancel(tr("HUD_LOBBY_CONNECTION_LOST"))
 		return
 	if _lobby.state.is_empty():
 		_waited += delta
@@ -253,23 +240,13 @@ func _process(delta: float) -> void:
 			_cancel(tr("HUD_LOBBY_NO_ANSWER") % address)
 
 
-func _drop_link() -> void:
-	if _enet != null:
-		_enet.close()
-	_enet = null
-	_lobby = null
 
 
-func _reconnect() -> void:
-	_tries += 1
-	_waited = 0.0
-	print("[lobby] reconnecting to %s (try %d)" % [address, _tries])
-	_open()
+
+
 
 
 func _on_state(s: Dictionary) -> void:
-	_seated = true
-	_tries = 0
 	if auto_ready and not _ready_btn.button_pressed:
 		_ready_btn.button_pressed = true  # toggled -> _send_pick()
 	var you: int = s.you
@@ -359,10 +336,13 @@ func _slot_row(sl: Dictionary, is_you: bool) -> Control:
 		state_col = HudPalette.WARN
 	hv.add_child(MenuStyle.label(tr(state_key), 11, state_col))
 	row.add_child(hv)
-	if not is_you and not friend_ids.has(str(sl.id)):
+	var account: bool = _lobby != null and int(_lobby.session.get("guest", 1)) == 0
+	if not is_you and account and not friend_ids.has(str(sl.id)):
 		var add := MenuStyle.button(tr("HUD_FRIENDS_PLUS"), func() -> void:
 			friend_ids.append(str(sl.id))
+			_lobby.request(AccountCodec.OP_FRIEND_REQUEST, {"username": "", "id": str(sl.id)})
 			add_friend_requested.emit(str(sl.id), str(sl.name))
+			_local_line(tr("HUD_FRIENDS_REQUEST_SENT"))
 			_refresh_state(), false, 28)
 		add.tooltip_text = tr("HUD_LOBBY_ADD_FRIEND")
 		add.custom_minimum_size.x = 28
@@ -377,20 +357,21 @@ func _slot_row(sl: Dictionary, is_you: bool) -> Control:
 				moderation.unmute(id)
 			else:
 				moderation.mute(id, nm_s)
-			moderation.save(moderation_path)
 			_refresh_state(), false, 28)
 		mute.add_theme_font_size_override("font_size", 11)
 		mute.tooltip_text = tr("HUD_LOBBY_MUTE_TIP")
 		mute.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(mute)
-		var rep := MenuStyle.button(tr("HUD_LOBBY_REPORT"), func() -> void:
-			moderation.report(id, nm_s, "lobby", Time.get_unix_time_from_system())
-			moderation.save(moderation_path)
-			_local_line(tr("HUD_LOBBY_REPORTED") % nm_s), false, 28)
-		rep.add_theme_font_size_override("font_size", 11)
-		rep.tooltip_text = tr("HUD_LOBBY_REPORT_TIP")
-		rep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(rep)
+		if account:
+			var blk := MenuStyle.button(tr("HUD_FRIENDS_BLOCK"), func() -> void:
+				moderation.mute(id, nm_s)
+				_lobby.request(AccountCodec.OP_BLOCK, {"id": id})
+				_local_line(tr("HUD_LOBBY_BLOCKED") % nm_s)
+				_refresh_state(), false, 28)
+			blk.add_theme_font_size_override("font_size", 11)
+			blk.tooltip_text = tr("HUD_LOBBY_BLOCK_TIP")
+			blk.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(blk)
 	return card
 
 
@@ -457,8 +438,6 @@ static func system_text(c: Dictionary) -> String:
 func _on_start(token: int, _team: int, hero_index: int) -> void:
 	var h := HeroCatalog.find_index(hero_index)
 	var id: String = h.get("stem", hero_id)
-	if _enet != null:
-		_enet.close()
 	_lobby = null
 	start_requested.emit(PackedStringArray(["--connect", "%s:%d" % [_host, _port], "--hero", id,
 		"--token", str(token)]))
@@ -474,10 +453,7 @@ func _send_pick() -> void:
 		_lobby.pick(_hero_index, _ready_btn.button_pressed)
 
 
+## Leaves the lobby view; the menu closes or re-uses the connection.
 func _cancel(reason: String) -> void:
-	if _enet != null:
-		_enet.close()
-	_enet = null
 	_lobby = null
-	_retry_left = 0.0
 	cancelled.emit(reason)
