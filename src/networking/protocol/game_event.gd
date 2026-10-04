@@ -15,6 +15,11 @@ const MATCH_PHASE: int = 3
 ## One event per traced pellet (capped per shot by ServerWorld).
 const SHOT: int = 4
 
+## W10-W4: one per hero and stat, to every client, once when the match ends.
+## target_net_id = the hero, flags = MatchStats.Stat, amount = the total.
+## Same 22-byte record: no layout change (clients that do not know the kind skip it).
+const PLAYER_STAT: int = 5
+
 const FLAG_HEADSHOT: int = 1
 const FLAG_KILL: int = 2
 ## E9: the hit landed on a sealed (not Exposed) Uplink and was dropped (ImmuneHit cue).
@@ -67,4 +72,13 @@ static func match_phase(phase: int, winner: int, reason: int, time_s: float) -> 
 	e.source_net_id = winner + 1
 	e.flags = reason
 	e.amount = time_s
+	return e
+
+
+static func player_stat(hero_net_id: int, stat: int, value: float) -> GameEvent:
+	var e := GameEvent.new()
+	e.kind = PLAYER_STAT
+	e.target_net_id = hero_net_id
+	e.flags = stat
+	e.amount = value
 	return e

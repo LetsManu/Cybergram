@@ -653,7 +653,7 @@ func _tick_deployable(d: Deployable, t: int) -> void:
 		DeployableEffectDef.Kind.BEACON:
 			if d.hero_heal_per_s > 0.0:  # W10-T1 Bastion fork: also heals allied heroes
 				for e in entities_in_radius(d.pos, d.radius, d.team, false, true, true, false):
-					(e as HeroBody).combat.health.heal(d.hero_heal_per_s * dt)
+					(e as HeroBody).combat.health.heal(d.hero_heal_per_s * dt, d.source_id)
 			if server.wardlings != null:
 				for e in entities_in_radius(d.pos, d.radius, d.team, false, true, false, true):
 					var w := e as WardlingSim
