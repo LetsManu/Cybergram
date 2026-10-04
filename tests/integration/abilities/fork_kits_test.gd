@@ -423,6 +423,7 @@ func test_sable_phase_shift_forks_and_sabotage_cascade_and_snare() -> void:
 	assert_int(_server.abilities.extras.charges.size()).is_equal(0)  # Cascade: both detonated
 	assert_float(f2.combat.health.hp).is_less(250.0)
 	assert_bool(f1.combat.status.has(StatusComponent.Kind.ROOT)).is_true()  # Snare Charge
+	assert_bool(_server.abilities.reveals.is_revealed(f1.net_id, sa.combat.team, _server.tick)).is_true()  # revealed (W11-M1)
 
 
 # ------------------------------------------------------------------ Juniper Quill
@@ -450,7 +451,7 @@ func test_juniper_snare_spring_knocks_back_and_coil_mastery_slows() -> void:
 	assert_float(foe.combat.health.hp).is_less(250.0)
 	assert_bool(foe.combat.status.has(StatusComponent.Kind.ROOT)).is_false()  # Spring replaces the root
 	assert_float(foe.state.position.distance_to(p0)).is_greater(2.0)
-	assert_bool(foe.combat.status.has(StatusComponent.Kind.SLOW)).is_true()  # Mastery mark
+	assert_bool(_server.abilities.reveals.is_revealed(foe.net_id, j.combat.team, _server.tick)).is_true()  # Mastery: revealed 5 s (W11-M1)
 
 
 func test_juniper_tripwire_razor_survives_three_triggers() -> void:

@@ -449,18 +449,17 @@ func _trigger(rec: Data, victims: Array[Node3D], dmult: float, t: int) -> void:
 		KIND_SNARE:
 			var push := ctx.param(&"distance")  # W10-T1 Spring fork: knockback instead of root
 			var root := ctx.ticks(&"duration")
-			var slow := ctx.param(&"extra")  # Mastery: snared enemies stay marked (slowed)
 			for v in victims:
 				world.skill_damage(ctx, v, dmg)
+				_reveal(ctx, v)  # Mastery: snared enemies are revealed to her team
 				if push > 0.0 and v is HeroBody:
 					_knock_away(ctx, v as HeroBody, rec.d.pos, push)
 				elif root > 0:
 					world.apply_status(ctx, v, StatusComponent.Kind.ROOT, root, 0.0)
-				if slow > 0.0:
-					world.apply_status(ctx, v, StatusComponent.Kind.SLOW, ctx.ticks(&"secondary_duration"), slow)
 		KIND_WIRE:
 			for v in victims:
 				world.skill_damage(ctx, v, dmg)
+				_reveal(ctx, v)  # Alarm Net: the trigger reveals the enemy to the team
 				world.apply_status(ctx, v, StatusComponent.Kind.SLOW, ctx.ticks(&"secondary_duration"), ctx.param(&"slow"))
 		KIND_MINE:
 			var pull := ctx.param(&"distance")  # W10-T1 Gravity Mine fork: pull radius
@@ -474,6 +473,13 @@ func _trigger(rec: Data, victims: Array[Node3D], dmult: float, t: int) -> void:
 		return
 	rec.d.alive = false
 	_chain(rec, t)
+
+
+## W11-M1: reveals hero `v` to the caster's team for the skill's `reveal` seconds.
+func _reveal(ctx: EffectContext, v: Node3D) -> void:
+	var secs := ctx.ticks(&"reveal")
+	if secs > 0 and v is HeroBody:
+		world.reveals.reveal((v as HeroBody).net_id, ctx.team, secs, world.server.tick)
 
 
 ## Pushes `h` `dist` m away from `from` (Snare Coil Spring fork, Flash Bloom style).

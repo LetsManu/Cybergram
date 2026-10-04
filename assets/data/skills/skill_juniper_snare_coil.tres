@@ -39,9 +39,9 @@ modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("
 
 [sub_resource type="Resource" id="w10_sub_6"]
 script = ExtResource("w10_0")
-stat = &"extra"
+stat = &"reveal"
 op = 0
-value = 0.3
+value = 5.0
 
 [sub_resource type="Resource" id="w10_sub_7"]
 script = ExtResource("w10_0")

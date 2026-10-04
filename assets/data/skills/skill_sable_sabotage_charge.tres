@@ -26,11 +26,17 @@ stat = &"extra_b"
 op = 0
 value = 1.2
 
+[sub_resource type="Resource" id="m11_rv1"]
+script = ExtResource("s3")
+stat = &"reveal"
+op = 0
+value = 4.0
+
 [sub_resource type="Resource" id="w10_sub_4"]
 script = ExtResource("w10_1")
 kind = 3
 required_level = 5
-modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3")])
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("m11_rv1")])
 
 [sub_resource type="Resource" id="w10_sub_5"]
 script = ExtResource("w10_0")
@@ -38,11 +44,17 @@ stat = &"width"
 op = 0
 value = 20.0
 
+[sub_resource type="Resource" id="m11_rv2"]
+script = ExtResource("s3")
+stat = &"reveal"
+op = 0
+value = 4.0
+
 [sub_resource type="Resource" id="w10_sub_6"]
 script = ExtResource("w10_1")
 kind = 4
 required_level = 9
-modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_5")])
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_5"), SubResource("m11_rv2")])
 
 [sub_resource type="Resource" id="sabotage_effect_def_1"]
 script = ExtResource("s1")

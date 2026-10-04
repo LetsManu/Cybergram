@@ -25,11 +25,17 @@ stat = &"damage"
 op = 2
 value = 1.3
 
+[sub_resource type="Resource" id="m11_rv1"]
+script = ExtResource("1")
+stat = &"reveal"
+op = 0
+value = 6.0
+
 [sub_resource type="Resource" id="w10_sub_4"]
 script = ExtResource("w10_1")
 kind = 3
 required_level = 5
-modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3")])
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("m11_rv1")])
 
 [sub_resource type="Resource" id="w10_sub_5"]
 script = ExtResource("w10_0")
