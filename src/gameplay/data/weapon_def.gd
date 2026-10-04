@@ -8,6 +8,8 @@ extends Resource
 enum FeedKind { MANA, MAGAZINE }
 
 @export var id: StringName = &""
+## W10-W5: key into SfxBankDef.weapon_voices (gunshot voice); empty = generic shot.
+@export var sfx_voice: StringName = &""
 @export var display_name: String = ""
 @export var feed_kind: FeedKind = FeedKind.MANA
 ## HP per hit (per pellet), level 1, before falloff and armor.
