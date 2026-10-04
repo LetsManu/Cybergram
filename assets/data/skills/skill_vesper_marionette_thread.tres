@@ -6,6 +6,13 @@
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="4"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/projectile_effect_def.gd" id="5"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="6"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="w10_2"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/fork_gate_effect_def.gd" id="w10_3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/damage_effect_def.gd" id="w10_4"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/squad_focus_effect_def.gd" id="w10_5"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/area_effect_def.gd" id="w10_6"]
 
 [sub_resource type="Resource" id="damage_1"]
 script = ExtResource("1")
@@ -19,7 +26,7 @@ duration_param = &"secondary_duration"
 script = ExtResource("5")
 speed_param = &"speed"
 range_param = &"range"
-on_hit = Array[Resource]([SubResource("damage_1"), SubResource("focus_2")])
+on_hit = Array[Resource]([SubResource("damage_1"), SubResource("focus_2"), SubResource("w10_sub_2"), SubResource("w10_sub_6")])
 
 [sub_resource type="Resource" id="mod_4"]
 script = ExtResource("3")
@@ -39,6 +46,77 @@ kind = 1
 required_level = 3
 modifiers = Array[ExtResource("3")]([SubResource("mod_4"), SubResource("mod_5")])
 
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_2")
+kind = 0
+duration_param = &"duration"
+magnitude = 0.3
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_3")
+fork = 2
+effects = Array[Resource]([SubResource("w10_sub_1")])
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_4")
+amount_param = &"bonus_damage"
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_5")
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_6")
+radius_param = &"width"
+effects = Array[Resource]([SubResource("w10_sub_3"), SubResource("w10_sub_4")])
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_3")
+fork = 0
+effects = Array[Resource]([SubResource("w10_sub_5")])
+needs_mastery = true
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_0")
+stat = &"damage"
+op = 2
+value = 1.25
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_7")])
+
+[sub_resource type="Resource" id="w10_sub_9"]
+script = ExtResource("w10_0")
+stat = &"duration"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="w10_sub_10"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_9")])
+
+[sub_resource type="Resource" id="w10_sub_11"]
+script = ExtResource("w10_0")
+stat = &"width"
+op = 0
+value = 8.0
+
+[sub_resource type="Resource" id="w10_sub_12"]
+script = ExtResource("w10_0")
+stat = &"bonus_damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="w10_sub_13"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_11"), SubResource("w10_sub_12")])
+
 [resource]
 script = ExtResource("6")
 id = &"skill_vesper_marionette_thread"
@@ -53,4 +131,4 @@ params = {
 &"secondary_duration": 4.0
 }
 effects = Array[Resource]([SubResource("proj_3")])
-nodes = Array[ExtResource("4")]([SubResource("node_6")])
+nodes = Array[ExtResource("4")]([SubResource("node_6"), SubResource("w10_sub_8"), SubResource("w10_sub_10"), SubResource("w10_sub_13")])
