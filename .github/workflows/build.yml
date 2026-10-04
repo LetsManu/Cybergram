@@ -73,6 +73,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
         run: |
+          # The launcher reuses the game's login protocol scripts (copies in launcher/src/shared).
+          launcher/tools/sync_shared.sh
           # The launcher compares its own version with the feed's launcher section.
           if [[ -n "$RELEASE_TAG" ]]; then
             sed -i "s|^config/version=.*|config/version=\"${RELEASE_TAG#v}\"|" launcher/project.godot
