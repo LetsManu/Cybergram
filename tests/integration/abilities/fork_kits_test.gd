@@ -317,3 +317,109 @@ func test_ryker_slide_forks_momentum_rebound_and_mastery_dr() -> void:
 	var s2 := _learn(r2, 2, SkillNodeDef.Kind.FORK_B)
 	assert_int(s2.max_charges()).is_equal(2)  # Rebound: a second slide
 	assert_float(s.param(&"dr")).is_equal_approx(0.3, 1e-4)
+
+
+# ------------------------------------------------------------------ Liora Vale
+
+func test_liora_drone_swarm_cleanse_and_hover_pulse() -> void:
+	_world()
+	var l := _hero(LIORA, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var a1 := _hero(VESPER, Vector3(0.0, 0.05, -10.0), ServerWorld.TEAM_PLAYERS)
+	var a2 := _hero(VESPER, Vector3(2.0, 0.05, -10.0), ServerWorld.TEAM_PLAYERS)
+	var a3 := _hero(VESPER, Vector3(4.0, 0.05, -10.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn(l, 0, SkillNodeDef.Kind.FORK_A, true)
+	a1.combat.health.hp = 50.0
+	a2.combat.health.hp = 60.0
+	a3.combat.health.hp = 100.0
+	var ctx := _node_ctx(l, 0)
+	ctx.point = Vector3(0.0, 0.05, -10.0)
+	ctx.run(s.effects())
+	assert_int(_server.abilities.extras.drones.size()).is_equal(2)  # Swarm: 2 drones
+	_run(60)
+	var targets := {}
+	for d in _server.abilities.extras.drones:
+		if d.target != null:
+			targets[d.target] = true
+	assert_int(targets.size()).is_equal(2)  # different allies
+	_run(6 * HZ)
+	assert_float(a1.combat.health.hp).is_greater(50.0)
+	assert_float(a2.combat.health.hp).is_greater(60.0)
+	assert_float(a3.combat.health.hp).is_greater(100.0)  # Mastery hover pulse reached the third ally
+	# Cleanse fork: Slow and Root are removed from the healed ally.
+	var l2 := _hero(LIORA, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(VESPER, Vector3(30.0, 0.05, -10.0), ServerWorld.TEAM_PLAYERS)
+	var s2 := _learn(l2, 0, SkillNodeDef.Kind.FORK_B)
+	ally.combat.health.hp = 80.0
+	ally.combat.status.apply(StatusComponent.Kind.SLOW, 300, 0.3, 77, _server.tick)
+	var c2 := _node_ctx(l2, 0)
+	c2.point = ally.state.position
+	c2.run(s2.effects())
+	_run(HZ)
+	assert_bool(ally.combat.status.has(StatusComponent.Kind.SLOW)).is_false()
+
+
+func test_liora_prism_ward_haste_overcharge_and_flash_bloom_sanctuary() -> void:
+	_world()
+	var l := _hero(LIORA, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(VESPER, Vector3(3.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn(l, 1, SkillNodeDef.Kind.FORK_A)
+	var base := l.combat.stats.get_value(StatCatalog.MOVE_SPEED)
+	_node_ctx(l, 1).run(s.effects())  # no ally in the cone: the caster is picked
+	assert_float(l.combat.stats.get_value(StatCatalog.MOVE_SPEED)).is_greater(base * 1.2)  # Haste +25%
+	assert_bool(l.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()
+	var l2 := _hero(LIORA, Vector3(40.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var s2 := _learn(l2, 1, SkillNodeDef.Kind.FORK_B)
+	_node_ctx(l2, 1).run(s2.effects())
+	assert_float(l2.combat.stats.get_value(StatCatalog.WEAPON_DAMAGE)).is_equal_approx(1.15, 1e-3)  # Overcharge
+	var l3 := _hero(LIORA, Vector3(60.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var s3 := _learn(l3, 2, SkillNodeDef.Kind.FORK_A)
+	ally.combat.health.hp = 100.0
+	var c := _node_ctx(l3, 2)
+	c.point = ally.state.position
+	c.run(s3.node_of(SkillNodeDef.Kind.FORK_A).added_effects)
+	assert_float(ally.combat.health.hp).is_equal_approx(160.0, 1e-3)  # Sanctuary +60 within 10 m
+
+
+# ------------------------------------------------------------------ Sable
+
+func test_sable_veilwalk_ambush_and_mastery_keeps_stealth_on_damage() -> void:
+	_world()
+	var sa := _hero(SABLE, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var foe := _hero(VESPER, Vector3(0.0, 0.05, -30.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var s := _learn(sa, 0, SkillNodeDef.Kind.FORK_A, true)
+	assert_bool(_cast(sa, 0)).is_true()
+	assert_bool(_server.abilities.extras.stealth.has(sa)).is_true()
+	var info := DamageInfo.make(10.0, foe.net_id, foe.combat.team, 0, DamageInfo.Type.SKILL)
+	_server.damage_hero(sa, info)
+	assert_bool(_server.abilities.extras.stealth.has(sa)).is_true()  # Mastery: damage does not break it
+	var s2 := SkillInstance.new(s.def, 0)
+	s2.learn(s2.node_of(SkillNodeDef.Kind.FORK_B))
+	assert_float(s2.param(&"radius")).is_equal_approx(5.0, 1e-4)  # Ghost Lane shimmer 5 m
+	_run(250)  # 8 s with the Boost, then the Ambush window
+	assert_float(sa.combat.stats.get_value(StatCatalog.WEAPON_DAMAGE)).is_equal_approx(1.4, 1e-3)
+
+
+func test_sable_phase_shift_forks_and_sabotage_cascade_and_snare() -> void:
+	_world()
+	var sa := _hero(SABLE, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(VESPER, Vector3(2.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var f1 := _hero(VESPER, Vector3(10.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	var f2 := _hero(VESPER, Vector3(18.0, 0.05, 0.0), ServerWorld.TEAM_DUMMIES)
+	await get_tree().physics_frame
+	var ps := _learn(sa, 1, SkillNodeDef.Kind.FORK_B, true)
+	_node_ctx(sa, 1).run(ps.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
+	assert_float(ally.combat.stats.get_value(StatCatalog.MOVE_SPEED)).is_greater(6.0 * 1.2)  # Slipstream speed
+	assert_int(ps.max_charges()).is_equal(2)  # Mastery
+	var sb := _learn(sa, 2, SkillNodeDef.Kind.FORK_B, true)
+	for p in [f1.state.position, f2.state.position]:
+		var c := _node_ctx(sa, 2)
+		c.point = p
+		c.run(sb.effects())
+	assert_int(_server.abilities.extras.charges.size()).is_equal(2)
+	_run(2 * HZ)  # armed; the foes stand on the charges
+	assert_int(_server.abilities.extras.charges.size()).is_equal(0)  # Cascade: both detonated
+	assert_float(f2.combat.health.hp).is_less(250.0)
+	assert_bool(f1.combat.status.has(StatusComponent.Kind.ROOT)).is_true()  # Snare Charge
