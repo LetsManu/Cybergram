@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="HeroPassiveDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hero_passive_def.gd" id="s1"]
+
+[resource]
+script = ExtResource("s1")
+kind = 0
+magazine_refill_frac = 0.5
+speed_bonus = 0.15
+duration_s = 3.0

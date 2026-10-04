@@ -63,7 +63,7 @@ const HERO_MAX: Array[float] = [50.0, 10.0, 10.0, 1.0, 1.0, 10.0, 8.0, 10.0, 5.0
 const SKILL_PARAMS: Array[StringName] = [
 	&"cooldown", &"damage", &"range", &"radius", &"duration", &"hp", &"heal_per_s", &"dr",
 	&"stun", &"slow", &"speed", &"cast_time", &"bonus_damage", &"secondary_duration",
-	&"width", &"height", &"distance", &"charges", &"leap_time",
+	&"width", &"height", &"distance", &"charges", &"leap_time", &"max_placed",
 ]
 
 

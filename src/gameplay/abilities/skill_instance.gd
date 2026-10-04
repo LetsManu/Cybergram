@@ -19,6 +19,10 @@ var cooldown_total_ticks: int = 0
 ## Effect running; the cooldown starts when it ends (cooldown_on_end skills).
 var active: bool = false
 var active_until_tick: int = -1
+## Charges (param `charges` >= 2, heroes.md "2 charges, recharge 9 s"): charges
+## left (-1 = full, not yet used) and the tick the next one returns (0 = none pending).
+var charges_left: int = -1
+var recharge_end_tick: int = 0
 ## Times this skill completed a cast (diagnostics / tests).
 var casts: int = 0
 
@@ -68,6 +72,12 @@ func node_of(kind: int, rank_: int = 0) -> SkillNodeDef:
 		if n != null and n.kind == kind and (kind != SkillNodeDef.Kind.ULT_RANK or n.rank == rank_):
 			return n
 	return null
+
+
+## Max charges of a charge-based skill (0 = a plain cooldown skill).
+func max_charges() -> int:
+	var n := roundi(param(&"charges"))
+	return n if n >= 2 else 0
 
 
 func on_cooldown(tick: int) -> bool:

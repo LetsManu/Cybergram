@@ -25,6 +25,8 @@ var status: StatusComponent
 var abilities: AbilityRunner
 ## E13: Chamber Ammo Type (DamageMath.AMMO_*), set by the Armory.
 var ammo_type: int = DamageMath.AMMO_STANDARD
+## Liora's heal beam is held: the weapon does not fire (SkillEntities sets it).
+var beaming: bool = false
 
 
 func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
@@ -79,7 +81,7 @@ func weapon_damage_mult() -> float:
 
 ## Can fire the weapon this tick (not stunned, not in forced motion).
 func can_shoot() -> bool:
-	return not status.is_stunned() and not abilities.is_dashing()
+	return not status.is_stunned() and not abilities.is_dashing() and not beaming
 
 
 func reset_for_respawn(at_hq: bool = true) -> void:

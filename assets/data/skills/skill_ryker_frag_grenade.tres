@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/blast_effect_def.gd" id="s1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/thrown_effect_def.gd" id="s2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s4"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s5"]
+
+[sub_resource type="Resource" id="blast_effect_def_1"]
+script = ExtResource("s1")
+
+[sub_resource type="Resource" id="thrown_effect_def_2"]
+script = ExtResource("s2")
+on_detonate = Array[Resource]([SubResource("blast_effect_def_1")])
+
+[sub_resource type="Resource" id="modifier_def_3"]
+script = ExtResource("s3")
+stat = &"damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="modifier_def_4"]
+script = ExtResource("s3")
+stat = &"cooldown"
+op = 0
+value = -1.5
+
+[sub_resource type="Resource" id="skill_node_def_5"]
+script = ExtResource("s4")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_3"), SubResource("modifier_def_4")])
+
+[resource]
+script = ExtResource("s5")
+id = &"skill_ryker_frag_grenade"
+display_name = "Frag Grenade"
+short_label = "FRAG"
+targeting = 2
+params = {
+&"cooldown": 9.0,
+&"damage": 110.0,
+&"radius": 5.0,
+&"duration": 1.2,
+&"speed": 16.0,
+&"charges": 2.0
+}
+effects = Array[Resource]([SubResource("thrown_effect_def_2")])
+nodes = Array[ExtResource("s4")]([SubResource("skill_node_def_5")])

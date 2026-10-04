@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="s1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/ally_pick_effect_def.gd" id="s2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s4"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s5"]
+
+[sub_resource type="Resource" id="status_effect_def_1"]
+script = ExtResource("s1")
+kind = 6
+duration_param = &"duration"
+magnitude_param = &"hp"
+
+[sub_resource type="Resource" id="ally_pick_effect_def_2"]
+script = ExtResource("s2")
+cone_deg = 12.0
+effects = Array[Resource]([SubResource("status_effect_def_1")])
+
+[sub_resource type="Resource" id="modifier_def_3"]
+script = ExtResource("s3")
+stat = &"hp"
+op = 0
+value = 50.0
+
+[sub_resource type="Resource" id="skill_node_def_4"]
+script = ExtResource("s4")
+kind = 1
+required_level = 3
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_3")])
+
+[resource]
+script = ExtResource("s5")
+id = &"skill_liora_prism_ward"
+display_name = "Prism Ward"
+short_label = "WARD"
+targeting = 0
+params = {
+&"cooldown": 14.0,
+&"range": 20.0,
+&"hp": 150.0,
+&"duration": 4.0
+}
+effects = Array[Resource]([SubResource("ally_pick_effect_def_2")])
+nodes = Array[ExtResource("s4")]([SubResource("skill_node_def_4")])

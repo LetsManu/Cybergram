@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="HeroPassiveDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/hero_passive_def.gd" id="s1"]
+
+[resource]
+script = ExtResource("s1")
+kind = 3
+range_m = 18.0
+cone_deg = 6.0
+leash_m = 20.0
+hero_heal_per_s = 60.0
+wardling_heal_per_s = 30.0
+mana_per_s = 25.0

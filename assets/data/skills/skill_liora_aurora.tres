@@ -1,0 +1,90 @@
+[gd_resource type="Resource" script_class="SkillDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/aura_effect_def.gd" id="s1"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="s2"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="s3"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s4"]
+
+[sub_resource type="Resource" id="aura_effect_def_1"]
+script = ExtResource("s1")
+
+[sub_resource type="Resource" id="skill_node_def_2"]
+script = ExtResource("s2")
+kind = 5
+required_level = 6
+rank = 1
+modifiers = Array[ExtResource("s3")]([])
+
+[sub_resource type="Resource" id="modifier_def_3"]
+script = ExtResource("s3")
+stat = &"heal_per_s"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="modifier_def_4"]
+script = ExtResource("s3")
+stat = &"duration"
+op = 0
+value = 1.0
+
+[sub_resource type="Resource" id="modifier_def_5"]
+script = ExtResource("s3")
+stat = &"cooldown"
+op = 0
+value = -15.0
+
+[sub_resource type="Resource" id="skill_node_def_6"]
+script = ExtResource("s2")
+kind = 5
+required_level = 10
+rank = 2
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_3"), SubResource("modifier_def_4"), SubResource("modifier_def_5")])
+
+[sub_resource type="Resource" id="modifier_def_7"]
+script = ExtResource("s3")
+stat = &"heal_per_s"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="modifier_def_8"]
+script = ExtResource("s3")
+stat = &"duration"
+op = 0
+value = 1.0
+
+[sub_resource type="Resource" id="modifier_def_9"]
+script = ExtResource("s3")
+stat = &"cooldown"
+op = 0
+value = -15.0
+
+[sub_resource type="Resource" id="modifier_def_10"]
+script = ExtResource("s3")
+stat = &"dr"
+op = 0
+value = 0.2
+
+[sub_resource type="Resource" id="skill_node_def_11"]
+script = ExtResource("s2")
+kind = 5
+required_level = 14
+rank = 3
+modifiers = Array[ExtResource("s3")]([SubResource("modifier_def_7"), SubResource("modifier_def_8"), SubResource("modifier_def_9"), SubResource("modifier_def_10")])
+
+[resource]
+script = ExtResource("s4")
+id = &"skill_liora_aurora"
+display_name = "Aurora"
+short_label = "AURA"
+ultimate = true
+required_level = 6
+targeting = 0
+params = {
+&"cooldown": 130.0,
+&"radius": 12.0,
+&"duration": 6.0,
+&"heal_per_s": 80.0,
+&"dr": 0.0
+}
+effects = Array[Resource]([SubResource("aura_effect_def_1")])
+nodes = Array[ExtResource("s2")]([SubResource("skill_node_def_2"), SubResource("skill_node_def_6"), SubResource("skill_node_def_11")])

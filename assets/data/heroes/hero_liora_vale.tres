@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="HeroDef" format=3]
+
+[ext_resource type="Resource" path="res://assets/data/weapons/weapon_halo_repeater.tres" id="r1"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_liora_med_pack_drone.tres" id="r2"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_liora_prism_ward.tres" id="r3"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_liora_flash_bloom.tres" id="r4"]
+[ext_resource type="Resource" path="res://assets/data/skills/skill_liora_aurora.tres" id="r5"]
+[ext_resource type="Resource" path="res://assets/data/passives/passive_liora_triage_kit.tres" id="r6"]
+[ext_resource type="Resource" path="res://assets/data/passives/passive_liora_heal_beam.tres" id="r7"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="s8"]
+[ext_resource type="Script" path="res://src/gameplay/data/hero_passive_def.gd" id="s9"]
+[ext_resource type="Script" path="res://src/gameplay/data/hero_def.gd" id="s10"]
+
+[resource]
+script = ExtResource("s10")
+id = &"hero_liora_vale"
+display_name = "Liora Vale"
+max_hp = 225
+armor = 0.0
+move_speed = 6.0
+weapon = ExtResource("r1")
+skills = Array[ExtResource("s8")]([ExtResource("r2"), ExtResource("r3"), ExtResource("r4"), ExtResource("r5")])
+passives = Array[ExtResource("s9")]([ExtResource("r6"), ExtResource("r7")])
+hitbox_scale = 1.0
