@@ -131,6 +131,8 @@ var _cast_fx: Dictionary = {}  # HeroCombat -> Fx
 var _blocker_set: bool = false
 ## W9-H2: traps, fields, hacks (Juniper Quill / Hex); stepped from step().
 var traps: TrapWorld
+## W11-M1: heroes revealed to a team through walls.
+var reveals := RevealSet.new()
 ## Hero whose hitscan was just clipped by a deployable (Hex gadget bonus).
 var _shooter: HeroBody
 
@@ -187,6 +189,7 @@ func step() -> void:
 			continue
 		_tick_deployable(d, t)
 	traps.step()
+	reveals.step(t)
 	_step_projectiles()
 	extras.step()
 	for i in range(leaps.size() - 1, -1, -1):

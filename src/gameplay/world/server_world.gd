@@ -824,7 +824,7 @@ func _send_snapshots() -> void:
 			s.own_state = own.state
 			s.own_combat = _own_combat(own.combat)
 			abilities.fill_own(s.own_combat, own.combat)  # E10 skill bar
-		s.entities = entities
+		s.entities = _entities_for(entities, c, own)
 		if own != null and progression != null:
 			progression.fill_own(s, own)  # E13/E15 own progress + learnable slots
 		_fill_objectives(s)
@@ -834,6 +834,27 @@ func _send_snapshots() -> void:
 			wardlings.write_snapshot(s)
 		s.bolts.append_array(bolts.launched)  # hero bolts reuse the Wardling bolt block
 		session.send_snapshot(peer, s)
+
+
+## W11-M1: the shared entity list, with SkillStatusBits.REVEALED set (on copies)
+## for the heroes revealed to this recipient's team. Other teams never see it.
+func _entities_for(entities: Array[SnapshotData.EntityState], c: ServerSession.ClientConnection, own: HeroBody) -> Array[SnapshotData.EntityState]:
+	if own == null or own.combat == null:
+		return entities
+	var ids := abilities.reveals.revealed_ids(own.combat.team, tick)
+	if ids.is_empty():
+		return entities
+	var out: Array[SnapshotData.EntityState] = []
+	for e in entities:
+		if ids.has(e.net_id) and e.team != own.combat.team:
+			var n := SnapshotData.EntityState.new()
+			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index"]:
+				n.set(p, e.get(p))
+			n.status = e.status | SkillStatusBits.REVEALED
+			out.append(n)
+		else:
+			out.append(e)
+	return out
 
 
 func _fill_objectives(s: SnapshotData) -> void:

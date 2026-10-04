@@ -55,16 +55,20 @@ func scan(h: HeroBody, look_yaw: float, bb: BotBlackboard, prefer_uplink: bool) 
 		if e.combat.dead or e.combat.team == team:
 			continue
 		var d := eye.distance_to(e.state.position)
-		if d > profile.sight_range_m:
+		# W11-M1 Reveal: a hero revealed to the bot's team is known through walls.
+		var revealed := server.abilities.reveals.is_revealed(e.net_id, team, server.tick)
+		if d > profile.sight_range_m and not revealed:
 			continue
-		if server.abilities.extras.hidden_from(e, eye):
+		if not revealed and server.abilities.extras.hidden_from(e, eye):
 			continue  # Veilwalk: unseen beyond the shimmer radius
 		var flat := Vector2(e.state.position.x - eye.x, e.state.position.z - eye.z)
-		var in_fov := flat.length() < 0.01 or absf(fwd.angle_to(flat.normalized())) <= half_fov
+		var in_fov := revealed or flat.length() < 0.01 or absf(fwd.angle_to(flat.normalized())) <= half_fov
 		var hit_me := e.net_id == bb.last_attacker_id and bb.seconds_since(bb.last_damaged_tick) < 1.0
 		if not (in_fov or d <= profile.awareness_m or hit_me):
 			continue
 		if not _los(eye, e.state.position + Vector3(0.0, CHEST_Y, 0.0)):
+			if revealed:  # known position, no clear shot: remember it, do not target
+				memory[e.net_id] = [e.state.position, bb.tick]
 			continue
 		seen += 1
 		memory[e.net_id] = [e.state.position, bb.tick]

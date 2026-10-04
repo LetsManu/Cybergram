@@ -1055,6 +1055,7 @@ func _clear_hero(h: HeroBody) -> void:
 	blinded.erase(h)
 	marks.erase(h)
 	riders.erase(h)
+	server.abilities.reveals.clear_hero(h.net_id)
 	h.combat.beaming = false
 	h.combat.health.floor_hp = 0.0
 	_end_beam(h)

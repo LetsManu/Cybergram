@@ -30,6 +30,7 @@ var client: ClientWorld
 var _nodes: Dictionary = {}  # fx id -> [Node3D, kind]
 ## net id -> true while a remote hero is stealthed (from the replicated status).
 var _stealthed: Dictionary = {}
+var _revealed: Dictionary = {}  # net id -> true while revealed to our team (W11-M1)
 var _faded: Dictionary = {}  # net id -> true while its model is faded by us
 var _blind_rect: ColorRect
 var _blind: bool = false
@@ -37,8 +38,11 @@ var _blind: bool = false
 
 func apply_snapshot(s: SnapshotData) -> void:
 	_stealthed.clear()
+	_revealed.clear()
 	_blind = false
 	for e in s.entities:
+		if (e.status & SkillStatusBits.REVEALED) != 0 and e.net_id != s.own_net_id:
+			_revealed[e.net_id] = true
 		if e.net_id == s.own_net_id:
 			_blind = (e.status & SkillStatusBits.BLIND) != 0
 		elif (e.status & SkillStatusBits.STEALTH) != 0:
@@ -71,7 +75,10 @@ func _process(_delta: float) -> void:
 	var views := client.remote_views()
 	for id in views:
 		var v := views[id] as HeroView
-		if v == null or v.model == null:
+		if v == null:
+			continue
+		_update_reveal_marker(v, _revealed.has(id))
+		if v.model == null:
 			continue
 		if _stealthed.has(id) and v.team != client.own_team():
 			var d := v.position.distance_to(me)
@@ -82,6 +89,36 @@ func _process(_delta: float) -> void:
 			v.model.visible = true
 			_set_fade(v.model, 0.0)
 			_faded.erase(id)
+
+
+const REVEAL_COLOR := Color(1.0, 0.25, 0.2, 0.45)
+
+
+## W11-M1: a see-through-walls silhouette on a revealed enemy (no depth test).
+func _update_reveal_marker(v: HeroView, on: bool) -> void:
+	var m := v.get_node_or_null("RevealMarker") as MeshInstance3D
+	if not on:
+		if m != null:
+			m.queue_free()
+			m.name = "RevealMarker_gone"
+		return
+	if m != null:
+		return
+	m = MeshInstance3D.new()
+	m.name = "RevealMarker"
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.45
+	cap.height = 1.9
+	m.mesh = cap
+	m.position.y = 0.95
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.no_depth_test = true
+	mat.albedo_color = REVEAL_COLOR
+	mat.render_priority = 100
+	m.material_override = mat
+	v.add_child(m)
 
 
 func _set_fade(n: Node, t: float) -> void:
