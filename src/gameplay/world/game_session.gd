@@ -377,7 +377,8 @@ func _apply_debug_capture() -> void:
 
 func _physics_process(delta: float) -> void:
 	if lobby != null:
-		lobby.step(delta)
+		var l := lobby  # keeps the lobby alive while _on_lobby_started drops it
+		l.step(delta)
 		_lobby_ticks += 1
 		if _quit_after_ticks > 0 and _lobby_ticks >= _quit_after_ticks:
 			print("[lobby] quit after %d ticks, %d player(s)" % [_lobby_ticks, lobby.players.size()])

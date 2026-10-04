@@ -40,6 +40,7 @@ func step(delta: float) -> void:
 		pkt = transport.pop_packet()
 	if phase == LobbyCodec.PHASE_COUNTDOWN:
 		if not _all_ready():
+			print("[lobby] countdown cancelled (someone is not ready)")
 			phase = LobbyCodec.PHASE_WAITING
 			_broadcast()
 		else:
@@ -65,25 +66,33 @@ func _handle(pkt: Transport.Packet) -> void:
 			if j.is_empty():
 				return
 			if j.protocol_version != MsgType.PROTOCOL_VERSION:
+				print("[lobby] peer %d rejected: client protocol v%d, server v%d (update the game)" % [
+					pkt.from_peer, j.protocol_version, MsgType.PROTOCOL_VERSION])
 				transport.send(pkt.from_peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_PROTOCOL_MISMATCH))
 				return
 			if _index_of(pkt.from_peer) >= 0:
 				return
 			if players.size() >= team_size * 2:
+				print("[lobby] peer %d rejected: lobby full (%d players)" % [pkt.from_peer, players.size()])
 				transport.send(pkt.from_peer, Transport.CH_CONTROL, ControlCodec.encode_reject(MsgType.REJECT_SERVER_FULL))
 				return
 			players.append({"peer": pkt.from_peer, "hero_index": j.hero_index, "ready": false})
+			print("[lobby] peer %d joined (team %d, hero %d), %d in lobby" % [
+				pkt.from_peer, team_of(players.size() - 1), j.hero_index, players.size()])
 			_broadcast()
 		MsgType.LOBBY_PICK:
 			var p := LobbyCodec.decode_pick(pkt.data)
 			var i := _index_of(pkt.from_peer)
 			if p.is_empty() or i < 0:
 				return
+			if players[i].hero_index != p.hero_index or players[i].ready != p.ready:
+				print("[lobby] peer %d: hero %d, %s" % [pkt.from_peer, p.hero_index, "READY" if p.ready else "not ready"])
 			players[i].hero_index = p.hero_index
 			players[i].ready = p.ready
 			if phase == LobbyCodec.PHASE_WAITING and _all_ready():
 				phase = LobbyCodec.PHASE_COUNTDOWN
 				countdown_left = COUNTDOWN_S
+				print("[lobby] everyone ready: match starts in %d s" % int(COUNTDOWN_S))
 			_broadcast()
 
 
@@ -91,6 +100,7 @@ func _on_left(peer: int) -> void:
 	var i := _index_of(peer)
 	if i >= 0:
 		players.remove_at(i)
+		print("[lobby] peer %d left, %d in lobby" % [peer, players.size()])
 		_broadcast()
 
 

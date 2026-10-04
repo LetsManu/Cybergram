@@ -112,6 +112,7 @@ func _open_lobby(addr: String) -> void:
 	var lobby := LobbyScreen.new()
 	lobby.address = addr
 	lobby.hero_id = _hero_id()
+	lobby.auto_ready = AppRoot.auto_ready
 	lobby.start_requested.connect(func(args: PackedStringArray) -> void: start_requested.emit(args))
 	lobby.cancelled.connect(func(reason: String) -> void:
 		lobby.queue_free()
