@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MvpFormulaDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/mvp_formula_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+w_kill = 3.0
+w_assist = 1.5
+w_death = 1.5
+damage_per_point = 400.0
+healing_per_point = 400.0
+objective_per_point = 600.0
+win_bonus = 5.0
+winners_only = true
+assist_window_s = 10.0

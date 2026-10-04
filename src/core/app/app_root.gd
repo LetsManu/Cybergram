@@ -19,7 +19,7 @@ static var auto_ready: bool = false
 func _ready() -> void:
 	var headless := DisplayServer.get_name() == "headless"
 	var cfg := load(APP_CONFIG_PATH) as AppConfig
-	var args := OS.get_cmdline_user_args()
+	var args := PracticeRange.boot_args(OS.get_cmdline_user_args())
 	var parsed := LaunchConfig.parse(args, headless)
 	var lobby_addr := parsed.open_lobby
 	auto_ready = auto_ready or parsed.auto_ready

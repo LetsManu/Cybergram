@@ -20,7 +20,7 @@ func apply(ctx: EffectContext) -> void:
 		var c := (t as HeroBody).combat
 		if c.dead or c.team != ctx.team:
 			return
-		c.health.heal(amount)
+		c.health.heal(amount, (ctx.caster as HeroBody).net_id if ctx.caster is HeroBody else 0)
 	elif t is WardlingSim:
 		var w := t as WardlingSim
 		if w.dead or w.team != ctx.team:

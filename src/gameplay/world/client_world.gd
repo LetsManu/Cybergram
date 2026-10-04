@@ -20,6 +20,11 @@ signal shot_received(event: GameEvent)
 signal match_ended(winner: int, reason: int)
 ## E15: the own hero's level changed (HUD level-up flash).
 signal level_changed(level: int)
+## W10-W4: the final per-hero stats arrived (net id -> {MatchStats.Stat -> float}).
+signal match_summary_received(rows: Dictionary)
+## Latest summary rows (empty until the match ends).
+var match_summary: Dictionary = {}
+var _summary_dirty: bool = false
 
 var net: NetConfig
 var movement: MovementDef
@@ -397,9 +402,22 @@ func _on_event(e: GameEvent, _server_tick: int) -> void:
 			kill_received.emit(e)
 		GameEvent.MATCH_PHASE:
 			match_phase_changed.emit(e.target_net_id)
+		GameEvent.PLAYER_STAT:
+			if not _summary_dirty:
+				match_summary = {}
+				_summary_dirty = true
+				_emit_summary_deferred.call_deferred()
+			var row: Dictionary = match_summary.get(e.target_net_id, {})
+			row[e.flags] = e.amount
+			match_summary[e.target_net_id] = row
 		GameEvent.SHOT:
 			_draw_tracer(e)
 			shot_received.emit(e)
+
+
+func _emit_summary_deferred() -> void:
+	_summary_dirty = false
+	match_summary_received.emit(match_summary)
 
 
 ## Tracer colours (saturated so they read on both the pale floor and dark sky):

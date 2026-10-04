@@ -23,6 +23,7 @@ const PLAYER_SPAWN := "PlayerSpawn"
 ## Optional per-team respawn markers in the map ("TeamSpawn0", "TeamSpawn1").
 ## Without one, a hero respawns at its first spawn point.
 const TEAM_SPAWN := "TeamSpawn%d"
+const MVP_FORMULA_PATH := "res://assets/data/match/mvp_formula.tres"
 const TEAM_PLAYERS: int = 0
 const TEAM_DUMMIES: int = 1
 ## Bullet tracers sent per shot (shotguns send an even subset of their pellets).
@@ -69,6 +70,9 @@ var match_flow: MatchRules
 var abilities: AbilityWorld
 ## E13/E15 Lumen, Armory, Resonance, levels, skill tree; null until enable_progression().
 var progression: ProgressionSystem
+## W10-W4 per-hero match statistics (post-match screen); sent at match end.
+var stats: MatchStats = MatchStats.new()
+var _stats_sent: bool = false
 ## Stable content indices for the wire (hero identity in snapshots).
 var content: ContentDB = ContentDB.shared()
 
@@ -87,8 +91,36 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 	session = ServerSession.new(transport, net)
 	session.client_joined.connect(_on_client_joined)
 	abilities = AbilityWorld.new(self)
+	_setup_stats()
 	_map = map_scene.instantiate()
 	add_child(_map)
+
+
+## W10-W4: counters fed by the damage / death signals (healing: _spawn_hero).
+func _setup_stats() -> void:
+	var f := load(MVP_FORMULA_PATH) as MvpFormulaDef
+	if f != null:
+		stats.assist_window_ticks = roundi(f.assist_window_s * net.tick_rate_hz)
+	hero_damaged.connect(func(victim: int, attacker: int, amount: float) -> void:
+		stats.record_damage(attacker, victim, amount, tick))
+	hero_died.connect(func(victim: int, killer: int) -> void:
+		stats.record_death(victim, killer, tick, hero(killer) != null))
+
+
+## Final per-hero rows (net id -> {MatchStats.Stat -> float}).
+func match_summary() -> Dictionary:
+	var identity := {}
+	for h: HeroBody in _hero_bodies():
+		var d := {"team": h.combat.team, "level": h.combat.level}
+		if h.combat.def != null:
+			d["hero"] = content.index_of(ContentDB.HERO, h.combat.def.id)
+		if progression != null:
+			var p: HeroProgress = progression.progress.get(h.net_id)
+			if p != null:
+				d["lumen"] = p.total_earned()
+				d["level"] = p.level
+		identity[h.net_id] = d
+	return stats.summary(identity)
 
 
 ## E7: builds the hardpoints from `map_def` (call after setup()).
@@ -334,6 +366,12 @@ func _step_match() -> void:
 		for peer in session.clients:
 			_queue_event(peer, ev)
 	match_flow.phase_events.clear()
+	if match_flow.is_over() and not _stats_sent:
+		_stats_sent = true
+		var evs := MatchStats.to_events(match_summary())
+		for peer in session.clients:
+			for ev in evs:
+				_queue_event(peer, ev)
 	if match_flow.is_over() and wardlings != null:
 		wardlings.vanguard_enabled = false
 
@@ -511,11 +549,13 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 	for g in per_gen:
 		var grec: Array = per_gen[g]
 		var gapplied := damage_generator(g, grec[0], c.team, h.state.position, false)
+		stats.record_objective(h.net_id, gapplied)
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(g.net_id, h.net_id, gapplied,
 			0 if gapplied > 0.0 else GameEvent.FLAG_IMMUNE, grec[1]))
 	for u in per_uplink:
 		var urec: Array = per_uplink[u]
 		var uapplied := damage_uplink(u, urec[0], false)
+		stats.record_objective(h.net_id, uapplied)
 		var uflags: int = 0 if u.exposed else GameEvent.FLAG_IMMUNE
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(u.net_id, h.net_id, uapplied, uflags, urec[1]))
 	return stopped
@@ -643,6 +683,9 @@ func _spawn_hero(spawn: Vector3, def: HeroDef, team: int) -> HeroBody:
 	h.net_id = registry.register(h, EntityRegistry.KIND_HERO, tick)
 	h.combat = HeroCombat.new(def, team, net.tick_rate_hz, h.net_id)
 	h.combat.home_spawn = spawn
+	var hid := h.net_id
+	h.combat.health.healed.connect(func(amount: float, src: int) -> void:
+		stats.record_heal(src if src > 0 else hid, amount))
 	return h
 
 

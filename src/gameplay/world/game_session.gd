@@ -463,6 +463,8 @@ func _setup_remote_client() -> void:
 		client.wardlings.rules = wardling_rules
 	client.match_ended.connect(func(_w: int, _r: int) -> void:
 		get_tree().create_timer(POST_MATCH_S - 3.0).timeout.connect(func() -> void:
+			if not is_inside_tree():
+				return  # the player already left through the match-end screen
 			remote.close()
 			AppRoot.rejoin_lobby(get_tree(), "%s:%d" % [lc.connect_address, lc.port])))
 	client.session.rejected.connect(func(reason: int) -> void:
