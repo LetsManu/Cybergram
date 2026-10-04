@@ -30,6 +30,16 @@ enum FeedKind { MANA, MAGAZINE }
 ## §3.2: spread recovers at 6 deg/s after 0.15 s without firing.
 @export_range(0.0, 60.0, 0.1) var spread_recovery_deg_s: float = 6.0
 @export_range(0.0, 2.0, 0.01) var spread_recovery_delay_s: float = 0.15
+## Burst fire (GDD 3.3 Whisperfang): shots per trigger pull; 0 or 1 = no burst.
+## `fire_rate` stays the average rate (burst_size / burst_cycle_s) for DPS math.
+@export_range(0, 12) var burst_size: int = 0
+## Shots per second inside a burst (needs at least 1 tick between bolts).
+@export_range(1.0, 30.0, 0.01) var burst_rate: float = 15.0
+## Seconds from the start of one burst to the start of the next while held.
+@export_range(0.05, 5.0, 0.01) var burst_cycle_s: float = 0.35
+## Projectile bolts (GDD 3.1: Liora): m/s, 0 = hitscan. The server simulates the
+## bolt; range_m is its maximum travel.
+@export_range(0.0, 500.0, 0.5) var projectile_speed: float = 0.0
 ## PLACEHOLDER. Hitscan max range (m); the GDD has no hard max except Glitchcaster.
 @export_range(1.0, 500.0, 1.0) var range_m: float = 150.0
 

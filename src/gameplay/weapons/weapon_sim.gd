@@ -21,6 +21,11 @@ var shot_spread_deg: float = 0.0
 var shots_fired: int = 0
 ## Fire-rate multiplier of timed buffs (Combat Stim +25% = 1.25).
 var rate_mult: float = 1.0
+## Scales the per-shot spread bloom (Ryker Overdrive: 0.5 = -50 % recoil).
+var recoil_mult: float = 1.0
+## Tick of the latest shot and its index in the current burst (0 = first).
+var shot_tick: int = 0
+var burst_index: int = 0
 
 var _interval: float
 var _next_fire_tick: float = 0.0
@@ -28,7 +33,10 @@ var _last_shot_tick: int = -1000000
 var _trigger_released: bool = true
 var _recovery_delay_ticks: int
 var _recovery_per_tick: float
-var _rng := RandomNumberGenerator.new()
+var _seed: int
+var _burst_left: int = 0
+var _next_burst_tick: float = 0.0
+var _burst_interval: float = 0.0
 
 
 func _init(weapon: WeaponDef, tick_rate_hz: int, rng_seed: int) -> void:
@@ -36,7 +44,10 @@ func _init(weapon: WeaponDef, tick_rate_hz: int, rng_seed: int) -> void:
 	feed = AmmoFeed.create(weapon, tick_rate_hz)
 	_interval = weapon.fire_interval_ticks(tick_rate_hz)
 	_recovery_delay_ticks = roundi(weapon.spread_recovery_delay_s * tick_rate_hz)
-	_rng.seed = rng_seed
+	_seed = rng_seed
+	if weapon.burst_size > 1:
+		_burst_interval = tick_rate_hz / weapon.burst_rate
+		_interval = tick_rate_hz * weapon.burst_cycle_s
 	spread_deg = weapon.spread_base_deg
 	_recovery_per_tick = weapon.spread_recovery_deg_s / tick_rate_hz
 
@@ -51,16 +62,25 @@ func step(cmd: InputCommand, tick: int, allowed: bool) -> bool:
 		feed.request_reload(tick)
 	var held := cmd.has(InputCommand.BTN_FIRE)
 	var fired := false
-	if held and allowed and (_trigger_released or not def.semi_auto) \
+	var in_burst := _burst_left > 0
+	if in_burst:
+		# A started burst completes without the trigger; it breaks when the gun cannot fire.
+		if not allowed or not feed.can_fire():
+			_burst_left = 0
+		elif tick + 1e-4 >= _next_burst_tick:
+			_burst_left -= 1
+			_next_burst_tick += _burst_interval / rate_mult
+			_shoot(tick, def.burst_size - 1 - _burst_left)
+			fired = true
+	elif held and allowed and (_trigger_released or not def.semi_auto) \
 			and tick + 1e-4 >= _next_fire_tick and feed.can_fire():
-		feed.consume(tick)
 		if tick > _next_fire_tick + 1.0:
 			_next_fire_tick = tick  # idle: no banked shots
 		_next_fire_tick += _interval / rate_mult
-		_last_shot_tick = tick
-		shot_spread_deg = spread_deg
-		spread_deg = minf(def.spread_max_deg, spread_deg + def.spread_bloom_deg)
-		shots_fired += 1
+		if def.burst_size > 1:
+			_burst_left = def.burst_size - 1
+			_next_burst_tick = tick + _burst_interval / rate_mult
+		_shoot(tick, 0)
 		_trigger_released = false
 		fired = true
 	if not held:
@@ -68,8 +88,28 @@ func step(cmd: InputCommand, tick: int, allowed: bool) -> bool:
 	return fired
 
 
+func _shoot(tick: int, index: int) -> void:
+	feed.consume(tick)
+	_last_shot_tick = tick
+	shot_tick = tick
+	burst_index = index
+	shot_spread_deg = spread_deg
+	spread_deg = minf(def.spread_max_deg, spread_deg + def.spread_bloom_deg * recoil_mult)
+	shots_fired += 1
+
+
+## Deterministic uniform float in [0, 1): integer hash of (seed, shot tick, salt).
+## Stateless, so server, prediction and replays agree for the same inputs.
+func _hash01(salt: int) -> float:
+	var x: int = (_seed * 0x9E3779B1 + shot_tick * 0x85EBCA6B + salt * 0xC2B2AE35 + 0x165667B1) & 0xFFFFFFFF
+	x = ((x ^ (x >> 15)) * 0x2C1B3C6D) & 0xFFFFFFFF
+	x = ((x ^ (x >> 12)) * 0x297A2D39) & 0xFFFFFFFF
+	x = x ^ (x >> 15)
+	return float(x & 0xFFFFFF) / 16777216.0
+
+
 ## Pellet directions for the latest shot: uniform inside a cone of
-## shot_spread_deg around `forward` (unit vector). Deterministic per seed.
+## shot_spread_deg around `forward` (unit vector). Deterministic per (seed, shot tick, pellet).
 func pellet_directions(forward: Vector3) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	var cos_max := cos(deg_to_rad(shot_spread_deg))
@@ -79,9 +119,9 @@ func pellet_directions(forward: Vector3) -> Array[Vector3]:
 	side = side.normalized()
 	var up := side.cross(forward).normalized()
 	for i in def.pellets:
-		var cos_t := lerpf(1.0, cos_max, _rng.randf())
+		var cos_t := lerpf(1.0, cos_max, _hash01(i * 2))
 		var sin_t := sqrt(maxf(0.0, 1.0 - cos_t * cos_t))
-		var phi := _rng.randf() * TAU
+		var phi := _hash01(i * 2 + 1) * TAU
 		out.append((forward * cos_t + (side * cos(phi) + up * sin(phi)) * sin_t).normalized())
 	return out
 
@@ -91,3 +131,4 @@ func reset() -> void:
 	feed.refill()
 	spread_deg = def.spread_base_deg
 	_trigger_released = true
+	_burst_left = 0
