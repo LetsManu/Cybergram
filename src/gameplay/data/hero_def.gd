@@ -34,6 +34,10 @@ extends Resource
 ## (Vesper Conductor: 25 m; 0 = cannot conduct waves).
 @export_range(0.0, 60.0, 0.5) var conduct_radius_m: float = 0.0
 
+## W9-H2 Hex Signal Sight: weapon damage multiplier against enemy gadgets
+## (traps, deployables). 1 = no bonus.
+@export_range(1.0, 3.0, 0.01) var gadget_damage_mult: float = 1.0
+
 @export_group("Hitbox")
 ## Linear scale of the hitbox. heroes.md §3.1: Brannoc +25% volume -> 1.25^(1/3) = 1.077.
 @export_range(0.5, 2.0, 0.001) var hitbox_scale: float = 1.0

@@ -100,7 +100,12 @@ func effective_cooldown_s(s: SkillInstance) -> float:
 func start_cooldown(s: SkillInstance, tick: int, frac: float = 1.0) -> void:
 	s.active = false
 	s.active_until_tick = -1
-	s.cooldown_total_ticks = ceili(effective_cooldown_s(s) * frac * tick_hz)
+	var total := ceili(effective_cooldown_s(s) * frac * tick_hz)
+	if s.is_multi():  # W9-H2: charges recharge one at a time
+		s.consume_charge(tick, total)
+		cooldown_started.emit(s.slot, s.cooldown_end_tick)
+		return
+	s.cooldown_total_ticks = total
 	s.cooldown_end_tick = tick + s.cooldown_total_ticks
 	cooldown_started.emit(s.slot, s.cooldown_end_tick)
 
@@ -117,6 +122,7 @@ func on_respawn_at_hq() -> void:
 		if not s.def.ultimate:
 			s.cooldown_end_tick = 0
 			s.cooldown_total_ticks = 0
+			s.charges_left = -1
 			s.active = false
 			s.active_until_tick = -1
 	casting_slot = -1

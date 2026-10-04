@@ -274,3 +274,5 @@ HUD_STAT_RELOAD,Reload time
 HUD_STAT_SQUAD,Squad size
 HUD_STAT_WARDLING_HP,Wardling HP
 HUD_STAT_WARDLING_DMG,Wardling damage
+HUD_HERO_JUNIPER,Juniper Quill  (Trapper)
+HUD_HERO_HEX,Hex  (Hacker)

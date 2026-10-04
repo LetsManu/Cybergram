@@ -46,6 +46,10 @@ func _team_color(team: int) -> Color:
 
 
 func _build(f: SnapshotData.FxState) -> Node3D:
+	if f.kind >= TrapWorld.FX_FIRST:  # W9-H2 gadgets (Juniper traps, Hex hacks)
+		var g := GadgetFx.build(f, _team_color(f.team), _hostile(f.team))
+		add_child(g)
+		return g
 	var root := Node3D.new()
 	add_child(root)
 	var c := _team_color(f.team)
@@ -89,6 +93,9 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 
 
 func _update(n: Node3D, f: SnapshotData.FxState) -> void:
+	if f.kind >= TrapWorld.FX_FIRST:
+		GadgetFx.update(n, f, client, _hostile(f.team))
+		return
 	match f.kind:
 		AbilityWorld.FX_WALL:
 			n.position = f.position
