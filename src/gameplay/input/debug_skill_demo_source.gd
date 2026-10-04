@@ -16,8 +16,8 @@ const VESPER_PLAN := {150: InputCommand.BTN_SKILL2, 175: InputCommand.BTN_SKILL4
 const PLANS := {
 	&"hero_ryker_vance": {10: InputCommand.BTN_SKILL1, 20: InputCommand.BTN_SKILL2, 32: InputCommand.BTN_SKILL4,
 		44: InputCommand.BTN_SKILL3},
-	&"hero_sable": {10: InputCommand.BTN_SKILL3, 40: InputCommand.BTN_SKILL2, 60: InputCommand.BTN_SKILL4,
-		90: InputCommand.BTN_SKILL1},
+	&"hero_sable": {5: InputCommand.BTN_SKILL2, 15: InputCommand.BTN_SKILL3, 48: InputCommand.BTN_SKILL4,
+		62: InputCommand.BTN_SKILL1},
 	&"hero_liora_vale": {10: InputCommand.BTN_SKILL1, 20: InputCommand.BTN_SKILL2, 30: InputCommand.BTN_SKILL3,
 		40: InputCommand.BTN_SKILL4},
 }
