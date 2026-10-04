@@ -73,6 +73,19 @@ func node_of(kind: int, rank_: int = 0) -> SkillNodeDef:
 	return null
 
 
+## W10-T1: 0 = no Fork, 1 = Fork A, 2 = Fork B (permanent once learned).
+func fork() -> int:
+	if has_node(SkillNodeDef.Kind.FORK_A):
+		return 1
+	if has_node(SkillNodeDef.Kind.FORK_B):
+		return 2
+	return 0
+
+
+func has_mastery() -> bool:
+	return has_node(SkillNodeDef.Kind.MASTERY)
+
+
 func on_cooldown(tick: int) -> bool:
 	if is_multi():
 		sync_charges(tick)

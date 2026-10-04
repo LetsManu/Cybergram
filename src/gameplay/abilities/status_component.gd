@@ -150,6 +150,16 @@ func remove_source(source: int) -> void:
 		_fold()
 
 
+## W10-T1 Cleanse: ends every entry of the given kinds.
+func remove_kinds(kinds: Array) -> void:
+	var n := entries.size()
+	for i in range(n - 1, -1, -1):
+		if kinds.has(entries[i].kind):
+			entries.remove_at(i)
+	if entries.size() != n:
+		_fold()
+
+
 func clear() -> void:
 	entries.clear()
 	_cc_first_tick.clear()

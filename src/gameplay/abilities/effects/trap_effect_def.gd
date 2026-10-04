@@ -35,3 +35,6 @@ func apply(ctx: EffectContext) -> void:
 		ctx.world.traps.tripwire_press(ctx, self, wire_close)
 	else:
 		ctx.world.traps.spawn_trap(ctx, self, ctx.point)
+
+## W10-T1 Gravity Mine fork: effects (a Blast) run at the mine after the pull.
+@export var gravity_effects: Array[Resource] = []

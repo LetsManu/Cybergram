@@ -55,6 +55,7 @@ class Data:
 	var inside: Dictionary = {}      # hero net id -> bool (Killbox)
 	var last_cross: Dictionary = {}  # hero net id -> tick
 	var born_tick: int = 0
+	var hits: int = 0  # W10-T1: triggers so far (Razor / re-arm survive `count` of them)
 
 
 var world: AbilityWorld
@@ -443,19 +444,67 @@ func _trigger(rec: Data, victims: Array[Node3D], dmult: float, t: int) -> void:
 	var ctx := rec.ctx
 	var dmg := ctx.power_param(&"damage") * dmult
 	triggers += 1
+	rec.hits += 1
 	match rec.kind:
 		KIND_SNARE:
+			var push := ctx.param(&"distance")  # W10-T1 Spring fork: knockback instead of root
+			var root := ctx.ticks(&"duration")
+			var slow := ctx.param(&"extra")  # Mastery: snared enemies stay marked (slowed)
 			for v in victims:
 				world.skill_damage(ctx, v, dmg)
-				world.apply_status(ctx, v, StatusComponent.Kind.ROOT, ctx.ticks(&"duration"), 0.0)
+				if push > 0.0 and v is HeroBody:
+					_knock_away(ctx, v as HeroBody, rec.d.pos, push)
+				elif root > 0:
+					world.apply_status(ctx, v, StatusComponent.Kind.ROOT, root, 0.0)
+				if slow > 0.0:
+					world.apply_status(ctx, v, StatusComponent.Kind.SLOW, ctx.ticks(&"secondary_duration"), slow)
 		KIND_WIRE:
 			for v in victims:
 				world.skill_damage(ctx, v, dmg)
 				world.apply_status(ctx, v, StatusComponent.Kind.SLOW, ctx.ticks(&"secondary_duration"), ctx.param(&"slow"))
 		KIND_MINE:
-			_explode(rec, dmg)
+			var pull := ctx.param(&"distance")  # W10-T1 Gravity Mine fork: pull radius
+			if pull > 0.0:
+				_gravity(rec, pull)
+			else:
+				_explode(rec, dmg)
+	# W10-T1: Razor wire (3 triggers) and Mastery mines (2 detonations) survive.
+	if rec.kind != KIND_SNARE and rec.hits < roundi(ctx.param(&"count")):
+		rec.arm_tick = t + roundi(maxf(ctx.param(&"arm_time"), 0.5) * world.tick_hz)
+		return
 	rec.d.alive = false
 	_chain(rec, t)
+
+
+## Pushes `h` `dist` m away from `from` (Snare Coil Spring fork, Flash Bloom style).
+func _knock_away(ctx: EffectContext, h: HeroBody, from: Vector3, dist: float) -> void:
+	var away := Vector3(h.state.position.x - from.x, 0.0, h.state.position.z - from.z)
+	away = away.normalized() if away.length() > 0.05 else -Vector3(ctx.dir.x, 0.0, ctx.dir.z).normalized()
+	var n := 9
+	var applied := h.combat.status.apply(StatusComponent.Kind.KNOCKBACK, n, 0.0,
+		Modifier.source(Modifier.SRC_STATUS, (ctx.caster.net_id << 3) | 6), world.tick())
+	if applied > 0:
+		h.state.dash_velocity = away * (dist / (n * world.dt))
+		h.state.dash_ticks = n
+		h.state.dash_launch = false
+
+
+## Gravity Mine: pulls enemies within `radius` m to the centre, then the
+## data-authored `gravity_effects` (the blast) go off `secondary_duration` later.
+func _gravity(rec: Data, radius: float) -> void:
+	var ctx := rec.ctx
+	var d := rec.d
+	for e in world.entities_in_radius(d.pos, radius, d.team, true, false, true, false):
+		var h := e as HeroBody
+		var to := Vector3(d.pos.x - h.state.position.x, 0.0, d.pos.z - h.state.position.z)
+		var n := 8
+		var applied := h.combat.status.apply(StatusComponent.Kind.KNOCKBACK, n, 0.0,
+			Modifier.source(Modifier.SRC_STATUS, (ctx.caster.net_id << 3) | 6), world.tick())
+		if applied > 0:
+			h.state.dash_velocity = to / (n * world.dt)
+			h.state.dash_ticks = n
+			h.state.dash_launch = false
+	world.extras.schedule(ctx.with_target(null, d.pos), ctx.ticks(&"secondary_duration"), rec.def.gravity_effects)
 
 
 ## Pressure Mine blast: falloff to 40% at the edge, x1.5 vs Wardlings (§4.3).
@@ -463,11 +512,20 @@ func _explode(rec: Data, dmg: float) -> void:
 	var ctx := rec.ctx
 	var d := rec.d
 	var r := ctx.param(&"radius")
-	world.add_fx(FX_PULSE, d.team, d.pos, Vector3(r, 0.0, 0.0), 0.0, roundi(AbilityWorld.BURST_S * world.tick_hz))
-	for e in world.entities_in_radius(d.pos, r, d.team, true, false, true, true):
-		var f := lerpf(1.0, rec.def.edge_falloff, clampf(_flat(e.global_position, d.pos) / maxf(r, 0.1), 0.0, 1.0))
-		var wm := rec.def.wardling_mult if e is WardlingSim else 1.0
-		world.skill_damage(ctx, e, dmg * f * wm)
+	var splits := roundi(ctx.param(&"splits"))  # W10-T1 Cluster fork: bomblets (`extra_b` dmg, `radius` m... see data)
+	if splits > 0:
+		r = ctx.param(&"extra_b")
+		dmg = ctx.power_param(&"extra")
+	for k in maxi(splits, 1):
+		var c := d.pos
+		if splits > 0:
+			var ang := TAU * k / splits
+			c += Vector3(cos(ang), 0.0, sin(ang)) * ctx.param(&"width")
+		world.add_fx(FX_PULSE, d.team, c, Vector3(r, 0.0, 0.0), 0.0, roundi(AbilityWorld.BURST_S * world.tick_hz))
+		for e in world.entities_in_radius(c, r, d.team, true, false, true, true):
+			var f := lerpf(1.0, rec.def.edge_falloff, clampf(_flat(e.global_position, c) / maxf(r, 0.1), 0.0, 1.0))
+			var wm := rec.def.wardling_mult if e is WardlingSim else 1.0
+			world.skill_damage(ctx, e, dmg * f * wm)
 
 
 func _chain(rec: Data, t: int) -> void:
@@ -501,7 +559,18 @@ func _step_dome(rec: Data, t: int) -> void:
 			world.apply_status(ctx, h, StatusComponent.Kind.SLOW, 3, slow)
 
 
-func _step_field(rec: Data, _t: int) -> void:
+func _step_field(rec: Data, t: int) -> void:
+	var ctx := rec.ctx
+	if ctx.param(&"count") > 0.0 and ctx.caster != null and not ctx.caster.combat.dead:
+		rec.d.pos = ctx.caster.state.position  # W10-T1 Mastery: the field moves with Hex
+		if rec.d.fx != null:
+			rec.d.fx.pos = rec.d.pos
+	if ctx.param(&"scramble") > 0.0:  # Blackout fork: enemy heroes inside are Scrambled
+		for e in world.entities_in_radius(rec.d.pos, rec.d.radius, rec.d.team, true, false, true, false):
+			scramble(e as HeroBody, 3)
+	if ctx.param(&"dr") > 0.0:  # Firewall fork: allied Wardlings inside take less damage
+		for e in world.entities_in_radius(rec.d.pos, rec.d.radius, rec.d.team, false, true, false, true):
+			MinionmancerHooks.apply_squad_modifier(e as WardlingSim, &"damage_taken", 1.0 - ctx.param(&"dr"), t + 2, rec.d.source_id)
 	var linger := roundi(FIELD_LINGER_S * world.tick_hz)
 	for g in gadgets_in_radius(rec.d.pos, rec.d.radius, rec.d.team):
 		hack(g, linger, 0, true)

@@ -5,6 +5,56 @@
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="3"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/projectile_effect_def.gd" id="4"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="5"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_0")
+stat = &"duration"
+op = 0
+value = 0.5
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_0")
+stat = &"damage"
+op = 0
+value = 20.0
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_1"), SubResource("w10_sub_2")])
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_0")
+stat = &"count"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_0")
+stat = &"width"
+op = 0
+value = 8.0
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_4"), SubResource("w10_sub_5")])
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_0")
+stat = &"charges"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_7")])
 
 [sub_resource type="Resource" id="r1"]
 script = ExtResource("1")
@@ -48,4 +98,4 @@ params = {
 &"scramble": 3.0
 }
 effects = Array[Resource]([SubResource("r2")])
-nodes = Array[ExtResource("3")]([SubResource("r5")])
+nodes = Array[ExtResource("3")]([SubResource("r5"), SubResource("w10_sub_3"), SubResource("w10_sub_6"), SubResource("w10_sub_8")])

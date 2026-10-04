@@ -4,9 +4,82 @@
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="2"]
 [ext_resource type="Script" path="res://src/gameplay/data/skill_def.gd" id="3"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/trap_effect_def.gd" id="4"]
+[ext_resource type="Script" path="res://src/gameplay/data/modifier_def.gd" id="w10_0"]
+[ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/blast_effect_def.gd" id="w10_2"]
+
+[sub_resource type="Resource" id="w10_sub_1"]
+script = ExtResource("w10_2")
+
+[sub_resource type="Resource" id="w10_sub_2"]
+script = ExtResource("w10_0")
+stat = &"splits"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="w10_sub_3"]
+script = ExtResource("w10_0")
+stat = &"extra"
+op = 0
+value = 60.0
+
+[sub_resource type="Resource" id="w10_sub_4"]
+script = ExtResource("w10_0")
+stat = &"extra_b"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="w10_sub_5"]
+script = ExtResource("w10_0")
+stat = &"width"
+op = 0
+value = 4.0
+
+[sub_resource type="Resource" id="w10_sub_6"]
+script = ExtResource("w10_1")
+kind = 2
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_2"), SubResource("w10_sub_3"), SubResource("w10_sub_4"), SubResource("w10_sub_5")])
+
+[sub_resource type="Resource" id="w10_sub_7"]
+script = ExtResource("w10_0")
+stat = &"distance"
+op = 0
+value = 6.0
+
+[sub_resource type="Resource" id="w10_sub_8"]
+script = ExtResource("w10_0")
+stat = &"secondary_duration"
+op = 0
+value = 0.8
+
+[sub_resource type="Resource" id="w10_sub_9"]
+script = ExtResource("w10_0")
+stat = &"damage"
+op = 0
+value = -30.0
+
+[sub_resource type="Resource" id="w10_sub_10"]
+script = ExtResource("w10_1")
+kind = 3
+required_level = 5
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_7"), SubResource("w10_sub_8"), SubResource("w10_sub_9")])
+
+[sub_resource type="Resource" id="w10_sub_11"]
+script = ExtResource("w10_0")
+stat = &"count"
+op = 0
+value = 2.0
+
+[sub_resource type="Resource" id="w10_sub_12"]
+script = ExtResource("w10_1")
+kind = 4
+required_level = 9
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_11")])
 
 [sub_resource type="Resource" id="r1"]
 script = ExtResource("4")
+gravity_effects = Array[Resource]([SubResource("w10_sub_1")])
 kind = 2
 life_s = 60.0
 trigger_radius_m = 2.0
@@ -46,4 +119,4 @@ params = {
 &"hp": 60.0
 }
 effects = Array[Resource]([SubResource("r1")])
-nodes = Array[ExtResource("2")]([SubResource("r4")])
+nodes = Array[ExtResource("2")]([SubResource("r4"), SubResource("w10_sub_6"), SubResource("w10_sub_10"), SubResource("w10_sub_12")])

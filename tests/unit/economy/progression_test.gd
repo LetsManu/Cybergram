@@ -47,8 +47,8 @@ func test_reduced_tree_gates_unlock_boost_and_ult_ranks() -> void:
 	assert_int(r.last_reject).is_equal(AbilityRunner.Reject.LOCKED)
 	# Boost before Unlock, and Forks / Mastery, are refused.
 	assert_int(_server.learn_skill(h, 0, SkillNodeDef.Kind.BOOST)).is_equal(HeroProgress.Result.REQUIRES)
-	assert_int(_server.learn_skill(h, 0, SkillNodeDef.Kind.FORK_A)).is_equal(HeroProgress.Result.NOT_IN_SLICE)
-	assert_int(_server.learn_skill(h, 0, SkillNodeDef.Kind.MASTERY)).is_equal(HeroProgress.Result.NOT_IN_SLICE)
+	assert_int(_server.learn_skill(h, 0, SkillNodeDef.Kind.FORK_A)).is_equal(HeroProgress.Result.REQUIRES)
+	assert_int(_server.learn_skill(h, 0, SkillNodeDef.Kind.MASTERY)).is_equal(HeroProgress.Result.REQUIRES)
 	assert_int(_server.learn_skill(h, 1)).is_equal(HeroProgress.Result.OK)  # S2 Unlock
 	assert_bool(r.is_unlocked(1)).is_true()
 	assert_int(p.skill_points()).is_equal(0)
@@ -62,7 +62,7 @@ func test_reduced_tree_gates_unlock_boost_and_ult_ranks() -> void:
 	assert_bool(r.skill(1).has_node(SkillNodeDef.Kind.BOOST)).is_true()
 	assert_int(r.hud_state(1, 0)[2] & AbilityRunner.FLAG_BOOSTED).is_equal(AbilityRunner.FLAG_BOOSTED)
 	assert_bool(r.skill(1).param(&"cooldown") != cd_before or r.skill(1).learned.size() == 2).is_true()
-	assert_int(_server.learn_skill(h, 1)).is_equal(HeroProgress.Result.MAXED)  # no Forks in the slice
+	assert_int(_server.learn_skill(h, 1)).is_not_equal(HeroProgress.Result.OK)  # Fork needs L5 and an A/B choice
 	# Ultimate: rank 1 at L6, rank 2 at L10, rank 3 at L14.
 	_pr.debug_set_level(h, 5)
 	assert_int(_server.learn_skill(h, 3)).is_equal(HeroProgress.Result.LEVEL_GATE)

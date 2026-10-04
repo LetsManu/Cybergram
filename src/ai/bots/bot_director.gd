@@ -72,6 +72,7 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 	var idx := brains.size()
 	var b := BotBrain.new(server, profile, hash([seed_value, idx]), idx)
 	b.build_order = roster.build_order_for(hero_def)
+	b.fork_prefs = roster.fork_prefs_for(hero_def)
 	b.team_brains = brains  # E14: shared, for Cell job claims
 	b.claims = _claims
 	var src := BotInputSource.new(b, meter)
@@ -110,6 +111,7 @@ func take_over(hero_id: int) -> BotBrain:
 		return null
 	var b := BotBrain.new(server, profile, hash([seed_value, brains.size(), hero_id]), brains.size())
 	b.build_order = roster.build_order_for(h.combat.def)
+	b.fork_prefs = roster.fork_prefs_for(h.combat.def)
 	b.team_brains = brains
 	b.claims = _claims
 	var src := BotInputSource.new(b, meter)

@@ -88,7 +88,9 @@ func test_ryker_stim_and_slide_effect_values() -> void:
 	assert_float(stim.hp_cost).is_equal(20.0)
 	var slide := d.skills[2].effects[0] as SlideEffectDef
 	assert_float(slide.reload_frac).is_equal(0.3)
-	var blast := (d.skills[0].effects[0] as ThrownEffectDef).on_detonate[0] as BlastEffectDef
+	# W10-T1: the detonation hook is a Fork A gate; its else branch is the base blast.
+	var gate := (d.skills[0].effects[0] as ThrownEffectDef).on_detonate[0] as ForkGateEffectDef
+	var blast := gate.else_effects[0] as BlastEffectDef
 	assert_float(blast.min_falloff).is_equal(0.4)
 	assert_float(blast.wardling_mult).is_equal(1.5)
 

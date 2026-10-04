@@ -16,6 +16,8 @@ const ICON: float = 64.0
 const GAP: float = 12.0
 const ACTIVE := Color("#FFC93C")
 const BOOST := Color("#FFD866")
+const FORK_A_TINT := Color("#5CC8FF")  # W10-T1 cool tint (heroes.md Pillar 4)
+const FORK_B_TINT := Color("#FF9440")  # warm tint
 const ULT_GATES: Array[int] = [6, 10, 14]
 ## Width of the four skills plus the consumable slot.
 const WIDTH: float = 4.0 * ICON + 3.0 * GAP + 18.0 + 52.0
@@ -102,10 +104,50 @@ func _draw_tree(client: ClientWorld, r: Rect2, def: SkillDef, flags: int) -> voi
 		var c := r.position + Vector2(ICON - 3.0, 3.0)
 		draw_circle(c, 9.0, HudPalette.SP)
 		text_c("+", c + Vector2(0.0, -1.0), 16, Color.WHITE, ctx.font_numbers)
+	if not def.ultimate:
+		_draw_fork(r, def, flags)
 	var pi := client.player_input
 	if pi != null and pi.quick_spend:
 		text_c(_next_node(def, flags, rank), r.position + Vector2(ICON * 0.5, -28.0), 12,
 			HudPalette.SP if learnable else HudPalette.TEXT_OFF, ctx.font_display)
+
+
+## W10-T1: learned Fork / Mastery badges and, when a point can buy the Fork,
+## the A/B choice with short descriptions (keys 1 / 2, L1 / R1).
+func _draw_fork(r: Rect2, def: SkillDef, flags: int) -> void:
+	var fork := AbilityRunner.fork_of_flags(flags)
+	if fork > 0:
+		var col := FORK_A_TINT if fork == 1 else FORK_B_TINT
+		draw_rect(r.grow(2.0), col, false, 2.0)
+		var b := Rect2(r.position + Vector2(ICON - 15.0, ICON - 15.0), Vector2(15.0, 15.0))
+		draw_rect(b, col)
+		text_c(tr("HUD_FORK_BADGE_A") if fork == 1 else tr("HUD_FORK_BADGE_B"), b.get_center(), 12, Color.BLACK,
+			ctx.font_numbers)
+		if (flags & AbilityRunner.FLAG_MASTERY) != 0:
+			var m := Rect2(r.position + Vector2(0.0, ICON - 15.0), Vector2(15.0, 15.0))
+			draw_rect(m, HudPalette.SP)
+			text_c("M", m.get_center(), 12, Color.BLACK, ctx.font_numbers)
+	if not AbilityRunner.fork_offered(flags, def.ultimate):
+		return
+	var stem := String(def.id).trim_prefix("skill_").to_upper()
+	var w := 250.0
+	var p := Rect2(Vector2(r.get_center().x - w * 0.5, r.position.y - 92.0), Vector2(w, 62.0))
+	panel(p, ctx.panel_strong)
+	draw_rect(p, HudPalette.SP, false, 1.5)
+	text_c(tr("HUD_FORK_CHOOSE"), p.position + Vector2(w * 0.5, 11.0), 12, HudPalette.SP, ctx.font_display)
+	text_c("[%s] %s" % [_key_text(&"fork_a", "1"), tr("HUD_FORK_%s_A" % stem)], p.position + Vector2(w * 0.5, 31.0), 12,
+		FORK_A_TINT, ctx.font_display)
+	text_c("[%s] %s" % [_key_text(&"fork_b", "2"), tr("HUD_FORK_%s_B" % stem)], p.position + Vector2(w * 0.5, 50.0), 12,
+		FORK_B_TINT, ctx.font_display)
+
+
+func _key_text(action: StringName, fallback: String) -> String:
+	if InputMap.has_action(action):
+		for e in InputMap.action_get_events(action):
+			if e is InputEventKey:
+				return (e as InputEventKey).as_text_physical_keycode()
+			return e.as_text()
+	return fallback
 
 
 func _next_node(def: SkillDef, flags: int, rank: int) -> String:
@@ -115,6 +157,10 @@ func _next_node(def: SkillDef, flags: int, rank: int) -> String:
 		return tr("HUD_NODE_UNLOCK")
 	if (flags & AbilityRunner.FLAG_BOOSTED) == 0:
 		return tr("HUD_NODE_BOOST")
+	if AbilityRunner.fork_of_flags(flags) == 0:
+		return tr("HUD_NODE_FORK")
+	if (flags & AbilityRunner.FLAG_MASTERY) == 0:
+		return tr("HUD_NODE_MASTERY")
 	return tr("HUD_NODE_MAX")
 
 

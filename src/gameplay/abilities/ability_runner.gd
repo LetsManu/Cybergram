@@ -33,6 +33,9 @@ const FLAG_BOOSTED: int = 8
 const RANK_SHIFT: int = 4
 const RANK_MASK: int = 48
 const FLAG_LEARNABLE: int = 64
+## W10-T1 (basics only, the rank bits are unused there): Fork choice (0 none,
+## 1 A, 2 B) in the rank bits, Mastery learned in bit 7.
+const FLAG_MASTERY: int = 128
 
 var combat: HeroCombat
 var rules: AbilityRulesDef
@@ -249,6 +252,17 @@ func _execute(s: SkillInstance, ctx: EffectContext, world: AbilityWorld) -> void
 	skill_activated.emit(s.slot, _now)
 
 
+## W10-T1: Fork choice (0 none, 1 A, 2 B) of a basic skill's replicated flags.
+static func fork_of_flags(flags: int) -> int:
+	return (flags & RANK_MASK) >> RANK_SHIFT
+
+
+## W10-T1: a point can be spent on this basic skill's Fork (A/B choice offered).
+static func fork_offered(flags: int, ultimate: bool) -> bool:
+	return not ultimate and (flags & FLAG_BOOSTED) != 0 and (flags & FLAG_LEARNABLE) != 0 \
+		and fork_of_flags(flags) == 0
+
+
 ## Replicated HUD state for `slot`: [ticks left, total ticks, flags].
 func hud_state(slot: int, tick: int) -> Array:
 	var s := skill(slot)
@@ -263,5 +277,10 @@ func hud_state(slot: int, tick: int) -> Array:
 		f |= FLAG_CASTING
 	if s.has_node(SkillNodeDef.Kind.BOOST):
 		f |= FLAG_BOOSTED
-	f |= (clampi(s.rank, 0, 3) << RANK_SHIFT) & RANK_MASK
+	if s.def.ultimate:
+		f |= (clampi(s.rank, 0, 3) << RANK_SHIFT) & RANK_MASK
+	else:
+		f |= (clampi(s.fork(), 0, 2) << RANK_SHIFT) & RANK_MASK
+		if s.has_mastery():
+			f |= FLAG_MASTERY
 	return [s.cooldown_ticks_left(tick), s.cooldown_total_ticks, f]

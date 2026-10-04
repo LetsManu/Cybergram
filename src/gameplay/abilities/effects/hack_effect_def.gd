@@ -35,5 +35,15 @@ func apply(ctx: EffectContext) -> void:
 ## Malfunctions `gadget` (WardlingSim or AbilityWorld.Deployable).
 func hack_gadget(ctx: EffectContext, gadget: Object) -> bool:
 	var w := ctx.world
-	return w.traps.hack(gadget, w.traps.category_ticks(gadget, self, ctx.param(scale_param)),
+	var ok := w.traps.hack(gadget, w.traps.category_ticks(gadget, self, ctx.param(scale_param)),
 		roundi(immune_s * w.tick_hz))
+	var spread := roundi(ctx.param(&"count"))  # W10-T1 Worm fork: up to `count` more gadgets at 50% duration
+	if ok and spread > 0:
+		var at := w.traps._pos_of(gadget)
+		for g in w.traps.gadgets_in_radius(at, ctx.param(&"width"), ctx.team):
+			if spread <= 0:
+				break
+			if g != gadget:
+				w.traps.hack(g, roundi(w.traps.category_ticks(g, self, ctx.param(scale_param)) * 0.5), roundi(immune_s * w.tick_hz))
+				spread -= 1
+	return ok

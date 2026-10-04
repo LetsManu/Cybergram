@@ -53,6 +53,9 @@ var _was_dead: bool = true
 var _blank := InputCommand.new()
 ## Skill slots in learning priority (BotRosterDef.build_orders); E15 points.
 var build_order: PackedInt32Array = PackedInt32Array([3, 0, 1, 2, 0, 1, 2])
+## W10-T1 Fork choice per basic slot (1 = A, 2 = B; BotRosterDef.fork_prefs).
+var fork_prefs: PackedInt32Array = PackedInt32Array([1, 1, 1])
+var _learn_choice: int = 0
 var skills_learned: int = 0
 var _learn_slot: int = -1
 var _learn_key: int = -1
@@ -364,9 +367,16 @@ func _decide_learn(h: HeroBody) -> void:
 		return
 	_learn_key = key
 	for s in build_order:
-		if prog.can_learn(h, s) == HeroProgress.Result.OK:
+		var r: int = prog.can_learn(h, s)
+		if r == HeroProgress.Result.OK:
 			_learn_slot = s
+			_learn_choice = 0
 			_learn_key = -1  # re-check after this point is spent
+			return
+		if r == HeroProgress.Result.FORK_CHOICE and s >= 0 and s < fork_prefs.size():
+			_learn_slot = s  # W10-T1: Fork point, the choice comes from the roster data
+			_learn_choice = fork_prefs[s]
+			_learn_key = -1
 			return
 
 
@@ -547,8 +557,9 @@ func _emit_edges(out: InputCommand) -> void:
 	# --- skill point (one-tick action) ---
 	if _learn_slot >= 0:
 		out.action = InputCommand.ACTION_LEARN
-		out.action_arg = _learn_slot
+		out.action_arg = ProgressionSystem.learn_arg(_learn_slot, _learn_choice)
 		_learn_slot = -1
+		_learn_choice = 0
 		skills_learned += 1
 	# --- squad order (one-tick edge event) ---
 	if _squad_cmd != InputCommand.SQUAD_NONE:
