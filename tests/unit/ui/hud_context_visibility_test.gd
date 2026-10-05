@@ -6,7 +6,7 @@ extends GdUnitTestSuite
 
 func test_normal_play_shows_the_combat_hud() -> void:
 	var v := HudRoot.context_visibility(false, false, false, false, false)
-	for k in ["front", "minimap", "kill_feed", "tracker", "center", "squad", "vitals", "skills", "weapon"]:
+	for k in ["front", "minimap", "kill_feed", "tracker", "center", "squad", "vitals", "skills", "weapon", "armory_guide"]:
 		assert_bool(v[k]).override_failure_message(k).is_true()
 
 
@@ -24,3 +24,11 @@ func test_match_end_leaves_only_header_and_toasts() -> void:
 	assert_bool(v.toasts).is_true()
 	for k in ["front", "minimap", "kill_feed", "tracker", "center", "squad", "vitals", "skills", "weapon"]:
 		assert_bool(v[k]).override_failure_message(k).is_false()
+
+
+func test_armory_guide_hides_in_sudden_death_match_end_shop_and_death() -> void:
+	assert_bool(HudRoot.context_visibility(false, false, false, false, true).armory_guide).is_false()
+	assert_bool(HudRoot.context_visibility(false, false, false, true, false).armory_guide).is_false()
+	assert_bool(HudRoot.context_visibility(false, false, true, false, false).armory_guide).is_false()
+	assert_bool(HudRoot.context_visibility(true, false, false, false, false).armory_guide).is_false()
+	assert_bool(HudRoot.context_visibility(false, true, false, false, false).armory_guide).is_false()

@@ -13,8 +13,8 @@ extends Node3D
 const BEACON_SHADER := "res://assets/shaders/armory_beacon.gdshader"
 
 var def: ArmoryMarkerDef
-## Server radius the ring is drawn at (EconomyRulesDef.armory_radius_m).
-var radius_m: float = 6.0
+## Server radius the ring is drawn at (EconomyRulesDef.armory_radius_m, read in setup()).
+var radius_m: float = 0.0
 var team: int = 0
 var client: ClientWorld
 
@@ -27,12 +27,18 @@ var _t: float = 0.0
 var _cheapest: int = -1
 ## 0..1 pulse brightness factor of the last frame (tests).
 var pulse_k: float = 1.0
+var _spend_shown: bool = false
+var _sign_a: float = -1.0
+var _sign_col: Color = Color.WHITE
 
 
-## Builds the meshes for `hq`'s Armory pad. `def_` null loads the default .tres.
-func setup(hq: HqDef, radius: float, c: ClientWorld, def_: ArmoryMarkerDef = null) -> void:
+## Builds the meshes for `hq`'s Armory pad. The ring radius is the server's
+## EconomyRulesDef.armory_radius_m (`econ_` null loads the game's rules .tres);
+## `def_` null loads the default marker .tres.
+func setup(hq: HqDef, c: ClientWorld, def_: ArmoryMarkerDef = null, econ_: EconomyRulesDef = null) -> void:
 	def = def_ if def_ != null else load(ArmoryMarkerDef.DEFAULT_PATH) as ArmoryMarkerDef
-	radius_m = radius
+	var econ := econ_ if econ_ != null else load(GameSession.ECONOMY_RULES) as EconomyRulesDef
+	radius_m = econ.armory_radius_m
 	team = hq.team
 	client = c
 	name = "ArmoryMarker%d" % team
@@ -42,14 +48,14 @@ func setup(hq: HqDef, radius: float, c: ClientWorld, def_: ArmoryMarkerDef = nul
 	var torus := TorusMesh.new()
 	torus.inner_radius = maxf(radius_m - def.ring_width_m, 0.05)
 	torus.outer_radius = radius_m
-	torus.rings = 64 if q >= GameSettings.Quality.MEDIUM else 32
+	torus.rings = def.ring_segments if q >= GameSettings.Quality.MEDIUM else def.ring_segments_low
 	torus.ring_segments = 4
 	_ring_mat = _unshaded(Color(_base, def.ring_alpha))
 	torus.material = _ring_mat
 	var ring := MeshInstance3D.new()
 	ring.name = "Ring"
 	ring.mesh = torus
-	ring.scale = Vector3(1.0, 0.12, 1.0)  # flat band: the torus tube is squashed to the floor
+	ring.scale = Vector3(1.0, def.ring_squash_y, 1.0)  # flat band: the torus tube is squashed to the floor
 	ring.position.y = def.ring_lift_m
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(ring)
@@ -58,7 +64,7 @@ func setup(hq: HqDef, radius: float, c: ClientWorld, def_: ArmoryMarkerDef = nul
 		disc.top_radius = radius_m
 		disc.bottom_radius = radius_m
 		disc.height = 0.01
-		disc.radial_segments = 48
+		disc.radial_segments = def.ring_segments
 		_disc_mat = _unshaded(Color(_base, def.disc_alpha))
 		disc.material = _disc_mat
 		var d := MeshInstance3D.new()
@@ -72,12 +78,12 @@ func setup(hq: HqDef, radius: float, c: ClientWorld, def_: ArmoryMarkerDef = nul
 		col.top_radius = def.beacon_radius_m
 		col.bottom_radius = def.beacon_radius_m
 		col.height = def.beacon_height_m
-		col.radial_segments = 12
+		col.radial_segments = def.beacon_segments
 		col.cap_top = false
 		col.cap_bottom = false
 		_beacon_mat = ShaderMaterial.new()
 		_beacon_mat.shader = load(BEACON_SHADER) as Shader
-		_beacon_mat.set_shader_parameter("tint", _base)
+		_beacon_mat.set_shader_parameter("tint", HardpointView.team_color(team))
 		_beacon_mat.set_shader_parameter("height", def.beacon_height_m)
 		_beacon_mat.set_shader_parameter("strength", def.beacon_alpha)
 		col.material = _beacon_mat
@@ -87,12 +93,15 @@ func setup(hq: HqDef, radius: float, c: ClientWorld, def_: ArmoryMarkerDef = nul
 		b.position.y = def.beacon_height_m * 0.5
 		b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(b)
+	HudStrings.ensure_loaded()  # the world is built before the HUD loads its strings
 	_sign = HardpointView.make_world_label()
 	_sign.name = "Sign"
 	_sign.text = tr("HUD_ARMORY_SIGN")
 	_sign.font_size = def.sign_font_size
+	_sign.pixel_size = def.sign_pixel_size
 	_sign.position.y = def.sign_height_m
-	_sign.modulate = _base.lightened(0.2)
+	_sign_col = _base.lightened(0.2)
+	_sign.modulate = _sign_col
 	add_child(_sign)
 
 
@@ -121,19 +130,25 @@ func _process(delta: float) -> void:
 	_t += delta
 	var gs := GameSettings.shared()
 	var spend := _has_lumen_to_spend()
-	pulse_k = pulse_factor(_t, spend, gs != null and gs.reduce_motion, def.pulse_hz, def.pulse_depth)
-	_ring_mat.albedo_color = Color(_base * pulse_k, def.ring_alpha)
-	if _disc_mat != null:
-		_disc_mat.albedo_color = Color(_base, def.disc_alpha * (1.5 - 0.5 * pulse_k) if spend else def.disc_alpha)
-	if _beacon_mat != null:
-		_beacon_mat.set_shader_parameter("strength", def.beacon_alpha * pulse_k)
+	var k := pulse_factor(_t, spend, gs != null and gs.reduce_motion, def.pulse_hz, def.pulse_depth)
+	# Only touch the materials when the (quantised) pulse actually moved.
+	if absf(k - pulse_k) > 0.01 or spend != _spend_shown:
+		pulse_k = k
+		_spend_shown = spend
+		_ring_mat.albedo_color = Color(_base * k, def.ring_alpha)
+		if _disc_mat != null:
+			_disc_mat.albedo_color = Color(_base, def.disc_alpha * (1.5 - 0.5 * k) if spend else def.disc_alpha)
+		if _beacon_mat != null:
+			_beacon_mat.set_shader_parameter("strength", def.beacon_alpha * k)
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam != null and _sign != null:
-		var a := sign_alpha(Vector2(cam.global_position.x - global_position.x, cam.global_position.z - global_position.z).length(),
-			def.sign_hide_within_m, def.sign_far_m)
-		_sign.visible = a > 0.01
-		_sign.modulate = Color(_base.lightened(0.2), a)
-		_sign.outline_modulate = Color(0.0, 0.0, 0.0, a * 0.85)
+		var a := snappedf(sign_alpha(Vector2(cam.global_position.x - global_position.x, cam.global_position.z - global_position.z).length(),
+			def.sign_hide_within_m, def.sign_far_m), 0.02)
+		if a != _sign_a:
+			_sign_a = a
+			_sign.visible = a > 0.01
+			_sign.modulate = Color(_sign_col, a)
+			_sign.outline_modulate = Color(0.0, 0.0, 0.0, a * 0.85)
 
 
 ## True when the own hero can pay for the cheapest catalog line (replicated Lumen).

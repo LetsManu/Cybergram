@@ -25,6 +25,16 @@ var rel_angle: float = 0.0
 var _econ: EconomyRulesDef
 var _builds: RecommendedBuildsDef
 var _t: float = 0.0
+var _afford: bool = false
+var _sig: int = -1
+var _poll_t: float = 0.0
+## Draw caches: label text per whole metre, its width, the chevron polygons.
+var _label_m: int = -1
+var _label: String = ""
+var _label_w: float = 0.0
+var _word: String = ""
+var _tri: PackedVector2Array = PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
+var _tri_in: PackedVector2Array = PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 
 
 func bind(c: HudContext) -> void:
@@ -129,31 +139,47 @@ func evaluate(delta: float) -> bool:
 	var pos := c.body.global_position
 	var at_pad := (c.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) != 0
 	var b := pad_bearing(c, ctx.own_team())
-	distance_m = b[0]
-	rel_angle = b[1]
-	shown = should_show(dead, at_pad, in_own_base(pos, hq.sanctum, def.guide_base_radius_m), can_afford_any(model), spawn_left)
+	distance_m = b.x
+	rel_angle = b.y
+	# can_buy over the whole catalog only when the progress changed or ~4 Hz.
+	_poll_t -= delta
+	var sig := progress_signature(c.progress)
+	if sig != _sig or _poll_t <= 0.0:
+		_sig = sig
+		_poll_t = def.guide_poll_s
+		_afford = can_afford_any(model)
+	shown = should_show(dead, at_pad, in_own_base(pos, hq.sanctum, def.guide_base_radius_m), _afford, spawn_left)
 	return shown
 
 
-## Flat distance (m) and bearing (rad) from the own hero to the `team` Armory
-## pad as [dist, rel]; empty when the client has no body or map yet.
-static func pad_bearing(c: ClientWorld, team: int) -> Array:
+## Flat distance (m, x) and bearing (rad, y) from the own hero to the `team`
+## Armory pad; x = -1 when the client has no body or map yet.
+static func pad_bearing(c: ClientWorld, team: int) -> Vector2:
 	if c == null or c.body == null or c.map_def == null:
-		return []
+		return Vector2(-1.0, 0.0)
 	var hq := c.map_def.hq(team)
 	if hq == null:
-		return []
+		return Vector2(-1.0, 0.0)
 	var pos := c.body.global_position
 	var yaw := c.body.look_yaw
 	if c.rig != null and c.rig.camera != null:
 		yaw = c.rig.camera.global_rotation.y
-	return [flat_distance(pos, hq.armory), relative_angle(yaw, pos, hq.armory)]
+	return Vector2(flat_distance(pos, hq.armory), relative_angle(yaw, pos, hq.armory))
 
 
 ## Distance and arrow of the own pad for the off-pad B hint ("" when unknown).
 static func hint_for(c: ClientWorld, team: int) -> String:
 	var b := pad_bearing(c, team)
-	return hint_suffix(b[0], b[1]) if not b.is_empty() else ""
+	return hint_suffix(b.x, b.y) if b.x >= 0.0 else ""
+
+
+## Cheap fingerprint of everything in the replicated progress that changes what
+## can be bought (Lumen, owned lines, Med-Packs): re-check affordability on change.
+static func progress_signature(p: SnapshotData.ProgressState) -> int:
+	var h := p.lumen * 31 + p.owned_bits * 17 + p.medpacks * 7 + p.level
+	for i in p.mount_item.size():
+		h = h * 31 + p.mount_item[i] * 5 + p.mount_tier[i]
+	return h
 
 
 func _process(delta: float) -> void:
@@ -178,15 +204,25 @@ func _draw() -> void:
 	var bob := 0.0 if gs != null and gs.reduce_motion else sin(_t * 4.0) * 2.0
 	var col := HudPalette.BRASS_HI
 	var p := Vector2(x, y + bob)
-	var pts := PackedVector2Array()
 	if side == 0:
-		pts = PackedVector2Array([p + Vector2(-CHEVRON, -CHEVRON * 0.6), p + Vector2(CHEVRON, -CHEVRON * 0.6), p + Vector2(0.0, CHEVRON * 0.7)])
+		_tri[0] = p + Vector2(-CHEVRON, -CHEVRON * 0.6)
+		_tri[1] = p + Vector2(CHEVRON, -CHEVRON * 0.6)
+		_tri[2] = p + Vector2(0.0, CHEVRON * 0.7)
 	else:
 		var s := float(side)
-		pts = PackedVector2Array([p + Vector2(CHEVRON * s, 0.0), p + Vector2(-CHEVRON * 0.6 * s, -CHEVRON), p + Vector2(-CHEVRON * 0.6 * s, CHEVRON)])
-	draw_colored_polygon(pts, Color(0.0, 0.0, 0.0, 0.6))
-	draw_colored_polygon(PackedVector2Array([pts[0] * 0.8 + p * 0.2, pts[1] * 0.8 + p * 0.2, pts[2] * 0.8 + p * 0.2]), col)
-	var label := "%s %d m" % [tr("HUD_ARMORY_WAYPOINT"), roundi(distance_m)]
-	var w := caps_width(label, 18)
-	var tx := clampf(x - w * 0.5, 8.0, size.x - w - 8.0)
-	caps(label, Vector2(tx, y + 38.0), 18, col, 0.16)
+		_tri[0] = p + Vector2(CHEVRON * s, 0.0)
+		_tri[1] = p + Vector2(-CHEVRON * 0.6 * s, -CHEVRON)
+		_tri[2] = p + Vector2(-CHEVRON * 0.6 * s, CHEVRON)
+	for i in 3:
+		_tri_in[i] = _tri[i] * 0.8 + p * 0.2
+	draw_colored_polygon(_tri, Color(0.0, 0.0, 0.0, 0.6))
+	draw_colored_polygon(_tri_in, col)
+	var m := roundi(distance_m)
+	if m != _label_m:
+		_label_m = m
+		if _word == "":
+			_word = tr("HUD_ARMORY_WAYPOINT")
+		_label = "%s %d m" % [_word, m]
+		_label_w = caps_width(_label, 18)
+	var tx := clampf(x - _label_w * 0.5, 8.0, size.x - _label_w - 8.0)
+	caps(_label, Vector2(tx, y + 38.0), 18, col, 0.16)

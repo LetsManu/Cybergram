@@ -10,8 +10,6 @@ extends HudWidget
 
 const PAD: float = 10.0
 const CHIP_R: float = 4.5
-## W21-G2: half size of the Armory / Foundry glyphs (px).
-const GLYPH_R: float = 5.0
 # --- W19-HUD: v0.12 frame (hud-v0.12.md §2): map area 318×204, label below ---
 const MAP_SIZE := Vector2(318.0, 204.0)
 # --- end W19-HUD ---
@@ -81,9 +79,10 @@ func _draw() -> void:
 		base += hps.size()
 	# W21-G2: the own Armory (shop glyph) and Foundry (squad refill glyph).
 	var own_hq := md.hq(team)
+	var glyph_r := _marker_def().minimap_glyph_r
 	if own_hq != null:
-		draw_armory_glyph(self, to_px.call(own_hq.armory), HudPalette.BRASS_HI)
-		draw_foundry_glyph(self, to_px.call(own_hq.foundry), HudPalette.TEAL)
+		draw_armory_glyph(self, to_px.call(own_hq.armory), HudPalette.BRASS_HI, glyph_r)
+		draw_foundry_glyph(self, to_px.call(own_hq.foundry), HudPalette.TEAL, glyph_r)
 	# W16-SDWATER: the Sudden Death ring (danger colour), same radius as the server.
 	if c.sudden_death != null and c.sudden_death.active:
 		var ring := PackedVector2Array()
@@ -104,9 +103,8 @@ func _draw() -> void:
 		draw_colored_polygon(PackedVector2Array([me + d * 7.0, me - d * 4.0 + side * 4.0, me - d * 4.0 - side * 4.0]), Color.WHITE)
 
 
-## W21-G2 shop glyph: a stall with an awning, `GLYPH_R` px half size.
-static func draw_armory_glyph(ci: CanvasItem, at: Vector2, col: Color) -> void:
-	var r := GLYPH_R
+## W21-G2 shop glyph: a stall with an awning, `r` px half size.
+static func draw_armory_glyph(ci: CanvasItem, at: Vector2, col: Color, r: float) -> void:
 	var dark := Color(0.0, 0.0, 0.0, 0.7)
 	ci.draw_rect(Rect2(at - Vector2(r + 1.5, r * 0.2 + 1.5), Vector2(2.0 * r + 3.0, r * 1.2 + 3.0)), dark)
 	ci.draw_rect(Rect2(at + Vector2(-r + 1.0, 0.0), Vector2(2.0 * r - 2.0, r * 0.9)), col)
@@ -115,14 +113,23 @@ static func draw_armory_glyph(ci: CanvasItem, at: Vector2, col: Color) -> void:
 
 
 ## W21-G2 Foundry glyph: a hexagon with a centre dot (squad refill).
-static func draw_foundry_glyph(ci: CanvasItem, at: Vector2, col: Color) -> void:
+static func draw_foundry_glyph(ci: CanvasItem, at: Vector2, col: Color, r: float) -> void:
 	var pts := PackedVector2Array()
 	for k in 7:
 		var a := TAU * float(k) / 6.0
-		pts.append(at + Vector2(cos(a), sin(a)) * (GLYPH_R + 0.5))
+		pts.append(at + Vector2(cos(a), sin(a)) * (r + 0.5))
 	ci.draw_polyline(pts, Color(0.0, 0.0, 0.0, 0.7), 4.0, true)
 	ci.draw_polyline(pts, col, 2.0, true)
 	ci.draw_circle(at, 1.6, col)
+
+
+var _def: ArmoryMarkerDef
+
+
+func _marker_def() -> ArmoryMarkerDef:
+	if _def == null:
+		_def = load(ArmoryMarkerDef.DEFAULT_PATH) as ArmoryMarkerDef
+	return _def
 
 
 # --- W19-HUD: "SHARDLINE · WAVE 0:18" under the map (idle 42%) ---

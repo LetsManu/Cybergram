@@ -165,6 +165,10 @@ func setup_objectives(md: MapDef) -> void:
 		uv.setup(hq)
 		add_child(uv)
 		_uplink_views.append(uv)
+		if hq.team == own_team() and DisplayServer.get_name() != "headless":  # W21-G2: ring + beacon + sign at the own Armory pad
+			var am := ArmoryMarkerView.new()
+			am.setup(hq, self)
+			add_child(am)
 
 
 ## W16-SDWATER: the ring centre is MapDef.mid_plaza_center, as on the server.
