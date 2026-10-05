@@ -26,6 +26,8 @@ const COLOR_ENEMY := Color(1.0, 0.42, 0.2)
 var client: Node
 
 var _lvl: int = GfxQuality.HIGH
+## Reduce-motion: flashes are one static frame, shorter, with half the sparks.
+var _reduce: bool = false
 var _k: float = 1.0
 var _flashes: Array[MeshInstance3D] = []
 var _flash_age: PackedFloat32Array = PackedFloat32Array()
@@ -52,6 +54,9 @@ func _ready() -> void:
 		return
 	_lvl = GfxQuality.level()
 	_k = GfxQuality.particle_scale(_lvl)
+	_reduce = UiKit.reduce_motion()
+	if _reduce:
+		_k *= 0.5
 	var shader := load(FLASH_SHADER) as Shader
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
@@ -88,6 +93,8 @@ func _ready() -> void:
 	sph.height = 0.07
 	sph.radial_segments = 4
 	sph.rings = 2
+	sph.radius = 0.05
+	sph.height = 0.1
 	for i in PARTICLE_POOL:
 		var p := CPUParticles3D.new()
 		p.top_level = true
@@ -99,8 +106,7 @@ func _ready() -> void:
 		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var pm := StandardMaterial3D.new()
 		pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		pm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		pm.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED  # flat opaque shards (toon), not additive glow
 		pm.vertex_color_use_as_albedo = true
 		p.material_override = pm
 		var curve := Curve.new()
@@ -126,7 +132,7 @@ func _ready() -> void:
 # ------------------------------------------------------------ primitives
 
 ## One pooled additive billboard (`ring` = expanding ring, else a soft star).
-func flash(pos: Vector3, color: Color, size: float, life: float, ring: bool = false, energy: float = 1.6) -> void:
+func flash(pos: Vector3, color: Color, size: float, life: float, ring: bool = false, energy: float = 1.6, spikes: float = 4.0) -> void:
 	if _flashes.is_empty():
 		return
 	var i := _next_flash
@@ -138,10 +144,13 @@ func flash(pos: Vector3, color: Color, size: float, life: float, ring: bool = fa
 	m.set_shader_parameter("color", color)
 	m.set_shader_parameter("energy", energy)
 	m.set_shader_parameter("ring", 1.0 if ring else 0.0)
+	m.set_shader_parameter("spikes", spikes)
+	m.set_shader_parameter("reduce", 1.0 if _reduce else 0.0)
+	m.set_shader_parameter("steps", clampf(life * 24.0, 2.0, 5.0))  # ~24 fps cel frames
 	m.set_shader_parameter("progress", 0.0)
 	mi.visible = true
 	_flash_age[i] = 0.0
-	_flash_life[i] = life
+	_flash_life[i] = life * (0.6 if _reduce else 1.0)
 	_flash_size[i] = size
 
 
@@ -228,14 +237,14 @@ func _on_shot(e: GameEvent) -> void:
 	if muzzle != null and now - int(_last_shot_ms.get(e.source_net_id, -1000)) >= SAME_SHOOTER_GAP_MS:
 		_last_shot_ms[e.source_net_id] = now
 		var mp: Vector3 = muzzle
-		flash(mp, color.lerp(Color.WHITE, 0.35), 0.28 if own else 0.9, 0.06, false, 2.2)
+		flash(mp, color.lerp(Color.WHITE, 0.35), 0.28 if own else 0.9, 0.07, false, 2.2, 5.0)
 		pulse_light(mp, color, 2.5 if own else 1.8, 7.0, 0.07)
 	var from: Vector3 = muzzle if muzzle != null else e.position + Vector3.UP
 	var dist := from.distance_to(e.position)
 	if dist > IMPACT_MAX_RANGE_M:
 		return
 	var back := (from - e.position).normalized()
-	flash(e.position, color, 0.55, 0.12, false, 1.8)
+	flash(e.position, color, 0.55, 0.14, false, 1.8, 6.0)
 	burst(e.position, back, color.lerp(Color.WHITE, 0.4), 8, 5.0, 0.35, 55.0)
 
 
@@ -251,7 +260,9 @@ func _on_hit(e: GameEvent) -> void:
 		(mi as MeshInstance3D).material_overlay = _overlay
 	_hit_flash[hv] = HIT_FLASH_S
 	var head := (e.flags & GameEvent.FLAG_HEADSHOT) != 0
-	flash(e.position, Color(1.0, 0.95, 0.7) if head else Color(1.0, 0.5, 0.3), 0.8 if head else 0.5, 0.1)
+	var tint := _shot_color(e.source_net_id)  # team-relative: own gold / ally blue / enemy orange
+	flash(e.position, Color(1.0, 0.95, 0.7).lerp(tint, 0.25) if head else tint, 0.8 if head else 0.5, 0.12, false, 1.8, 8.0 if head else 6.0)
+	burst(e.position, Vector3.UP, tint.lerp(Color.WHITE, 0.3), 5, 3.5, 0.25, 70.0)
 
 
 func _team_color_of(net_id: int) -> Color:
@@ -265,7 +276,8 @@ func _on_kill(e: GameEvent) -> void:
 	var c := _team_color_of(e.target_net_id)
 	var p := e.position + Vector3(0.0, 0.9, 0.0)
 	flash(p, c.lerp(Color.WHITE, 0.3), 5.0, 0.5, true, 1.8)
-	flash(p, Color.WHITE, 2.2, 0.18, false, 2.0)
+	flash(p, Color.WHITE, 2.2, 0.2, false, 2.0, 8.0)  # cel explosion: ring + 8-point star, stepped frames
+	flash(p, c, 3.4, 0.28, false, 1.6, 12.0)
 	burst(p, Vector3.UP, c.lerp(Color.WHITE, 0.25), 26, 7.0, 0.8, 120.0, 6.0)
 	pulse_light(p, c, 3.0, 9.0, 0.35)
 

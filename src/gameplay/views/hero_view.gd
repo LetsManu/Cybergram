@@ -214,6 +214,8 @@ func _bind_client() -> void:
 	# W13: shot / skill-cast events drive the model's one-shot clips.
 	if cw.has_signal("shot_received"):
 		cw.connect("shot_received", _on_shot_event)
+	if cw.has_signal("hit_confirmed"):  # W14-P2: directional additive flinch
+		cw.connect("hit_confirmed", _on_hit_event)
 	if cw.has_signal("skill_cast_received"):
 		cw.connect("skill_cast_received", _on_cast_event)
 
@@ -221,6 +223,14 @@ func _bind_client() -> void:
 func _on_shot_event(e: GameEvent) -> void:
 	if model != null and _net_id != 0 and e.source_net_id == _net_id:
 		model.play_shoot()
+
+
+func _on_hit_event(e: GameEvent) -> void:
+	if not (model is RiggedHeroModel) or _net_id == 0 or e.target_net_id != _net_id:
+		return
+	var cw := get_parent()
+	var from: Variant = cw.call("hero_view_position", e.source_net_id) if cw != null else null
+	model.flinch(clampf(e.amount / maxf(1.0, float(max_hp)) * 6.0, 0.35, 1.0), from if from != null else Vector3.INF)
 
 
 func _on_cast_event(e: GameEvent) -> void:

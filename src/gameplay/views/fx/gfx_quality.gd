@@ -48,6 +48,93 @@ static func muzzle_lights(lvl: int) -> int:
 	return [0, 2, 4, 6][clampi(lvl, LOW, ULTRA)]
 
 
+## Visual layer the hero meshes live on besides layer 1 (the rim light only lights this).
+const HERO_VISUAL_LAYER: int = 2
+const INK_EDGE_SHADER := "res://assets/shaders/spatial_fx_ink_edges.gdshader"
+## Premium-dark UI palette (design/ux/mockups/v0.9/README.md): ground ink for the
+## shadow tint, ivory for the highlight tint. Art-director's values, used as given.
+const GRADE_SHADOW := Color("#0B1015")
+const GRADE_HIGHLIGHT := Color("#ECE6D6")
+const LUT_SIZE: int = 16
+
+## Per-tier glow intensity (Low off). Emissives are authored at 2.2x albedo, so a
+## 1.1 HDR threshold lets visors / cables / team accents bloom while lit cel
+## surfaces (<= 1.0) do not wash out.
+const GLOW_INTENSITY := [0.0, 0.45, 0.6, 0.7]
+const GLOW_STRENGTH := [1.0, 0.9, 0.95, 1.0]
+
+
+static var _lut: Texture3D
+
+
+## Rim-light tier gate: High and above.
+static func rim_light_enabled(lvl: int) -> bool:
+	return lvl >= HIGH
+
+
+## Ink edge pass tier gate: High and Ultra only.
+static func ink_edges_enabled(lvl: int) -> bool:
+	return lvl >= HIGH
+
+
+## Ink edge line width (px) per tier.
+static func ink_edge_width(lvl: int) -> float:
+	return 1.0 if lvl <= HIGH else 1.4
+
+
+## Colour grade 3D LUT: identity with a subtle pull of shadows toward ground ink
+## and highlights toward ivory, plus a gentle S-curve. `amount` 0 = identity.
+static func make_grade_lut(amount: float = 1.0) -> Texture3D:
+	if amount == 1.0 and _lut != null:
+		return _lut
+	var layers: Array[Image] = []
+	for b in LUT_SIZE:
+		var img := Image.create(LUT_SIZE, LUT_SIZE, false, Image.FORMAT_RGB8)
+		for g in LUT_SIZE:
+			for r in LUT_SIZE:
+				var c := Color(r, g, b) / float(LUT_SIZE - 1)
+				var l := c.get_luminance()
+				var curve := c.lerp(Color(smoothstep(0.0, 1.0, c.r), smoothstep(0.0, 1.0, c.g), smoothstep(0.0, 1.0, c.b)), 0.25 * amount)
+				var sh := curve.lerp(GRADE_SHADOW.lightened(0.15), (1.0 - smoothstep(0.0, 0.45, l)) * 0.12 * amount)
+				var hi := sh.lerp(GRADE_HIGHLIGHT, smoothstep(0.65, 1.0, l) * 0.08 * amount)
+				img.set_pixel(r, g, Color(hi.r, hi.g, hi.b))
+		layers.append(img)
+	var t := ImageTexture3D.new()
+	t.create(Image.FORMAT_RGB8, LUT_SIZE, LUT_SIZE, LUT_SIZE, false, layers)
+	if amount == 1.0:
+		_lut = t
+	return t
+
+
+## Cool, shadowless, hero-only back light that follows the camera (toon rim).
+static func make_rim_light() -> DirectionalLight3D:
+	var l := DirectionalLight3D.new()
+	l.name = "RimLight"
+	l.light_color = Color(0.78, 0.86, 1.0)
+	l.light_energy = 0.55
+	l.shadow_enabled = false
+	l.light_cull_mask = 1 << (HERO_VISUAL_LAYER - 1)
+	l.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	return l
+
+
+## Full-screen ink edge quad (clip-space vertex shader; add under any 3D node).
+static func make_ink_edges(lvl: int) -> MeshInstance3D:
+	var q := QuadMesh.new()
+	q.size = Vector2(2.0, 2.0)
+	var mi := MeshInstance3D.new()
+	mi.name = "InkEdges"
+	mi.mesh = q
+	mi.extra_cull_margin = 16384.0
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var m := ShaderMaterial.new()
+	m.shader = load(INK_EDGE_SHADER)
+	m.set_shader_parameter("width_px", ink_edge_width(lvl))
+	m.set_shader_parameter("compat_depth", RenderingServer.get_current_rendering_method() == "gl_compatibility")
+	mi.material_override = m
+	return mi
+
+
 ## Builds the Shardline environment at High quality. Stored in the map scene by
 ## the builder; apply() scales it for the player's tier at runtime.
 static func make_environment() -> Environment:
@@ -127,7 +214,11 @@ static func apply(lvl: int, env: Environment, sun: DirectionalLight3D, vp: Viewp
 	lvl = clampi(lvl, LOW, ULTRA)
 	if env != null:
 		env.glow_enabled = lvl >= MEDIUM
-		env.glow_intensity = [0.0, 0.5, 0.7, 0.85][lvl]
+		env.glow_intensity = GLOW_INTENSITY[lvl]
+		env.glow_strength = GLOW_STRENGTH[lvl]
+		env.glow_hdr_scale = 1.4
+		env.glow_hdr_luminance_cap = 10.0
+		env.adjustment_color_correction = make_grade_lut() if lvl >= HIGH else null
 		env.ssao_enabled = lvl >= HIGH
 		env.ssao_radius = 1.6 if lvl == HIGH else 2.0
 		env.fog_enabled = true

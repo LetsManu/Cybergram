@@ -243,12 +243,12 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 				shock.inner_radius = br * 0.7
 				shock.outer_radius = br * 0.74
 				shock.rings = 48
-				_mesh(root, shock, _mat(Color.WHITE, 0.9, true)).position.y = 0.15
+				_mesh(root, shock, ToonFx.cel(Color.WHITE, 1.0, 1.6)).position.y = 0.15
 				var dome := SphereMesh.new()
 				dome.radius = br * 0.6
 				dome.height = dome.radius
 				dome.is_hemisphere = true
-				_mesh(root, dome, _mat(Color.WHITE.lerp(c, 0.4), 0.18, true))
+				_mesh(root, dome, ToonFx.cel(Color.WHITE.lerp(c, 0.4), 0.3, 1.3))
 			if f.kind == AbilityWorld.FX_CIRCLE:
 				# Ultimate / cast telegraph: vertical light column (art bible §8.2).
 				var col := _mesh(root, _cyl(0.25, 14.0), ModelMaterials.holo(c.lightened(0.4), 1.6, false, 0.0))
@@ -256,10 +256,10 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 				var halo := _mesh(root, _cyl(0.7, 14.0), _mat(c, 0.12, true))
 				halo.position.y = 7.0
 		SkillEntities.FX_THROWN:
-			var orb := _mesh(root, _sphere(0.2), _mat(Color.WHITE.lerp(c, 0.35), 1.0, true))
+			var orb := _mesh(root, _sphere(0.2), ToonFx.cel(Color.WHITE.lerp(c, 0.35), 1.0, 1.5))
 			orb.position.y = 0.0
 		SkillEntities.FX_DRONE:
-			var body := _mesh(root, _sphere(0.22), _mat(Color.WHITE, 1.0, true))
+			var body := _mesh(root, _sphere(0.22), ToonFx.cel(Color.WHITE, 1.0, 1.2))
 			body.name = "Body"
 			for x in [-1.0, 1.0]:
 				var rotor := _mesh(root, _cyl(0.2, 0.02), _mat(HEAL, 0.9, true))
@@ -270,7 +270,7 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 			dome.height = dome.radius * 2.0
 			dome.radial_segments = 32
 			dome.rings = 16
-			var shell := _mesh(root, dome, _mat(HEAL.lerp(c, 0.3).lightened(0.3), 0.14, true))
+			var shell := _mesh(root, dome, ToonFx.cel(HEAL.lerp(c, 0.3).lightened(0.3), 0.22, 1.2))
 			shell.name = "Dome"
 			_area(root, f.position2.x, HEAL.lerp(c, 0.3), hostile)
 		SkillEntities.FX_CHARGE:
@@ -286,6 +286,7 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 			var line := _mesh(root, _box(Vector3(w, w if f.kind != AbilityWorld.FX_ARROW else 0.03, 1.0)),
 				_mat(Color.WHITE.lerp(_line_color(f.kind, c), 0.45), 0.85, true))
 			line.name = "Line"
+			ToonFx.ink_smear(line, w if f.kind != AbilityWorld.FX_ARROW else 0.03)
 			if f.kind == AbilityWorld.FX_ARROW:
 				var head := _mesh(root, _box(Vector3(1.2, 0.03, 0.6)), _mat(c, 0.7, true))
 				head.name = "Head"

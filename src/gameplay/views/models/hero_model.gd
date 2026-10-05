@@ -134,7 +134,7 @@ func set_motion(velocity_world: Vector3, crouching: bool, pitch: float) -> void:
 
 
 ## Hit flinch impulse (0..1), decays over ~0.3 s.
-func flinch(strength: float = 1.0) -> void:
+func flinch(strength: float = 1.0, _from_world: Vector3 = Vector3.INF) -> void:
 	_flinch = clampf(maxf(_flinch, strength), 0.0, 1.0)
 	_flinch_side = -_flinch_side
 
