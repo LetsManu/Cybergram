@@ -645,12 +645,12 @@ func _draw_cards() -> void:
 		if model.is_recommended(idx):
 			var rec := tr("HUD_SHOP_REC")
 			tag_x -= caps_width(rec, 13, 0.18)
-			caps(rec, Vector2(tag_x, r.position.y + 22.0), 13, HudPalette.BRASS, 0.18)
+			caps(rec, Vector2(tag_x, r.end.y - 12.0), 13, HudPalette.BRASS, 0.18)
 			tag_x -= 12.0
 		if idx == next:
 			var tag := tr("HUD_SHOP_NEXT")
 			var tw := caps_width(tag, 12, 0.16) + 12.0
-			var tr_ := Rect2(tag_x - tw, r.position.y + 8.0, tw, 20.0)
+			var tr_ := Rect2(tag_x - tw, r.end.y - 28.0, tw, 20.0)
 			cut_fill(tr_, 5.0, HudPalette.BRASS)
 			draw_string(ctx.caps_font(ts(12), 0.16), Vector2(tr_.position.x + 6.0, tr_.get_center().y + ts(12) * 0.36), tag.to_upper(),
 				HORIZONTAL_ALIGNMENT_LEFT, -1, ts(12), HudPalette.INK)
@@ -823,7 +823,8 @@ func _damage_delta(p: SnapshotData.ProgressState, it: ArmoryItemDef) -> String:
 func _draw_footer() -> void:
 	var y := size.y - FOOTER_H
 	draw_line(Vector2(PAD, y), Vector2(size.x - PAD, y), HudPalette.HAIR_STRONG, 1.0)
-	text(tr("HUD_SHOP_KEYS"), Vector2(PAD, y + 40.0), 14, HudPalette.MUTED, ctx.font_body)
+	text(_fit(tr("HUD_SHOP_KEYS"), 14, _buy_rect().position.x - PAD - 12.0), Vector2(PAD, y + 40.0), 14, HudPalette.MUTED,
+		ctx.font_body)
 	var idx := _sel_index()
 	if idx < 0:
 		return

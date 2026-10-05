@@ -218,7 +218,7 @@ func _apply_context(c: ClientWorld) -> void:
 	_scrims.set_backdrop(bd)
 	_header.visible = not board
 	_front.visible = not board and not shop
-	_minimap.visible = gameplay
+	_minimap.visible = gameplay and not shop
 	_kill_feed.visible = gameplay and not shop
 	_tracker.visible = gameplay and not shop
 	if _task_cue != null:
