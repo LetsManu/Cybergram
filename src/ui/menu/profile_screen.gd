@@ -4,7 +4,10 @@ extends PanelContainer
 ## emblem, accent and favourite hero (UPDATE_PROFILE), and for accounts:
 ## change password, EXPORT MY DATA (the server's JSON, saved where the player
 ## picks), DELETE ACCOUNT (password + second press) and LOG OUT. Guests can
-## edit the display fields of their session only. Display only: it emits
+## edit the display fields of their session only. W21-N1: the recovery code
+## row (asks RECOVERY_INFO on open; "No recovery code yet - create one" for
+## older accounts; a new code needs the current password, the menu shows it
+## with RecoveryCodeDialog). Display only: it emits
 ## `requested(op, fields)`; the menu forwards server answers to on_result().
 ##
 ## Example:
@@ -33,6 +36,11 @@ var _old_pw: LineEdit
 var _new_pw: LineEdit
 var _del_pw: LineEdit
 var _delete_btn: Button
+var _rec_pw: LineEdit
+var _rec_state: Label
+var _rec_btn: Button
+## RECOVERY_INFO answer: -1 unknown, 0 no code, 1 a code exists.
+var recovery_state: int = -1
 var _delete_armed: bool = false
 var _pending_export: String = ""
 var _dialog: FileDialog
@@ -128,7 +136,9 @@ func _ready() -> void:
 		_delete_btn = UiKit.button(tr("HUD_ACCOUNT_DELETE"), _delete, &"danger", 34)
 		data.add_child(_delete_btn)
 		av.add_child(data)
+		av.add_child(_recovery_row())
 		col.add_child(acc)
+		requested.emit.call_deferred(AccountCodec.OP_RECOVERY_INFO, {})
 	else:
 		var g := MenuStyle.label(tr("HUD_ACCOUNT_GUEST_INFO"), 12, HudPalette.TEXT_DIM)
 		g.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -163,11 +173,60 @@ func on_result(d: Dictionary) -> void:
 				_write_export(str(d.json))
 			else:
 				_say(tr(LobbyClient.account_error_key(d.code)), false)
+		AccountCodec.OP_RECOVERY_INFO:
+			if ok:
+				_set_recovery_state(int(d.has_code))
+		AccountCodec.OP_RECOVERY_CODE:
+			if ok:
+				_set_recovery_state(1)
+				_say(tr("HUD_RECOVERY_NEW_OK"), true)
+			else:
+				_say(tr(LobbyClient.account_error_key(d.code)), false)
 		AccountCodec.OP_DELETE_ACCOUNT:
 			if not ok:
 				_delete_armed = false
 				_delete_btn.text = tr("HUD_ACCOUNT_DELETE")
 				_say(tr(LobbyClient.account_error_key(d.code)), false)
+
+
+## Recovery code row: state, current password, NEW / CREATE RECOVERY CODE.
+func _recovery_row() -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	_rec_state = MenuStyle.label(tr("HUD_RECOVERY_STATE_UNKNOWN"), 12, HudPalette.TEXT_DIM)
+	_rec_state.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_rec_state)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	_rec_pw = _secret(tr("HUD_RECOVERY_PW"))
+	h.add_child(_rec_pw)
+	_rec_btn = MenuStyle.button(tr("HUD_RECOVERY_NEW"), _new_recovery_code, false, 34)
+	h.add_child(_rec_btn)
+	v.add_child(h)
+	return v
+
+
+func _set_recovery_state(state: int) -> void:
+	recovery_state = state
+	if _rec_state == null:
+		return
+	_rec_state.text = tr("HUD_RECOVERY_STATE_SET") if state == 1 else tr("HUD_RECOVERY_STATE_NONE")
+	_rec_state.add_theme_color_override("font_color", HudPalette.TEXT_DIM if state == 1 else HudPalette.WARN)
+	_rec_btn.text = tr("HUD_RECOVERY_NEW") if state == 1 else tr("HUD_RECOVERY_CREATE")
+
+
+func _new_recovery_code() -> void:
+	if _rec_pw.text == "":
+		_say(tr("HUD_RECOVERY_NEEDS_PW"), false)
+		return
+	requested.emit(AccountCodec.OP_RECOVERY_CODE, {"password": _rec_pw.text})
+	_rec_pw.text = ""
+
+
+## Testing / automation: ask for a new recovery code with `password`.
+func request_recovery_code(password: String) -> void:
+	_rec_pw.text = password
+	_new_recovery_code()
 
 
 ## Asks the server for the export; `path` "" = let the player pick a file.
@@ -256,7 +315,7 @@ func _say(text: String, ok: bool) -> void:
 
 
 func _secret(placeholder: String) -> LineEdit:
-	var e := MenuStyle.line_edit(placeholder, AuthConfig.rules().password_max)
+	var e := MenuStyle.line_edit(placeholder, AccountCodec.PASSWORD_MAX_BYTES)  # never cut a password (W21-N1)
 	e.secret = true
 	e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return e
