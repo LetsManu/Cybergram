@@ -61,10 +61,10 @@ UPPER_BONES = ["UpperChest", "Neck", "Head", "Clavicle_L", "Clavicle_R", "UpperA
 
 
 def srgb(hex_str):
-    """'#RRGGBB' -> linear RGBA tuple (glTF vertex colours are linear)."""
+    """'#RRGGBB' -> RGBA tuple stored as-is (the project convention: the toon shaders
+    feed COLOR straight to ALBEDO, like the procedural builders' Color("#hex"))."""
     h = hex_str.lstrip("#")
-    c = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
-    return tuple((x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4) for x in c) + (1.0,)
+    return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)) + (1.0,)
 
 
 def v3(*a):

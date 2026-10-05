@@ -33,7 +33,7 @@ func _run() -> void:
 	var h := m.height_m
 	for shot in [["front", 0.0], ["34", 35.0], ["side", 90.0], ["back", 180.0]]:
 		m.rotation_degrees.y = 180.0 + shot[1]
-		_frame_cam(h, 3.4, h * 0.52, 30.0)
+		_frame_cam(h, 4.3, h * 0.5, 30.0)
 		await _frames(4)
 		await _save("%s/%s_%s.png" % [out, key, shot[0]])
 	m.rotation_degrees.y = 180.0 + 35.0
@@ -49,14 +49,14 @@ func _run() -> void:
 	m.position.x = -0.75
 	old.rotation_degrees.y = 180.0 + 25.0
 	m.rotation_degrees.y = 180.0 + 25.0
-	_frame_cam(h, 4.6, h * 0.5, 30.0)
+	_frame_cam(h, 5.4, h * 0.5, 30.0)
 	await _frames(6)
 	await _save("%s/%s_vs_old.png" % [out, key])
 	old.queue_free()
 	m.position.x = 0.0
 	# Pose sheet.
 	m.rotation_degrees.y = 180.0 + 30.0
-	_frame_cam(h, 3.4, h * 0.5, 30.0)
+	_frame_cam(h, 4.3, h * 0.5, 30.0)
 	var poses := [["idle", func(): pass], ["run", func(): m.set_motion(m.global_basis * Vector3(0, 0, -6), false, 0.0)],
 		["aim_up", func(): m.set_motion(Vector3.ZERO, false, 1.0)], ["crouch", func(): m.set_motion(Vector3.ZERO, true, 0.0)],
 		["shoot", func(): m.set_motion(Vector3.ZERO, false, 0.0); m.play_shoot()], ["reload", func(): m.play_reload()],
@@ -78,13 +78,14 @@ func _stage() -> void:
 	e.background_color = BG
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("#3A4250")
-	e.ambient_light_energy = 0.9
+	e.ambient_light_energy = 0.7
+	e.tonemap_white = 2.2
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
 	_root3d.add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-42, -35, 0)
-	sun.light_energy = 1.25
+	sun.light_energy = 0.85
 	sun.shadow_enabled = true
 	_root3d.add_child(sun)
 	var fill := DirectionalLight3D.new()

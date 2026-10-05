@@ -38,11 +38,17 @@ def ryker_cuts(h):
         cuts.append(({"LowerArm_" + s, "Hand_" + s}, *h.cut("LowerArm_" + s, 0.80)))
         cuts.append(({"LowerLeg_" + s, "Foot_" + s}, *h.cut("LowerLeg_" + s, 0.50)))
         cuts.append(({"UpperLeg_" + s, "LowerLeg_" + s}, *h.cut("UpperLeg_" + s, 0.15)))
+        cuts.append(({"UpperLeg_" + s, "LowerLeg_" + s}, *h.cut("UpperLeg_" + s, 0.9)))
+    sh = h.jh("UpperArm_R").x * 0.92
+    torso = {"Spine", "Chest", "UpperChest", "Clavicle_L", "Clavicle_R", "Neck", "UpperArm_L", "UpperArm_R"}
+    cuts.append((torso, Vector((sh, 0, 0)), Vector((1, 0, 0))))
+    cuts.append((torso, Vector((-sh, 0, 0)), Vector((-1, 0, 0))))
     cuts.append(({"LowerArm_R", "UpperArm_R"}, *h.cut("LowerArm_R", 0.12)))
     cuts.append(({"Neck", "Head", "UpperChest"}, *h.cut("Neck", 0.35)))
     zb = h.jh("Hips").z + 0.1 * h.d["height"] / 1.85
     for dz in (-0.035, 0.035):
         cuts.append(({"Hips", "Spine", "UpperLeg_L", "UpperLeg_R"}, Vector((0, 0, zb + dz)), Vector((0, 0, 1))))
+    cuts.append(({"Hips", "Spine", "Chest"}, Vector((0, 0, zb + 0.04)), Vector((0, 0, 1))))
     h.belt_z = zb
     return cuts
 
@@ -79,8 +85,6 @@ def _boot_pick(h, c, bone, n):
 
 
 def _vest_paint(h, c):
-    if c.y > 0 and abs(c.z - (h.jh("UpperChest").z + 0.02)) < 0.022:
-        return "team", "team"
     return "olive", "flat"
 
 
@@ -137,6 +141,12 @@ def ryker_parts(h):
                  weights=lambda co: _wz(h, co.z, bands))
         h.box(None, p + n * 0.02 * k + Vector((0, 0, 0.026 * k)), Vector((0.02, 0.02, 0.012)) * k, "team", "team",
               weights=lambda co: _wz(h, co.z, bands))
+    # Team chest band: segmented plates following the vest surface.
+    zc = h.jh("UpperChest").z - 0.02
+    for x in (-0.09, -0.03, 0.03, 0.09):
+        p, n = h.surface(x * k, zc, 1)
+        h.box("UpperChest", p + n * 0.03 * k, Vector((0.055, 0.012, 0.03)) * k, "team", "team",
+              rot=(0, 0, -math.degrees(math.atan2(n.x, n.y))), bevel=0.3)
     # Belt pouches, knee pads, stim port, small back pack.
     for x in (-0.13, -0.06, 0.08):
         p, n = h.surface(x * k, h.belt_z - 0.01, 1)
@@ -196,7 +206,7 @@ def vesper_cuts(h):
         cuts.append(({"Hand_" + s}, *h.cut("Hand_" + s, 0.95)))
     cuts.append(({"Neck", "Head", "UpperChest"}, *h.cut("Neck", 0.2)))
     zw = h.jh("Spine").z + 0.02
-    for dz in (-0.05, 0.05):
+    for dz in (-0.05, -0.035, 0.035, 0.05):
         cuts.append(({"Hips", "Spine", "Chest"}, Vector((0, 0, zw + dz)), Vector((0, 0, 1))))
     h.waist_z = zw
     return cuts
@@ -258,8 +268,8 @@ def vesper_parts(h):
         prev = p
     # High wide collar: outer plum shell + team lining, open at the front.
     nb = h.jh("Neck")
-    z0, z1 = nb.z - 0.04 * k, eye_z - 0.03 * k
-    clip = [((0, 0.7, 0), (0, 1, 0))]
+    z0, z1 = nb.z - 0.04 * k, eye_z - 0.085 * k
+    clip = [((0, 0.45, 0), (0, 1, 0))]
     h.cyl("UpperChest", (0, nb.y - 0.01, z0), (0, nb.y - 0.03, z1), 0.12 * k, 0.17 * k, "plum", seg=16, caps=False, clip=clip)
     h.cyl("UpperChest", (0, nb.y - 0.01, z0 + 0.005), (0, nb.y - 0.03, z1 - 0.005), 0.112 * k, 0.16 * k, "team", "team",
           seg=16, caps=False, clip=clip, flip=True)
@@ -299,7 +309,7 @@ def vesper_parts(h):
     tips = []
     for ang in (22, 64, 116, 158):
         a = math.radians(ang)
-        tip = hub + Vector((math.cos(a) * 0.40, -0.08, math.sin(a) * 0.30)) * k
+        tip = hub + Vector((math.cos(a) * 0.32, -0.1, math.sin(a) * 0.22 - 0.02)) * k
         h.cyl("UpperChest", hub, tip, 0.014 * k, 0.01 * k, "chrome", "chrome", seg=6)
         d = (tip - hub).normalized()
         h.cyl("UpperChest", tip - d * 0.03 * k, tip + d * 0.03 * k, 0.03 * k, 0.03 * k, "gold", seg=10)

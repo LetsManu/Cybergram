@@ -50,7 +50,7 @@ void fragment() {
 		emit = alb * emission_energy;
 		alb *= 0.4;
 	}
-	ALBEDO = alb;
+	ALBEDO = min(alb, vec3(0.78));
 	// Chrome: hard sky band from the view normal.
 	if (ch == 5) {
 		float up = NORMAL.y * 0.8 + NORMAL.x * 0.2;
