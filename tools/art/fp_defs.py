@@ -172,6 +172,9 @@ HEROES.update({
                      "bands": [(0.0, 0.07, "iron", 0.006, 0.014, "gold"), (0.07, 0.24, "teal", 0.012, 0.0, "iron"),
                                (0.24, 0.40, "soot", 0.008, 0.0, None)]},
                     grip=(0.14, 0.18, -0.225), scale=1.3),
+})
+HEROES["brannoc"]["reload_roll"] = 25.0
+HEROES.update({
     "hex": _two("hex", "glitchcaster_w16", _w.HEX_PAL,
                 _right((0, -0.01, -0.045), (0.032, 0.042, 0.095), -15),
                 _left_vertical((0, 0.05, -0.06), (0.03, 0.05, 0.08), 10),

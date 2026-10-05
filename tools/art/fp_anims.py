@@ -183,7 +183,8 @@ def _reload_mag(c, t):
     slap = kf(t, [(0, 0), (0.62, 0), (0.66, 1), (0.74, 0), (1, 0)])
     # raise the gun into view and roll it onto its right flank: the mag well faces
     # the eye and the off hand works it from the left, on screen
-    tilt = (-0.08 * a, 0.03 * a, 0.09 * a, 12 * a, 78 * a, 12 * a)
+    roll = c.fd.get("reload_roll", 78.0)  # big guns (Brannoc's drum) roll less or they fill the view
+    tilt = (-0.08 * a, 0.03 * a, 0.09 * a, 12 * a, roll * a, 12 * a)
     W = c.W(tilt[0], tilt[1], tilt[2] + 0.01 * slap, tilt[3] + 3 * slap, tilt[4], tilt[5])
     out = env(t, 0.15, 0.3) * (1 - env(t, 0.42, 0.62))
     mag = Matrix.Translation(ej * out)
