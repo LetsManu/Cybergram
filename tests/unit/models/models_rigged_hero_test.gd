@@ -71,19 +71,27 @@ func test_rigged_team_material_shared_per_team() -> void:
 # --- animation state mapping ----------------------------------------------
 func test_map_state_idle_and_locomotion_directions() -> void:
 	var s := RiggedHeroModel.map_state(Vector3.ZERO, false, true, 0.0, false)
-	assert_vector(s["parameters/loco/blend_position"]).is_equal(Vector2.ZERO)
+	assert_vector(s["parameters/loco_bs/blend_position"]).is_equal(Vector2.ZERO)
+	assert_float(s["parameters/loco/scale"]).is_equal(1.0)
 	assert_str(s["parameters/air/transition_request"]).is_equal("ground")
 	assert_str(s["parameters/life/transition_request"]).is_equal("alive")
 	assert_float(s["parameters/crouch_mix/blend_amount"]).is_equal(0.0)
-	var run := RiggedHeroModel.RUN_SPEED
-	var fwd := RiggedHeroModel.map_state(Vector3(0, 0, -run), false, true, 0.0, false)
-	assert_vector(fwd["parameters/loco/blend_position"]).is_equal_approx(Vector2(0, 1), Vector2(0.001, 0.001))
-	var back := RiggedHeroModel.map_state(Vector3(0, 0, run * 0.5), false, true, 0.0, false)
-	assert_vector(back["parameters/loco/blend_position"]).is_equal_approx(Vector2(0, -0.5), Vector2(0.001, 0.001))
-	var right := RiggedHeroModel.map_state(Vector3(run, 0, 0), false, true, 0.0, false)
-	assert_vector(right["parameters/loco/blend_position"]).is_equal_approx(Vector2(1, 0), Vector2(0.001, 0.001))
-	var fast := RiggedHeroModel.map_state(Vector3(run * 2, 0, -run * 2), false, true, 0.0, false)
-	assert_float((fast["parameters/loco/blend_position"] as Vector2).length()).is_equal_approx(1.0, 0.001)
+	# Mocap clip speeds: walk 1.5 m/s, run 3 m/s -> run point 0.5 of RUN_SPEED (6).
+	var cs := {&"walk": 1.5, &"run": 3.0, &"run_back": 1.5}
+	var rv := RiggedHeroModel.run_point(cs)
+	assert_float(rv).is_equal_approx(0.5, 0.001)
+	var walk := RiggedHeroModel.map_state(Vector3(0, 0, -1.5), false, true, 0.0, false, cs)
+	assert_vector(walk["parameters/loco_bs/blend_position"]).is_equal_approx(Vector2(0, 0.25), Vector2(0.001, 0.001))
+	assert_float(walk["parameters/loco/scale"]).is_equal(1.0)
+	var fwd := RiggedHeroModel.map_state(Vector3(0, 0, -6.0), false, true, 0.0, false, cs)
+	assert_vector(fwd["parameters/loco_bs/blend_position"]).is_equal_approx(Vector2(0, 0.5), Vector2(0.001, 0.001))
+	assert_float(fwd["parameters/loco/scale"]).is_equal_approx(2.0, 0.001)
+	var back := RiggedHeroModel.map_state(Vector3(0, 0, 1.5), false, true, 0.0, false, cs)
+	assert_vector(back["parameters/loco_bs/blend_position"]).is_equal_approx(Vector2(0, -0.25), Vector2(0.001, 0.001))
+	var right := RiggedHeroModel.map_state(Vector3(3.0, 0, 0), false, true, 0.0, false, cs)
+	assert_vector(right["parameters/loco_bs/blend_position"]).is_equal_approx(Vector2(0.5, 0), Vector2(0.001, 0.001))
+	var fast := RiggedHeroModel.map_state(Vector3(30, 0, -30), false, true, 0.0, false, cs)
+	assert_float(fast["parameters/loco/scale"]).is_equal(RiggedHeroModel.LOCO_RATE_MAX)
 
 
 func test_map_state_crouch_air_aim_death() -> void:

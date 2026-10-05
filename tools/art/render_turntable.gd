@@ -25,6 +25,10 @@ func _run() -> void:
 	var key := StringName(_arg("--hero", "ryker"))
 	var out := _arg("--out", "production/qa/evidence/w13-heroes")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + out))
+	if _arg("--strip", "") != "":
+		await _strip(_arg("--strip", ""), _arg("--clip", "run"), out, _arg("--tag", "x"))
+		quit()
+		return
 	if _arg("--map", "") != "":
 		await _in_map(_arg("--map", ""), out)
 		quit()
@@ -71,6 +75,36 @@ func _run() -> void:
 		await _frames(28 if p[0] in ["death"] else 12)
 		await _save("%s/%s_pose_%s.png" % [out, key, p[0]])
 	quit()
+
+
+## Frame strip of one clip straight from a glb's AnimationPlayer: 6 evenly
+## spaced frames, side view, tiled horizontally into <tag>_<clip>.png.
+func _strip(glb: String, clip: String, out: String, tag: String) -> void:
+	_stage()
+	var inst := (load(glb) as PackedScene).instantiate()
+	_root3d.add_child(inst)
+	var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var mat := RiggedHeroModel.material(ModelPalette.TEAM_CONCORD)
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).material_override = mat
+	inst.rotation_degrees.y = 90.0
+	_frame_cam(1.9, 4.0, 0.95, 32.0)
+	var n := 6
+	var tiles: Array[Image] = []
+	var length := ap.get_animation(clip).length
+	for i in n:
+		ap.play(clip)
+		ap.seek(length * i / float(n), true)
+		ap.pause()
+		await _frames(3)
+		await RenderingServer.frame_post_draw
+		var img := root.get_texture().get_image()
+		tiles.append(img.get_region(Rect2i(440, 0, 400, 720)))
+	var strip := Image.create(400 * n, 720, false, tiles[0].get_format())
+	for i in n:
+		strip.blit_rect(tiles[i], Rect2i(0, 0, 400, 720), Vector2i(400 * i, 0))
+	strip.save_png(ProjectSettings.globalize_path("res://%s/%s_%s.png" % [out, tag, clip]))
+	print("saved strip ", tag, " ", clip)
 
 
 ## In-map shot: both pilots per team + a box-model hero on the lane at --at x,z,

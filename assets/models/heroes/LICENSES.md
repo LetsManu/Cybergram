@@ -34,3 +34,28 @@ locomotion, jump, aim, shoot, reload, casts, death) are authored procedurally by
 No CC0 humanoid with idle/run/jump/shoot clips was reachable, so the base is the CC0
 MakeHuman mesh + rig and the animations are authored keyframes (the brief's fallback for
 the animation half only).
+
+## Locomotion animation — CMU Graphics Lab Motion Capture Database
+
+The data used in this project was obtained from mocap.cs.cmu.edu.
+The database was created with funding from NSF EIA-0196217.
+
+| Field | Value |
+|---|---|
+| Source | http://mocap.cs.cmu.edu (terms: "free for use in research and commercial projects") |
+| BVH conversion | Bruce Hahne (cgspeed), mirrored at https://github.com/una-dinosauria/cmu-mocap (commit `09a07f54f3`) |
+| Fetch | `tools/art/fetch_mocap.sh` -> `tools/art/.cache/cmu/` (gitignored) |
+| Retarget | `tools/art/mocap.py` (direction-based onto the game rig, in place, loop drift-corrected, legs exaggerated x1.1-1.15) |
+
+| Game clip | CMU subject_trial | CMU description | Use |
+|---|---|---|---|
+| `idle` | 40_10 | wait for bus | calmest 3 s window, looped |
+| `walk` | 16_15 | walk | one stride cycle (autocorrelation period) |
+| `run` | 16_35 | run/jog | one stride cycle; played up to x2.2 at sprint speed |
+| `run_back` | 16_15 | walk | the walk cycle reversed |
+| `jump` | 16_01 | jump | take-off to just before landing |
+| `death` | 90_16 | fall on face | collapse to rest |
+
+Scripted (project-owned) clips layered on top or used where CMU has no fit: `aim_up/mid/down`,
+`shoot`, `reload`, `hit`, `cast_0..3`, `crouch_idle`, `crouch_walk`, `strafe_l/r`.
+Per-hero trial record: `assets/models/heroes/<id>/<id>.anim.json`.

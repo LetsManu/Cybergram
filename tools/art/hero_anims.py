@@ -51,6 +51,7 @@ class Poser:
         for pb in self.pb:
             pb.rotation_quaternion = (1, 0, 0, 0)
             pb.location = (0, 0, 0)
+            pb.scale = (1, 1, 1)
 
     def rot(self, bone, spec):
         R = _rot(spec).to_3x3()
@@ -289,6 +290,7 @@ def mocap_clips(h):
         after = (lambda q: q.set_M("Weapon", q.M("Hand_R") @ off)) if name == "death" else None
         for f in range(clip.frames()):
             mocap.retarget(h, p, clip, f, scale, hips_rest - h.jh("Foot_L").z * 0.0, after)
+        h.rig.animation_data.action = None
         info[name] = {"trial": clip.trial, "speed": round(clip.speed * scale, 3), "frames": clip.frames()}
     return info
 

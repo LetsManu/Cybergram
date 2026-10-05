@@ -19,6 +19,10 @@ const RECOIL_BONES: Array[StringName] = [&"Chest"]
 ## Locomotion: full-speed run (m/s) = blend position 1; crouch walk speed.
 const RUN_SPEED: float = 6.0
 const CROUCH_SPEED: float = 3.0
+## Fallback in-place clip speeds (m/s) when <id>_anim.tres is missing.
+const DEFAULT_CLIP_SPEED := {&"walk": 1.3, &"run": 3.0, &"run_back": 1.3}
+## Locomotion playback rate clamp (above the run clip speed the run speeds up).
+const LOCO_RATE_MAX: float = 2.2
 ## Max look pitch mapped to aim_up / aim_down (rad, the clips are +-70 deg).
 const AIM_PITCH_MAX: float = 1.22
 const SKILL_SLOTS: int = 4
@@ -45,6 +49,7 @@ var _fade: float = 1.0
 var _state: Dictionary = {}
 var _enemy_outline: bool = false
 var _far: bool = false
+var _clip_speed: Dictionary = DEFAULT_CLIP_SPEED.duplicate()
 
 
 ## Builds from an imported glb scene (instantiated here). `hero_height` = HeroDef
@@ -62,6 +67,7 @@ func build_from_scene(model_key: StringName, scene: PackedScene, team_: int) -> 
 	_measure_height()
 	_make_markers()
 	_setup_loops()
+	_load_clip_speeds()
 	_build_tree()
 	set_team(team_)
 	_apply_pose(0.0)
@@ -99,6 +105,16 @@ func _make_markers() -> void:
 		_pivots[StringName(String(bone).to_lower())] = att
 
 
+func _load_clip_speeds() -> void:
+	var p := HeroModelLoader.glb_path(key).replace(".glb", "_anim.tres")
+	if ResourceLoader.exists(p):
+		var r := load(p)
+		var d: Dictionary = r.get_meta(&"clip_speed", {})
+		for k in d:
+			if float(d[k]) > 0.05:
+				_clip_speed[StringName(k)] = float(d[k])
+
+
 func _setup_loops() -> void:
 	if anim_player == null:
 		return
@@ -131,10 +147,14 @@ func _build_tree() -> void:
 		return
 	var bt := AnimationNodeBlendTree.new()
 	var loco := AnimationNodeBlendSpace2D.new()
-	for p in [[&"idle", Vector2.ZERO], [&"walk", Vector2(0, 0.5)], [&"run", Vector2(0, 1)],
-			[&"run_back", Vector2(0, -1)], [&"strafe_l", Vector2(-1, 0)], [&"strafe_r", Vector2(1, 0)]]:
+	var rv := run_point(_clip_speed)
+	for p in [[&"idle", Vector2.ZERO], [&"walk", Vector2(0, _clip_speed[&"walk"] / RUN_SPEED)], [&"run", Vector2(0, rv)],
+			[&"run_back", Vector2(0, -_clip_speed[&"run_back"] / RUN_SPEED)], [&"strafe_l", Vector2(-rv, 0)],
+			[&"strafe_r", Vector2(rv, 0)]]:
 		loco.add_blend_point(_clip_node(p[0]), p[1])
-	bt.add_node(&"loco", loco)
+	bt.add_node(&"loco_bs", loco)
+	bt.add_node(&"loco", AnimationNodeTimeScale.new())
+	bt.connect_node(&"loco", 0, &"loco_bs")
 	var crouch := AnimationNodeBlendSpace1D.new()
 	crouch.add_blend_point(_clip_node(&"crouch_idle"), 0.0)
 	crouch.add_blend_point(_clip_node(&"crouch_walk"), 1.0)
@@ -199,16 +219,26 @@ func _filter(node: AnimationNode, bones: Array[StringName]) -> void:
 		node.set_filter_path(p, true)
 
 
+## Blend-space radius of the run clip (its in-place speed / RUN_SPEED).
+static func run_point(clip_speed: Dictionary) -> float:
+	return clampf(float(clip_speed.get(&"run", 3.0)) / RUN_SPEED, 0.1, 1.0)
+
+
 ## Pure mapping from replicated state to AnimationTree parameters.
 ## vel_local: velocity in model space (m/s, forward = -Z); pitch in rad.
-static func map_state(vel_local: Vector3, crouching: bool, grounded: bool, pitch: float, dead: bool) -> Dictionary:
+## clip_speed: in-place mocap clip speeds (m/s) from <id>_anim.tres.
+static func map_state(vel_local: Vector3, crouching: bool, grounded: bool, pitch: float, dead: bool,
+		clip_speed: Dictionary = DEFAULT_CLIP_SPEED) -> Dictionary:
 	var planar := Vector2(vel_local.x, -vel_local.z)
 	var speed := planar.length()
+	var rv := run_point(clip_speed)
 	var loco := planar / RUN_SPEED
-	if loco.length() > 1.0:
-		loco = loco.normalized()
+	if loco.length() > rv:
+		loco = loco.normalized() * rv
+	var run_speed := rv * RUN_SPEED
 	return {
-		"parameters/loco/blend_position": loco,
+		"parameters/loco_bs/blend_position": loco,
+		"parameters/loco/scale": clampf(speed / run_speed, 1.0, LOCO_RATE_MAX),
 		"parameters/crouch/blend_position": clampf(speed / CROUCH_SPEED, 0.0, 1.0),
 		"parameters/crouch_mix/blend_amount": 1.0 if crouching else 0.0,
 		"parameters/air/transition_request": "ground" if grounded else "air",
@@ -345,7 +375,7 @@ func _apply_pose(delta: float) -> void:
 		for mi in _meshes:
 			mi.set_instance_shader_parameter(&"flash", _flash)
 	_update_outline_lod()
-	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead)
+	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead, _clip_speed)
 	if tree == null:
 		return
 	for p in _state:
@@ -355,7 +385,6 @@ func _apply_pose(delta: float) -> void:
 				continue
 		tree.set(p, _state[p])
 	var speed := Vector2(_vel_local.x, _vel_local.z).length()
-	tree.set("parameters/loco/blend_position", _state["parameters/loco/blend_position"])
 	tree.set("parameters/crouch_mix/blend_amount", move_toward(
 		float(tree.get("parameters/crouch_mix/blend_amount")), _state["parameters/crouch_mix/blend_amount"], delta * 6.0))
 	_speed_s = speed

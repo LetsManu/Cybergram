@@ -622,6 +622,12 @@ def build(key):
             "The database was created with funding from NSF EIA-0196217."} if mocap_info else {"clips": {}}
     with open(out[:-4] + ".anim.json", "w") as fh:
         json.dump(side, fh, indent=1, sort_keys=True)
+    # Godot-native copy of the in-place clip speeds (exported with the game).
+    speeds = {k: v["speed"] for k, v in side["clips"].items()}
+    with open(out[:-4] + "_anim.tres", "w") as fh:
+        fh.write('[gd_resource type="Resource" format=3]\n\n[resource]\nmetadata/clip_speed = {\n')
+        fh.write(",\n".join('"%s": %.3f' % (k, speeds[k]) for k in sorted(speeds)))
+        fh.write("\n}\n")
     print("built %s: %d tris, %d bones, %d clips, %.2f MB" % (out, tris, len(rig.data.bones), len(bpy.data.actions),
                                                              os.path.getsize(out) / 1e6))
 
