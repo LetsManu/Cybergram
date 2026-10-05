@@ -93,6 +93,8 @@ var _pending_root: String = ""
 # --- W15-ONLINE ---
 var _launch_pending: bool = false
 var _rail: OnlineRail
+var _online_settings_row: HBoxContainer
+var _support: SupportCard
 # --- end W15-ONLINE ---
 
 
@@ -660,6 +662,10 @@ func _show_page(key: String) -> void:
 		(_pages[k] as Control).visible = k == key
 	if _art != null:
 		_art.visible = key == "home"
+	# --- W15-ONLINE ---
+	if _rail != null:
+		_rail.visible = key == "home"  # the rail sits over the key art, not over other pages
+	# --- end W15-ONLINE ---
 	if _nav.has(key):
 		(_nav[key] as Button).button_pressed = true
 	UiKit.transition_in(_pages[key], Vector2.ZERO)
@@ -819,6 +825,16 @@ func _build_settings() -> Control:
 	_version_label = UiKit.label("", &"small", t.text_dim)
 	about.body.add_child(_version_label)
 	about.body.add_child(UiKit.label("Launcher %s" % _own_version, &"small", t.text_off))
+	# --- W15-ONLINE ---
+	_online_settings_row = HBoxContainer.new()
+	_online_settings_row.add_theme_constant_override("separation", 12)
+	col.add_child(_online_settings_row)
+	_support = SupportCard.new()
+	_support.launcher_version = _own_version
+	_support.game_version = func() -> String: return _updater.installed_version()
+	_support.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_online_settings_row.add_child(_support)
+	# --- end W15-ONLINE ---
 	return margin
 
 

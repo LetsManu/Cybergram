@@ -31,6 +31,9 @@ func setup(probe: StatusProbe, version_url: String, login_: LauncherLogin) -> vo
 		func() -> void:
 			if login != null:
 				login.ping())
+	var preview: String = OnlinePreview.requested()
+	if preview != "":
+		(func() -> void: OnlinePreview.apply(get_parent(), preview)).call_deferred()
 	probe.probed.connect(func(info: Dictionary) -> void:
 		var t: UiKitTokens = UiKit.tokens()
 		_mini_dot.color = t.ok if bool(info.get("reachable", false)) else t.danger)
