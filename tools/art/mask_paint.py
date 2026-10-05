@@ -24,7 +24,7 @@ class Region:
     """Pixels of one colour block (all colours in `hexes`), optionally limited to z >= zmin
     and to front-facing normals (ny >= front). Holds the normalised u, v of each pixel."""
 
-    def __init__(self, ctx, hexes, zmin=None, zmax=None, front=None, tol=0.02, box=None):
+    def __init__(self, ctx, hexes, zmin=None, zmax=None, front=None, tol=0.02, box=None, proj="xz", xmin=None):
         base = ctx["base"]
         sel = ctx["cov"] > 0.5
         near = np.zeros(sel.shape, dtype=bool)
@@ -38,18 +38,25 @@ class Region:
             sel &= P[..., 2] <= zmax
         if front is not None:
             sel &= ctx["N"][..., 1] >= front
+        if xmin is not None:  # side projections: one side only (sign of xmin picks it)
+            sel &= (P[..., 0] * np.sign(xmin)) >= abs(xmin)
         self.ctx = ctx
         self.ij = np.nonzero(sel)
         self.p = P[self.ij]
         self.n = ctx["N"][self.ij]
+        a = 0 if proj == "xz" else 1  # "yz": side view, u = +1 at the front
+        if len(self.p) == 0:
+            self.box, self.cx, self.hx, self.cz, self.hz = (0, 1, 0, 1), 0.5, 0.5, 0.5, 0.5
+            self.u = self.v = np.zeros(0)
+            return
         if box is None:
             lo, hi = np.percentile(self.p, 0.5, axis=0), np.percentile(self.p, 99.5, axis=0)
-            box = (lo[0], hi[0], lo[2], hi[2])
+            box = (lo[a], hi[a], lo[2], hi[2])
         self.box = box
         x0, x1, z0, z1 = box
         self.cx, self.hx = (x0 + x1) / 2, max((x1 - x0) / 2, 1e-4)
         self.cz, self.hz = (z0 + z1) / 2, max((z1 - z0) / 2, 1e-4)
-        self.u = (self.p[:, 0] - self.cx) / self.hx
+        self.u = (self.p[:, a] - self.cx) / self.hx
         self.v = (self.p[:, 2] - self.cz) / self.hz
 
     def __len__(self):
