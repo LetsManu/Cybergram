@@ -705,12 +705,12 @@ HUD_MODE_CTA_START,START
 HUD_MODE_CTA_PRACTICE,ENTER RANGE
 HUD_MODE_CTA_TUTORIAL,START TUTORIAL
 HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
-HUD_PATCH_1_TITLE,A new HUD
-HUD_PATCH_1_SUB,"Redesigned in the menu style, with an icon for every skill"
-HUD_PATCH_2_TITLE,Your keys on screen
-HUD_PATCH_2_SUB,"Skill keys show your own bindings or gamepad buttons"
-HUD_PATCH_3_TITLE,Calmer screen
-HUD_PATCH_3_SUB,"The HUD fades when idle; HUD text size 90-130%"
+HUD_PATCH_1_TITLE,All seven heroes rebuilt
+HUD_PATCH_1_SUB,"Detailed bodies, masks and helmets, painted wear and cloth"
+HUD_PATCH_2_TITLE,Your weapon in first person
+HUD_PATCH_2_SUB,"Each hero's own weapon and gloved hands; inspect with I"
+HUD_PATCH_3_TITLE,HUD follows your keys
+HUD_PATCH_3_SUB,"Prompts show your bindings; skills say why they are not ready"
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
