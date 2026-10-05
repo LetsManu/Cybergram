@@ -112,6 +112,8 @@ class Poser:
                 continue
             pb.keyframe_insert("rotation_quaternion", frame=frame)
         self.pb["Hips"].keyframe_insert("location", frame=frame)
+        if "Weapon" in self.pb:  # W16: set_M moves the weapon too (death, kick); keep the translation
+            self.pb["Weapon"].keyframe_insert("location", frame=frame)
 
 
 def _frame(y, n):
