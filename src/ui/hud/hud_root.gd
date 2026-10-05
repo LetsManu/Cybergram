@@ -48,6 +48,7 @@ var _vitals: VitalsPanel
 var _skills: SkillBar
 var _weapon: WeaponPanel
 var _armory: ArmoryPanel
+var _armory_guide: ArmoryWaypoint
 var _death: DeathScreen
 var _scoreboard: Scoreboard
 var _end: EndBanner
@@ -119,6 +120,8 @@ func _build() -> void:
 	# W16-SDWATER: "OUTSIDE THE RING" (Sudden Death) under the front strip.
 	_fill(RingWarning.new(), _zone("RingWarning", 0.25, 0.255, 0.75, 0.34))  # v0.12: centre-upper (top 321 at 1080p), above the damage ring
 	_fill(RemakePrompt.new(), _zone("Remake", 0.30, 0.21, 0.70, 0.31))  # W17B-UI: early remake vote, below the top-centre unit (never at the same time as the Sudden Death ring warning)
+	# W21-G2: guidance arrow to the own Armory pad, under the ring warning.
+	_armory_guide = _fill(ArmoryWaypoint.new(), _zone("ArmoryGuide", 0.0, 0.34, 1.0, 0.44)) as ArmoryWaypoint
 	_center = _fill(CenterFeedback.new(), _zone("Centre", 0.30, 0.30, 0.70, 0.70)) as CenterFeedback
 	var z_bl := _zone("BottomLeft", 0.0, 0.70, 0.3, 1.0)
 	_vitals = _fill(VitalsPanel.new(), z_bl) as VitalsPanel
@@ -228,6 +231,7 @@ func _apply_context(c: ClientWorld) -> void:
 	if _task_cue != null:
 		_task_cue.visible = v.tracker
 	_toasts.visible = v.toasts
+	_armory_guide.visible = v.armory_guide
 	_center.visible = v.center
 	_squad.visible = v.squad
 	_vitals.visible = v.vitals
@@ -251,6 +255,7 @@ static func context_visibility(dead: bool, board: bool, shop: bool, ended: bool,
 		"minimap": gameplay and not shop,
 		"kill_feed": gameplay and not shop,
 		"tracker": gameplay and not shop and not sd,
+		"armory_guide": gameplay and not shop and not sd,
 		"toasts": not board,
 		"center": not dead and not ended,
 		"squad": gameplay and not shop and not sd,
