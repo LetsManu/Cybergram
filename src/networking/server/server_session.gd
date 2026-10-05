@@ -40,6 +40,11 @@ var _scratch: Array[InputCommand] = []
 ## W16-NET: print the per-client [net] line every net.stats_log_interval_s
 ## (GameSession turns it on for dedicated servers; off in tests).
 var stats_log_enabled: bool = false
+## W16-NET: records of state objects shared by every client this tick.
+var _record_cache: Dictionary = {}
+var _record_cache_tick: int = -1
+## Microseconds spent encoding snapshots (benchmark).
+var encode_usec: int = 0
 var _stats_window_tick: int = -1
 
 
@@ -64,6 +69,7 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	c.own_net_id = own_net_id
 	c.inputs = InputBuffer.new(net.max_buffered_inputs)
 	c.encoder = SnapshotEncoder.new(net.delta_baseline_ticks, net.snapshot_budget_bytes)
+	c.encoder.prioritiser = WardlingPrioritiser.new(net)
 	clients[peer_id] = c
 	_send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
 	var who: Dictionary = token_names.get(hello_token.get(peer_id, 0), {})
@@ -109,7 +115,12 @@ func send_snapshot(peer_id: int, snap: SnapshotData) -> void:
 	if c == null:
 		transport.send(peer_id, Transport.CH_SNAPSHOT, SnapshotCodec.encode(snap))
 		return
-	var b := c.encoder.encode(snap, c.ack_snapshot_tick)
+	if snap.tick != _record_cache_tick:
+		_record_cache.clear()
+		_record_cache_tick = snap.tick
+	var t0 := Time.get_ticks_usec()
+	var b := c.encoder.encode(snap, c.ack_snapshot_tick, _record_cache)
+	encode_usec += Time.get_ticks_usec() - t0
 	_send(peer_id, Transport.CH_SNAPSHOT, b)
 	c.stats.on_snapshot(b.size(), net.snapshot_budget_bytes, c.encoder.last.is_delta, c.encoder.last.deferred)
 

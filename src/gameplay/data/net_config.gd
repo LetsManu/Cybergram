@@ -39,6 +39,14 @@ extends Resource
 @export_range(2, 255) var delta_baseline_ticks: int = 32
 ## W16-NET: decoded snapshots the client keeps as baselines (> delta_baseline_ticks).
 @export_range(4, 512) var client_baseline_ticks: int = 64
+## W16-NET relevance: Wardlings within this flat distance of the client's hero
+## (or in its own squad) are refreshed every tick.
+@export_range(0.0, 500.0, 1.0) var relevance_near_m: float = 40.0
+## W16-NET relevance: ... and those inside the view cone up to this distance.
+@export_range(0.0, 1000.0, 1.0) var relevance_view_m: float = 90.0
+@export_range(0.0, 180.0, 1.0) var relevance_view_half_angle_deg: float = 55.0
+## W16-NET: other Wardlings are refreshed every N ticks (3 = 10 Hz at 30 Hz).
+@export_range(1, 30) var far_send_interval_ticks: int = 3
 ## W16-NET: seconds between the server's per-client [net] log lines.
 @export_range(1.0, 600.0, 0.5) var stats_log_interval_s: float = 10.0
 ## W16-NET: max [net] lines per interval (the rest are summarised in one line).

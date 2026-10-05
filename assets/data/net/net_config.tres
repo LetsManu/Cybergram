@@ -24,3 +24,7 @@ stats_log_max_lines = 12
 jitter_window_samples = 90
 delta_baseline_ticks = 32
 client_baseline_ticks = 64
+relevance_near_m = 40.0
+relevance_view_m = 90.0
+relevance_view_half_angle_deg = 55.0
+far_send_interval_ticks = 3

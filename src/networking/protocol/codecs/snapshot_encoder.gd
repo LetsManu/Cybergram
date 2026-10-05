@@ -32,14 +32,15 @@ func baseline_for(ack_tick: int, tick: int) -> SnapshotCodec.View:
 	return _views.get(ack_tick)
 
 
-func encode(s: SnapshotData, ack_tick: int) -> PackedByteArray:
+## `cache`: see SnapshotCodec.encode_delta (shared per tick between clients).
+func encode(s: SnapshotData, ack_tick: int, cache: Dictionary = {}) -> PackedByteArray:
 	var base := baseline_for(ack_tick, s.tick)
 	var order: Variant = null
 	if prioritiser != null:
 		order = prioritiser.call("order", s, base, s.tick)
-	last = SnapshotCodec.encode_delta(s, base, budget, order)
+	last = SnapshotCodec.encode_delta(s, base, budget, order, cache)
 	if prioritiser != null:
-		prioritiser.call("sent", last.sent, s.tick)
+		prioritiser.call("sent", last.fresh, s.tick)
 	_views[s.tick] = last.view
 	for t in _views.keys():
 		if t <= s.tick - ring_ticks:

@@ -171,6 +171,7 @@ func _run() -> void:
 		"delta_pct": snappedf(100.0 * deltas / maxi(all.size(), 1), 0.01),
 		"deferred_updates_per_snapshot": snappedf(float(deferred) / maxi(all.size(), 1), 0.01),
 		"client_decoded": decoded, "client_decode_failures": fails, "client_baseline_misses": misses,
+		"encode_ms_per_tick_all_clients": snappedf(server.session.encode_usec / 1000.0 / ticks, 0.001),
 		"server_step_p50_ms": snappedf(step_us[step_us.size() / 2] / 1000.0, 0.001),
 		"server_step_p95_ms": snappedf(step_us[int(step_us.size() * 0.95)] / 1000.0, 0.001),
 		"wall_s": snappedf((Time.get_ticks_msec() - t0) / 1000.0, 0.1),

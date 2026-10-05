@@ -104,6 +104,8 @@ class Encoded:
 	var deferred: int = 0
 	## Wardling keys sent this tick.
 	var sent: Array[int] = []
+	## Wardling keys whose client view is current (sent or unchanged).
+	var fresh: Array[int] = []
 	## Bolts dropped to fit the budget.
 	var bolts_dropped: int = 0
 
@@ -447,7 +449,10 @@ static func match_from(b: PackedByteArray) -> SnapshotData.MatchState:
 ## marked stale) and bolts are trimmed. `ward_order` (null = every changed
 ## Wardling by key) lists the Wardling keys eligible this tick, in send order;
 ## changed Wardlings not listed are deferred.
-static func encode_delta(s: SnapshotData, base: View, budget: int, ward_order: Variant = null) -> Encoded:
+## `cache` (optional, cleared by the caller every tick) maps state objects
+## shared between clients to their records, so each is built once per tick.
+static func encode_delta(s: SnapshotData, base: View, budget: int, ward_order: Variant = null,
+		cache: Dictionary = {}) -> Encoded:
 	var out := Encoded.new()
 	var v := View.new()
 	v.tick = s.tick
@@ -470,15 +475,27 @@ static func encode_delta(s: SnapshotData, base: View, budget: int, ward_order: V
 	_put_blob(w, oc, bv.blobs[BLOB_OWN_COMBAT], v, BLOB_OWN_COMBAT)
 	var heroes := {}
 	for e in s.entities:
-		heroes[e.net_id & 0xFFFF] = hero_record(e)
+		var hr: Variant = cache.get(e)
+		if hr == null:
+			hr = hero_record(e)
+			cache[e] = hr
+		heroes[e.net_id & 0xFFFF] = hr
 	_put_keyed(w, SEC_HERO, heroes, bv, v)
 	var fx := {}
 	for f in s.fx:
-		fx[f.id & 0xFFFF] = fx_record(f, s.tick)
+		var fr: Variant = cache.get(f)
+		if fr == null:
+			fr = fx_record(f, s.tick)
+			cache[f] = fr
+		fx[f.id & 0xFFFF] = fr
 	_put_keyed(w, SEC_FX, fx, bv, v)
 	var hps := {}
 	for i in s.hardpoints.size():
-		hps[i] = hardpoint_record(s.hardpoints[i])
+		var pr: Variant = cache.get(s.hardpoints[i])
+		if pr == null:
+			pr = hardpoint_record(s.hardpoints[i])
+			cache[s.hardpoints[i]] = pr
+		hps[i] = pr
 	_put_keyed(w, SEC_HP, hps, bv, v)
 	_put_blob(w, fronts_blob(s.fronts) if not s.hardpoints.is_empty() or not s.fronts.is_empty() else null,
 		bv.blobs[BLOB_FRONTS], v, BLOB_FRONTS)
@@ -489,7 +506,11 @@ static func encode_delta(s: SnapshotData, base: View, budget: int, ward_order: V
 	# Wardlings: what must go (removals) and what changed.
 	var cur := {}
 	for wd in s.wardlings:
-		cur[wd.net_id & 0xFFFF] = wardling_record(wd)
+		var wr: Variant = cache.get(wd)
+		if wr == null:
+			wr = wardling_record(wd)
+			cache[wd] = wr
+		cur[wd.net_id & 0xFFFF] = wr
 	var base_w: Dictionary = bv.sections[SEC_WARD]
 	var removed: Array[int] = []
 	for k in base_w:
@@ -499,9 +520,10 @@ static func encode_delta(s: SnapshotData, base: View, budget: int, ward_order: V
 	var full_mask := (1 << GROUPS[SEC_WARD].size()) - 1
 	for k in cur:
 		if base_w.has(k):
-			var m := diff_mask(cur[k], base_w[k], GROUPS[SEC_WARD])
-			if m != 0:
-				changed[k] = m
+			if cur[k] == base_w[k]:
+				out.fresh.append(k)
+				continue
+			changed[k] = diff_mask(cur[k], base_w[k], GROUPS[SEC_WARD])
 		else:
 			changed[k] = full_mask
 	# Worst-case Wardling tail: counts, removals, stale bitmask.
@@ -554,6 +576,7 @@ static func encode_delta(s: SnapshotData, base: View, budget: int, ward_order: V
 		w.put_u8(m)
 		_put_groups(w, cur[k], m, GROUPS[SEC_WARD])
 		out.sent.append(k)
+		out.fresh.append(k)
 	_put_stale(w, vw, v.stale)
 	out.bytes = w.data_array
 	return out
@@ -608,7 +631,9 @@ static func _put_keyed(w: StreamPeerBuffer, sec: int, cur: Dictionary, bv: View,
 	keys.sort()
 	var ups: Array = []
 	for k in keys:
-		var m := diff_mask(cur[k], base[k], groups) if base.has(k) else full
+		var m := full
+		if base.has(k):
+			m = 0 if cur[k] == base[k] else diff_mask(cur[k], base[k], groups)
 		if m != 0:
 			ups.append([k, m])
 	w.put_u16(ups.size())
