@@ -50,6 +50,10 @@ var _state: Dictionary = {}
 var _enemy_outline: bool = false
 var _far: bool = false
 var _clip_speed: Dictionary = DEFAULT_CLIP_SPEED.duplicate()
+## W14-P2 runtime layers (null when the tier or the glb does not support them).
+var hit_reaction: HitReaction
+var foot_ik: FootIK
+var spring_bones: SpringBoneSimulator3D
 
 
 ## Builds from an imported glb scene (instantiated here). `hero_height` = HeroDef
@@ -69,6 +73,7 @@ func build_from_scene(model_key: StringName, scene: PackedScene, team_: int) -> 
 	_setup_loops()
 	_load_clip_speeds()
 	_build_tree()
+	apply_quality(GfxQuality.level() if not GfxQuality.is_headless() else GfxQuality.LOW)
 	set_team(team_)
 	_apply_pose(0.0)
 
@@ -291,8 +296,14 @@ func set_grounded(grounded: bool) -> void:
 	_grounded = grounded
 
 
-func flinch(strength: float = 1.0) -> void:
+## `from_world` = world position of the attacker (Vector3.INF = unknown); it
+## picks the lean direction of the additive HitReaction (a stagger when big).
+func flinch(strength: float = 1.0, from_world: Vector3 = Vector3.INF) -> void:
 	_flinch = clampf(maxf(_flinch, strength), 0.0, 1.0)
+	if hit_reaction != null and from_world != Vector3.INF:
+		var gb := global_transform.basis if is_inside_tree() else transform.basis
+		var at := global_position if is_inside_tree() else position
+		hit_reaction.hit(gb.inverse() * (from_world - at), strength)
 	_flash = maxf(_flash, 0.6 * strength)
 	_fire(&"hit")
 
@@ -328,6 +339,24 @@ func set_fade(alpha: float) -> void:
 		mi.set_instance_shader_parameter(&"fade", _fade)
 
 
+## (Re)builds the per-tier runtime layers: hit reaction (all tiers, free while
+## idle), spring bones (Medium+) and foot IK (High+). Low adds nothing.
+func apply_quality(lvl: int) -> void:
+	if skeleton == null:
+		return
+	for n in [hit_reaction, foot_ik, spring_bones]:
+		if n != null:
+			n.queue_free()
+	hit_reaction = null
+	foot_ik = null
+	spring_bones = null
+	hit_reaction = HitReaction.new()
+	hit_reaction.name = "HitReaction"
+	skeleton.add_child(hit_reaction)
+	foot_ik = FootIK.attach(skeleton, lvl)
+	spring_bones = SecondaryMotion.attach(skeleton, lvl)
+
+
 func _fire(shot: StringName) -> void:
 	if tree != null and not _dead:
 		tree.set("parameters/%s/request" % shot, AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
@@ -338,7 +367,10 @@ func _update_outline_lod() -> void:
 	var cam := vp.get_camera_3d() if vp != null else null
 	if cam == null:
 		return
-	var far := cam.global_position.distance_to(global_position) > OUTLINE_LOD_M
+	var d := cam.global_position.distance_to(global_position)
+	if spring_bones != null:
+		spring_bones.active = SecondaryMotion.should_run(d)
+	var far := d > OUTLINE_LOD_M
 	if far != _far:
 		_far = far
 		set_team(team, _enemy_outline)
