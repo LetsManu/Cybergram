@@ -376,6 +376,12 @@ static func style_button(b: BaseButton, kind: StringName = &"secondary") -> void
 	b.add_theme_stylebox_override("focus", focus_box())
 	var big := kind in [&"primary", &"play"]
 	if big:
+		# Chamfered focus frame drawn over the brass (a square ring would clash).
+		var ring := UiBevelBox.new()
+		ring.bevel = sb.bevel
+		ring.border = t.text
+		ring.border_width = 2.0
+		b.add_theme_stylebox_override("focus", ring)
 		disabled.fill = Color(t.accent_dim, 0.6)
 		for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color",
 				"font_hover_pressed_color"]:
@@ -513,6 +519,19 @@ static func tab_button(text: String, nav := false) -> Button:
 	if nav:
 		b.add_theme_font_override("font", display_font(600, track(t.size_nav, 0.16)))
 		b.add_theme_font_size_override("font_size", t.size_nav)
+		# The underline spans the text only (inset by the side padding).
+		sel.border_color = Color(0, 0, 0, 0)
+		var bar := ColorRect.new()
+		bar.name = "Underline"
+		bar.color = t.accent
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		bar.offset_left = 16
+		bar.offset_right = -16
+		bar.offset_top = -2
+		bar.offset_bottom = 0
+		b.add_child(bar)
+		b.draw.connect(func() -> void: bar.visible = b.button_pressed)
 	else:
 		b.add_theme_font_override("font", display_font(600, track(13, 0.14)))
 		b.add_theme_font_size_override("font_size", 13)

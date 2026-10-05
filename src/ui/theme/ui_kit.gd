@@ -376,6 +376,12 @@ static func style_button(b: BaseButton, kind: StringName = &"secondary") -> void
 	b.add_theme_stylebox_override("focus", focus_box())
 	var big := kind in [&"primary", &"play"]
 	if big:
+		# Chamfered focus frame drawn over the brass (a square ring would clash).
+		var ring := UiBevelBox.new()
+		ring.bevel = sb.bevel
+		ring.border = t.text
+		ring.border_width = 2.0
+		b.add_theme_stylebox_override("focus", ring)
 		disabled.fill = Color(t.accent_dim, 0.6)
 		for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color",
 				"font_hover_pressed_color"]:

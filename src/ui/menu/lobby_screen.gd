@@ -438,6 +438,7 @@ func _build_bottom(t: UiKitTokens) -> void:
 	_chat_log.add_theme_constant_override("line_separation", 6)
 	_chat_log.add_theme_color_override("default_color", t.text_dim)
 	_chat_log.focus_mode = Control.FOCUS_NONE
+	_chat_log.get_v_scroll_bar().modulate.a = 0.0  # wheel still scrolls; no bar in the look
 	chat.add_child(_chat_log)
 	_chat_in = UiKit.line_edit(tr("HUD_LOBBY_CHAT_HINT"), LobbyCodec.CHAT_MAX_CHARS)
 	_chat_in.custom_minimum_size.y = 30
