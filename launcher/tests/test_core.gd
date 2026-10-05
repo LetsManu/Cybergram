@@ -64,6 +64,12 @@ func _init() -> void:
 	_check(wrapped.contains("first line second line"), "md joins wrapped lines")
 	_check(wrapped.ends_with("\npara"), "md keeps paragraph break")
 
+	var sp: Dictionary = LauncherCore.split_notes("# Head\nintro line\n## A\n- x\n## B\ny")
+	_check(sp["headline"] == "Head" and sp["intro"] == "intro line", "notes headline and intro")
+	_check(sp["sections"].size() == 2 and sp["sections"][0]["title"] == "A" and sp["sections"][1]["md"].strip_edges() == "y", "notes sections")
+	_check(LauncherCore.progress_text(1048576, 2097152, 1048576.0) == "1.0 / 2.0 MB  -  1.0 MB/s", "progress text with speed")
+	_check(not LauncherCore.progress_text(0, 0, 0.0).contains("/s"), "progress text without speed")
+
 	# Server status.
 	var st: Dictionary = LauncherCore.parse_status('{"online":3,"in_lobby":1,"in_match":2,"updated":5}')
 	_check(st.get("online") == 3 and st.get("in_match") == 2, "status parsed")
