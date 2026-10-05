@@ -1,0 +1,32 @@
+{
+  "all_channels_kBps_per_client": 10.72,
+  "bots": 10,
+  "client_baseline_misses": 0,
+  "client_decode_failures": 0,
+  "client_decoded": 105851,
+  "deferred_updates_per_snapshot": 12.53,
+  "delta_pct": 99.95,
+  "encode_ms_per_tick_all_clients": 5.428,
+  "fragmented_pct": 0.0,
+  "label": "after",
+  "link": {
+    "jitter_ms": 10,
+    "loss": 0.02,
+    "one_way_ms": 40,
+    "seed": 3
+  },
+  "map": "front",
+  "minutes": 6.0,
+  "over_budget_pct": 0.0,
+  "protocol": 16,
+  "server_step_p50_ms": 15.49,
+  "server_step_p95_ms": 26.156,
+  "server_upload_10_players_Mbit": 0.858,
+  "snap_avg_B": 351.5,
+  "snap_kBps_per_client": 10.55,
+  "snap_max_B": 1031,
+  "snap_p50_B": 360,
+  "snap_p95_B": 494,
+  "snapshots": 108000,
+  "wall_s": 268.2
+}

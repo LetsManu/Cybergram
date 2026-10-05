@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://g055q4r88xeh"
+
+[deps]
+
+files=["res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.snap.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.snap.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.snap.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.kBps.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.frag.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.over.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.wardlings.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.decode.translation"]
+
+source_file="res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.csv"
+dest_files=["res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.snap.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.snap.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.snap.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.kBps.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.frag.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.over.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.wardlings.translation", "res://tmp/claude-0/-home-user-Cybergram/1e3fde17-2a7f-5ddb-a886-a055dec56299/scratchpad/bench_step2_front.decode.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

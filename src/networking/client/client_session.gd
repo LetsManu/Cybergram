@@ -19,6 +19,8 @@ var own_net_id: int = 0
 var is_welcomed: bool = false
 ## Newest snapshot tick received (acked in every InputBatch).
 var latest_snapshot_tick: int = 0
+## Newest InputCommand.seq the server reported as applied (diagnostics).
+var last_acked_seq: int = 0
 var malformed_packets: int = 0
 ## Hero the player picked (ContentDB HERO index, 0 = server default); sent in Hello.
 var hero_index: int = 0
@@ -27,11 +29,21 @@ var token: int = 0
 ## v11: net id -> {name, accent, id} of the human players (PLAYER_NAMES); bots are absent.
 var player_names: Dictionary = {}
 var _recent: Array[InputCommand] = []
+## W16-NET: link statistics (net graph, adaptive interpolation).
+var stats: ClientNetStats
+## Monotonic clock in usec for the statistics (tests inject a fake).
+var clock_usec: Callable = Callable(Time, "get_ticks_usec")
+## W16-NET: resolves delta snapshots against the baselines this client holds.
+var decoder: SnapshotDecoder
 
 
 func _init(t: Transport, net_config: NetConfig) -> void:
 	transport = t
 	net = net_config
+	stats = ClientNetStats.new(net.tick_rate_hz, net.jitter_window_samples)
+	decoder = SnapshotDecoder.new(net.client_baseline_ticks)
+	if t is LoopbackTransport:
+		clock_usec = (t as LoopbackTransport).now_usec  # simulated time: deterministic jitter
 
 
 func connect_to_server() -> void:
@@ -51,10 +63,13 @@ func send_input(cmd: InputCommand) -> void:
 	_recent.append(cmd.duplicate_command())
 	while _recent.size() > net.input_redundancy:
 		_recent.pop_front()
-	transport.send(SERVER_PEER, Transport.CH_INPUT, InputBatchCodec.encode(latest_snapshot_tick, _recent))
+	var b := InputBatchCodec.encode(latest_snapshot_tick, _recent)
+	transport.send(SERVER_PEER, Transport.CH_INPUT, b)
+	stats.on_out(b.size(), clock_usec.call())
 
 
 func _handle(pkt: Transport.Packet) -> void:
+	stats.on_in(pkt.data.size(), clock_usec.call())
 	if pkt.data.is_empty():
 		malformed_packets += 1
 		return
@@ -71,13 +86,22 @@ func _handle(pkt: Transport.Packet) -> void:
 			var r := ControlCodec.decode_reject(pkt.data)
 			rejected.emit(r.get("reason", 0))
 		MsgType.SNAPSHOT:
-			var s := SnapshotCodec.decode(pkt.data)
-			if s == null:
+			var head := SnapshotCodec.peek_header(pkt.data)
+			if head.is_empty():
 				malformed_packets += 1
 				return
-			if s.tick <= latest_snapshot_tick:
+			if head[0] <= latest_snapshot_tick:
 				return  # stale or duplicate (unreliable channel may reorder)
+			var s := decoder.decode(pkt.data)
+			if s == null:
+				if decoder.last_error == ERR_DOES_NOT_EXIST:
+					stats.baseline_misses += 1  # the next ack moves the server to a held baseline
+				else:
+					malformed_packets += 1
+				return
 			latest_snapshot_tick = s.tick
+			last_acked_seq = s.last_processed_seq
+			stats.on_snapshot(s.tick, pkt.data.size(), clock_usec.call())
 			snapshot_received.emit(s)
 		MsgType.EVENT:
 			var events: Array[GameEvent] = []

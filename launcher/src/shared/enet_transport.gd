@@ -37,6 +37,12 @@ var _connected: bool = false
 var is_secure: bool = false
 ## Last error text ("" = fine), for menus and logs.
 var error_text: String = ""
+## W16-NET debug-only loss / latency / jitter injector on RECEIVED packets
+## (set in debug builds for --net-sim; null = off). Reliable channels are
+## delayed in order, never dropped (NetSimConditioner rules).
+var debug_conditioner: NetSimConditioner = null
+var _held: Array = []  # [deliver_usec, order, Packet] while conditioned
+var _held_order: int = 0
 
 
 ## Server endpoint bound to `port` on all interfaces. Check error_text.
@@ -123,6 +129,20 @@ func rtt_ms() -> int:
 	return int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
 
 
+## W16-NET: ENet's own estimates for `peer` (server: a client; client: 1 = the
+## server): smoothed RTT and its variance in ms, and packet loss in percent
+## (ENet measures loss on reliable traffic; scale ENET_PEER_PACKET_LOSS_SCALE = 65536).
+func peer_stats(peer: int) -> Dictionary:
+	var p: ENetPacketPeer = _peer_of.get(peer)
+	if p == null or (not _is_server and not _connected):
+		return {}
+	return {
+		"rtt_ms": int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
+		"rtt_var_ms": int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME_VARIANCE)),
+		"loss_pct": p.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS) / 65536.0 * 100.0,
+	}
+
+
 func poll() -> void:
 	while true:
 		var ev: Array = _host.service(0)
@@ -144,11 +164,32 @@ func poll() -> void:
 				pkt.from_peer = id
 				pkt.channel = ev[3]
 				pkt.data = data
-				_ready_q.append(pkt)
+				if debug_conditioner != null:
+					_hold(pkt)
+				else:
+					_ready_q.append(pkt)
 			ENetConnection.EVENT_ERROR:
 				error_text = "network error"
 				break
+	_release_held()
 	_host.flush()
+
+
+func _hold(pkt: Transport.Packet) -> void:
+	var at := debug_conditioner.schedule(Time.get_ticks_usec(), pkt.channel, pkt.from_peer)
+	if at < 0:
+		return  # dropped (unreliable only)
+	_held.append([at, _held_order, pkt])
+	_held_order += 1
+
+
+func _release_held() -> void:
+	if _held.is_empty():
+		return
+	_held.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	var now := Time.get_ticks_usec()
+	while not _held.is_empty() and _held[0][0] <= now:
+		_ready_q.append(_held.pop_front()[2])
 
 
 func pop_packet() -> Transport.Packet:

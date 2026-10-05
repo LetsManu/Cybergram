@@ -85,6 +85,8 @@ var view_render_tick: float = 0.0
 var hello_token: int = 0
 var sfx: ClientSfx
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
+## W16-NET: interpolation delay from measured jitter / loss.
+var interp: InterpDelayController
 var _prev_pos: Vector3
 ## W16-COMFORT smooth corrections: presentation-only blend of small prediction
 ## errors into the camera / rendered position (never the simulated state).
@@ -113,6 +115,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 		player_input.aim_targets_fn = aim_targets
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
+	interp = InterpDelayController.from_config(net)
 	session.token = hello_token
 	if hero != null and hero.resource_path != "":
 		session.hero_index = ContentDB.shared().index_of(ContentDB.HERO,
@@ -251,7 +254,9 @@ func tick() -> void:
 func render(delta: float) -> void:
 	var latest := float(session.latest_snapshot_tick)
 	server_tick_estimate = clampf(server_tick_estimate + delta * net.tick_rate_hz, latest - 1.0, latest + 1.0)
-	var render_tick := server_tick_estimate - net.interp_delay_ticks
+	if interp != null:
+		interp.update(session.stats.jitter_p95_ms(), session.stats.loss_pct(), delta)
+	var render_tick := server_tick_estimate - interp_delay_ticks()
 	view_render_tick = render_tick
 	for id in _views:
 		var buf: InterpolationBuffer = _buffers[id]
@@ -315,6 +320,12 @@ func respawn_seconds_left() -> float:
 	if not is_dead():
 		return 0.0
 	return maxf(0.0, (combat.respawn_tick - server_tick_estimate) / net.tick_rate_hz)
+
+
+## Current interpolation delay in ticks (remote heroes / Wardlings render this
+## far behind the newest snapshot).
+func interp_delay_ticks() -> float:
+	return interp.delay if interp != null else float(net.interp_delay_ticks)
 
 
 ## Number of remote entity views (tests/diagnostics).

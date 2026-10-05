@@ -1,0 +1,32 @@
+# W16-NET 2-client UDP smoke (protocol 16): dedicated --server --port 7795 --no-lobby, client 1 with --net-sim 100ms_2pct (debug receive injector: 50 ms +10 jitter, 2 % loss), client 2 plain.
+## server
+[server] peer 2 connected
+[server] peer 3 connected
+[net] peer=2 snap avg=328B p95=985B max=1081B n=225 frag=0 over=0 | pps=23.0 kB/s c0=0.00 c1=0.01 c2=7.39 c3=0.00 | rtt=54ms var=36ms loss=0.0%
+[net] peer=3 snap avg=314B p95=450B max=1081B n=213 frag=0 over=0 | pps=21.7 kB/s c0=0.00 c1=0.01 c2=6.68 c3=0.00 | rtt=46ms var=18ms loss=0.0%
+[net] peer=2 snap avg=166B p95=223B max=257B n=300 frag=0 over=0 | pps=30.0 kB/s c0=0.00 c1=0.00 c2=4.98 c3=0.00 | rtt=40ms var=7ms loss=0.0%
+[net] peer=3 snap avg=180B p95=237B max=265B n=300 frag=0 over=0 | pps=30.0 kB/s c0=0.00 c1=0.00 c2=5.41 c3=0.00 | rtt=41ms var=11ms loss=0.0%
+[net] peer=2 snap avg=130B p95=157B max=263B n=300 frag=0 over=0 | pps=30.2 kB/s c0=0.00 c1=0.01 c2=3.91 c3=0.00 | rtt=40ms var=6ms loss=0.0%
+[net] peer=3 snap avg=132B p95=161B max=198B n=300 frag=0 over=0 | pps=30.2 kB/s c0=0.00 c1=0.01 c2=3.96 c3=0.00 | rtt=44ms var=15ms loss=0.0%
+[net] peer=2 snap avg=137B p95=204B max=245B n=300 frag=0 over=0 | pps=30.1 kB/s c0=0.00 c1=0.00 c2=4.11 c3=0.00 | rtt=39ms var=6ms loss=0.0%
+[net] peer=3 snap avg=137B p95=200B max=232B n=300 frag=0 over=0 | pps=30.1 kB/s c0=0.00 c1=0.00 c2=4.12 c3=0.00 | rtt=40ms var=10ms loss=0.0%
+[net] peer=2 snap avg=142B p95=204B max=352B n=300 frag=0 over=0 | pps=30.1 kB/s c0=0.00 c1=0.00 c2=4.25 c3=0.00 | rtt=39ms var=6ms loss=0.0%
+[net] peer=3 snap avg=141B p95=203B max=284B n=300 frag=0 over=0 | pps=30.1 kB/s c0=0.00 c1=0.00 c2=4.24 c3=0.00 | rtt=39ms var=7ms loss=0.0%
+[server] peer 2 disconnected
+[server] peer 3 disconnected
+## client 1 (net-sim)
+[client] connecting to 127.0.0.1:7795
+[client] debug net-sim on received packets: 50 ms +10 jitter, 2% loss
+[client-net] ping=39ms loss=1.1% jitter=3.5ms p95=6.6ms interp=67ms snap avg=203B max=251B in=5.94kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=39ms loss=4.4% jitter=32.9ms p95=39.6ms interp=133ms snap avg=133B max=263B in=4.04kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=37ms loss=1.1% jitter=3.4ms p95=6.0ms interp=67ms snap avg=126B max=160B in=3.42kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=35ms loss=1.1% jitter=4.2ms p95=8.0ms interp=100ms snap avg=132B max=178B in=3.77kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=35ms loss=2.2% jitter=4.2ms p95=8.4ms interp=67ms snap avg=344B max=620B in=11.30kB/s out=2.80kB/s misses=0 malformed=0
+## client 2
+[client] connecting to 127.0.0.1:7795
+[client] debug net-sim on received packets: 0 ms +0 jitter, 0% loss
+[client-net] ping=39ms loss=0.0% jitter=3.6ms p95=6.8ms interp=68ms snap avg=220B max=265B in=6.71kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=40ms loss=0.0% jitter=26.2ms p95=35.5ms interp=133ms snap avg=141B max=198B in=4.63kB/s out=2.78kB/s misses=0 malformed=0
+[client-net] ping=43ms loss=0.0% jitter=18.6ms p95=33.0ms interp=100ms snap avg=128B max=164B in=3.84kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=39ms loss=0.0% jitter=4.6ms p95=8.4ms interp=100ms snap avg=130B max=178B in=3.14kB/s out=2.79kB/s misses=0 malformed=0
+[client-net] ping=35ms loss=0.0% jitter=14.4ms p95=24.1ms interp=100ms snap avg=355B max=601B in=10.85kB/s out=2.81kB/s misses=0 malformed=0
