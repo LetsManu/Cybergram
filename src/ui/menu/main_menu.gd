@@ -165,6 +165,7 @@ func _ready() -> void:
 	_sync_lobby_margins()
 	GameSettings.shared().apply_display()
 	_refresh_chip()
+	GamePresence.show_state(GamePresence.State.IN_LAUNCHER)  # W15: Discord presence (opt-in)
 	if AppRoot.rejoin_address != "":
 		var addr := AppRoot.rejoin_address
 		AppRoot.rejoin_address = ""
@@ -1080,10 +1081,12 @@ func _show_lobby(addr: String, party_id: String) -> void:
 		lobby.friend_ids.append(str(e.id))
 	lobby.start_requested.connect(func(args: PackedStringArray) -> void:
 		_disconnect()  # the match opens its own connection; the session token stays in memory
+		GamePresence.show_state(GamePresence.State.IN_MATCH, "Online")  # W15
 		start_requested.emit(args))
 	lobby.cancelled.connect(func(reason: String) -> void:
 		lobby.queue_free()
 		_lobby = null
+		GamePresence.show_state(GamePresence.State.IN_LAUNCHER)  # W15
 		_go(Nav.HOME)
 		_status.text = reason
 		# Leaving frees the seat: reconnect and resume the session for the friends panel.
@@ -1096,6 +1099,7 @@ func _show_lobby(addr: String, party_id: String) -> void:
 		_play.grab_focus.call_deferred())
 	# Account answers keep reaching _on_account through the shared client.
 	_lobby_box.add_child(lobby)
+	GamePresence.show_state(GamePresence.State.IN_LOBBY)  # W15
 	_friends.allow_join = false
 	_refresh_chip()
 
@@ -1114,6 +1118,7 @@ func _tutorial() -> void:
 
 func _start(args: PackedStringArray) -> void:
 	_save_settings()
+	GamePresence.show_state(GamePresence.State.IN_MATCH, GamePresence.mode_of(args))  # W15
 	start_requested.emit(args)
 
 

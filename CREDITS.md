@@ -10,3 +10,7 @@ The database was created with funding from NSF EIA-0196217.
 (BVH conversion by Bruce Hahne / cgspeed.)
 
 Details and per-clip trial numbers: `assets/models/heroes/LICENSES.md`.
+
+## Discord Rich Presence client
+`addons/discord_rich_presence/` — "Discord Rich Presence for Godot" by SlayHorizon (Ekonia Online),
+MIT License, https://github.com/SlayHorizon/discord-rich-presence-godot (licence text in that folder).
