@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cybergram hero select</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B1015}
+a{color:#9AA3A8}a:hover{color:#ECE6D6}
+button{font-family:inherit}
+.pick:hover{transform:translateY(-2px)}
+.role:hover{color:#ECE6D6}
+.lock:hover{background:#EAD7A8}
+</style>
+</helmet>
+<div style="width: 1440px; height: 810px; position: relative; overflow: hidden; background: #0B1015; color: #ECE6D6; font-family: 'IBM Plex Sans', sans-serif">
+
+  <!-- spotlight + selected hero -->
+  <div style="position: absolute; left: 420px; top: 90px; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(closest-side, rgba(194,162,103,0.16), rgba(194,162,103,0))"></div>
+  <img src="{{hero.img}}" alt="{{hero.name}}" style="position: absolute; left: 470px; top: 64px; height: 560px">
+  <div style="position: absolute; left: 600px; top: 545px; width: 240px; height: 30px; border-radius: 50%; background: radial-gradient(closest-side, rgba(194,162,103,0.35), rgba(194,162,103,0))"></div>
+
+  <!-- header -->
+  <a href="Main.dc.html" style="position: absolute; left: 40px; top: 30px; text-decoration: none; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.2em">← LEAVE LOBBY</a>
+  <div style="position: absolute; left: 0; top: 22px; width: 1440px; text-align: center">
+    <div style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: 0.22em">{{phase}}</div>
+    <div style="margin-top: 6px; font-size: 13px; color: #9AA3A8">Online 3v3 · cyber.djboeck.at · {{lockedCount}} of 4 players locked in</div>
+  </div>
+  <div style="position: absolute; right: 40px; top: 24px; font-family: 'IBM Plex Mono', monospace; font-size: 26px; color: #C2A267">0:24</div>
+  <div style="position: absolute; left: 40px; right: 40px; top: 88px; height: 1px; background: #1E272D"></div>
+  <div style="position: absolute; left: 40px; top: 87px; width: 820px; height: 2px; background: #C2A267"></div>
+
+  <!-- your team -->
+  <div style="position: absolute; left: 40px; top: 124px; width: 300px">
+    <div style="font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: #C2A267">YOUR TEAM · SYNDICATE</div>
+    <sc-for list="{{allies}}" as="p" hint-placeholder-count="3">
+      <div style="display: flex; align-items: center; gap: 16px; margin-top: 22px">
+        <div style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; background: #111A20; box-shadow: {{p.ring}}; opacity: {{p.opacity}}">
+          <sc-if value="{{p.hasImg}}" hint-placeholder-val="{{ true }}"><img src="{{p.img}}" alt="" style="width: 150px; margin-left: -45px; margin-top: -23px"></sc-if>
+        </div>
+        <div style="line-height: 1.3">
+          <div style="font-size: 16px; font-weight: 600">{{p.name}}</div>
+          <div style="font-size: 13px; color: #9AA3A8">{{p.hero}}</div>
+          <div style="font-size: 11px; letter-spacing: 0.18em; font-weight: 600; color: {{p.stateColor}}">{{p.state}}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- enemy team -->
+  <div style="position: absolute; right: 40px; top: 124px; width: 300px; text-align: right">
+    <div style="font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: #9AA3A8">ENEMY TEAM · CONCORD</div>
+    <sc-for list="{{enemies}}" as="p" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: row-reverse; align-items: center; gap: 16px; margin-top: 22px">
+        <div style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; background: #111A20; box-shadow: {{p.ring}}; opacity: {{p.opacity}}">
+          <sc-if value="{{p.hasImg}}" hint-placeholder-val="{{ true }}"><img src="{{p.img}}" alt="" style="width: 150px; margin-left: -45px; margin-top: -23px"></sc-if>
+        </div>
+        <div style="line-height: 1.3">
+          <div style="font-size: 16px; font-weight: 600">{{p.name}}</div>
+          <div style="font-size: 13px; color: #9AA3A8">{{p.hero}}</div>
+          <div style="font-size: 11px; letter-spacing: 0.18em; font-weight: 600; color: {{p.stateColor}}">{{p.state}}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- hero name + skills -->
+  <div style="position: absolute; left: 380px; top: 588px; width: 680px; text-align: center">
+    <div style="font-size: 12px; letter-spacing: 0.24em; font-weight: 600; color: #C2A267">{{hero.eyebrow}}</div>
+    <div style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 34px; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px">{{hero.name}}</div>
+  </div>
+  <div style="position: absolute; left: 1080px; top: 470px; width: 320px">
+    <div style="font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: #9AA3A8; text-align: right">ABILITIES</div>
+    <sc-for list="{{hero.skills}}" as="s" hint-placeholder-count="4">
+      <div style="display: flex; gap: 12px; margin-top: 12px; align-items: flex-start">
+        <span style="flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #6B5A38; color: #EAD7A8; font-family: 'IBM Plex Mono', monospace; font-size: 13px">{{s.key}}</span>
+        <div style="line-height: 1.35"><div style="font-size: 14px; font-weight: 500">{{s.name}}</div><div style="font-size: 12px; color: #9AA3A8">{{s.desc}}</div></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- chat -->
+  <div style="position: absolute; left: 40px; top: 560px; width: 320px">
+    <div style="font-size: 11px; letter-spacing: 0.22em; font-weight: 600; color: #9AA3A8">TEAM CHAT</div>
+    <div style="margin-top: 10px; font-size: 13px; line-height: 1.7; color: #9AA3A8">
+      <div><span style="color: #4FB8B0">Morpheus</span>  I'll take mid with Vesper</div>
+      <div><span style="color: #EAD7A8">Switch</span>  ready when you are</div>
+      <div style="color: #6C757A">Switch locked in Brannoc.</div>
+    </div>
+    <label style="display: block; margin-top: 12px; border-bottom: 1px solid #2A3238; padding-bottom: 8px">
+      <input placeholder="Message your team" aria-label="Message your team" style="width: 100%; background: none; border: 0; outline: none; color: #ECE6D6; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px">
+    </label>
+  </div>
+
+  <!-- hero picker -->
+  <div style="position: absolute; left: 380px; top: 672px; width: 680px">
+    <div style="display: flex; justify-content: center; gap: 14px">
+      <sc-for list="{{roster}}" as="h" hint-placeholder-count="7">
+        <button class="pick" onClick="{{h.pick}}" aria-label="{{h.name}}" style="width: 56px; height: 56px; padding: 0; border: 0; border-radius: 50%; overflow: hidden; cursor: {{h.cursor}}; background: #111A20; box-shadow: {{h.ring}}; opacity: {{h.opacity}}; transition: transform 160ms">
+          <img src="{{h.img}}" alt="" style="width: 140px; margin-left: -42px; margin-top: -21px; display: block">
+        </button>
+      </sc-for>
+    </div>
+  </div>
+  <button class="lock" onClick="{{lock}}" style="position: absolute; left: 1080px; top: 724px; width: 320px; height: 52px; border: 0; background: {{lockBg}}; color: {{lockFg}}; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 0.24em; cursor: pointer; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)">{{lockLabel}}</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":810}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { hero: 5, locked: false };
+  }
+  renderVals() {
+    const H = [
+      { name: 'Vesper Loom', role: 'Commander', weapon: 'Threadcaster', img: '/_blob/70f14ba3df878e26fb5fee0b27d0c717',
+        skills: [['Q', 'Marionette Thread', 'Thread a target; your squad attacks it.'], ['E', 'Rally Beacon', 'Heals and shields nearby Wardlings.'], ['C', 'Threadstep', 'Swap places with a Wardling.'], ['G', 'Rewrite', 'Upgrade allied Wardlings, turn enemy ones.']] },
+      { name: 'Brannoc', role: 'Tank', weapon: 'Ironmaw', img: '/_blob/ad8588ebbb0d8c0ba39364db6581c1a7',
+        skills: [['Q', 'Aegis Wall', 'Shield wall that blocks enemy shots.'], ['E', 'Ram Charge', 'Charge, knocking enemies aside.'], ['C', 'Fortify', 'Take less damage, resist control.'], ['G', 'Earthbreaker', 'Leap and slam: damage and stun.']] },
+      { name: 'Ryker Vance', role: 'Soldier', weapon: 'Breakline AR-7', img: '/_blob/42e845fdd0319a0652b0047423ca2617',
+        skills: [['Q', 'Frag Grenade', 'Bouncing grenade, area damage.'], ['E', 'Combat Stim', 'Fire and run faster for health.'], ['C', 'Tactical Slide', 'Slide and reload part of the mag.'], ['G', 'Overdrive', 'Bottomless mag, more damage.']] },
+      { name: 'Liora Vale', role: 'Healer', weapon: 'Halo Repeater', img: '/_blob/ad2da95f18cf2b83354a628a19b99ebc',
+        skills: [['Q', 'Med-Pack Drone', 'Heals the most injured ally.'], ['E', 'Prism Ward', 'Shield an ally or yourself.'], ['C', 'Flash Bloom', 'Blinds and knocks back.'], ['G', 'Aurora', 'Dome that heals and keeps allies alive.']] },
+      { name: 'Sable', role: 'Infiltrator', weapon: 'Whisperfang', img: '/_blob/910bc5f9881015ac6700595a205e407b',
+        skills: [['Q', 'Veilwalk', 'Turn nearly invisible, move faster.'], ['E', 'Phase Shift', 'Dash through barricades.'], ['C', 'Sabotage Charge', 'Sticky charge, remote detonation.'], ['G', 'Eclipse Step', 'Teleport behind a target, silence it.']] },
+      { name: 'Juniper Quill', role: 'Trapper', weapon: 'Tackhammer', img: '/_blob/74d3712c7643a86ba90d18956ab15c51',
+        skills: [['Q', 'Snare Coil', 'Thrown coil that roots and damages.'], ['E', 'Tripwire Lattice', 'Laser wire: damage, slow, reveal.'], ['C', 'Pressure Mine', 'Buried mine with area damage.'], ['G', 'Killbox', 'Fence dome that stuns crossers.']] },
+      { name: 'Hex', role: 'Hacker', weapon: 'Glitchcaster', img: '/_blob/4fe9142db8a4745ff3579722ae9f0558',
+        skills: [['Q', 'Breach Spike', 'Malfunctions gadgets, scrambles heroes.'], ['E', 'Static Field', 'Shuts down enemy gadgets.'], ['C', 'Relay Hop', 'Teleport to a gadget.'], ['G', 'Zero-Day', 'Every enemy gadget malfunctions.']] },
+    ];
+    const s = this.state;
+    const taken = { 0: 'Morpheus', 1: 'Switch' };
+    const hero = H[s.hero];
+    const brass = '0 0 0 2px #C2A267';
+    const teal = '0 0 0 2px #4FB8B0';
+    const dim = '0 0 0 1px #2A3238';
+    const row = (name, h, locked, you) => ({
+      name: you ? name + '  (you)' : name, hero: H[h].name, img: H[h].img, hasImg: true, opacity: 1,
+      ring: locked ? brass : teal,
+      state: locked ? 'LOCKED IN' : 'PICKING',
+      stateColor: locked ? '#C2A267' : '#4FB8B0',
+    });
+    const lockedCount = 2 + (s.locked ? 1 : 0);
+    return {
+      phase: s.locked ? 'WAITING FOR TEAM' : 'CHOOSE YOUR HERO',
+      lockedCount,
+      hero: {
+        name: hero.name, img: hero.img,
+        eyebrow: (hero.role + '  ·  ' + hero.weapon).toUpperCase(),
+        skills: hero.skills.map(([key, name, desc]) => ({ key, name, desc })),
+      },
+      allies: [
+        row('Morpheus', 0, false, false),
+        row('Neo', s.hero, s.locked, true),
+        { name: 'Open slot', hero: 'A bot will fill it', img: '', hasImg: false, opacity: 0.35, ring: dim, state: '', stateColor: '#9AA3A8' },
+      ],
+      enemies: [
+        row('Trinity', 2, true, false),
+        row('Switch', 1, true, false),
+        { name: 'Open slot', hero: 'A bot will fill it', img: '', hasImg: false, opacity: 0.35, ring: dim, state: '', stateColor: '#9AA3A8' },
+      ],
+      roster: H.map((h, i) => ({
+        name: h.name, img: h.img,
+        ring: i === s.hero ? brass : dim,
+        opacity: taken[i] && i !== s.hero ? 0.35 : 1,
+        cursor: s.locked ? 'default' : 'pointer',
+        pick: () => { if (!s.locked && !taken[i]) this.setState({ hero: i }); },
+      })),
+      lock: () => this.setState({ locked: !s.locked }),
+      lockLabel: s.locked ? 'LOCKED IN' : 'LOCK IN',
+      lockBg: s.locked ? '#2A3238' : '#C2A267',
+      lockFg: s.locked ? '#EAD7A8' : '#0B1015',
+    };
+  }
+}
+</script>
+</body>
+</html>
