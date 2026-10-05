@@ -28,6 +28,8 @@ static var session_server: String = ""
 ## The held token is a guest session (may be resumed over plain UDP). An
 ## account token is only ever sent on a DTLS link (W11-Q1 SEC-001).
 static var session_guest: bool = false
+## W15: the next OP_PARTY answer decides whether to open the lobby (launcher start).
+var _party_check := false
 ## Where the legacy profile is looked for (tests override).
 static var legacy_profile_path: String = "user://profile.cfg"
 
@@ -758,6 +760,15 @@ func _with_session(then: Callable, addr: String = "") -> void:
 		_show_login()
 
 
+## W15: true when an OP_PARTY result shows a party with someone else in it.
+static func should_join_party(d: Dictionary) -> bool:
+	var n := 0
+	for e: Dictionary in d.get("members", []):
+		if int(e.kind) == AccountCodec.PARTY_LEADER or int(e.kind) == AccountCodec.PARTY_MEMBER:
+			n += 1
+	return n >= 2
+
+
 ## Launcher hand-over (W15 "sign in once"): the launcher passed a single-use
 ## launch token in the environment (LaunchHandoff, never the command line);
 ## it is read once and unset. Connects and redeems it (OP_REDEEM) on an
@@ -880,6 +891,10 @@ func _on_account(d: Dictionary) -> void:
 			_offer_legacy_import()
 		else:
 			_delete_legacy_files(false)
+		if op == AccountCodec.OP_REDEEM:
+			# W15: signed in by the launcher; join the party's lobby if there is one.
+			_party_check = true
+			_online.request(AccountCodec.OP_PARTY)
 		_run_then()
 		return
 	match op:
@@ -888,6 +903,10 @@ func _on_account(d: Dictionary) -> void:
 			_show_login()  # the session expired: log in again
 		AccountCodec.OP_REDEEM:
 			_show_login()  # W15: the launch token failed: the normal login
+		AccountCodec.OP_PARTY:
+			if _party_check and ok and should_join_party(d):
+				_open_lobby(_server)  # the server seats the party together
+			_party_check = false
 		AccountCodec.OP_REGISTER, AccountCodec.OP_LOGIN, AccountCodec.OP_GUEST:
 			if _login != null:
 				_login.show_error(_error_text(d.code))

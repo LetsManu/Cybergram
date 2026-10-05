@@ -58,6 +58,8 @@ var online: OnlineRulesDef
 var launch_tokens: LaunchTokenStore
 ## W15: opt-in crash reports (null = not accepted on this server).
 var crash_store: CrashReportStore
+## W15: parties (memory only).
+var parties: PartyService
 var _crash_up: Dictionary = {}  # peer -> {total, next, buf: PackedByteArray, started}
 
 
@@ -95,6 +97,7 @@ func _init(store_: AccountStore, rules_: AuthRulesDef, secure_: bool, registry_:
 	rl_peer = LoginRateLimiter.new(rules.max_failures_per_peer, rules.failure_window_s, rules.lockout_s)
 	online = OnlineRulesDef.load_default()
 	launch_tokens = LaunchTokenStore.new(online.launch_token_ttl_s, online.launch_tokens_max)
+	parties = PartyService.new(online.party_max, online.party_invite_ttl_s)
 	if store != null:
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
@@ -160,6 +163,10 @@ func step(delta: float) -> void:
 		rl_account.purge(_now)
 		rl_peer.purge(_now)
 		launch_tokens.purge(_now)
+		parties.purge(_now)
+		for id in parties.members() + parties.invites.keys():
+			if not _has_session(str(id)):
+				parties.forget(str(id))  # no connection left (after the grace): out of the party
 	_since_sweep += delta
 	if _since_sweep >= SWEEP_EVERY_S and store != null:
 		_since_sweep = 0.0
@@ -531,6 +538,7 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 	if op == AccountCodec.OP_DELETE_ACCOUNT:
 		store.delete_cascade(a.id)
 		launch_tokens.revoke_account(a.id)
+		parties.forget(a.id)
 		for tok in sessions.keys():
 			if sessions[tok].identity.id == a.id:
 				sessions.erase(tok)
@@ -578,6 +586,25 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 			_reply(t, peer, op, AccountCodec.OK, {"json": export_json(me)})
 		AccountCodec.OP_LAUNCH_TOKEN:
 			_issue_launch_token(t, peer, me)
+		AccountCodec.OP_PARTY:
+			_reply(t, peer, op, AccountCodec.OK, party_fields(me))
+		AccountCodec.OP_PARTY_INVITE:
+			var to := str(r.id)
+			if not (me.friends as Array).has(to) or (me.blocks as Array).has(to):
+				_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+				return
+			var o := store.get_by_id(to)
+			if o.is_empty() or (o.blocks as Array).has(me.id):
+				_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+				return
+			_reply(t, peer, op, _party_code(parties.invite(me.id, to, _now)))
+		AccountCodec.OP_PARTY_ACCEPT:
+			_reply(t, peer, op, _party_code(parties.accept(me.id, str(r.id), _now)))
+		AccountCodec.OP_PARTY_DECLINE:
+			_reply(t, peer, op, _party_code(parties.decline(me.id, str(r.id))))
+		AccountCodec.OP_PARTY_LEAVE:
+			parties.leave(me.id)
+			_reply(t, peer, op, AccountCodec.OK)
 		AccountCodec.OP_FRIENDS:
 			_reply(t, peer, op, AccountCodec.OK, {"friends": friends_list(me)})
 		AccountCodec.OP_FRIEND_REQUEST:
@@ -748,6 +775,49 @@ func block(me: Dictionary, id: String) -> int:
 func unblock(me: Dictionary, id: String) -> int:
 	me.blocks.erase(id)
 	return AccountCodec.OK if store.put(me) else AccountCodec.E_STORE
+
+
+# --- party (W15) --------------------------------------------------------------
+
+## OP_PARTY result: party id, leader, then one "P" entry per member, incoming
+## invite and outgoing invite (display name, emblem, accent, presence).
+func party_fields(me: Dictionary) -> Dictionary:
+	var st := parties.state_of(me.id, _now)
+	var list: Array = []
+	for m in st.members:
+		list.append(_party_entry(str(m), AccountCodec.PARTY_LEADER if m == st.leader else AccountCodec.PARTY_MEMBER))
+	for m in st.invites_in:
+		list.append(_party_entry(str(m), AccountCodec.PARTY_INVITE_IN))
+	for m in st.invites_out:
+		list.append(_party_entry(str(m), AccountCodec.PARTY_INVITE_OUT))
+	return {"party": st.party, "leader": st.leader, "members": list.filter(func(e: Dictionary) -> bool: return not e.is_empty())}
+
+
+func _party_entry(id: String, kind: int) -> Dictionary:
+	var o := store.get_by_id(id) if store != null else {}
+	if o.is_empty():
+		return {}
+	var p: Dictionary = o.profile
+	return {"id": id, "kind": kind, "status": status_of(id), "display_name": str(p.get("display_name", o.username)),
+		"emblem": int(p.get("emblem", 0)), "accent": int(p.get("accent", 0))}
+
+
+static func _party_code(c: int) -> int:
+	match c:
+		PartyService.OK:
+			return AccountCodec.OK
+		PartyService.E_FULL:
+			return AccountCodec.E_LIMIT
+		PartyService.E_NO_INVITE:
+			return AccountCodec.E_NOT_FOUND
+	return AccountCodec.E_BAD_REQUEST
+
+
+func _has_session(account_id: String) -> bool:
+	for tok in sessions:
+		if sessions[tok].identity.id == account_id:
+			return true
+	return false
 
 
 # --- helpers ----------------------------------------------------------------
