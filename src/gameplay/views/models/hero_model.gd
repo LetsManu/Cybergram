@@ -139,6 +139,33 @@ func flinch(strength: float = 1.0) -> void:
 	_flinch_side = -_flinch_side
 
 
+## Animation hooks (RiggedHeroModel drives an AnimationTree from these; the
+## procedural model ignores them, so HeroView can call them on any model).
+func set_grounded(_grounded: bool) -> void:
+	pass
+
+
+func play_shoot() -> void:
+	pass
+
+
+func play_reload() -> void:
+	pass
+
+
+func play_cast(_slot: int) -> void:
+	pass
+
+
+func set_dead(_dead: bool) -> void:
+	pass
+
+
+## 1 = visible, 0 = hidden (stealth fade).
+func set_fade(_alpha: float) -> void:
+	pass
+
+
 func triangle_count() -> int:
 	var n: int = _bp.get("tris", 0)
 	if weapon != null:

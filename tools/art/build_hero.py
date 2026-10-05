@@ -613,7 +613,7 @@ def build(key):
     _activate(rig)
     body.select_set(True)
     bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=True, export_animations=True,
-                              export_animation_mode="ACTIONS", export_vertex_color="ACTIVE",
+                              export_animation_mode="ACTIONS", export_vertex_color="NAME", export_vertex_color_name="Color",
                               export_all_vertex_colors=False, export_skins=True, export_yup=True,
                               export_force_sampling=True, export_optimize_animation_size=True,
                               export_materials="EXPORT", export_image_format="NONE", export_tangents=False,

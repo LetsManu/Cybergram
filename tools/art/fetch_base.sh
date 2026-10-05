@@ -22,4 +22,9 @@ for g in male female; do
     done
   done
 done
+for r in african asian caucasian; do
+  for g in male female; do
+    get "makehuman/data/targets/macrodetails/$r-$g-young.target" "$OUT/targets/$r-$g-young.target"
+  done
+done
 echo "MakeHuman CC0 base at $OUT"
