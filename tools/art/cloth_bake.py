@@ -32,6 +32,8 @@ Garment spec ("cloth" list in the hero def), angles in degrees with 0 = front
   sim         overrides of SIM (Blender cloth settings)
   parent      bone the chain roots hang from (default Hips); around: body bones the
               clearance rays hit (default hips + legs; capes and scarves add the chest)
+  convex      closed rings only: radius from the convex hull of the body section, so a
+              closed skirt never dents between the legs (the legs would pierce it)
 """
 import math
 import time
@@ -114,6 +116,9 @@ def _skirt(h, spec):
         rr = top_r + spec.get("flare", 0.1) * k * f ** 1.3
         need = np.array([body_r(z, a) for a in ang]) + spec.get("clear", 0.02) * k
         rr = np.maximum(rr, need)
+        if spec.get("convex") and closed:  # closed rings wrap the legs' hull (no dent between the knees)
+            dc = np.cos(ang[:, None] - ang[None, :])
+            rr = np.max(np.where(dc > 0, rr[None, :] * dc, 0.0), axis=1)
         for _ in range(6):  # a garment bridges the gaps between the legs
             nb_ = np.roll(rr, 1) * 0.5 + np.roll(rr, -1) * 0.5 if closed else np.concatenate(
                 [[rr[1]], (rr[:-2] + rr[2:]) * 0.5, [rr[-2]]])
