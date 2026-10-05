@@ -351,7 +351,8 @@ func test_no_single_spot_covers_a_whole_zone() -> void:
 
 ## The jungle: every pocket and route point is on the jungle navmesh (heroes /
 ## bots, all layers); Wardlings (layer 1 only) can never path into it; lane to
-## lane through it takes 8-15 s at run speed; the lane stays the fastest way
+## lane through it (lane edge to lane edge, both mouth pairs) takes 8-15 s at
+## the 6 m/s reference run speed; the lane stays the fastest way
 ## forward.
 func test_jungle_network_reach_times_and_wardling_exclusion() -> void:
 	var server := _server(false)
@@ -379,8 +380,11 @@ func test_jungle_network_reach_times_and_wardling_exclusion() -> void:
 	for half in 2:
 		for s in [-1.0, 1.0]:
 			var lo := func(l: float) -> float: return -(l if half == 0 else LANE_LEN_M - l)
-			for pair in [[Vector3(0.0, 0.0, lo.call(76.0)), Vector3(s * 80.0, 0.0, lo.call(76.0))],
-					[Vector3(0.0, 0.0, lo.call(136.0)), Vector3(s * 80.0, lane_y(s, 114.5), lo.call(114.5))]]:
+			# Lane edge to lane edge (Center lane / pad edge -> outer lane / pad
+			# edge): the time spent in the jungle itself.
+			var outer: float = 70.0 if s < 0.0 else 72.0
+			for pair in [[Vector3(s * 15.0, 0.0, lo.call(76.5)), Vector3(s * (outer - 5.0), 0.0, lo.call(74.5))],
+					[Vector3(s * 14.0, 0.0, lo.call(135.5)), Vector3(s * outer, lane_y(s, 114.5), lo.call(114.5))]]:
 				var p := _reach(nav, pair[0], pair[1], ALL_LAYERS, 1.5)
 				var t := _plen(p) / RUN_SPEED
 				times.append(snappedf(t, 0.1))

@@ -84,7 +84,9 @@ const STREET_Y := -3.5
 const TERRACE_U1 := 9.0
 const SHOPROW_U1 := 16.0
 ## Floors within this height of each other count as one level (edge rules).
-const LEVEL_TOL := 0.6
+## HeroMotor has no step-up (the capsule rides lips of ~0.1 m at most), so any
+## bigger lip is a wall or a drop, never a seam.
+const LEVEL_TOL := 0.12
 const KERB_H := 0.6
 enum Edge { SAME, WALL, DROP, VOID }
 
@@ -677,8 +679,15 @@ func _rect_rails(j: Dictionary) -> void:
 				var y := _shape_h(s, mid - nrm * 0.05)
 				kind = Edge.VOID
 				for off in [0.0, 0.3, -0.3]:
-					var r := _probe(mid + nrm * 0.6 + tang * off, y)
+					# Probe just past the edge: a neighbouring stair / ramp must be
+					# compared at the shared edge, not 0.6 m down its slope.
+					var r := _probe(mid + nrm * 0.15 + tang * off, y)
 					kind = mini(kind, r)
+			# W18-GEO: HeroMotor has no step-up, so a stair / ramp side against a
+			# higher block gets a stringer kerb: the navmesh then never cuts across
+			# the small lip near the top that the capsule cannot climb.
+			if kind == Edge.WALL and s.has("ramp"):
+				kind = Edge.DROP
 			var railed := kind == Edge.VOID or kind == Edge.DROP
 			if run_start >= 0.0 and (not railed or kind != run_kind):
 				_rail_run(j, a.lerp(b, run_start), a.lerp(b, float(k) / steps), nrm, run_kind)
@@ -1323,12 +1332,13 @@ func _market(half: int) -> void:
 func _bridge_walkway(half: int) -> void:
 	var g := _node(geo, "ServiceWalk_" + _key(half).to_upper())
 	var y := -4.5
-	_hrect(g, "Landing0", half, -100.0, -90.0, 160.0, 164.0, 0.0, mats.deck)
-	_hwedge(g, "StairsDown", half, -96.0, -90.0, 164.0, 172.0, 1, 0.0, y, mats.stairs, true)
+	# Landings follow the span's rolling profile so they meet the lane flush.
+	_terrain(g, "Landing0", -100.0, -90.0, _hl(half, 160.0), _hl(half, 164.0), "n", mats.deck)
+	_hwedge(g, "StairsDown", half, -96.0, -90.0, 164.0, 172.0, 1, lane_h("n", 164.0), y, mats.stairs, true)
 	_hrect(g, "Walk", half, -96.0, -90.0, 172.0, 184.0, y, mats.deck)
 	_hrect(g, "UnderBay", half, -90.0, -81.0, 174.0, 182.0, y, mats.deck)
-	_hwedge(g, "StairsUp", half, -96.0, -90.0, 184.0, 192.0, 1, y, 0.0, mats.stairs, true)
-	_hrect(g, "Landing1", half, -96.0, -90.0, 192.0, 196.0, 0.0, mats.deck)
+	_hwedge(g, "StairsUp", half, -96.0, -90.0, 184.0, 192.0, 1, y, lane_h("n", 192.0), mats.stairs, true)
+	_terrain(g, "Landing1", -96.0, -90.0, _hl(half, 192.0), _hl(half, 196.0), "n", mats.deck)
 	_box(g, "BayCrate", Vector3(2.0, 1.2, 2.0), P(-84.0, _hl(half, 178.0), y + 0.6), mats.cover_low)
 	_box(g, "WalkCrate", Vector3(1.6, 1.1, 1.6), P(-94.5, _hl(half, 178.5), y + 0.55), mats.cover_low)
 	_accent_light(g, "BayLight", TEAL, P(-86.0, _hl(half, 178.0), y + 3.2), 12.0, 1.2)
