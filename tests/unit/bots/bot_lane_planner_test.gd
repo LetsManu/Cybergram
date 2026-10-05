@@ -57,3 +57,15 @@ func test_desired_split_and_due_interval() -> void:
 	assert_bool(p.due(0, 7.9)).is_false()
 	assert_bool(p.due(0, 8.0)).is_true()
 	assert_bool(p.due(1, 1.0)).is_true()
+
+
+func test_a_moved_bot_stays_for_min_stay() -> void:
+	var p := BotLanePlanner.new(3)
+	p.min_stay_s = 20.0
+	for id in [1, 2, 3, 4, 5]:
+		p.lane_of(id, 0)
+	var moved := p.rebalance(0, PackedFloat32Array([0.1, 0.1, 5.0]), {}, 0.0)
+	assert_int(moved).is_not_equal(0)
+	# Need swings back at once: the moved bot is not moved again before 20 s.
+	var back := p.rebalance(0, PackedFloat32Array([5.0, 0.1, 0.1]), {}, 5.0)
+	assert_int(back).is_not_equal(moved)

@@ -232,14 +232,15 @@ func _plan_lanes(objs: ObjectiveSystem, md: MapDef, team: int) -> void:
 		var bh := br.hero()
 		if bh != null:
 			lanes.lane_of(br.hero_id, bh.combat.team)
-	if not lanes.due(team, float(bb.tick) / float(maxi(_tick_hz, 1))):
+	var now_s := float(bb.tick) / float(maxi(_tick_hz, 1))
+	if not lanes.due(team, now_s):
 		return
 	var dead := {}
 	for b in team_brains:
 		var bh := (b as BotBrain).hero()
 		if bh != null and bh.combat.team == team and bh.combat.dead:
 			dead[(b as BotBrain).hero_id] = true
-	var moved := lanes.rebalance(team, lane_need(objs, md, team, _all_heroes(), profile), dead)
+	var moved := lanes.rebalance(team, lane_need(objs, md, team, _all_heroes(), profile), dead, now_s)
 	if moved != 0:
 		print("[bots] team %d: hero %d -> lane %d (need-based rebalance)" % [team, moved, lanes.assignment[moved]])
 

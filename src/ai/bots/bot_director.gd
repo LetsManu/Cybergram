@@ -33,6 +33,7 @@ func setup(s: ServerWorld, r: BotRosterDef, p: BotProfile, seed_: int) -> void:
 	lanes = BotLanePlanner.new(md.lanes.size() if md != null else 1)
 	lanes.eval_interval_s = p.lane_eval_interval_s
 	lanes.switch_margin = p.lane_switch_margin
+	lanes.min_stay_s = p.lane_min_stay_s
 	if not server.hero_damaged.is_connected(_on_hero_damaged):
 		server.hero_damaged.connect(_on_hero_damaged)
 

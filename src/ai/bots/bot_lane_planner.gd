@@ -27,6 +27,9 @@ var assignment: Dictionary = {}
 var _team_of: Dictionary = {}
 var _opened: Dictionary = {}  # team -> bots opened so far
 var _next_eval: Dictionary = {}  # team -> match seconds
+## A bot that just changed lane stays at least this long (no ping-pong).
+var min_stay_s: float = 20.0
+var _moved_at: Dictionary = {}  # hero id -> match seconds of its last move
 
 
 func _init(lanes: int = 1) -> void:
@@ -86,7 +89,7 @@ static func desired(total: int, need: PackedFloat32Array) -> PackedFloat32Array:
 
 ## One rebalance step for `team`. `need`: per-lane need (BotBrain.lane_need).
 ## `dead`: hero ids currently dead (preferred movers). Returns the moved hero id, or 0.
-func rebalance(team: int, need: PackedFloat32Array, dead: Dictionary = {}) -> int:
+func rebalance(team: int, need: PackedFloat32Array, dead: Dictionary = {}, now_s: float = 0.0) -> int:
 	if lane_count <= 1 or need.size() != lane_count:
 		return 0
 	var c := counts(team)
@@ -115,10 +118,13 @@ func rebalance(team: int, need: PackedFloat32Array, dead: Dictionary = {}) -> in
 	for id in assignment:
 		if _team_of.get(id, -1) != team or assignment[id] != from:
 			continue
+		if _moved_at.has(id) and now_s - float(_moved_at[id]) < min_stay_s:
+			continue
 		if mover == 0 or (dead.has(id) and not dead.has(mover)):
 			mover = id
 	if mover != 0:
 		assignment[mover] = to
+		_moved_at[mover] = now_s
 	return mover
 
 
@@ -126,3 +132,4 @@ func rebalance(team: int, need: PackedFloat32Array, dead: Dictionary = {}) -> in
 func release(hero_id: int) -> void:
 	assignment.erase(hero_id)
 	_team_of.erase(hero_id)
+	_moved_at.erase(hero_id)
