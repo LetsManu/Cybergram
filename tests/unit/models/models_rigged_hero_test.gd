@@ -189,3 +189,65 @@ func test_play_showcase_loops_the_menu_clip() -> void:
 	assert_bool(m.tree.active).is_false()
 	assert_str(String(m.anim_player.current_animation)).is_equal("showcase")
 	assert_int(m.anim_player.get_animation(&"showcase").loop_mode).is_equal(Animation.LOOP_LINEAR)
+
+
+# --- W16: killing-blow direction picks the death clip --------------------------
+func test_falls_back_when_hit_from_the_front() -> void:
+	assert_bool(RiggedHeroModel.falls_back(Vector3(0, 1.4, -5))).is_true()
+	assert_bool(RiggedHeroModel.falls_back(Vector3(3, 0, -1))).is_true()
+	assert_bool(RiggedHeroModel.falls_back(Vector3(0, 1.4, 5))).is_false()
+	assert_bool(RiggedHeroModel.falls_back(Vector3(0, 3, 0))).is_false()
+
+
+func test_map_state_death_back() -> void:
+	var s := RiggedHeroModel.map_state(Vector3.ZERO, false, true, 0.0, true,
+			RiggedHeroModel.DEFAULT_CLIP_SPEED, true)
+	assert_str(s["parameters/life/transition_request"]).is_equal("dead_back")
+	var alive := RiggedHeroModel.map_state(Vector3.ZERO, false, true, 0.0, false,
+			RiggedHeroModel.DEFAULT_CLIP_SPEED, true)
+	assert_str(alive["parameters/life/transition_request"]).is_equal("alive")
+
+
+func test_death_direction_drives_the_tree_and_resets_on_respawn() -> void:
+	var m := _build(&"vesper") as RiggedHeroModel
+	m.set_death_dir(m.global_position + m.global_basis * Vector3(0, 1.4, -8))  # attacker in front
+	m.set_dead(true)
+	m._apply_pose(1.0 / 60.0)
+	assert_str(m.state()["parameters/life/transition_request"]).is_equal("dead_back")
+	m._apply_pose(1.0)  # the fall has started: a late direction is ignored
+	m.set_death_dir(m.global_position + m.global_basis * Vector3(0, 1.4, 8))
+	assert_bool(m.death_back()).is_true()
+	m.set_dead(false)
+	m._apply_pose(1.0 / 60.0)
+	assert_bool(m.death_back()).is_false()
+	assert_str(m.state()["parameters/life/transition_request"]).is_equal("alive")
+	m.set_death_dir(m.global_position + m.global_basis * Vector3(0, 1.4, 8))  # from behind
+	m.set_dead(true)
+	m._apply_pose(1.0 / 60.0)
+	assert_str(m.state()["parameters/life/transition_request"]).is_equal("dead")
+
+
+func test_hero_view_killer_position_fallbacks() -> void:
+	assert_vector(HeroView.killer_position(null, 5)).is_equal(Vector3.INF)
+	var n := Node.new()
+	add_child(auto_free(n))
+	assert_vector(HeroView.killer_position(n, 5)).is_equal(Vector3.INF)
+	assert_vector(HeroView.killer_position(n, 0)).is_equal(Vector3.INF)
+
+
+func test_gen_pipeline_vesper_has_baked_cloth_bones() -> void:
+	var m := _build(&"vesper") as RiggedHeroModel
+	var n := 0
+	for i in m.skeleton.get_bone_count():
+		var b := m.skeleton.get_bone_name(i)
+		if b.begins_with("Cloth_"):
+			n += 1
+		assert_bool(b.begins_with("Sec_")).override_failure_message("baked cloth and spring never mix").is_false()
+	assert_int(n).is_equal(15)
+	assert_bool(m.anim_player.has_animation(&"death_back")).is_true()
+	var run := m.anim_player.get_animation(&"run")
+	var keyed := false
+	for t in run.get_track_count():
+		if String(run.track_get_path(t)).ends_with(":Cloth_coat_B_3") and run.track_get_key_count(t) > 2:
+			keyed = true
+	assert_bool(keyed).override_failure_message("the run clip carries the baked coat").is_true()

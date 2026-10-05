@@ -28,6 +28,9 @@ const AIM_PITCH_MAX: float = 1.22
 const SKILL_SLOTS: int = 4
 ## Seconds the death clip plays before HeroView hides the body.
 const DEATH_HOLD_S: float = 2.0
+## W16: a killing-blow direction arriving later than this after death no longer
+## switches the death clip (the fall has visibly started).
+const DEATH_DIR_GRACE_S: float = 0.3
 ## Outline widths per team (match ModelMaterials: Concord thin, Syndicate thick).
 const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 2.8, ModelPalette.TEAM_SYNDICATE: 3.2}
 
@@ -54,6 +57,9 @@ var _state: Dictionary = {}
 var _enemy_outline: bool = false
 var _far: bool = false
 var _clip_speed: Dictionary = DEFAULT_CLIP_SPEED.duplicate()
+## W16: true = the killing hit came from the front, play `death_back` (knocked backward).
+var _death_back: bool = false
+var _dead_for: float = 0.0
 ## W14-P2 runtime layers (null when the tier or the glb does not support them).
 var hit_reaction: HitReaction
 var foot_ik: FootIK
@@ -210,11 +216,15 @@ func _build_tree() -> void:
 	var life := AnimationNodeTransition.new()
 	life.add_input("alive")
 	life.add_input("dead")
+	life.add_input("dead_back")
 	life.xfade_time = 0.15
 	bt.add_node(&"life", life)
 	bt.add_node(&"death", _clip_node(&"death"))
+	var back_clip := &"death_back" if anim_player.has_animation(&"death_back") else &"death"
+	bt.add_node(&"death_back", _clip_node(back_clip))
 	bt.connect_node(&"life", 0, prev)
 	bt.connect_node(&"life", 1, &"death")
+	bt.connect_node(&"life", 2, &"death_back")
 	bt.connect_node(&"output", 0, &"life")
 	tree = AnimationTree.new()
 	tree.name = "AnimationTree"
@@ -240,8 +250,9 @@ static func run_point(clip_speed: Dictionary) -> float:
 ## Pure mapping from replicated state to AnimationTree parameters.
 ## vel_local: velocity in model space (m/s, forward = -Z); pitch in rad.
 ## clip_speed: in-place mocap clip speeds (m/s) from <id>_anim.tres.
+## death_back: the killing hit came from the front (W16, falls_back()).
 static func map_state(vel_local: Vector3, crouching: bool, grounded: bool, pitch: float, dead: bool,
-		clip_speed: Dictionary = DEFAULT_CLIP_SPEED) -> Dictionary:
+		clip_speed: Dictionary = DEFAULT_CLIP_SPEED, death_back: bool = false) -> Dictionary:
 	var planar := Vector2(vel_local.x, -vel_local.z)
 	var speed := planar.length()
 	var rv := run_point(clip_speed)
@@ -256,7 +267,7 @@ static func map_state(vel_local: Vector3, crouching: bool, grounded: bool, pitch
 		"parameters/crouch_mix/blend_amount": 1.0 if crouching else 0.0,
 		"parameters/air/transition_request": "ground" if grounded else "air",
 		"parameters/aim/blend_position": clampf(pitch / AIM_PITCH_MAX, -1.0, 1.0),
-		"parameters/life/transition_request": "dead" if dead else "alive",
+		"parameters/life/transition_request": ("dead_back" if death_back else "dead") if dead else "alive",
 	}
 
 
@@ -403,7 +414,33 @@ func play_showcase() -> bool:
 
 
 func set_dead(dead: bool) -> void:
+	if dead and not _dead:
+		_dead_for = 0.0
+	elif not dead:
+		_death_back = false
 	_dead = dead
+
+
+## W16: which way a killing hit pushes the body. `local_from` = the attacker's
+## position in model space (the model faces -Z). From the front -> fall backward.
+## Pure; unit-tested.
+static func falls_back(local_from: Vector3) -> bool:
+	var flat := Vector2(local_from.x, local_from.z)
+	return flat.length() > 0.01 and local_from.z < 0.0
+
+
+## W16: the killing blow came from `from_world` (Vector3.INF = unknown: keep the
+## forward fall). Picks `death` or `death_back`; ignored once the fall has started.
+func set_death_dir(from_world: Vector3) -> void:
+	if from_world == Vector3.INF or (_dead and _dead_for > DEATH_DIR_GRACE_S):
+		return
+	var gb := global_transform.basis if is_inside_tree() else transform.basis
+	var at := global_position if is_inside_tree() else position
+	_death_back = falls_back(gb.inverse() * (from_world - at))
+
+
+func death_back() -> bool:
+	return _death_back
 
 
 func is_dead() -> bool:
@@ -479,13 +516,15 @@ func mesh_instance_count() -> int:
 
 func _apply_pose(delta: float) -> void:
 	_time += delta
+	if _dead:
+		_dead_for += delta
 	_flinch = maxf(0.0, _flinch - delta * 3.5)
 	if _flash > 0.0 or delta == 0.0:
 		_flash = maxf(0.0, _flash - delta * 5.0)
 		for mi in _meshes + _lod_meshes:
 			mi.set_instance_shader_parameter(&"flash", _flash)
 	_update_outline_lod()
-	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead, _clip_speed)
+	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead, _clip_speed, _death_back)
 	if tree == null:
 		return
 	for p in _state:
