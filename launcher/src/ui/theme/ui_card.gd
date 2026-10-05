@@ -1,7 +1,7 @@
 class_name UiCard
 extends PanelContainer
 ## Kit card (design/ux/ui-kit.md §4): a layered dark panel with an optional
-## header strip (raised band, brass tick, Orbitron heading, a right-hand slot
+## header (hairline rule, Chakra Petch heading, a right-hand slot
 ## for actions). Put content in `body`.
 ##
 ## Example:
@@ -28,7 +28,7 @@ func setup(title: String, pad: int) -> UiCard:
 	if title != "":
 		header = PanelContainer.new()
 		var hb := StyleBoxFlat.new()
-		hb.bg_color = t.panel_raised
+		hb.bg_color = Color(0, 0, 0, 0)
 		hb.border_color = t.line
 		hb.border_width_bottom = 1
 		hb.content_margin_left = t.space_m
@@ -40,12 +40,10 @@ func setup(title: String, pad: int) -> UiCard:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", t.space_s)
 		header.add_child(row)
-		var tick := ColorRect.new()
-		tick.color = t.gold
-		tick.custom_minimum_size = Vector2(3, 16)
-		tick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(tick)
 		title_label = UiKit.label(title, &"heading")
+		title_label.uppercase = true
+		title_label.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(13, 0.24)))
+		title_label.add_theme_font_size_override("font_size", 13)
 		title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		title_label.clip_text = true

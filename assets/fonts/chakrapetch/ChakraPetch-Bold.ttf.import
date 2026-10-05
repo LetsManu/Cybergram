@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://qxlcpsq0r61q"
-path="res://.godot/imported/Orbitron-Variable.ttf-63d0b8b20be07ff48365b474b4b885c3.fontdata"
+uid="uid://dhcew2hjixuyd"
+path="res://.godot/imported/ChakraPetch-Bold.ttf-6eac480bf757f6a856a4ee6987f411db.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/orbitron/Orbitron-Variable.ttf"
-dest_files=["res://.godot/imported/Orbitron-Variable.ttf-63d0b8b20be07ff48365b474b4b885c3.fontdata"]
+source_file="res://assets/fonts/chakrapetch/ChakraPetch-Bold.ttf"
+dest_files=["res://.godot/imported/ChakraPetch-Bold.ttf-6eac480bf757f6a856a4ee6987f411db.fontdata"]
 
 [params]
 
