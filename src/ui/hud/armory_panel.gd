@@ -551,6 +551,11 @@ func _draw() -> void:
 
 func _draw_hint() -> void:
 	var t := tr("HUD_SHOP_OFF_PAD")
+	# W21-G2: say where the pad is ("... 24 m ->").
+	var fmt := tr("HUD_SHOP_OFF_PAD_DIR")
+	var dir := ArmoryWaypoint.hint_for(ctx.client, ctx.own_team())
+	if "%s" in fmt and dir != "":
+		t = fmt % dir
 	var w := text_width(t, 22, ctx.font_display) + 48.0
 	var r := Rect2(size.x * 0.5 - w * 0.5, size.y - 150.0, w, 48.0)
 	scrim_h(r, 0.0, 0.0)
