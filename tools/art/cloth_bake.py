@@ -285,6 +285,8 @@ def make_collider(h, tris=3000):
     dec = ob.modifiers.new("dec", "DECIMATE")
     dec.ratio = min(1.0, tris / max(1, sum(len(p.vertices) - 2 for p in ob.data.polygons)))
     bpy.ops.object.modifier_apply(modifier=dec.name)
+    # Out of the scene until bake(): a coincident copy would occlude the texture bakes (AO).
+    bpy.context.scene.collection.objects.unlink(ob)
     return ob
 
 
@@ -404,6 +406,7 @@ def bake(h, garments, collider):
     sc = bpy.context.scene
     rig = h.rig
     t_all = time.time()
+    sc.collection.objects.link(collider)
     m = collider.modifiers.new("Armature", "ARMATURE")
     m.object = rig
     collider.modifiers.new("collision", "COLLISION")

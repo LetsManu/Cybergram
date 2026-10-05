@@ -168,7 +168,7 @@ def build(key, hd, out_dir=None):
     if garments and "--nocloth" not in sys.argv:
         cloth_bake.bake(h, garments, collider)
     elif collider is not None:
-        bpy.data.objects.remove(collider, do_unlink=True)
+        bpy.data.objects.remove(collider)
     lap("cloth")
     build_hero.export(h, rig, body, lod, mocap_info, tex_sizes, out_dir)
     lap("export")

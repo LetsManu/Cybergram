@@ -153,7 +153,7 @@ def vesper_parts(h):
               back), bevel=0.4)
         ax = (h.jt("LowerArm_" + s) - h.jh("LowerArm_" + s)).normalized()
         g = hero_hd.ring(h, h.jl("LowerArm_" + s, 0.86), ax, ("LowerArm_" + s, "Hand_" + s), n=20, off=0.008, reach=0.3)
-        hero_hd.strap(h, g, ax, 0.075 * k, 0.014, "glove", skin)
+        hero_hd.strap(h, g, ax, 0.055 * k, 0.012, "gold", skin)
     # --- the Loom halo: spine rig + four chrome spindle arms, gold spools, violet crystals.
     uc = h.jh("UpperChest")
     p, n = h.surface(0, uc.z + 0.02, -1)
@@ -246,12 +246,12 @@ HEROES = {
                  "waist_w": 0.21, "waist_d": 0.165, "hip_w": 0.32, "hip_d": 0.215, "hip_joint_w": 0.18,
                  "neck": 0.08, "neck_r": 0.05, "head_w": 0.155, "head_d": 0.19, "head_h": 0.225,
                  "arm_r": 0.047, "forearm_r": 0.046, "wrist_r": 0.033, "thigh_r": 0.083, "knee_r": 0.056,
-                 "calf_r": 0.064, "ankle_r": 0.042, "hand": 1.35, "foot": 1.25, "boot_r": 1.3,
+                 "calf_r": 0.064, "ankle_r": 0.042, "hand": 1.25, "foot": 1.25, "boot_r": 1.3,
                  "deltoid": 0.85, "pecs": 0.0, "bust": 0.3, "glutes": 0.6, "calves": 0.5, "traps": 0.3,
                  "chest_lift": 0.012, "arm_angle": 50.0},
         "paint": {},
         "palette": {"plum": "#8E3FB4", "gold": "#F5B83A", "ink": "#3D2C5F", "chrome": "#C9D4E2",
-                    "violet": "#B57DFF", "hair": "#30234A", "glove": "#2E2342", "trim": "#4A2260",
+                    "violet": "#B57DFF", "hair": "#30234A", "glove": "#5A4483", "trim": "#4A2260",
                     "team": TEAM, "white": "#F4EEE2", "eye": "#1A1220"},
         "cuts": vesper_cuts,
         "regions": vesper_regions,

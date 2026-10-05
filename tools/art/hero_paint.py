@@ -36,10 +36,10 @@ DEFAULT_PAINT = {
     "lit": 1.04, "shadow": 0.72,   # value multipliers of the two zones
     "warm": (1.04, 1.0, 0.93), "cool": (0.88, 0.9, 1.06),
     "top": 0.12,                   # top-to-bottom value falloff
-    "ao": 0.5, "ao_dist": 0.06,    # painted crease AO
+    "ao": 0.5, "ao_dist": 0.025,   # painted crease AO (short reach: creases only, not garment gaps)
     "hatch": 0.55,                 # hatching darkness (0 = off)
-    "hatch_spacing": 0.03,         # metres between hatch lines (scaled by height)
-    "hatch_width": 0.36,           # line width as a fraction of the spacing
+    "hatch_spacing": 0.014,        # metres between hatch lines (scaled by height)
+    "hatch_width": 0.22,           # line width as a fraction of the spacing
     "cross": 0.35,                 # crease depth where the cross-hatch starts
     "edge": 0.5,                   # convex edge highlight strength
     "ink": (0.06, 0.05, 0.09),     # ink colour (lines, hatching)
@@ -206,7 +206,7 @@ def _fill(isl, uvl):
     return area / box if box > 1e-12 else 1.0
 
 
-def _split_low_fill(bm, faces, uvl, thresh=0.6, min_faces=8):
+def _split_low_fill(bm, faces, uvl, thresh=0.65, min_faces=8):
     """Cuts islands that fill < `thresh` of their box (arcs, C shapes, bells) in two along
     the plane through their centroid normal to their main 3D axis. Returns the cut count."""
     n = 0
@@ -239,7 +239,7 @@ def _bm_usage(bm, uvl):
     return a
 
 
-def unwrap_pack(ob, margin, tries=6):
+def unwrap_pack(ob, margin, tries=10):
     """Body + shells (hd_kind 0/1): angle-based unwrap along the body_gen cage seams.
     Parts, garments, weapon: generated seams (_part_seams) + angle-based unwrap, so
     every island is a flat disk (no annuli, few shards). Then one pack of everything."""
@@ -368,14 +368,14 @@ def bake_textures(h, ob, out_dir, size=1024):
         sc.world = bpy.data.worlds.new("w")
     cfg = paint_cfg(h)
     me = ob.data
+    _classify(h, ob)
+    unwrap_pack(ob, cfg["uv_margin"])  # on quads: triangles give worse islands (58 % vs 76 %)
     bm = bmesh.new()
     bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method="BEAUTY", ngon_method="BEAUTY")
     bm.to_mesh(me)
     bm.free()
     me.validate(clean_customdata=False)
-    _classify(h, ob)
-    unwrap_pack(ob, cfg["uv_margin"])
     T = uv_triangles(ob)
     use = uv_usage(T)
     print("paint: UV atlas used %.1f %%" % (use * 100))
@@ -396,7 +396,7 @@ def bake_textures(h, ob, out_dir, size=1024):
         geo = nt.nodes.new("ShaderNodeNewGeometry")
         d = _math(nt, "DOT_PRODUCT", bev.outputs[0], geo.outputs["Normal"], vec=True)
         return _combine(nt, ao.outputs["AO"], _math(nt, "SUBTRACT", 1.0, d), geo.outputs["Pointiness"])
-    aoe = _bake(ob, _node_mat("a", _emit_tree(ao_edge)), S, samples=12)
+    aoe = _bake(ob, _node_mat("a", _emit_tree(ao_edge)), S, samples=16)
     P = _bake(ob, _node_mat("p", _emit_tree(lambda nt: nt.nodes.new("ShaderNodeTexCoord").outputs["Object"])), S)
     N = _bake(ob, _node_mat("n", _emit_tree(lambda nt: nt.nodes.new("ShaderNodeNewGeometry").outputs["Normal"])), S)
     nrm = _bake(ob, _node_mat("nrm", _normal_mat(cfg["normal_bump"])), size, samples=4, kind="NORMAL")
@@ -406,7 +406,6 @@ def bake_textures(h, ob, out_dir, size=1024):
         np.savez_compressed(os.path.join(dbg, h.key + "_w16_passes.npz"), col=col, mat=mat, et=et, aoe=aoe, P=P, N=N,
                             nrm=nrm, cov=cov)
     sizes = composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov)
-    sizes["uv_used"] = use
     me = ob.data
     for n in ("hd_metal", "hd_cloth", "hd_skin", "hd_emit", "hd_team", "hd_hard", "hd_kind"):
         if n in me.attributes:
@@ -454,7 +453,7 @@ def composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov):
     t0, sf = cfg["terminator"], cfg["soft"]
     lit = np.clip((lam - (t0 - sf)) / (2 * sf), 0, 1)
     lit = lit * lit * (3 - 2 * lit)
-    ao = np.sqrt(np.clip(_blur(aoe[..., 0], 2.0), 0, 1))
+    ao = np.sqrt(np.clip(_blur(aoe[..., 0], 3.0), 0, 1))
     crease = 1.0 - ao
     edge = np.clip((aoe[..., 1] - 0.06) / 0.2, 0, 1)
     convex = np.clip((aoe[..., 2] - 0.5) * 6 + 0.5, 0, 1)
