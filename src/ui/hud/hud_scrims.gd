@@ -20,18 +20,22 @@ var top: bool = true
 var bottom: bool = true
 var backdrop: int = Backdrop.NONE
 var _fx: ColorRect
+## The backdrop sits in its own layer under the HUD (HudRoot is layer 5,
+## ComfortOverlay 4), so only the game is greyed / blurred, never the HUD.
+const BACKDROP_LAYER := 3
 
 
 func _ready() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = BACKDROP_LAYER
+	add_child(cl)
 	_fx = ColorRect.new()
 	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fx.show_behind_parent = true
-	_fx.top_level = true
 	var m := ShaderMaterial.new()
 	m.shader = load(BACKDROP_SHADER) as Shader
 	_fx.material = m
 	_fx.visible = false
-	add_child(_fx)
+	cl.add_child(_fx)
 
 
 ## Screen treatment behind the HUD (Backdrop). Static with reduce motion: it

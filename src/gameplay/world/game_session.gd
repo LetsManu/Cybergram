@@ -334,8 +334,13 @@ func _debug_hud_state() -> void:
 		"sd":
 			if not _hud_state_done and server.match_flow != null:
 				_hud_state_done = true
-				server.match_flow.def.sudden_death_enabled = true
-				server.match_flow.resolve_time_out()
+				var m := server.match_flow  # the C10 branch of resolve_time_out, without the tie-breaks
+				m.def.sudden_death_enabled = true
+				m._enter(MatchRules.Phase.SUDDEN_DEATH)
+				m.sudden_death_s = 0.0
+				for u in m.uplinks:
+					u.set_exposed(false)
+				m.sudden_death_started.emit()
 # --- end W19-HUD ---
 
 

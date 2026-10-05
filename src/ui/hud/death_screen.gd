@@ -54,7 +54,7 @@ func _draw() -> void:
 			name = tr("HUD_HERO_N") % killer_id
 		var hero := hero_name(h.hero_id) if h != null else ""
 		var nw := caps_width(name, 36, 0.1)
-		var sub := hero
+		var sub := hero if hero != name else ""  # bots carry the hero name already
 		var sw := text_width(sub, 18)
 		var block := 84.0 + 21.0 + 27.0 + maxf(nw, sw)
 		var x0 := cx - block * 0.5
