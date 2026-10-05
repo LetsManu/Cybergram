@@ -1,0 +1,10 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/clip_speed = {
+"death": 0.000,
+"jump": 0.000,
+"run": 2.723,
+"run_back": 1.091,
+"walk": 1.091
+}
