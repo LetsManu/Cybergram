@@ -49,6 +49,14 @@ const MAG := Color("#E6F7FF")
 const BURNOUT := Color(0.45, 0.45, 0.5)
 
 
+## Colour of damage warnings (direction arc, damage vignette) under `preset`:
+## the default red; the validated colour-blind presets use their enemy / warning
+## colour (amber for red-green, pink for tritan), never red-on-green.
+static func damage_color(preset: int = Preset.DEFAULT) -> Color:
+	var p := clampi(preset, 0, TEAM_COLORS.size() - 1)
+	return DANGER if p == Preset.DEFAULT else TEAM_COLORS[p][1]
+
+
 ## Team colour of `team` (MapDef.TEAM_*; anything else = neutral) under `preset`.
 static func team_color(team: int, preset: int = Preset.DEFAULT) -> Color:
 	if team < 0 or team > 1:

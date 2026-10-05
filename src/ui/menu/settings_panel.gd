@@ -1,6 +1,6 @@
 class_name SettingsPanel
 extends VBoxContainer
-## Tabbed options panel (Video / Audio / Controls / Gameplay) shared by the main
+## Tabbed options panel (Video / Audio / Controls / Gameplay / Comfort) shared by the main
 ## menu and the pause menu. Edits GameSettings.shared(), saves on every change
 ## and applies it live; `changed` lets a running session re-apply look options.
 ## LB / RB (or Ctrl+Tab) switch tabs; Esc / B go back (cancel a key capture first).
@@ -9,7 +9,7 @@ signal changed
 signal back_pressed
 
 const TAB_KEYS: Array[String] = ["HUD_SET_TAB_VIDEO", "HUD_SET_TAB_AUDIO", "HUD_SET_TAB_CONTROLS",
-	"HUD_SET_TAB_GAMEPLAY"]
+	"HUD_SET_TAB_GAMEPLAY", "HUD_SET_TAB_COMFORT"]
 const CONTENT_H := 360.0
 
 var _s: GameSettings
@@ -77,8 +77,10 @@ func show_tab(i: int) -> void:
 			_tab = SettingsTabAudio.new()
 		2:
 			_tab = SettingsTabControls.new()
-		_:
+		3:
 			_tab = SettingsTabGameplay.new()
+		_:
+			_tab = SettingsTabComfort.new()
 	_tab.s = _s
 	_tab.commit = _commit
 	_tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL

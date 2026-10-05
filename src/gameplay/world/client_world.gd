@@ -55,6 +55,11 @@ var _hp_views: Array[HardpointView] = []
 ## E9: replicated match phase / clock / result / Uplinks (null until received).
 var match_state: SnapshotData.MatchState
 var _uplink_views: Array[UplinkView] = []
+## W16-SDWATER: Sudden Death rules for the ring (null = the map's rules, else the
+## defaults) and the ring model + wall built by setup_objectives().
+var match_rules: MatchRulesDef
+var sudden_death: SuddenDeathRing
+var _sd_view: SuddenDeathView
 
 ## E8: Wardling views, bolt tracers, own squad strip and squad-order resolution.
 var wardlings: WardlingPresenter
@@ -81,11 +86,18 @@ var hello_token: int = 0
 var sfx: ClientSfx
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
-var _visual_offset: Vector3 = Vector3.ZERO
+## W16-COMFORT smooth corrections: presentation-only blend of small prediction
+## errors into the camera / rendered position (never the simulated state).
+var _smoother := CorrectionSmoother.new()
+## Comfort options (defaults to the process-wide settings) and their tuning.
+var comfort: GameSettings
+var comfort_rules: ComfortRulesDef = ComfortRulesDef.load_default()
 var _cmd := InputCommand.new()
 ## Buttons of the last sampled command (feel sounds read it: dry fire).
 var last_buttons: int = 0
 var _look: LookSettings
+## W16-COMFORT: client mirror of the server's spread cone (dynamic crosshair).
+var spread := SpreadModel.new()
 
 
 func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
@@ -121,6 +133,10 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	sfx.client = self
 	sfx.presenter = abilities
 	add_child(sfx)
+	var water := WaterFx.new()  # W16-SDWATER: splash + wading sound
+	water.name = "WaterFx"
+	water.client = self
+	add_child(water)
 	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
 
@@ -137,11 +153,20 @@ func setup_objectives(md: MapDef) -> void:
 			v.setup(d)
 			add_child(v)
 			_hp_views.append(v)
+	_build_sudden_death(md)
 	for hq in md.hqs:
 		var uv := UplinkView.new()
 		uv.setup(hq)
 		add_child(uv)
 		_uplink_views.append(uv)
+
+
+## W16-SDWATER: the ring centre is MapDef.mid_plaza_center, as on the server.
+func _build_sudden_death(md: MapDef) -> void:
+	sudden_death = SuddenDeathRing.new(match_rules if match_rules != null else md.match_rules, md.mid_plaza_center)
+	_sd_view = SuddenDeathView.new()
+	_sd_view.setup(sudden_death)
+	add_child(_sd_view)
 
 
 func hardpoint_defs() -> Array[HardpointDef]:
@@ -211,11 +236,13 @@ func tick() -> void:
 		wardlings.resolve(_cmd)
 		_cmd.quantize()
 	body.state.speed_scale = own_speed_scale  # E10: slows / roots / stances
+	body.motor.water_zones = map_def.water_zones if map_def != null else []  # W16-SDWATER (same as the server)
 	if player_input != null:
 		player_input.recoil_def = hero_def.weapon
 		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
 		var can := combat != null and combat.ammo > 0.0 and not combat.dead
-		player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
+		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
+		_step_spread(kicked)
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -233,16 +260,50 @@ func render(delta: float) -> void:
 	wardlings.render(render_tick, delta)
 	if body == null:
 		return
-	if net.error_smoothing_s > 0.0:
-		_visual_offset = _visual_offset.lerp(Vector3.ZERO, clampf(delta / net.error_smoothing_s, 0.0, 1.0))
-	else:
-		_visual_offset = Vector3.ZERO
+	var cs := _comfort()
+	_smoother.step(delta, comfort_rules.smooth_time_s)
 	var frac := Engine.get_physics_interpolation_fraction()
-	var feet := _prev_pos.lerp(body.state.position, frac) + _visual_offset
+	var feet := _prev_pos.lerp(body.state.position, frac) + _smoother.offset
+	var hidden_kick := Vector2.ZERO
+	if player_input != null:
+		player_input.camera_recoil_scale = cs.comfort_camera_recoil
+		hidden_kick = player_input.hidden_kick()
+	rig.bob_enabled = cs.comfort_weapon_bob
 	var yaw := player_input.view_yaw() if player_input != null else _cmd.yaw
 	var pitch := player_input.view_pitch() if player_input != null else _cmd.pitch
-	rig.follow(feet, body.eye_height(), yaw, pitch)
+	rig.follow(feet, body.eye_height(), yaw, pitch, hidden_kick)
 	wardlings.apply_debug_camera()
+
+
+## Mirrors the server spread from the predicted shots (see SpreadModel).
+func _step_spread(kicked: bool) -> void:
+	if spread.tick_rate_hz != net.tick_rate_hz or spread.def == null and hero_def.weapon != null:
+		spread = SpreadModel.new(hero_def.weapon, net.tick_rate_hz)
+	spread.set_weapon(hero_def.weapon)
+	spread.recoil_mult = own_recoil_mult()
+	if is_dead():
+		spread.reset()
+	spread.step(kicked and not is_dead())
+
+
+func _comfort() -> GameSettings:
+	return comfort if comfort != null else GameSettings.shared()
+
+
+## W16-COMFORT: a reconciliation moved the predicted position by `error` (old -
+## new). With smooth corrections on, a small error is blended over ~100 ms and a
+## large one (>= smooth_threshold_m: teleport, respawn, knockback) snaps; with
+## the option off every correction snaps. Presentation only.
+func _blend_correction(error: Vector3) -> void:
+	if _comfort().comfort_smooth_corrections:
+		_smoother.push(error, comfort_rules.smooth_threshold_m)
+	else:
+		_smoother.reset()
+
+
+## Camera offset currently being blended out (tests / diagnostics).
+func correction_offset() -> Vector3:
+	return _smoother.offset
 
 
 func is_dead() -> bool:
@@ -275,11 +336,12 @@ func _on_snapshot(s: SnapshotData) -> void:
 		server_tick_estimate = s.tick
 	if s.own_combat != null:
 		combat = s.own_combat
+		spread.reconcile(combat.ammo, 1.0 / float(maxi(net.tick_rate_hz, 1)))
 	if s.own_state != null:
 		if body == null:
 			_spawn_own(s.own_state)
 		else:
-			_visual_offset += predictor.reconcile(s.own_state, s.last_processed_seq)
+			_blend_correction(predictor.reconcile(s.own_state, s.last_processed_seq))
 	_apply_objectives(s)
 	_apply_match(s)
 	_apply_progress(s.progress)  # E13/E15
@@ -395,6 +457,8 @@ func _apply_match(s: SnapshotData) -> void:
 		return
 	var was_over := match_state != null and match_state.phase == MatchRules.Phase.END
 	match_state = s.match_state
+	if sudden_death != null:
+		sudden_death.apply(match_state)
 	for u in match_state.uplinks:
 		for v in _uplink_views:
 			if v.team == u.team:

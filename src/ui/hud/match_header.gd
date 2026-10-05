@@ -41,7 +41,8 @@ func _draw() -> void:
 
 
 func _next_text(m: SnapshotData.MatchState) -> String:
-	if m.next_phase_s < 0.0 or m.phase == MatchRules.Phase.END:
+	if m.next_phase_s < 0.0 or m.phase == MatchRules.Phase.END \
+			or m.phase == MatchRules.Phase.SUDDEN_DEATH:  # next_phase_s carries the SD draw cap
 		return ""
 	var left := HudFormat.clock(ceilf(m.next_phase_s - m.time_s))
 	if m.phase == MatchRules.Phase.DEPLOY:

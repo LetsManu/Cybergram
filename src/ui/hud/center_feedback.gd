@@ -11,6 +11,8 @@ const WHEEL_KEYS: Array[String] = ["HUD_CMD_FOLLOW", "HUD_CMD_HOLD", "HUD_CMD_AT
 
 var _marker_left: float = 0.0
 var _marker_total: float = 0.1
+## Eased on-screen cone radius (HUD units) of the dynamic crosshair.
+var _shown_spread: float = -1.0
 var _marker_kind: int = 0  # 0 body, 1 head, 2 kill, 3 minor (Wardling / structure)
 
 
@@ -48,7 +50,38 @@ func _draw() -> void:
 
 func _crosshair(c: Vector2) -> void:
 	var gs := GameSettings.shared()
-	SettingsCrosshair.draw(self, c, gs.crosshair_style, GameSettings.CROSSHAIR_COLORS[gs.crosshair_color])
+	var sp := _spread_px(gs) if gs.crosshair_dynamic else -1.0
+	SettingsCrosshair.draw(self, c + _recoil_offset(), gs.crosshair_style, GameSettings.CROSSHAIR_COLORS[gs.crosshair_color], sp)
+
+
+## W16-COMFORT dynamic crosshair: screen radius of the real spread cone in HUD
+## units, eased (instantly with Reduce motion). The cone is centred on the
+## crosshair, which already carries the fair-recoil shift.
+func _spread_px(gs: GameSettings) -> float:
+	var client: Variant = ctx.client
+	if client == null or client.rig == null or client.rig.camera == null:
+		return -1.0
+	var vp := get_viewport().get_visible_rect().size
+	var px := SpreadModel.screen_radius_px(client.spread.spread_deg, client.rig.camera.fov, vp.y)
+	var target: float = px / get_global_transform_with_canvas().get_scale().y
+	if _shown_spread < 0.0 or gs.reduce_motion:
+		_shown_spread = target
+	else:
+		_shown_spread = lerpf(_shown_spread, target, 1.0 - exp(-get_process_delta_time() * 30.0))
+	return _shown_spread
+
+
+## W16-COMFORT: the part of the recoil kick the camera does not show (camera
+## recoil < 100%) moves the crosshair to where the shot will land. HUD units.
+func _recoil_offset() -> Vector2:
+	var client: Variant = ctx.client
+	if client == null or client.player_input == null or client.rig == null or client.rig.camera == null:
+		return Vector2.ZERO
+	var kick: Vector2 = client.player_input.hidden_kick()
+	if kick == Vector2.ZERO:
+		return Vector2.ZERO
+	var px := ComfortMath.kick_to_screen_px(kick, client.rig.camera.fov, get_viewport().get_visible_rect().size)
+	return px / get_global_transform_with_canvas().get_scale()
 
 
 func _marker(c: Vector2, t: float) -> void:

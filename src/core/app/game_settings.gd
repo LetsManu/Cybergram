@@ -12,7 +12,7 @@ const PATH := "user://settings.cfg"
 const SENS_MIN := 0.02
 const SENS_MAX := 0.5
 const FOV_MIN := 70.0
-const FOV_MAX := 110.0
+const FOV_MAX := 120.0
 const PAD_SENS_MIN := 30.0
 const PAD_SENS_MAX := 540.0
 const PAD_DEADZONE_MIN := 0.0
@@ -21,6 +21,10 @@ const PAD_CURVE_MIN := 1.0
 const PAD_CURVE_MAX := 3.0
 const RENDER_SCALE_MIN := 0.5
 const RENDER_SCALE_MAX := 1.0
+## Comfort options (W16-COMFORT): centre dot size range in screen pixels.
+const DOT_SIZE_MIN := 2.0
+const DOT_SIZE_MAX := 6.0
+const DOT_OPACITY_MIN := 0.1
 
 enum WindowMode { WINDOWED, FULLSCREEN, BORDERLESS }
 ## Graphics quality preset (read by the graphics code: chunk G1).
@@ -63,6 +67,8 @@ var graphics_quality: int = Quality.HIGH
 ## Crosshair style (Crosshair) and colour index (CROSSHAIR_COLORS).
 var crosshair_style: int = Crosshair.CROSS_DOT
 var crosshair_color: int = 0
+## Dynamic crosshair: the gap opens to the real spread cone (SpreadModel).
+var crosshair_dynamic: bool = true
 ## Key bindings (applied to the InputMap by apply_bindings()).
 var bindings: InputBindings = InputBindings.new()
 ## W10-W4: the first-time Practice Range tutorial was finished or skipped.
@@ -70,6 +76,25 @@ var tutorial_done: bool = false
 ## Accessibility: skip menu tweens, freeze the menu background and the hero
 ## turntable (design/ux/ui-kit.md §5). Video tab.
 var reduce_motion: bool = false
+## Comfort (W16-COMFORT, [comfort] section). Scales are 0..1 (UI shows percent).
+## Camera recoil: share of the view punch the CAMERA shows. The aim sent to the
+## server always includes the full kick (fair for everyone); the remainder moves
+## the crosshair to where the shot lands. The server's spread is never scaled.
+var comfort_camera_recoil: float = 1.0
+## Weapon (viewmodel) walk bob.
+var comfort_weapon_bob: bool = true
+## Screen effects: flashes, hit flashes, glow bursts, vignettes and ink-edge pulses.
+var comfort_fx_intensity: float = 1.0
+## Fixed centre dot (always drawn at the exact screen centre, under the crosshair).
+var comfort_center_dot: bool = false
+var comfort_dot_size_px: float = 3.0
+var comfort_dot_opacity: float = 1.0
+## Blend small prediction corrections into the camera instead of snapping.
+var comfort_smooth_corrections: bool = true
+## Comfort vignette strength (0 = off); fades in only during fast / forced moves.
+var comfort_vignette: float = 0.0
+## The one-time "see Settings > Comfort" hint was shown (and dismissed).
+var comfort_hint_seen: bool = false
 
 static var _shared: GameSettings
 ## Bumped when the Gameplay tab rewrites the [hud] section, so a running HUD
@@ -136,6 +161,16 @@ func read_config(cfg: ConfigFile) -> void:
 	reduce_motion = bool(cfg.get_value("accessibility", "reduce_motion", reduce_motion))
 	crosshair_style = clampi(int(cfg.get_value("crosshair", "style", crosshair_style)), 0, Crosshair.CIRCLE)
 	crosshair_color = clampi(int(cfg.get_value("crosshair", "color", crosshair_color)), 0, CROSSHAIR_COLORS.size() - 1)
+	crosshair_dynamic = bool(cfg.get_value("crosshair", "dynamic", crosshair_dynamic))
+	comfort_camera_recoil = clampf(float(cfg.get_value("comfort", "camera_recoil", comfort_camera_recoil)), 0.0, 1.0)
+	comfort_weapon_bob = bool(cfg.get_value("comfort", "weapon_bob", comfort_weapon_bob))
+	comfort_fx_intensity = clampf(float(cfg.get_value("comfort", "fx_intensity", comfort_fx_intensity)), 0.0, 1.0)
+	comfort_center_dot = bool(cfg.get_value("comfort", "center_dot", comfort_center_dot))
+	comfort_dot_size_px = clampf(float(cfg.get_value("comfort", "dot_size_px", comfort_dot_size_px)), DOT_SIZE_MIN, DOT_SIZE_MAX)
+	comfort_dot_opacity = clampf(float(cfg.get_value("comfort", "dot_opacity", comfort_dot_opacity)), DOT_OPACITY_MIN, 1.0)
+	comfort_smooth_corrections = bool(cfg.get_value("comfort", "smooth_corrections", comfort_smooth_corrections))
+	comfort_vignette = clampf(float(cfg.get_value("comfort", "vignette", comfort_vignette)), 0.0, 1.0)
+	comfort_hint_seen = bool(cfg.get_value("comfort", "hint_seen", comfort_hint_seen))
 	bindings.read_config(cfg)
 
 
@@ -162,7 +197,32 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value("display", "quality", graphics_quality)
 	cfg.set_value("crosshair", "style", crosshair_style)
 	cfg.set_value("crosshair", "color", crosshair_color)
+	cfg.set_value("crosshair", "dynamic", crosshair_dynamic)
+	cfg.set_value("comfort", "camera_recoil", comfort_camera_recoil)
+	cfg.set_value("comfort", "weapon_bob", comfort_weapon_bob)
+	cfg.set_value("comfort", "fx_intensity", comfort_fx_intensity)
+	cfg.set_value("comfort", "center_dot", comfort_center_dot)
+	cfg.set_value("comfort", "dot_size_px", comfort_dot_size_px)
+	cfg.set_value("comfort", "dot_opacity", comfort_dot_opacity)
+	cfg.set_value("comfort", "smooth_corrections", comfort_smooth_corrections)
+	cfg.set_value("comfort", "vignette", comfort_vignette)
+	cfg.set_value("comfort", "hint_seen", comfort_hint_seen)
 	bindings.write_config(cfg)
+
+
+## The "Motion comfort" preset (values from `rules`, ComfortRulesDef).
+## Raises the FOV to the preset minimum but never lowers a higher one.
+func apply_comfort_preset(rules: ComfortRulesDef = null) -> void:
+	if rules == null:
+		rules = ComfortRulesDef.load_default()
+	comfort_camera_recoil = clampf(rules.preset_camera_recoil, 0.0, 1.0)
+	comfort_weapon_bob = rules.preset_weapon_bob
+	comfort_fx_intensity = clampf(rules.preset_fx_intensity, 0.0, 1.0)
+	comfort_center_dot = rules.preset_center_dot
+	comfort_smooth_corrections = rules.preset_smooth_corrections
+	comfort_vignette = clampf(rules.preset_vignette, 0.0, 1.0)
+	reduce_motion = rules.preset_reduce_motion
+	fov_deg = clampf(maxf(fov_deg, rules.preset_fov_min_deg), FOV_MIN, FOV_MAX)
 
 
 ## Copies the look options onto `look` (a LookSettings, duck-typed: core
