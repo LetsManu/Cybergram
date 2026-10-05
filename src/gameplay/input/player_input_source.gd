@@ -333,8 +333,8 @@ func _alt_fire_down() -> bool:
 
 
 func _fire_down() -> bool:
-	if debug_fire:
-		return true
+	if debug_fire:  # pulse: semi-auto weapons need a press edge per shot
+		return Engine.get_physics_frames() % 6 < 3
 	if InputMap.has_action(&"fire"):
 		return Input.is_action_pressed(&"fire")
 	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
