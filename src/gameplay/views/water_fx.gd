@@ -3,6 +3,7 @@ extends Node
 ## W16-SDWATER presentation for the dock water: a splash puff when the local hero
 ## enters a water zone and a soft wading step sound while moving through it.
 ## Both follow GameSettings.comfort_fx_intensity (0 = no puff, silent wading).
+## W21-A1: the sounds are the water_splash_own / water_wade_own events.
 ## Reuses the existing ring flash (FxDirector.flash) and footstep stream; no new
 ## assets. Reads ClientWorld.body / map_def only.
 
@@ -36,7 +37,7 @@ func _ready() -> void:
 		set_process(false)
 		return
 	_player = AudioStreamPlayer.new()
-	_player.bus = GameSettings.BUS_EFFECTS
+	_player.bus = GameSettings.BUS_FOOTSTEPS
 	add_child(_player)
 
 
@@ -47,13 +48,21 @@ func _process(delta: float) -> void:
 	var now: bool = client.map_def.water_factor_at(st.position) < 1.0
 	var gs := settings if settings != null else GameSettings.shared()
 	var fx := gs.comfort_fx_intensity
-	if WaterFx.entered(_in_water, now) and client.tracers != null and client.tracers.fx != null and not client.is_dead():
-		client.tracers.fx.flash(st.position + Vector3(0.0, 0.1, 0.0), SPLASH_COLOR, SPLASH_SIZE_M, SPLASH_LIFE_S, true, 1.3)
+	if WaterFx.entered(_in_water, now) and not client.is_dead():
+		if client.tracers != null and client.tracers.fx != null:
+			client.tracers.fx.flash(st.position + Vector3(0.0, 0.1, 0.0), SPLASH_COLOR, SPLASH_SIZE_M, SPLASH_LIFE_S, true, 1.3)
+		var ev := _events()
+		if ev != null and fx > 0.0:  # W21-A1 splash (Footsteps bus)
+			ev.play(&"water_splash_own", AudioEventDef.OwnerFilter.OWN, null, WaterFx.wade_db(fx, 0.0))
 	_in_water = now
 	if not now or client.is_dead() or fx <= 0.0:
 		return
 	var speed := Vector2(st.velocity.x, st.velocity.z).length()
 	if _steps.advance(speed, st.grounded, delta):
+		var ev := _events()
+		if ev != null and ev.bank.has(&"water_wade_own"):  # W21-A1 wading event
+			ev.play(&"water_wade_own", AudioEventDef.OwnerFilter.OWN, null, WaterFx.wade_db(fx, 0.0))
+			return
 		var bank: SfxBank = client.sfx.bank if client.sfx != null else null
 		var s := bank.feel_stream(&"footstep") if bank != null else null
 		if s != null:
@@ -61,3 +70,9 @@ func _process(delta: float) -> void:
 			_player.volume_db = wade_db(fx, WADE_DB + bank.def.footstep_db)
 			_player.pitch_scale = WADE_PITCH * randf_range(0.92, 1.08)
 			_player.play()
+
+
+## The match's event player (ClientSfx.events), or null.
+func _events() -> AudioEvents:
+	var sfx: Variant = client.get("sfx") if client != null else null
+	return sfx.events if sfx != null and is_instance_valid(sfx) else null

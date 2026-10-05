@@ -35,3 +35,12 @@ extends Resource
 @export var remote_min_speed: float = 1.5
 ## Surfaces: hardpoint platforms are metal, Y above grate_min_y is a catwalk grate; else concrete.
 @export var grate_min_y: float = 2.5
+## Replicated skill FX kind (int, AbilityWorld / SkillEntities / TrapWorld FX_*) ->
+## {"start": event id, "end": event id, "loop": event id} (each optional).
+@export var fx_events: Dictionary = {}
+## Reload: delay (s) of the magazine-out sound after the reload start.
+@export var mag_out_delay_s: float = 0.35
+## Announcer lines at or above this priority are big moments (music duck).
+@export var big_moment_line_priority: int = 80
+## DEPLOY countdown ticks during the last N seconds before Skirmish.
+@export var countdown_ticks_s: int = 5

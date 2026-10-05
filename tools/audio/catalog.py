@@ -152,8 +152,10 @@ e("combat_assist", "weapons_combat_assist", "weapons", UI, priority=1, max_voice
   vol_jitter_db=0.0, pitch_jitter=0.0)
 e("combat_own_death", "weapons_combat_death", "weapons", UI, priority=0, max_voices=1, owner_filter=OWN,
   vol_jitter_db=0.0, pitch_jitter=0.0)
-e("combat_damage_taken", "weapons_combat_damage", "weapons", WEAPONS, priority=1, max_voices=2, cooldown_ms=80,
-  owner_filter=OWN)
+# Damage taken is placed 1.5 m from the listener toward the attacker (3D) so the
+# spatializer pans it; unit_size 1.5 keeps it at 0 dB there.
+e("combat_damage_taken", "weapons_combat_damage", "weapons", WEAPONS, spatial=S3D, max_distance_m=0.0,
+  unit_size=1.5, priority=1, max_voices=2, cooldown_ms=80, owner_filter=OWN)
 e("combat_heartbeat", "weapons_combat_heartbeat", "weapons", UI, priority=0, max_voices=1, owner_filter=OWN,
   vol_jitter_db=0.0, pitch_jitter=0.0, cooldown_ms=700)
 
