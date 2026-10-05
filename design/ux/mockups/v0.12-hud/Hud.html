@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>Cybergram: in-match HUD v0.12 (mockup)</title>
+<!-- Fonts: the repo's own files first (works offline inside the checkout), Google Fonts as fallback. -->
+<style>
+@font-face{font-family:'Chakra Petch';font-weight:500;src:url('../../../../assets/fonts/chakrapetch/ChakraPetch-Medium.ttf')}
+@font-face{font-family:'Chakra Petch';font-weight:600;src:url('../../../../assets/fonts/chakrapetch/ChakraPetch-SemiBold.ttf')}
+@font-face{font-family:'Chakra Petch';font-weight:700;src:url('../../../../assets/fonts/chakrapetch/ChakraPetch-Bold.ttf')}
+@font-face{font-family:'IBM Plex Sans';font-weight:100 700;src:url('../../../../assets/fonts/ibmplexsans/IBMPlexSans-Variable.ttf')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;src:url('../../../../assets/fonts/ibmplexmono/IBMPlexMono-Medium.ttf')}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens (assets/ui/ui_kit_tokens.tres + HudPalette) ---------- */
+:root{
+  --ink:#0B1015; --deep:#080C10; --rail:#0D1318; --hair:#1E272D; --hair2:#2A3238;
+  --brass:#C2A267; --brass-hi:#EAD7A8; --brass-dim:#6B5A38;
+  --teal:#4FB8B0; --warn:#D0904E;
+  --text:#ECE6D6; --muted:#9AA3A8; --dim:#6C757A;
+  --ally:#2E86FF; --enemy:#FF5A1F; --dmg:#FF4A3D; --neutral:#ECE6D6;
+  --scrim:rgba(8,12,16,.62);
+  --disp:'Chakra Petch',sans-serif; --body:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --cut:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+  --cut-s:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+/* colour-blind preset (HudPalette DEUTERANOPIA) */
+.cb{--ally:#2B6CFF;--enemy:#FFB000;--dmg:#FFB000}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:#05080B;color:var(--text);font-family:var(--body);overflow-x:hidden}
+body{min-width:1280px;width:1280px;margin:0 auto}
+
+/* ---------- page chrome (outside the artboard) ---------- */
+.chrome{padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px}
+.chrome h1{margin:0;font:600 13px/1 var(--disp);letter-spacing:.3em;color:var(--brass);text-transform:uppercase}
+.chrome h1 span{color:var(--dim);letter-spacing:.16em;margin-left:10px}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.bar .lbl{font:600 11px var(--disp);letter-spacing:.22em;color:var(--dim);margin-right:4px;min-width:74px}
+.tg{height:28px;padding:0 12px;border:1px solid var(--hair2);background:transparent;color:var(--muted);font:600 11px var(--disp);letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+.tg:hover{color:var(--text);border-color:var(--muted)}
+.tg[aria-pressed=true]{color:var(--ink);background:var(--brass);border-color:var(--brass)}
+.tg:focus-visible{outline:1px solid var(--brass-hi);outline-offset:2px}
+.note{font-size:12px;color:var(--dim)}
+
+/* ---------- artboard ---------- */
+#hud{position:relative;width:1280px;height:720px;overflow:hidden;background:var(--ink);font-family:var(--body)}
+#bg{position:absolute;inset:-8px;background:url('bg_lane_center_market.png') center/cover;filter:blur(1.2px) brightness(.86) saturate(.95);transition:filter .4s}
+.s-dead #bg{filter:blur(2px) grayscale(.9) brightness(.45)}
+.s-tab #bg,.s-armory #bg{filter:blur(4px) brightness(.55)}
+.s-end #bg{filter:blur(3px) brightness(.5) saturate(.6)}
+.layer{position:absolute;inset:0;pointer-events:none}
+.layer *{pointer-events:auto}
+/* soft scrims instead of boxes: top and bottom bands only */
+.scrim-top{position:absolute;left:0;right:0;top:0;height:150px;background:linear-gradient(rgba(8,12,16,.62),rgba(8,12,16,0))}
+.scrim-bot{position:absolute;left:0;right:0;bottom:0;height:190px;background:linear-gradient(rgba(8,12,16,0),rgba(8,12,16,.66))}
+
+.cap{font:600 11px/1 var(--disp);letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--disp);font-weight:600;font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+.sh{text-shadow:0 1px 2px rgba(0,0,0,.75),0 0 8px rgba(8,12,16,.6)}
+.fade{transition:opacity .35s ease}
+.rm *{transition:none!important;animation:none!important}
+
+/* ---------- top centre (v0.12b): match header + front, variants A / B / C ---------- */
+#top{position:absolute;left:300px;top:0;width:680px;height:150px;--phc:var(--brass-hi)}
+#top.ph-ot{--phc:var(--warn)}
+#top.ph-sd{--phc:var(--dmg)}
+#top .back{position:absolute;left:40px;right:40px;top:-30px;height:180px;background:radial-gradient(closest-side,rgba(8,12,16,.55),rgba(8,12,16,0));pointer-events:none}
+.tm-row{position:absolute;left:0;right:0;top:8px;display:flex;justify-content:center;align-items:flex-start;gap:14px}
+.tm-lanes{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center}
+.idle .tm-lanes{opacity:.42}
+.cap-p{animation:capP 1.6s ease-in-out infinite}
+.cap-ot{animation:capP .9s ease-in-out infinite}
+@keyframes capP{50%{opacity:.4}}
+.exp-p{animation:capP 1.8s ease-in-out infinite}
+/* clock */
+.ck{text-align:center;white-space:nowrap}
+.ck .t{font:600 32px/1 var(--disp);letter-spacing:.03em;color:var(--text)}
+.ph-ot .ck .t{color:var(--warn)}
+.ck .p{margin-top:6px;font:600 10px/1 var(--disp);letter-spacing:.26em;color:var(--phc)}
+.ck .n{margin-top:4px;font:500 10px/1 var(--mono);color:var(--muted)}
+/* A: crest plate + framed bars */
+.plateA{position:relative;width:160px;height:76px;padding-top:8px;clip-path:polygon(0 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px));background:linear-gradient(rgba(11,16,21,.86),rgba(11,16,21,.66));box-shadow:inset 0 2px 0 var(--phc)}
+.plateA .tk{position:absolute;top:6px;width:6px;height:6px;border-top:1px solid var(--brass);opacity:.8}
+.plateA .tk.l{left:6px;border-left:1px solid var(--brass)}.plateA .tk.r{right:6px;border-right:1px solid var(--brass)}
+.ulA{width:226px;padding-top:6px}
+.ulA .hd{display:flex;align-items:center;gap:7px;height:18px}
+.ulA.R .hd{flex-direction:row-reverse}
+.ulA .nm{font:600 12px var(--disp);letter-spacing:.24em}
+.ulA .role{font:500 9px var(--mono);color:var(--dim);letter-spacing:.08em}
+.ulA .pct{margin-left:auto;font:600 20px var(--disp);color:var(--text)}
+.ulA.R .pct{margin-left:0;margin-right:auto}
+.ulA .pct small{font-size:11px;color:var(--muted)}
+.ulA .fr{position:relative;margin-top:6px;height:14px;background:var(--brass-dim)}
+.ulA.L .fr,.ulA.L .fr .in{clip-path:polygon(7px 0,100% 0,100% 100%,0 100%,0 7px)}
+.ulA.R .fr,.ulA.R .fr .in{clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%)}
+.ulA .fr .in{position:absolute;inset:1px;background:rgba(8,12,16,.8)}
+.ulA .fill{position:absolute;top:2px;bottom:2px}
+.ulA .lost{position:absolute;top:2px;bottom:2px;background:rgba(236,230,214,.22)}
+.ulA .seg{position:absolute;top:0;bottom:0;width:2px;background:rgba(8,12,16,.95)}
+.ulA .notch{position:absolute;top:-5px;width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid var(--brass);margin-left:-3px}
+.hatchov{position:absolute;inset:2px;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 2px,transparent 2px 6px)}
+.expl{display:inline-flex;align-items:center;gap:5px;height:16px;padding:0 6px;font:700 9.5px var(--disp);letter-spacing:.2em;color:var(--text);border:1px solid currentColor}
+/* B: ribbons */
+.ulB{width:236px;padding-top:4px}
+.ulB .hd{display:flex;align-items:baseline;gap:7px}
+.ulB.R .hd{flex-direction:row-reverse}
+.ulB .nm{font:600 11px var(--disp);letter-spacing:.24em}
+.ulB .pct{margin-left:auto;font:600 17px var(--disp)}
+.ulB.R .pct{margin-left:0;margin-right:auto}
+.ulB .rb{position:relative;margin-top:5px;height:7px;background:rgba(236,230,214,.14)}
+.ulB.L .rb{clip-path:polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.ulB.R .rb{clip-path:polygon(0 0,100% 0,100% 100%,7px 100%)}
+.ulB .fill,.ulB .lost{position:absolute;top:0;bottom:0}
+.ulB .lost{background:rgba(236,230,214,.3)}
+.ulB .seg{position:absolute;top:0;bottom:0;width:2px;background:rgba(8,12,16,.9)}
+.ulB .sub{margin-top:5px;display:flex;gap:6px;font:500 9px var(--mono);color:var(--dim)}
+.ulB.R .sub{justify-content:flex-end}
+.ckB{width:150px;padding-top:2px}
+.ckB .t{font-size:32px}
+/* C: minimal */
+.ulC{width:180px;padding-top:6px}
+.ulC.R{text-align:right}
+.ulC .nm{font:600 10px var(--disp);letter-spacing:.26em}
+.ulC .big{font:600 26px/1 var(--disp);color:var(--text);margin-top:4px}
+.ulC .big small{font-size:12px;color:var(--muted)}
+.ulC .rb{position:relative;margin-top:6px;height:3px;background:rgba(236,230,214,.14)}
+.ulC .fill,.ulC .lost{position:absolute;top:0;bottom:0}
+.ulC .lost{background:rgba(236,230,214,.3)}
+.ckC{width:170px}
+.lnC{display:flex;align-items:center;gap:20px}
+.lnC .g{display:flex;align-items:center;gap:6px}
+.lnC .k{font:500 10px var(--mono);color:var(--dim)}
+/* lane labels */
+.lk{font:500 10px var(--mono);color:var(--muted);width:14px}
+.midg{position:absolute;left:50%;top:-4px;bottom:-4px;width:0;border-left:1px dashed rgba(236,230,214,.22)}
+.lhd{display:flex;justify-content:space-between;width:100%;font:600 8.5px var(--disp);letter-spacing:.24em;color:var(--dim)}
+/* sudden death pips */
+.sdrow{display:flex;align-items:center;gap:16px;font:600 10px var(--disp);letter-spacing:.22em}
+.sdrow .pp{display:flex;gap:4px}
+.sdrow .rt{font:600 13px var(--disp);letter-spacing:.06em;color:var(--text)}
+.sdrow .rt small{font:500 10px var(--mono);color:var(--muted);letter-spacing:0}
+.s-ring #squad,.s-ring #lumenrow,.s-ring #objective{display:none}
+
+/* ---------- top left: minimap ---------- */
+#minimap{position:absolute;left:24px;top:18px;width:212px}
+#minimap .map{position:relative;width:212px;height:136px;background:radial-gradient(closest-side,rgba(8,12,16,.6),rgba(8,12,16,.35) 70%,rgba(8,12,16,0));}
+.corner{position:absolute;width:10px;height:10px;border-color:var(--brass);border-style:solid;opacity:.7}
+.corner.tl{left:0;top:0;border-width:1px 0 0 1px}.corner.tr{right:0;top:0;border-width:1px 1px 0 0}
+.corner.bl{left:0;bottom:0;border-width:0 0 1px 1px}.corner.br{right:0;bottom:0;border-width:0 1px 1px 0}
+#minimap .meta{display:flex;justify-content:space-between;margin-top:6px}
+
+/* ---------- top right: kill feed ---------- */
+#feed{position:absolute;right:24px;top:20px;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.kf{display:flex;align-items:center;gap:7px;height:22px;padding:0 8px;font-size:13px;font-weight:500;background:linear-gradient(90deg,rgba(8,12,16,0),rgba(8,12,16,.5) 30%)}
+.kf.me{box-shadow:inset -2px 0 0 var(--brass)}
+.kf .w{width:18px;height:10px;opacity:.85}
+.kf .you{color:var(--brass-hi)}
+#netgraph{display:none;position:absolute;right:24px;top:112px;width:170px;font:500 10px/1.5 var(--mono);color:var(--muted);text-align:right}
+.net #netgraph{display:block}
+
+/* ---------- right middle: objective + toasts ---------- */
+#objective{position:absolute;right:24px;top:196px;width:244px;padding:2px 0 2px 12px;border-left:2px solid var(--ally)}
+#objective .top{display:flex;align-items:center;gap:8px}
+#objective .verb{font:600 15px var(--disp);letter-spacing:.2em}
+#objective .where{font-size:12px;color:var(--muted);margin-left:auto}
+#objective .pbar{margin-top:8px;height:3px;background:rgba(236,230,214,.14);position:relative}
+#objective .pbar i{position:absolute;left:0;top:0;bottom:0;background:var(--ally)}
+#objective .st{margin-top:7px;display:flex;align-items:center;gap:10px;font:600 11px var(--disp);letter-spacing:.2em}
+#objective .st .c{color:var(--text)}
+#objective .pres{margin-left:auto;font:500 11px var(--mono);color:var(--muted)}
+#objective .cue{margin-top:8px;font-size:12px;color:var(--muted)}
+#objective .cue b{color:var(--enemy);font-weight:600}
+.pulse{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+.fx0 .pulse{animation:none}
+#toasts{position:absolute;right:24px;top:318px;width:244px;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.toast{font-size:12px;color:var(--text);padding:5px 10px;background:linear-gradient(90deg,rgba(8,12,16,0),rgba(8,12,16,.6) 25%);border-right:2px solid var(--teal)}
+
+/* ---------- bottom left: squad + vitals ---------- */
+#squad{position:absolute;left:24px;bottom:132px;display:flex;align-items:flex-end;gap:14px}
+#squad .hd{display:flex;flex-direction:column;gap:5px}
+#squad .cmd{font:600 12px var(--disp);letter-spacing:.2em;color:var(--text)}
+.pip{width:30px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.pip .g{height:14px}
+.pip .hp{width:24px;height:2px;background:rgba(236,230,214,.18);position:relative}
+.pip .hp i{position:absolute;left:0;top:0;bottom:0;background:var(--text)}
+.pip .s{font:500 10px var(--mono);color:var(--muted)}
+.pip.em .g{opacity:.3}
+
+#vitals{position:absolute;left:24px;bottom:22px;display:flex;align-items:flex-end;gap:16px}
+.ring{position:relative;width:76px;height:76px}
+.ring .face{position:absolute;inset:7px;border-radius:50%;overflow:hidden;background:#111A20}
+.ring .face img{width:100%;height:100%;display:block}
+.ring svg{position:absolute;inset:0}
+.ring .lv{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);min-width:22px;height:18px;padding:0 4px;background:var(--ink);border:1px solid var(--brass);font:600 12px/16px var(--disp);color:var(--brass-hi);text-align:center;clip-path:var(--cut-s)}
+.hpblk{display:flex;flex-direction:column;gap:6px;padding-bottom:2px}
+.hpnum{display:flex;align-items:baseline;gap:6px}
+.hpnum .cur{font:600 34px/1 var(--disp);color:var(--text)}
+.hpnum .max{font:600 15px var(--disp);color:var(--muted)}
+.hpnum .shd{font:600 13px var(--disp);color:var(--text);margin-left:4px;padding:0 5px;border:1px solid rgba(236,230,214,.7)}
+.status{display:flex;gap:6px;margin-left:8px}
+.chip{font:600 10px/16px var(--disp);letter-spacing:.16em;padding:0 6px;color:var(--teal);border:1px solid rgba(79,184,176,.55)}
+.chip.bad{color:var(--warn);border-color:rgba(208,144,78,.6)}
+.hpbar{display:flex;gap:2px;width:236px;height:7px}
+.hpbar i{flex:1;background:rgba(236,230,214,.16);position:relative;overflow:hidden}
+.hpbar i b{position:absolute;left:0;top:0;bottom:0;background:var(--text)}
+.hpbar i.sh b{background:transparent;outline:1px solid #fff;outline-offset:-1px}
+#lumenrow{display:flex;align-items:center;gap:14px;margin-top:2px}
+.lumen{display:flex;align-items:center;gap:6px;font:600 15px var(--disp);color:var(--brass-hi)}
+.lumen small{font:500 11px var(--mono);color:var(--brass)}
+.res{font:600 11px var(--disp);letter-spacing:.18em;color:var(--muted)}
+.sp{height:20px;padding:0 9px;font:700 11px/20px var(--disp);letter-spacing:.16em;color:var(--ink);background:var(--brass);clip-path:var(--cut-s)}
+/* low HP */
+.s-low .hpnum .cur{color:var(--dmg)}
+.s-low .hpbar i b{background:var(--dmg)}
+.s-low .hpbar{outline:1px solid var(--dmg);outline-offset:2px}
+
+/* ---------- bottom centre: abilities ---------- */
+#abilities{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:flex-end;gap:12px}
+.ab{position:relative;width:58px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pips{display:flex;gap:4px;height:6px;align-items:center}
+.pips i{width:5px;height:5px;transform:rotate(45deg);border:1px solid var(--brass-dim)}
+.pips i.on{background:var(--brass);border-color:var(--brass)}
+.slot{position:relative;width:58px;height:58px;clip-path:var(--cut);background:rgba(194,162,103,.55)}
+.slot .in{position:absolute;inset:1px;clip-path:var(--cut);background:rgba(8,12,16,.66);display:flex;align-items:center;justify-content:center}
+.slot svg.ic{width:30px;height:30px;stroke:var(--text);fill:none;stroke-width:1.6}
+.slot .cd{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font:600 18px var(--disp);color:var(--text);text-shadow:0 0 4px #080C10,0 1px 2px #080C10}
+.slot.cool{background:rgba(236,230,214,.18)}
+.slot.cool svg.ic{opacity:.35}
+.slot.cool .cd{display:flex}
+.slot.lock{background:rgba(236,230,214,.14)}
+.slot.lock svg.ic{opacity:.22}
+.slot .lk{position:absolute;inset:0;display:none;align-items:center;justify-content:center}
+.slot.lock .lk{display:flex}
+.slot.act{background:var(--teal)}
+.slot.ult{background:linear-gradient(var(--brass-hi),var(--brass))}
+.slot.ult.cool,.slot.ult.lock{background:rgba(236,230,214,.18)}
+.plus{position:absolute;right:-3px;top:8px;width:14px;height:14px;font:700 12px/13px var(--disp);text-align:center;color:var(--ink);background:var(--brass);clip-path:var(--cut-s);z-index:2}
+.key{min-width:20px;height:20px;padding:0 4px;border:1px solid var(--brass-dim);font:500 11px/18px var(--mono);color:var(--brass-hi);text-align:center;background:rgba(8,12,16,.45)}
+.gate{font:600 10px/6px var(--disp);letter-spacing:.14em;color:var(--muted)}
+.ab.med{width:44px}
+.ab.med .slot{width:44px;height:44px;background:rgba(236,230,214,.28)}
+.ab.med .cnt{position:absolute;right:4px;bottom:2px;font:600 11px var(--disp);color:var(--text)}
+.sep{width:1px;height:40px;background:var(--hair2);margin:0 2px 26px}
+
+/* ---------- bottom right: weapon ---------- */
+#weapon{position:absolute;right:24px;bottom:22px;width:262px;display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+#weapon .top{display:flex;width:100%;align-items:baseline;justify-content:space-between}
+#weapon .wname{font:600 13px var(--disp);letter-spacing:.24em;color:var(--text)}
+#weapon .big{display:flex;align-items:baseline;gap:4px}
+#weapon .big .n{font:600 36px/1 var(--disp)}
+#weapon .big .u{font:600 14px var(--disp);color:var(--muted)}
+.mana{display:flex;gap:2px;width:100%;height:5px}
+.mana i{flex:1;background:rgba(236,230,214,.85)}
+.mana i.off{background:rgba(236,230,214,.16)}
+.mounts{display:flex;gap:6px;width:100%}
+.mt{flex:1;height:26px;padding:0 7px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--brass-dim);font:600 9.5px var(--disp);letter-spacing:.1em;gap:4px;color:var(--brass-hi)}
+.mt.em{border:1px dashed var(--hair2);color:var(--dim)}
+.mt .tp{display:flex;gap:3px}
+.mt .tp i{width:4px;height:4px;transform:rotate(45deg);border:1px solid var(--brass-dim)}
+.mt .tp i.on{background:var(--brass);border-color:var(--brass)}
+
+/* ---------- centre ---------- */
+#centre{position:absolute;left:640px;top:360px;width:0;height:0}
+.xh{position:absolute;background:var(--text);box-shadow:0 0 0 1px rgba(8,12,16,.75);transition:transform .12s ease-out}
+.xh.h{width:9px;height:2px;top:-1px}.xh.v{width:2px;height:9px;left:-1px}
+.xh.l{left:calc(-1 * var(--gap) - 9px)}.xh.r{left:var(--gap)}
+.xh.t{top:calc(-1 * var(--gap) - 9px)}.xh.b{top:var(--gap)}
+#centre{--gap:6px}
+.s-cast #centre{--gap:13px}
+.cdot{position:absolute;left:-1.5px;top:-1.5px;width:3px;height:3px;border-radius:50%;background:var(--brass-hi);box-shadow:0 0 0 1px rgba(8,12,16,.8)}
+.spread{position:absolute;border-radius:50%;border:1px solid rgba(236,230,214,.22);left:calc(-1 * var(--gap) - 4px);top:calc(-1 * var(--gap) - 4px);width:calc(2 * var(--gap) + 8px);height:calc(2 * var(--gap) + 8px);opacity:0}
+.s-cast .spread{opacity:1}
+.hit{position:absolute;left:-11px;top:-11px;width:22px;height:22px;display:none}
+.s-cast .hit{display:block}
+#arcs{position:absolute;left:-130px;top:-130px;width:260px;height:260px;display:none}
+.s-dmg #arcs{display:block}
+#ringwarn{display:none;position:absolute;left:290px;top:214px;width:700px;padding:14px 0 16px;text-align:center;background:radial-gradient(closest-side,rgba(8,12,16,.72),rgba(8,12,16,0))}
+.s-ring #ringwarn{display:block}
+#ringwarn .t{display:flex;align-items:center;justify-content:center;gap:16px;font:700 22px var(--disp);letter-spacing:.32em;color:var(--dmg)}
+#ringwarn .t::before,#ringwarn .t::after{content:"";width:90px;height:1px;background:linear-gradient(90deg,transparent,var(--dmg))}
+#ringwarn .t::after{transform:scaleX(-1)}
+#ringwarn .s{margin-top:6px;font-size:13px;color:var(--text)}
+#ringwarn .s b{font:600 13px var(--disp);color:var(--dmg)}
+.dnum{position:absolute;left:806px;top:276px;font:700 17px var(--disp);color:#fff;display:none}
+.dnum.hs{color:#FFD447}
+.s-cast .dnum{display:block}
+
+/* world plates (WorldOverlay) */
+.plate{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px}
+.plate .nm{font:500 11px var(--body);color:var(--text);display:flex;gap:4px;align-items:center}
+.plate .pb{width:64px;height:4px;background:rgba(8,12,16,.6);position:relative}
+.plate .pb i{position:absolute;left:0;top:0;bottom:0;background:var(--enemy)}
+
+/* ---------- overlays ---------- */
+.vig{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s}
+#comfortvig{background:radial-gradient(ellipse 72% 70% at 50% 50%,rgba(11,16,21,0) 55%,rgba(11,16,21,.78) 100%)}
+.comfort #comfortvig{opacity:1}
+#dmgvig{background:radial-gradient(ellipse 80% 80% at 70% 50%,transparent 60%,var(--dmg) 140%)}
+.s-dmg #dmgvig{opacity:.55}
+#lowvig{background:radial-gradient(ellipse 75% 75% at 50% 50%,transparent 58%,rgba(255,74,61,.38) 120%);box-shadow:inset 0 0 0 2px rgba(255,74,61,.5)}
+.s-low #lowvig{opacity:1}
+#ringvig{background:radial-gradient(ellipse 80% 80% at 50% 50%,transparent 55%,rgba(255,74,61,.32) 120%)}
+.s-ring #ringvig{opacity:1}
+.fx0 #dmgvig,.fx0 #lowvig,.fx0 #ringvig{opacity:0!important}
+.fx0 #lowvig{box-shadow:none}
+
+/* state visibility: what hides per context (hud.md §14) */
+.s-tab #vitals .ring,.s-tab #lumenrow{display:none}
+.s-dead .gp,.s-tab .gp-tab,.s-armory .gp-shop,.s-end .gp{opacity:0!important;visibility:hidden}
+
+/* idle fade */
+.idle #squad,.idle .mounts,.idle #minimap .meta{opacity:.42}
+.idle .key,.idle #lumenrow .res,.idle .pips{opacity:.55}
+.idle #objective .cue,.idle #objective .pbar,.idle #objective .st{display:none}
+.idle #feed{opacity:0}
+
+/* death */
+#death{display:none;position:absolute;inset:0;align-items:center;justify-content:center;flex-direction:column}
+.s-dead #death{display:flex}
+#death .by{display:flex;align-items:center;gap:14px}
+#death .face{width:56px;height:56px;border-radius:50%;overflow:hidden;background:#111A20;box-shadow:0 0 0 2px var(--enemy)}
+#death .face img{width:100%;height:100%;display:block}
+#death .killer{font:600 24px var(--disp);letter-spacing:.1em;color:var(--text);display:flex;align-items:center;gap:8px}
+#death .rsp{margin-top:34px;text-align:center}
+#death .rsp .n{font:600 84px/1 var(--disp);color:var(--brass-hi)}
+#death .opts{margin-top:30px;display:flex;gap:16px}
+.opt{width:236px;padding:12px 16px;border:1px solid var(--hair2);clip-path:var(--cut);background:rgba(8,12,16,.55);display:flex;gap:12px;align-items:flex-start}
+.opt.sel{border-color:var(--brass);box-shadow:inset 0 0 0 1px var(--brass)}
+.opt .t{font:600 13px var(--disp);letter-spacing:.2em;color:var(--text)}
+.opt .d{font-size:12px;color:var(--muted);margin-top:4px}
+.opt.off .t,.opt.off .key{opacity:.45}
+.opt.off .d{color:var(--warn)}
+#death .hint{margin-top:22px;font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center}
+
+/* scoreboard */
+#score{display:none;position:absolute;inset:0;background:rgba(8,12,16,.6)}
+.s-tab #score{display:block}
+#score .wrap{position:absolute;left:150px;top:56px;width:980px}
+#score .hdr{display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--hair2)}
+#score table{width:100%;border-collapse:collapse;margin-top:6px}
+#score th{font:600 10px var(--disp);letter-spacing:.22em;color:var(--dim);text-align:left;padding:8px 8px 6px;font-weight:600}
+#score td{padding:0 8px;height:30px;font-size:13px;border-bottom:1px solid rgba(30,39,45,.8)}
+#score td.n{font:600 14px var(--disp);text-align:right}
+#score th.n{text-align:right}
+#score tr.me td{background:rgba(194,162,103,.10)}
+#score tr.me td:first-child{box-shadow:inset 2px 0 0 var(--brass)}
+#score tr.dead td{color:var(--dim)}
+#score .who{display:flex;align-items:center;gap:10px}
+#score .pf{width:26px;height:26px;border-radius:50%;overflow:hidden;background:#111A20;flex:none}
+#score .pf img{width:100%;height:100%;display:block}
+#score .hn{color:var(--muted);font-size:12px}
+#score .tag{font:500 10px var(--mono);color:var(--dim);border:1px solid var(--hair2);padding:0 4px}
+#score .tl{display:flex;align-items:center;gap:10px;margin-top:16px}
+#score .foot{margin-top:18px;display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:28px;padding-top:14px;border-top:1px solid var(--hair2)}
+#score .foot .ln{display:flex;align-items:center;gap:6px;height:20px;font-size:12px;color:var(--muted)}
+
+/* armory */
+#armory{display:none;position:absolute;left:0;top:92px;bottom:136px;width:780px;background:linear-gradient(90deg,rgba(8,12,16,.94) 70%,rgba(8,12,16,.72));padding:28px 32px}
+.s-armory #armory{display:block}
+#armory .hd{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--hair2)}
+#armory .title{font:600 20px var(--disp);letter-spacing:.3em;color:var(--text);padding-bottom:12px}
+#armory .tabs{display:flex;gap:2px}
+#armory .tab{position:relative;padding:0 12px 14px;font:600 11px var(--disp);letter-spacing:.2em;color:var(--muted)}
+#armory .tab.on{color:var(--text)}
+#armory .tab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;background:var(--brass)}
+#armory .wallet{margin-left:auto;padding-bottom:12px}
+#armory .body{display:grid;grid-template-columns:1fr 250px;gap:26px;margin-top:20px}
+#armory .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.item{position:relative;height:118px;padding:12px;clip-path:var(--cut);background:rgba(13,19,24,.9);box-shadow:inset 0 0 0 1px var(--hair2);display:flex;flex-direction:column;justify-content:space-between}
+.item.sel{box-shadow:inset 0 0 0 1px var(--brass)}
+.item.poor{opacity:.45}
+.item .nm{font-size:12px;color:var(--text);font-weight:500}
+.item .pr{font:600 13px var(--disp);color:var(--brass-hi)}
+.item .own{position:absolute;right:10px;top:10px;font:500 10px var(--mono);color:var(--teal)}
+.item .rec{position:absolute;right:10px;top:10px;font:600 9px var(--disp);letter-spacing:.18em;color:var(--brass)}
+#armory .det .t{font:600 18px var(--disp);letter-spacing:.12em}
+#armory .det p{font-size:13px;line-height:1.5;color:var(--muted);margin:10px 0 14px}
+#armory .tier{display:flex;justify-content:space-between;height:28px;align-items:center;border-bottom:1px solid var(--hair);font-size:12px;color:var(--muted)}
+#armory .tier b{font:600 13px var(--disp);color:var(--brass-hi)}
+.btn{margin-top:18px;height:40px;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--brass);color:var(--ink);font:700 14px var(--disp);letter-spacing:.22em;clip-path:var(--cut)}
+.btn .key{border-color:rgba(11,16,21,.5);color:var(--ink);background:transparent}
+.btn2{margin-top:8px;height:34px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid var(--hair2);color:var(--muted);font:600 12px var(--disp);letter-spacing:.2em}
+#armory .build{margin-top:18px;display:flex;align-items:center;gap:8px}
+
+/* match end */
+#endb{display:none;position:absolute;left:0;right:0;top:150px;text-align:center}
+.s-end #endb{display:block}
+#endb .t{display:flex;align-items:center;justify-content:center;gap:26px;font:600 72px/1 var(--disp);letter-spacing:.34em;color:var(--brass-hi);padding-left:.34em}
+#endb .t::before,#endb .t::after{content:"";width:220px;height:1px;background:linear-gradient(90deg,transparent,var(--brass))}
+#endb .t::after{transform:scaleX(-1)}
+#endb .r{margin-top:16px;font-size:16px;color:var(--text)}
+#endb .s{margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <h1>Cybergram · In-match HUD v0.12 <span>mockup · 1080p layout at 2/3 scale · Vesper Loom, Concord</span></h1>
+  <div class="bar" role="group" aria-label="HUD state">
+    <span class="lbl">STATE</span>
+    <button class="tg" data-s="normal" aria-pressed="true">Normal</button>
+    <button class="tg" data-s="dmg">Damage from left</button>
+    <button class="tg" data-s="low">Low HP</button>
+    <button class="tg" data-s="cast">Casting / cooldowns</button>
+    <button class="tg" data-s="locked">Ability locked</button>
+    <button class="tg" data-s="ring">Sudden Death: outside ring</button>
+    <button class="tg" data-s="dead">Dead + respawn</button>
+    <button class="tg" data-s="tab">Tab scoreboard</button>
+    <button class="tg" data-s="armory">Armory</button>
+    <button class="tg" data-s="end">Match end</button>
+  </div>
+  <div class="bar" role="group" aria-label="Modifiers">
+    <span class="lbl">MODIFY</span>
+    <button class="tg" data-m="cb" aria-pressed="false">Colour-blind (Deuteranopia)</button>
+    <button class="tg" data-m="fx0" aria-pressed="false">Effects 0%</button>
+    <button class="tg" data-m="idle" aria-pressed="false">Idle fade</button>
+    <button class="tg" data-m="comfort" aria-pressed="false">Comfort vignette</button>
+    <button class="tg" data-m="net" aria-pressed="false">Net graph</button>
+    <button class="tg" data-m="rm" aria-pressed="false">Reduce motion</button>
+    <span class="note">Keys: 1–0 states · Tab holds scoreboard</span>
+  </div>
+  <div class="bar" role="group" aria-label="Top-centre variant">
+    <span class="lbl">TOP-MID</span>
+    <button class="tg" data-v="D">D · Approved</button>
+    <button class="tg" data-v="A">A · Crest</button>
+    <button class="tg" data-v="B">B · Tug</button>
+    <button class="tg" data-v="C">C · Minimal</button>
+    <span style="width:14px"></span>
+    <button class="tg" data-p="auto">Skirmish</button>
+    <button class="tg" data-p="ot">Overtime</button>
+    <button class="tg" data-p="sd">Sudden Death</button>
+    <span style="width:14px"></span>
+    <button class="tg" data-hot="1">Contested / capturing</button>
+  </div>
+</div>
+
+<div id="hud" class="s-normal">
+  <div id="bg"></div>
+
+  <!-- world-anchored plates (WorldOverlay), under the HUD -->
+  <div class="layer gp gp-tab gp-shop">
+    <div class="plate" style="left:724px;top:300px"><div class="nm"><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 0L10 5 5 10 0 5z" style="fill:var(--enemy)"/></svg>Ryker Vance</div><div class="pb"><i style="width:58%"></i></div></div>
+    <div class="plate" style="left:452px;top:318px"><div class="nm" style="color:var(--muted)"><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 1L10 8 5 5.5 0 8z" style="fill:var(--ally)"/></svg>Brannoc</div><div class="pb"><i style="width:90%;background:var(--ally)"></i></div></div>
+    <div class="dnum hs sh">38!</div>
+  </div>
+
+  <div class="vig" id="comfortvig"></div>
+  <div class="vig" id="dmgvig"></div>
+  <div class="vig" id="lowvig"></div>
+  <div class="vig" id="ringvig"></div>
+
+  <div class="layer">
+    <div class="scrim-top gp-tab gp-shop"></div>
+    <div class="scrim-bot gp gp-shop"></div>
+
+    <!-- TOP LEFT: minimap (LaneMinimap) -->
+    <div id="minimap" class="gp gp-tab gp-shop fade">
+      <div class="map"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span><svg id="mm" width="212" height="136" viewBox="0 0 212 136"></svg></div>
+      <div class="meta sh"><span class="cap">Shardline</span><span class="cap">Wave <span class="num" style="color:var(--text)">0:18</span></span></div>
+    </div>
+
+    <!-- TOP CENTRE: match header + front (MatchHeader + FrontStrip), variant A / B / C -->
+    <div id="top" class="sh gp-tab"></div>
+
+    <!-- TOP RIGHT: kill feed (KillFeed) + net graph (NetGraph) -->
+    <div id="feed" class="gp gp-tab gp-shop fade sh">
+      <div class="kf me"><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 1L10 8 5 5.5 0 8z" style="fill:var(--ally)"/></svg><span class="you">You</span><svg class="w" viewBox="0 0 18 10"><path d="M0 5h12M12 1l5 4-5 4" fill="none" stroke="#ECE6D6" stroke-width="1.4"/></svg><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 0L10 5 5 10 0 5z" style="fill:var(--enemy)"/></svg><span>Hex</span></div>
+      <div class="kf"><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 0L10 5 5 10 0 5z" style="fill:var(--enemy)"/></svg><span>Sable</span><svg class="w" viewBox="0 0 18 10"><path d="M0 5h12M12 1l5 4-5 4" fill="none" stroke="#ECE6D6" stroke-width="1.4"/></svg><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 1L10 8 5 5.5 0 8z" style="fill:var(--ally)"/></svg><span>Juniper Quill</span></div>
+      <div class="kf" style="opacity:.55"><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 1L10 8 5 5.5 0 8z" style="fill:var(--ally)"/></svg><span>Liora Vale</span><svg class="w" viewBox="0 0 18 10"><path d="M0 5h12M12 1l5 4-5 4" fill="none" stroke="#ECE6D6" stroke-width="1.4"/></svg><svg width="9" height="9" viewBox="0 0 10 10"><path d="M5 0L10 5 5 10 0 5z" style="fill:var(--enemy)"/></svg><span>Vesper Loom</span></div>
+    </div>
+    <div id="netgraph" class="sh">
+      <svg width="170" height="22" viewBox="0 0 170 22"><polyline fill="none" stroke="#4FB8B0" stroke-width="1" points="0,14 10,13 20,15 30,12 40,14 50,13 60,9 70,14 80,13 90,15 100,12 110,14 120,13 130,14 140,11 150,14 160,13 170,14"/></svg>
+      RTT 42 ms · JIT 3 ms · LOSS 0.0%<br>TICK 60 · SNAP 20 Hz · FPS 144
+    </div>
+
+    <!-- RIGHT MIDDLE: objective (ObjectiveTracker + TaskCue) and toasts (ToastLane) -->
+    <div id="objective" class="gp gp-tab gp-shop fade sh">
+      <div class="top">
+        <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" style="fill:var(--ally)"/><circle cx="8" cy="8" r="2.5" fill="#0B1015"/></svg>
+        <span class="verb">HOLD</span><span class="where">C-MID · in zone</span>
+      </div>
+      <div class="pbar"><i style="width:62%"></i></div>
+      <div class="st"><span class="c pulse">CONTESTED</span><span class="num" style="color:var(--text)">62%</span><span class="pres">▲2  ◆1</span></div>
+      <div class="cue">Mana Cell: <b>enemy carrier</b> near S-BO</div>
+    </div>
+    <div id="toasts" class="gp gp-tab"></div>
+
+    <!-- BOTTOM LEFT: squad (SquadStrip) -->
+    <div id="squad" class="gp gp-tab gp-shop fade sh">
+      <div class="hd"><span class="cap">Squad</span><span class="cmd">FOLLOW</span></div>
+      <div id="pips" style="display:flex;gap:2px"></div>
+    </div>
+
+    <!-- BOTTOM LEFT: vitals (VitalsPanel) -->
+    <div id="vitals" class="gp sh">
+      <div class="ring">
+        <div class="face"><img src="faces/vesper_loom.png" alt=""></div>
+        <svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="35" fill="none" stroke="rgba(236,230,214,.14)" stroke-width="2.5"/><circle cx="38" cy="38" r="35" fill="none" stroke="#C2A267" stroke-width="2.5" stroke-dasharray="220" stroke-dashoffset="88" transform="rotate(-90 38 38)"/></svg>
+        <div class="lv">7</div>
+      </div>
+      <div class="hpblk">
+        <div class="hpnum"><span class="cur num" id="hpc">212</span><span class="max num">/ 279</span><span class="shd num">+40</span>
+          <span class="status"><span class="chip" id="chip1">RALLIED</span></span></div>
+        <div class="hpbar" id="hpbar"></div>
+        <div id="lumenrow" class="fade">
+          <span class="lumen"><svg width="11" height="13" viewBox="0 0 11 13"><path d="M5.5 0L11 6.5 5.5 13 0 6.5z" fill="none" stroke="#EAD7A8" stroke-width="1.4"/><path d="M5.5 3.5L8 6.5 5.5 9.5 3 6.5z" fill="#EAD7A8"/></svg><span class="num">1,240</span><small>+35</small></span>
+          <span class="res">RES 63%</span>
+          <span class="sp">+1 SP</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM CENTRE: abilities (SkillBar) -->
+    <div id="abilities" class="gp gp-tab gp-shop"></div>
+
+    <!-- BOTTOM RIGHT: weapon (WeaponPanel) -->
+    <div id="weapon" class="gp gp-tab gp-shop sh">
+      <div class="top"><span class="wname">THREADCASTER</span><span class="cap">Mana</span></div>
+      <div class="big"><span class="n num" id="mana">86</span><span class="u">%</span></div>
+      <div class="mana" id="manabar"></div>
+      <div class="mounts fade">
+        <div class="mt">CORE<span class="tp"><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="mt">FRAME<span class="tp"><i class="on"></i><i></i><i></i></span></div>
+        <div class="mt em">CHAMBER<span class="tp"><i></i><i></i><i></i></span></div>
+      </div>
+    </div>
+
+    <!-- CENTRE (CenterFeedback + ComfortOverlay dot / arcs) -->
+    <div id="centre" class="gp gp-shop">
+      <div class="spread"></div>
+      <span class="xh h l"></span><span class="xh h r"></span><span class="xh v t"></span><span class="xh v b"></span>
+      <span class="cdot"></span>
+      <svg class="hit" viewBox="0 0 22 22"><path d="M2 2l6 6M20 2l-6 6M2 20l6-6M20 20l-6-6" stroke="#FFD447" stroke-width="2" stroke-linecap="square"/></svg>
+      <svg id="arcs" viewBox="0 0 260 260">
+        <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--dmg)" stop-opacity="0"/><stop offset=".5" style="stop-color:var(--dmg)"/><stop offset="1" style="stop-color:var(--dmg)" stop-opacity="0"/></linearGradient></defs>
+        <circle cx="130" cy="130" r="118" fill="none" stroke="rgba(236,230,214,.08)" stroke-width="1"/>
+        <path d="M 30.4 66.1 A 118 118 0 0 0 30.4 193.9" fill="none" stroke="url(#ag)" stroke-width="5" stroke-linecap="butt"/>
+        <path d="M 22 120 L 14 130 L 22 140" fill="none" style="stroke:var(--dmg)" stroke-width="2"/>
+      </svg>
+    </div>
+
+    <!-- Sudden Death warning (RingWarning) -->
+    <div id="ringwarn" class="sh">
+      <div class="t"><span class="pulse">OUTSIDE THE RING</span></div>
+      <div class="s">Return inside · <b>12 HP/s</b> · ring closes in <b style="color:var(--text)">0:41</b></div>
+    </div>
+
+    <!-- DEATH (DeathScreen) -->
+    <div id="death" class="sh">
+      <div class="cap" style="letter-spacing:.3em">Killed by</div>
+      <div class="by" style="margin-top:12px">
+        <div class="face"><img src="faces/ryker_vance.png" alt=""></div>
+        <div><div class="killer"><svg width="12" height="12" viewBox="0 0 10 10"><path d="M5 0L10 5 5 10 0 5z" style="fill:var(--enemy)"/></svg>RYKER VANCE</div><div style="font-size:12px;color:var(--muted);margin-top:4px">Frag Grenade · 112 damage · 2 assists</div></div>
+      </div>
+      <div class="rsp"><div class="cap">Respawn in</div><div class="n num" id="rsp">8</div></div>
+      <div class="opts">
+        <div class="opt sel"><span class="key">1</span><div><div class="t">SANCTUM</div><div class="d">Squad refill + Armory</div></div></div>
+        <div class="opt off"><span class="key">2</span><div><div class="t">MID BEACON</div><div class="d">Under attack</div></div></div>
+      </div>
+      <div class="hint"><span class="sp">+1 SP</span>Skill points can be spent while dead <span class="key">K</span></div>
+    </div>
+
+    <!-- TAB SCOREBOARD (Scoreboard) -->
+    <div id="score">
+      <div class="wrap">
+        <div class="hdr">
+          <div><div class="cap" style="color:var(--ally)">▲ Concord</div><div class="num" style="font-size:26px;margin-top:6px">17 <span style="font-size:13px;color:var(--muted)">KILLS · UPLINK 100%</span></div></div>
+          <div style="text-align:center"><div class="num" style="font-size:22px">14:32</div><div class="cap" style="margin-top:5px;color:var(--brass-hi)">Skirmish · next 2:03</div></div>
+          <div style="text-align:right"><div class="cap" style="color:var(--enemy)">Syndicate ◆</div><div class="num" style="font-size:26px;margin-top:6px"><span style="font-size:13px;color:var(--muted)">UPLINK 82% · KILLS</span> 12</div></div>
+        </div>
+        <table id="sbt"></table>
+        <div class="foot">
+          <div><div class="cap" style="margin-bottom:8px">Front by lane</div><div id="sbfront"></div></div>
+          <div><div class="cap" style="margin-bottom:8px">Squad</div>
+            <div class="ln">6 / 6 Picket · <span style="color:var(--text)">Follow</span></div>
+            <div class="ln">Next wave <span class="num" style="color:var(--text)">0:18</span></div></div>
+          <div><div class="cap" style="margin-bottom:8px">Objective</div>
+            <div class="ln">HOLD C-MID · <span style="color:var(--text)">contested 62%</span></div>
+            <div class="ln">Team Lumen <span class="num" style="color:var(--brass-hi)">5,860</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARMORY (ArmoryPanel, visual language only) -->
+    <div id="armory">
+      <div class="hd">
+        <div class="title">ARMORY</div>
+        <div class="tabs"><span class="tab on">Crystals</span><span class="tab">Chips</span><span class="tab">Frames</span><span class="tab">Ammo</span><span class="tab">Squad</span><span class="tab">Med</span></div>
+        <div class="wallet lumen"><svg width="11" height="13" viewBox="0 0 11 13"><path d="M5.5 0L11 6.5 5.5 13 0 6.5z" fill="none" stroke="#EAD7A8" stroke-width="1.4"/><path d="M5.5 3.5L8 6.5 5.5 9.5 3 6.5z" fill="#EAD7A8"/></svg><span class="num">1,240</span></div>
+      </div>
+      <div class="body">
+        <div>
+          <div class="grid" id="items"></div>
+          <div class="build"><span class="cap" style="white-space:nowrap">Recommended · Vesper</span>
+            <span class="key">R</span><span style="font-size:12px;color:var(--muted)">Resonant Core → <span style="color:var(--brass-hi)">Loom Frame II</span> → Squad Banner</span></div>
+        </div>
+        <div class="det">
+          <div class="cap" style="color:var(--brass)">Frame · Tier 2 of 3</div>
+          <div class="t" style="margin-top:8px">LOOM FRAME</div>
+          <p>Wider thread cone. Squad hits on your target deal bonus damage.</p>
+          <div class="tier"><span>I · Cone +10%</span><b>owned</b></div>
+          <div class="tier" style="color:var(--text)"><span>II · Cone +18%, squad +6%</span><b>450</b></div>
+          <div class="tier"><span>III · Cone +25%, squad +10%</span><b style="color:var(--muted)">700</b></div>
+          <div style="margin-top:12px;font-size:12px;color:var(--teal)">DPS vs hero +7.4%</div>
+          <div class="btn">BUY TIER II <span class="key">↵</span></div>
+          <div class="btn2">SELL <span class="key" style="color:var(--muted);border-color:var(--hair2)">⌫</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATCH END (EndBanner) -->
+    <div id="endb" class="sh">
+      <div class="t">VICTORY</div>
+      <div class="r">Syndicate Uplink destroyed</div>
+      <div class="s cap">Final stats in 3 s</div>
+    </div>
+  </div>
+</div>
+
+<!-- shared SVG defs: enemy hatch -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="1.6" height="4" style="fill:var(--enemy)"/></pattern>
+  </defs>
+</svg>
+
+<script>
+const $=s=>document.querySelector(s);
+const hud=$('#hud');
+
+/* ---------- hardpoint glyphs: shape = task, fill = owner ---------- */
+function glyph(task,own,sz,opt={}){
+  const c=sz/2,r=sz/2-1.5;
+  let shape;
+  if(task==='h') shape=`<circle cx="${c}" cy="${c}" r="${r}"/>`;
+  else if(task==='p') shape=`<rect x="${c-r+.5}" y="${c-r+.5}" width="${2*r-1}" height="${2*r-1}"/>`;
+  else shape=`<path d="M${c} ${c-r} L${c+r} ${c+r*.8} L${c-r} ${c+r*.8}Z"/>`;
+  let st;
+  if(own==='a') st=`style="fill:var(--ally);stroke:var(--ally)" stroke-width="1"`;
+  else if(own==='e') st=`fill="url(#hatch)" style="stroke:var(--enemy)" stroke-width="1.3"`;
+  else st=`fill="rgba(8,12,16,.35)" stroke="rgba(236,230,214,.7)" stroke-width="1.2"`;
+  let extra='';
+  if(opt.cont){const R=r+3;extra=`<circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="#fff" stroke-width="1" stroke-opacity=".5"/><circle cx="${c}" cy="${c}" r="${R}" fill="none" style="stroke:var(--${opt.cont})" stroke-width="2" stroke-dasharray="${2*Math.PI*R*.62} 999" transform="rotate(-90 ${c} ${c})"/>`;}
+  if(opt.me) extra+=`<circle cx="${c}" cy="${c}" r="${r+3}" fill="none" stroke="#EAD7A8" stroke-width="1"/>`;
+  return `<g ${st}>${shape}</g>${extra}`;
+}
+const LANES=[
+  {k:'N',hp:[['t','a'],['h','a'],['p','n',{cont:'enemy'}],['h','e'],['t','e']],front:1},
+  {k:'C',hp:[['h','a'],['p','a'],['h','a',{cont:'ally',me:1}],['p','e'],['h','e']],front:2},
+  {k:'S',hp:[['p','a'],['t','a'],['t','e'],['p','e'],['h','e']],front:1},
+];
+const NAMES=['AI','AO','MID','BO','BI'];
+
+/* ---------- top centre (v0.12b): variants A / B / C ---------- */
+const TOP={v:'D',p:'auto',hot:false};
+const FRONT_CALM=[
+  {k:'N',hp:[['t','a'],['h','a'],['p','a'],['h','e'],['t','e']],front:2},
+  {k:'C',hp:[['h','a'],['p','a'],['h','n'],['p','e'],['h','e']],front:1},
+  {k:'S',hp:[['p','a'],['t','a'],['t','e'],['p','e'],['h','e']],front:1}];
+const FRONT_HOT=[
+  {k:'N',hp:[['t','a'],['h','a'],['p','a'],['h','a'],['t','e',{cap:'ally',p:.35}]],front:3},
+  {k:'C',hp:[['h','a'],['p','a'],['h','n',{cap:'ally',p:.62,both:1}],['p','e'],['h','e']],front:1},
+  {k:'S',hp:[['p','a'],['t','a',{cap:'enemy',p:.3}],['t','e'],['p','e'],['h','e']],front:1}];
+const GA='<path d="M5 1L10 8 5 5.5 0 8z" style="fill:var(--ally)"/>', GE='<path d="M5 0L10 5 5 10 0 5z" style="fill:var(--enemy)"/>';
+const g10=(p,w=10)=>`<svg width="${w}" height="${w}" viewBox="0 0 10 10">${p}</svg>`;
+/* task shape at centre (x,y), box size s: circle Hold, square Plant, triangle Breach (with an inner mark when solid) */
+function tShape(t,x,y,s){const r=s/2;
+  if(t==='h') return `<circle cx="${x}" cy="${y}" r="${r}"/>`;
+  if(t==='p') return `<rect x="${x-r*.86}" y="${y-r*.86}" width="${r*1.72}" height="${r*1.72}"/>`;
+  return `<path d="M${x} ${y-r*1.05}L${x+r*1.08} ${y+r*.8}L${x-r*1.08} ${y+r*.8}Z"/>`;}
+function tInner(t,x,y,s){const r=s/2;
+  if(t==='h') return `<circle cx="${x}" cy="${y}" r="${r*.34}" fill="#0B1015"/>`;
+  if(t==='p') return `<rect x="${x-r*.3}" y="${y-r*.3}" width="${r*.6}" height="${r*.6}" fill="#0B1015"/>`;
+  return `<path d="M${x} ${y-r*.2}L${x+r*.36} ${y+r*.42}L${x-r*.36} ${y+r*.42}Z" fill="#0B1015"/>`;}
+function chip2(t,own,x,y,s,st={},ph='skirmish',halo=true){
+  let o='';const lock=ph==='ot'&&!st.cap;
+  if(halo) o+=`<circle cx="${x}" cy="${y}" r="${s/2+3.5}" fill="rgba(8,12,16,.85)"/>`;
+  let body;
+  if(own==='a') body=`<g style="fill:var(--ally)">${tShape(t,x,y,s)}</g>${tInner(t,x,y,s)}`;
+  else if(own==='e') body=`<g fill="url(#hatch)" style="stroke:var(--enemy)" stroke-width="1.2">${tShape(t,x,y,s-1)}</g>`;
+  else body=`<g fill="none" stroke="rgba(236,230,214,.8)" stroke-width="1.2">${tShape(t,x,y,s-1)}</g>`;
+  o+=`<g opacity="${lock?.32:1}">${body}</g>`;
+  if(lock) o+=`<g transform="translate(${x+s/2-1},${y-s/2-2})"><rect x="0" y="2.6" width="5" height="3.6" fill="#ECE6D6"/><path d="M1 2.8V1.6a1.5 1.5 0 0 1 3 0v1.2" fill="none" stroke="#ECE6D6" stroke-width=".9"/></g>`;
+  if(st.cap){const R=s/2+3.5,C=2*Math.PI*R,col=ph==='ot'?'var(--warn)':`var(--${st.cap})`;
+    o+=`<circle cx="${x}" cy="${y}" r="${R}" fill="none" stroke="rgba(236,230,214,.45)" stroke-width="1" class="${ph==='ot'?'cap-ot':'cap-p'}"/>`;
+    o+=`<circle cx="${x}" cy="${y}" r="${R}" fill="none" style="stroke:${col}" stroke-width="2" stroke-dasharray="${C*st.p} ${C}" transform="rotate(-90 ${x} ${y})"/>`;}
+  return o;}
+function phaseOf(){return hud.classList.contains('s-ring')||TOP.p==='sd'?'sd':(TOP.p==='ot'?'ot':'skirmish');}
+function clockHTML(ph,cls=''){
+  if(ph==='ot') return `<div class="ck ${cls}"><div class="t num">OT 0:24</div><div class="p">CAPTURE OVERTIME</div><div class="n">2 tasks in progress</div></div>`;
+  if(ph==='sd') return `<div class="ck ${cls}"><div class="t num">31:07</div><div class="p">SUDDEN DEATH</div><div class="n">ROUND 1 · NO RESPAWNS</div></div>`;
+  return `<div class="ck ${cls}"><div class="t num">14:32</div><div class="p">SKIRMISH</div><div class="n">SURGE I IN 2:03</div></div>`;}
+const UPL=()=>[{t:'ally',nm:'CONCORD',g:GA,pct:100,lost:0,role:'YOU'},{t:'enemy',nm:'SYNDICATE',g:GE,pct:82,lost:6,role:'',exp:TOP.hot}];
+function upA(u,side){
+  const pos=side==='L'?'left':'right';
+  let segs=[25,50,75].map(v=>`<span class="seg" style="${pos}:${v}%"></span><span class="notch" style="${pos==='left'?'left':'left'}:${pos==='left'?v:100-v}%"></span>`).join('');
+  return `<div class="ulA ${side}"><div class="hd">${g10(u.g,11)}<span class="nm" style="color:var(--${u.t})">${u.nm}</span>${u.role?`<span class="role">${u.role}</span>`:''}
+    ${u.exp?`<span class="expl exp-p" style="color:var(--${u.t})"><svg width="9" height="10" viewBox="0 0 9 10"><path d="M4.5 0L9 2v3.5C9 8 4.5 10 4.5 10S0 8 0 5.5V2z" fill="none" stroke="currentColor"/><path d="M4.8 1.5L3.6 4.5 5.4 5.6 4.2 8.5" fill="none" stroke="currentColor"/></svg><span style="color:var(--text)">EXPOSED</span></span>`:''}
+    <span class="pct num">${u.pct}<small>%</small></span></div>
+    <div class="fr"><div class="in"></div><i class="fill" style="${pos}:2px;width:calc(${u.pct}% - 4px);background:linear-gradient(rgba(255,255,255,.28),rgba(255,255,255,0) 55%),var(--${u.t})"></i>
+    ${u.lost?`<i class="lost" style="${pos}:calc(${u.pct}% - 2px);width:${u.lost}%"></i>`:''}${u.exp?'<span class="hatchov exp-p"></span>':''}${segs}</div></div>`;}
+function lanesSVG(data,ph,w,rowH,s,opts={}){
+  // own HQ at left, enemy HQ at right; 5 columns between; front marker between owners
+  const x0=8,x1=w-8,col=i=>x0+(i+1)*(x1-x0)/6,y=rowH/2;
+  return data.map(L=>{
+    const fx=(col(L.front)+col(L.front+1))/2;
+    let o=`<svg width="${w}" height="${rowH}" viewBox="0 0 ${w} ${rowH}" style="display:block">`;
+    o+=`<line x1="${x0}" y1="${y}" x2="${fx}" y2="${y}" style="stroke:var(--ally)" stroke-width="2" opacity=".85"/>`;
+    o+=`<line x1="${fx}" y1="${y}" x2="${x1}" y2="${y}" style="stroke:var(--enemy)" stroke-width="2" opacity=".5"/>`;
+    o+=`<rect x="${x0-4}" y="${y-4}" width="8" height="8" style="fill:var(--ally)"/>`;
+    o+=`<rect x="${x1-4}" y="${y-4}" width="8" height="8" fill="url(#hatch)" style="stroke:var(--enemy)"/>`;
+    L.hp.forEach((p,i)=>{o+=chip2(p[0],p[1],col(i),y,s,p[2]||{},ph,true);});
+    o+=`<rect x="${fx-1}" y="1" width="2" height="${rowH-2}" fill="#EAD7A8"/><path d="M${fx-3.5} 0h7l-3.5 3.5z M${fx-3.5} ${rowH}h7l-3.5 -3.5z" fill="#EAD7A8"/>`;
+    return `<div style="display:flex;align-items:center;gap:6px"><span class="lk">${L.k}</span>${o}</svg><span class="lk"></span></div>`;}).join('');}
+function sdRow(){
+  const pips=(t,alive,n=5)=>Array.from({length:n},(_,i)=>i<alive?g10(t==='ally'?GA:GE,10):`<svg width="10" height="10" viewBox="0 0 10 10"><path d="${t==='ally'?'M5 1L10 8 5 5.5 0 8z':'M5 0L10 5 5 10 0 5z'}" fill="none" style="stroke:var(--${t})" stroke-width="1" opacity=".55"/></svg>`).join('');
+  return `<div class="sdrow"><span style="color:var(--ally)">CONCORD</span><span class="pp">${pips('ally',4)}</span><span class="num" style="color:var(--text)">4</span>
+    <span class="rt">RING <span class="num">0:41</span> <small>→ 4 m</small></span>
+    <span class="num" style="color:var(--text)">2</span><span class="pp">${pips('enemy',2)}</span><span style="color:var(--enemy)">SYNDICATE</span></div>`;}
+function renderTop(){
+  const ph=phaseOf(),data=TOP.hot||ph==='ot'?FRONT_HOT:FRONT_CALM,[a,e]=UPL();
+  const el=$('#top');el.className='sh gp-tab ph-'+ph+' v'+TOP.v;let h='<div class="back"></div>';
+  if(TOP.v==='D'){
+    h+=`<div class="tm-row">${upA(a,'L')}<div class="plateA"><span class="tk l"></span><span class="tk r"></span>${clockHTML(ph)}</div>${upA(e,'R')}</div>`;
+    h+=`<div class="tm-lanes fade gp-shop" style="top:92px">`+(ph==='sd'?sdRow():lanesLine(data,ph))+`</div>`;
+  } else if(TOP.v==='A'){
+    h+=`<div class="tm-row">${upA(a,'L')}<div class="plateA"><span class="tk l"></span><span class="tk r"></span>${clockHTML(ph)}</div>${upA(e,'R')}</div>`;
+    h+=`<div class="tm-lanes fade gp-shop" style="top:90px">`+(ph==='sd'?`<div style="margin-top:4px">${sdRow()}</div>`:
+      `<div style="position:relative">${'<span class="midg"></span>'}`+lanesSVG(data,ph,356,19,10)+`</div>`)+`</div>`;
+  } else if(TOP.v==='B'){
+    const rb=(u,side)=>{const pos=side==='L'?'left':'right';return `<div class="ulB ${side}"><div class="hd">${g10(u.g,10)}<span class="nm" style="color:var(--${u.t})">${u.nm}</span><span class="pct num">${u.pct}<small style="font-size:10px;color:var(--muted)">%</small></span></div>
+      <div class="rb"><i class="fill" style="${pos}:0;width:${u.pct}%;background:var(--${u.t})"></i>${u.lost?`<i class="lost" style="${pos}:${u.pct}%;width:${u.lost}%"></i>`:''}${u.exp?'<span class="hatchov exp-p" style="inset:0"></span>':''}${[25,50,75].map(v=>`<span class="seg" style="${pos}:${v}%"></span>`).join('')}</div>
+      <div class="sub">${u.exp?`<span class="exp-p" style="color:var(--text);font-family:var(--disp);font-weight:700;letter-spacing:.2em">EXPOSED</span>`:''}</div></div>`;};
+    h+=`<div class="tm-row" style="gap:10px">${rb(a,'L')}${clockHTML(ph,'ckB')}${rb(e,'R')}</div>`;
+    h+=`<div class="tm-lanes fade gp-shop" style="top:84px;gap:3px">`+(ph==='sd'?sdRow():tugs(data,ph))+`</div>`;
+  } else {
+    const mn=(u,side)=>{const pos=side==='L'?'left':'right';return `<div class="ulC ${side}"><div class="nm" style="color:var(--${u.t})">${side==='L'?'▲ ':''}${u.nm}${side==='R'?' ◆':''}</div><div class="big num">${u.exp&&side==='R'?'<span class="exp-p" style="font:700 9px var(--disp);letter-spacing:.2em;vertical-align:middle;margin-right:8px">EXPOSED</span>':''}${u.pct}<small>%</small></div><div class="rb"><i class="fill" style="${pos}:0;width:${u.pct}%;background:var(--${u.t})"></i>${u.lost?`<i class="lost" style="${pos}:${u.pct}%;width:${u.lost}%"></i>`:''}${u.exp?'<span class="hatchov exp-p" style="inset:0"></span>':''}</div></div>`;};
+    h+=`<div class="tm-row" style="gap:24px">${mn(a,'L')}${clockHTML(ph,'ckC')}${mn(e,'R')}</div>`;
+    h+=`<div class="tm-lanes fade gp-shop" style="top:86px">`+(ph==='sd'?sdRow():lanesLine(data,ph))+`</div>`;
+  }
+  el.innerHTML=h;
+  document.querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===TOP.v));
+  document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===TOP.p));
+  const hb=document.querySelector('[data-hot]');if(hb)hb.setAttribute('aria-pressed',TOP.hot);
+}
+function lanesLine(data,ph){return `<div class="lnC">${data.map(L=>{const w=118;
+      let o=`<svg width="${w}" height="16" viewBox="0 0 ${w} 16">`;const c=i=>10+i*24.5,fx=(c(L.front)+c(L.front+1))/2;
+      o+=`<line x1="2" y1="8" x2="${fx}" y2="8" style="stroke:var(--ally)" stroke-width="1.5" opacity=".7"/><line x1="${fx}" y1="8" x2="${w-2}" y2="8" style="stroke:var(--enemy)" stroke-width="1.5" opacity=".45"/>`;
+      L.hp.forEach((p,i)=>o+=chip2(p[0],p[1],c(i),8,8,p[2]||{},ph,true));
+      o+=`<rect x="${fx-1}" y="0" width="2" height="16" fill="#EAD7A8"/></svg>`;
+      return `<div class="g"><span class="k">${L.k}</span>${o}</div>`;}).join('')}</div>`;}
+function tugs(data,ph){
+  const w=330,x0=6,x1=w-6,col=i=>x0+(i+1)*(x1-x0)/6;
+  return data.map(L=>{const fx=(col(L.front)+col(L.front+1))/2;
+    let o=`<svg width="${w}" height="16" viewBox="0 0 ${w} 16" style="display:block">`;
+    o+=`<rect x="${x0}" y="5" width="${fx-x0}" height="6" style="fill:var(--ally)" opacity=".9"/>`;
+    o+=`<rect x="${fx}" y="5" width="${x1-fx}" height="6" fill="url(#hatch)"/><rect x="${fx}" y="5" width="${x1-fx}" height="6" fill="none" style="stroke:var(--enemy)" stroke-width="1" opacity=".7"/>`;
+    L.hp.forEach((p,i)=>o+=chip2(p[0],p[1],col(i),8,9,p[2]||{},ph,true));
+    o+=`<rect x="${fx-1.5}" y="0" width="3" height="16" fill="#EAD7A8"/></svg>`;
+    return `<div style="display:flex;align-items:center;gap:6px"><span class="lk">${L.k}</span>${o}<span class="lk"></span></div>`;}).join('');}
+
+/* minimap */
+(function(){
+  const ys=[30,68,106],xs=[44,76,106,136,168];
+  let s=`<g fill="none" stroke="rgba(236,230,214,.35)" stroke-width="1">`;
+  ys.forEach(y=>{s+=`<path d="M14 68 L28 ${y} L184 ${y} L198 68"/>`;});
+  s+=`</g><g fill="none" stroke="rgba(236,230,214,.18)" stroke-dasharray="2 3"><path d="M76 30 L106 68 L136 106"/><path d="M76 106 L106 68 L136 30"/></g>`;
+  s+=`<g transform="translate(6,60)"><rect width="16" height="16" style="fill:var(--ally)" opacity=".35"/><rect width="16" height="16" fill="none" style="stroke:var(--ally)"/></g>`;
+  s+=`<g transform="translate(190,60)"><rect width="16" height="16" fill="url(#hatch)" style="stroke:var(--enemy)"/></g>`;
+  LANES.forEach((L,li)=>L.hp.forEach((p,i)=>{s+=`<g transform="translate(${xs[i]-6},${ys[li]-6})">${glyph(p[0],p[1],12,p[2]||{})}</g>`;
+    if(i===L.front) s+=`<rect x="${xs[i]+9}" y="${ys[li]-7}" width="1.5" height="14" fill="#EAD7A8"/>`;}));
+  // allies, enemy last-known, local hero
+  [[96,74],[120,64],[60,30]].forEach(([x,y])=>s+=`<path transform="translate(${x},${y})" d="M0 -4L4 3 0 1 -4 3z" style="fill:var(--ally)"/>`);
+  s+=`<path transform="translate(150,106)" d="M0 -4L4 0 0 4 -4 0z" style="fill:var(--enemy)" opacity=".6"/>`;
+  s+=`<path transform="translate(110,72) rotate(70)" d="M0 -7L5 5 0 2 -5 5z" fill="#EAD7A8" stroke="#0B1015" stroke-width="1"/>`;
+  $('#mm').innerHTML=s;
+})();
+
+/* squad pips */
+(function(){
+  const st=['F','F','!','F','R','--'],hp=[1,.8,.45,1,.6,0];
+  let h='';
+  st.forEach((x,i)=>{const em=x==='--';
+    h+=`<div class="pip${em?' em':''}"><svg class="g" width="14" height="14" viewBox="0 0 14 14"><path d="M7 2L13 11 7 8 1 11z" style="fill:${em?'none':'var(--ally)'};stroke:var(--ally)" stroke-width="1"/></svg><div class="hp"><i style="width:${hp[i]*100}%"></i></div><span class="s" style="${x==='!'?'color:var(--warn)':''}">${i+1}${em?'':x}</span></div>`;});
+  $('#pips').innerHTML=h;
+})();
+
+/* ability icons */
+const IC={
+  thread:'<path d="M5 25 C 12 5, 18 25, 25 5"/><circle cx="25" cy="5" r="2.2"/><circle cx="5" cy="25" r="2.2"/>',
+  beacon:'<path d="M15 4v14"/><path d="M9 18h12l-2 8h-8z"/><path d="M8 8a9 9 0 0 1 14 0M5 5a13 13 0 0 1 20 0"/>',
+  swap:'<path d="M5 10h18l-4-4M25 20H7l4 4"/>',
+  rewrite:'<path d="M15 3l10 6v12l-10 6-10-6V9z"/><path d="M11 15h8M15 11v8"/>',
+  med:'<path d="M12 4h6v8h8v6h-8v8h-6v-8H4v-6h8z"/>'
+};
+const LOCK='<svg width="14" height="16" viewBox="0 0 14 16"><rect x="1" y="7" width="12" height="8" fill="none" stroke="#ECE6D6" stroke-width="1.4"/><path d="M4 7V4.5a3 3 0 0 1 6 0V7" fill="none" stroke="#ECE6D6" stroke-width="1.4"/></svg>';
+function abilities(state){
+  const base=[
+    {k:'Q',ic:'thread',r:2,max:3},
+    {k:'E',ic:'beacon',r:1,max:3},
+    {k:'C',ic:'swap',r:1,max:3,plus:1},
+    {k:'G',ic:'rewrite',r:1,max:3,ult:1},
+  ];
+  if(state==='cast'){base[0].cd='1.4';base[1].cd='9';base[3].cd='48';base[1].act=0;}
+  if(state==='locked'){base[3].lock='LV 10';base[3].r=1;base[2].lock='LV 3';base[2].r=0;base[2].plus=0;}
+  if(state==='low'){base[1].cd='4';}
+  let h='';
+  for(const a of base){
+    const cls=['slot',a.ult?'ult':'',a.cd?'cool':'',a.lock?'lock':''].join(' ');
+    const pips=a.lock?`<span class="gate">${a.lock}</span>`:`<span class="pips">${Array.from({length:a.max},(_,i)=>`<i class="${i<a.r?'on':''}"></i>`).join('')}</span>`;
+    const sweep=a.cd?`style="background:conic-gradient(rgba(194,162,103,.75) 0 ${a.ult?'30':'62'}%,rgba(236,230,214,.14) 0)"`:'';
+    h+=`<div class="ab">${a.plus?'<span class="plus">+</span>':''}${pips}<div class="${cls}" ${sweep}><div class="in"${a.cd?` style="background:conic-gradient(rgba(8,12,16,.25) 0 ${a.ult?'30':'62'}%,rgba(8,12,16,.78) 0)"`:''}><svg class="ic" viewBox="0 0 30 30">${IC[a.ic]}</svg></div><div class="cd num">${a.cd||''}</div><div class="lk">${LOCK}</div></div><span class="key">${a.k}</span></div>`;
+  }
+  h+=`<span class="sep"></span><div class="ab med"><span class="pips"></span><div class="slot"><div class="in"><svg class="ic" viewBox="0 0 30 30" style="width:22px;height:22px">${IC.med}</svg></div><span class="cnt num">×2</span></div><span class="key">4</span></div>`;
+  $('#abilities').innerHTML=h;
+}
+
+/* bars */
+function hpbar(cur,max,shield){
+  const seg=50,n=Math.ceil(max/seg);let h='';
+  for(let i=0;i<n;i++){const lo=i*seg,hi=Math.min(max,lo+seg);const f=Math.max(0,Math.min(1,(cur-lo)/(hi-lo)));h+=`<i style="flex:${(hi-lo)/seg}"><b style="width:${f*100}%"></b></i>`;}
+  if(shield) h+=`<i class="sh" style="flex:${shield/seg}"><b style="width:100%"></b></i>`;
+  $('#hpbar').innerHTML=h;
+}
+function manabar(p){let h='';for(let i=0;i<20;i++)h+=`<i class="${i<Math.round(p/5)?'':'off'}"></i>`;$('#manabar').innerHTML=h;$('#mana').textContent=p;}
+
+/* scoreboard */
+(function(){
+  const P='faces/';
+  const own=[
+    ['vesper_loom','Neo','Vesper Loom',7,'5 / 2 / 6','1,240','A B –','',1],
+    ['brannoc','Kaltwasser','Brannoc',7,'3 / 3 / 9','980','B A –',''],
+    ['liora_vale','mira.exe','Liora Vale',6,'1 / 2 / 12','1,410','A A *',''],
+    ['juniper_quill','Fenn','Juniper Quill',6,'4 / 4 / 3','720','B – –','RESPAWN 6'],
+    ['hex','BOT Pike','Hex',6,'4 / 1 / 5','1,510','A B –','',0,1],
+  ];
+  const en=[
+    ['ryker_vance','Vance_Main','Ryker Vance',8,'6 / 3 / 2','—','B B *',''],
+    ['sable','umbra','Sable',7,'3 / 5 / 4','—','A – –',''],
+    ['brannoc','Gravel','Brannoc',6,'1 / 4 / 6','—','A B –',''],
+    ['liora_vale','Lux','Liora Vale',6,'0 / 2 / 9','—','B A –','RESPAWN 11'],
+    ['hex','Static','Hex',7,'2 / 3 / 5','—','A A –',''],
+  ];
+  const row=(r,team)=>`<tr class="${r[8]?'me':''} ${r[7]?'dead':''}"><td><div class="who"><span class="pf" style="box-shadow:0 0 0 1px var(--${team})"><img src="${P}${r[0]}.png" alt=""></span><span style="color:${r[8]?'var(--brass-hi)':'inherit'};font-weight:500">${r[1]}</span>${r[9]?'<span class="tag">BOT</span>':''}<span class="hn">${r[2]}</span></div></td><td class="n">${r[3]}</td><td class="n">${r[4]}</td><td class="n" style="color:${r[5]==='—'?'var(--dim)':'var(--brass-hi)'}">${r[5]}</td><td class="mono" style="font-size:12px;color:var(--muted)">${r[6]}</td><td style="font:600 11px var(--disp);letter-spacing:.16em;color:${r[7]?'var(--warn)':'var(--teal)'}">${r[7]||'ALIVE'}</td></tr>`;
+  const head=(t,c,g)=>`<tr><th style="color:var(--${c})">${g} ${t}</th><th class="n">LV</th><th class="n">K / D / A</th><th class="n">LUMEN</th><th>FORKS</th><th>STATUS</th></tr>`;
+  $('#sbt').innerHTML=head('CONCORD','ally','▲')+own.map(r=>row(r,'ally')).join('')+'<tr><td colspan="6" style="height:12px;border:0"></td></tr>'+head('SYNDICATE','enemy','◆')+en.map(r=>row(r,'enemy')).join('');
+  let f='';
+  LANES.forEach(L=>{let s=`<svg width="250" height="16" viewBox="0 0 250 16">`;L.hp.forEach((p,i)=>{s+=`<g transform="translate(${i*50},1)">${glyph(p[0],p[1],14,p[2]||{})}</g><text x="${i*50+18}" y="12" font-size="10" font-family="IBM Plex Mono" fill="${i===L.front?'#EAD7A8':'#6C757A'}">${NAMES[i]}</text>`;});s+='</svg>';
+    f+=`<div class="ln"><span class="mono" style="width:16px;color:var(--dim)">${L.k}</span>${s}</div>`;});
+  $('#sbfront').innerHTML=f;
+})();
+
+/* armory items */
+(function(){
+  const it=[['Resonant Core','owned',1],['Loom Frame','450',0,1],['Shard Crystal','300'],['Quiet Crystal','350'],
+            ['Focus Crystal','600'],['Ley Prism','900',0,0,1],['Ward Crystal','400'],['Echo Crystal','1,600',0,0,1]];
+  const gl=['<path d="M20 4l10 10-10 22-10-22z"/><path d="M10 14h20"/>','<path d="M8 6h-4v28h4M32 6h4v28h-4"/><path d="M14 20h12"/>'];
+  $('#items').innerHTML=it.map((x,i)=>`<div class="item${i===1?' sel':''}${x[4]?' poor':''}">${x[2]?'<span class="own">OWNED</span>':''}${x[3]?'<span class="rec">REC</span>':''}<svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#EAD7A8" stroke-width="1.4">${gl[i===1?1:0]}</svg><div><div class="nm">${x[0]}</div><div class="pr num">${x[1]}</div></div></div>`).join('');
+})();
+
+/* ---------- state machine ---------- */
+let timer=null;
+function setState(s){
+  [...hud.classList].filter(c=>c.startsWith('s-')).forEach(c=>hud.classList.remove(c));
+  hud.classList.add('s-'+s);
+  document.querySelectorAll('[data-s]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===s));
+  abilities(s);
+  const low=s==='low';
+  hpbar(low?41:(s==='ring'?168:212),279,low?0:(s==='ring'?0:40));
+  $('#hpc').textContent=low?41:(s==='ring'?168:212);
+  document.querySelector('.hpnum .shd').style.display=(low||s==='ring')?'none':'';
+  $('#chip1').textContent=s==='dmg'||low?'SLOWED':'RALLIED';
+  $('#chip1').className='chip'+(s==='dmg'||low?' bad':'');
+  manabar(s==='cast'?41:86);
+  renderTop();
+  clearInterval(timer);
+  if(s==='dead'){let n=8;$('#rsp').textContent=n;timer=setInterval(()=>{n=n<=1?8:n-1;$('#rsp').textContent=n;},1000);}
+}
+function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;$('#toasts').prepend(el);setTimeout(()=>el.remove(),3000);}
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>setState(b.dataset.s));
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{TOP.v=b.dataset.v;renderTop();});
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{TOP.p=b.dataset.p;renderTop();});
+document.querySelectorAll('[data-hot]').forEach(b=>b.onclick=()=>{TOP.hot=!TOP.hot;renderTop();});
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{
+  const on=hud.classList.toggle(b.dataset.m);b.setAttribute('aria-pressed',on);
+  if(b.dataset.m==='cb') toast(on?'Colour-blind: Deuteranopia':'Colour-blind: Default');
+  if(b.dataset.m==='fx0') toast(on?'Screen effects 0%':'Screen effects 100%');
+});
+const ORDER=['normal','dmg','low','cast','locked','ring','dead','tab','armory','end'];
+let prev='normal';
+document.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();if(!e.repeat){prev=[...hud.classList].find(c=>c.startsWith('s-')).slice(2);setState('tab');}return;}
+  const i='1234567890'.indexOf(e.key);if(i>=0) setState(ORDER[i]);
+});
+document.addEventListener('keyup',e=>{if(e.key==='Tab') setState(prev==='tab'?'normal':prev);});
+// URL hash: #state+mod+mod (used by the screenshot script)
+function fromHash(){
+  const parts=location.hash.slice(1).split('+').filter(Boolean);
+  document.querySelectorAll('[data-m]').forEach(b=>{hud.classList.remove(b.dataset.m);b.setAttribute('aria-pressed','false');});
+  TOP.v='D';TOP.p='auto';TOP.hot=false;
+  const rest=[];
+  parts.slice(1).forEach(m=>{if(/^v[ABCD]$/.test(m))TOP.v=m[1];else if(m==='hot')TOP.hot=true;else if(m==='ot'||m==='sd')TOP.p=m;else rest.push(m);});
+  setState(ORDER.includes(parts[0])?parts[0]:'normal');
+  rest.forEach(m=>{hud.classList.add(m);const b=document.querySelector(`[data-m="${m}"]`);if(b)b.setAttribute('aria-pressed','true');});
+}
+window.addEventListener('hashchange',fromHash);
+fromHash();
+</script>
+</body>
+</html>
