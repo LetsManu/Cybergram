@@ -28,6 +28,14 @@ const PATH := "res://assets/data/net/online_rules.tres"
 ## A party invite expires after this long.
 @export_range(10.0, 3600.0) var party_invite_ttl_s: float = 120.0
 
+## W20-WEB public snapshot (CYBERGRAM_PUBLIC_DIR, read by the website):
+## seconds between writes of the counts (players, matches, queues).
+@export_range(1.0, 300.0) var public_snapshot_every_s: float = 5.0
+## Seconds between leaderboard recomputations (a scan of all ratings).
+@export_range(10.0, 3600.0) var public_leaderboard_every_s: float = 60.0
+## Leaderboard rows published (opted-in, calibrated ranked players only).
+@export_range(0, 500) var public_leaderboard_size: int = 100
+
 
 ## The rules from PATH, or defaults.
 static func load_default() -> OnlineRulesDef:

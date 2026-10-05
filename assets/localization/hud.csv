@@ -943,3 +943,7 @@ HUD_SB_OBJECTIVE,OBJECTIVE
 HUD_SB_TEAM_LUMEN,Team Lumen
 HUD_SHOP_REC,REC
 HUD_ACT_INSPECT,Inspect weapon
+HUD_MM_LEADERBOARD_TOGGLE,Show me on the public leaderboard
+HUD_MM_LEADERBOARD_HINT,"Off by default. When on, your display name, medal and ranked rating appear on the Cybergram website. Turn it off at any time."
+HUD_MM_LEADERBOARD_GUEST,The public leaderboard needs an account.
+HUD_MM_LEADERBOARD_ERROR,Could not change the setting. Try again.

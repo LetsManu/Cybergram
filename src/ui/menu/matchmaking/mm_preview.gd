@@ -4,7 +4,8 @@ extends CanvasLayer
 ## Usage: tools/ci/capture_scene.sh res://src/ui/menu/matchmaking/mm_preview.tscn out.png 40 --mm <state>
 ## States: play, play_ranked, queued, locked, ready, ready_accepted,
 ## draft_enemy, draft_mine, draft_late, aram, aram_swap, loading, reconnect,
-## post_ranked, post_normal, post_report, profile, custom, remake, remake_open.
+## post_ranked, post_normal, post_report, profile, profile_public, profile_guest,
+## custom, remake, remake_open.
 ## Not part of the game flow (never loaded by AppRoot).
 
 const REF_SIZE := Vector2(1440, 810)
@@ -54,7 +55,9 @@ func _to_pick(q: StringName) -> void:
 
 func _build(st: String) -> void:
 	match st:
-		"profile":
+		"profile", "profile_public", "profile_guest":
+			fake.leaderboard_public = st == "profile_public"  # W20-WEB opt-in toggle
+			fake.leaderboard_available = st != "profile_guest"
 			var bg := UiKit.background()
 			_root.add_child(bg)
 			var p := MmProfilePanel.new()

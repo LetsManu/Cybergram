@@ -9,8 +9,13 @@ behind a VPS relay. Setup basics (image, accounts, TLS, update host) are in
 
 | `CYBERGRAM_MODE` | What runs | Ports |
 |---|---|---|
-| `single` | One process: the lobby and one match on UDP 7777, as before. | 7777/udp, 8080/tcp |
-| `front` (default since v0.13) | The front (accounts, parties, queues) on UDP 7777, plus one headless process per match on the match port range. | 7777/udp, 7800-7809/udp, 8080/tcp |
+| `single` | One process: the lobby and one match on UDP 7777, as before. | 7777/udp, 8081/tcp (HTTP) |
+| `front` (default since v0.13) | The front (accounts, parties, queues) on UDP 7777, plus one headless process per match on the match port range. | 7777/udp, 7800-7809/udp, 8081/tcp (HTTP) |
+
+Host ports are the compose defaults. Inside the container the HTTP side
+(launcher update feed, `status.json`, `snapshot.json`) always listens on 8080;
+compose publishes it on host **8081** (`CYBERGRAM_API_PORT`) since W20-WEB,
+and the optional website takes host **8080** (see *Website*).
 
 Front mode is the default from v0.13 (queues, draft, ratings). `single` stays
 selectable as the rollback. In front mode a match crash ends only that match: it is voided (no rating change)
@@ -33,6 +38,11 @@ and its players are re-queued.
 | `CYBERGRAM_IMAGE_TAG` | `latest` | (compose and `auto_update.sh`) The image tag. Pin e.g. `v0.13.0` to stop following `latest`. |
 | `CYBERGRAM_MOTD_FILE` | `/data/motd.txt` | Path inside the container of the launcher message of the day. |
 | `CYBERGRAM_TLS_DIR` | `./tls` | (compose only) The host folder with `fullchain.pem` and `privkey.pem`. |
+| `CYBERGRAM_PUBLIC_DIR` | `/public` | Folder where the front writes `snapshot.json` for the website every 5 s (see *Website*). Empty switches it off. |
+| `CYBERGRAM_API_PORT` | `8081` | (compose) Host TCP port of the game server's HTTP side (update feed, `status.json`, `snapshot.json`). Behind the proxy as `https://cyber-api.djboeck.at`. |
+| `CYBERGRAM_WEB_PORT` | `8080` | (compose, `web` profile) Host TCP port of the website. Behind the proxy as `https://cyber.djboeck.at`. |
+| `CYBERGRAM_API_URL` | `https://cyber-api.djboeck.at` | (website) Public URL of the HTTP side. Old launchers' feed requests to the website get a 301 there. |
+| `CYBERGRAM_RELEASE_FETCH` | `1` | (website) `0` stops the website container from reading the latest release from the GitHub API. |
 
 No variable or path is NAS-specific. The same compose file runs on a VPS.
 
@@ -46,7 +56,8 @@ accounts stay in the `/data` volume; nothing is migrated.
    `CYBERGRAM_PUBLIC_HOST` (DynDNS name or VPS domain) and, on the NAS,
    `CYBERGRAM_TLS_DIR=/srv/cybergram/tls`.
 3. **Forward UDP 7800-7809** (router to NAS, or `ufw allow 7800:7809/udp` and the
-   provider panel on a VPS), next to the existing 7777/udp and 8080/tcp.
+   provider panel on a VPS), next to the existing 7777/udp and the HTTP ports
+   (see *Which ports to open*).
 4. **Generate the ticket key** and put it in `.env`:
    `echo "k1:$(openssl rand -hex 32)"` gives the line to paste after
    `CYBERGRAM_TICKET_KEYS=`. Without it a random key is made at each start,
@@ -119,15 +130,28 @@ Widen `CYBERGRAM_MATCH_PORTS` if `MAX_MATCHES` is larger than 10.
 
 - **UDP 7777**: the lobby and the front.
 - **UDP 7800-7809** (or your `CYBERGRAM_MATCH_PORTS`): the matches. Front mode only, but open it now so the switch needs no firewall change.
-- **TCP 8080**: launcher updates and the status file.
+- **TCP 80 and 443**: the TLS reverse proxy (Caddy, Traefik, nginx) that
+  serves `https://cyber.djboeck.at` (the website, host 8080) and
+  `https://cyber-api.djboeck.at` (the game server's HTTP side: launcher
+  updates, `status.json`, `snapshot.json`; host 8081).
+- **TCP 8080** (plain HTTP, the website): keep it open while launchers 1.4.0
+  and older are around. They ask `http://cyber.djboeck.at:8080/version.json`;
+  the website answers their feed paths with a 301 to `cyber-api`.
+- **Without the website** nothing listens on host 8080 any more, so old
+  launchers would lose their feed: set `CYBERGRAM_API_PORT=8080` in `.env` to
+  keep the HTTP side on its old port.
+- **TCP 8081** does not need to be public when the proxy runs on the same
+  host (it reaches it locally). Without a proxy, open it instead of 80/443.
 - On a VPS, open the ports in **both** the OS firewall (`ufw allow 7777/udp`,
-  `ufw allow 7800:7809/udp`, `ufw allow 8080/tcp`) and the provider's panel.
+  `ufw allow 7800:7809/udp`, `ufw allow 80/tcp`, `ufw allow 443/tcp`,
+  `ufw allow 8080/tcp`) and the provider's panel.
 
 ## Setup 1: home NAS (today)
 
 1. Use `tools/server/docker-compose.yml`. Put `CYBERGRAM_TLS_DIR=/srv/cybergram/tls`
    (your folder) in a `.env` file next to it.
-2. On the router, forward UDP 7777, UDP 7800-7809 and TCP 8080 to the NAS.
+2. On the router, forward UDP 7777, UDP 7800-7809, TCP 80, TCP 443 (the
+   reverse proxy) and TCP 8080 (old launchers, see above) to the NAS.
 3. Set `CYBERGRAM_PUBLIC_HOST` to your DynDNS name.
 
 The drawback: players learn your home IP address (see DDoS below).
@@ -151,12 +175,15 @@ tunnel to the NAS, so only the VPS address is public.
    table ip nat {
      chain prerouting { type nat hook prerouting priority -100;
        iifname "eth0" udp dport { 7777, 7800-7809 } dnat to 10.8.0.2
-       iifname "eth0" tcp dport 8080 dnat to 10.8.0.2 }
+       iifname "eth0" tcp dport { 80, 443, 8080 } dnat to 10.8.0.2 }
      chain postrouting { type nat hook postrouting priority 100;
        oifname "wg0" masquerade }
    }
    ```
-   Also enable `net.ipv4.ip_forward=1`.
+   Also enable `net.ipv4.ip_forward=1`. The reverse proxy (80/443) runs on
+   the NAS next to the containers. Or run it on the VPS instead and forward
+   only 8080 (the website) and 8081 (the HTTP side) to the proxy's upstreams
+   through the tunnel.
 3. On the NAS, set `CYBERGRAM_PUBLIC_HOST` to the **VPS** domain. The container
    still binds all addresses. This is why the advertised address and the bind
    address are separate.
@@ -209,3 +236,89 @@ internet, and your ISP cannot filter it for you.
 - What we do in the game itself: match ports are only useful with a one-time
   join ticket, and a match process ignores clients that have no valid ticket.
   This does not stop floods. It does stop strangers from occupying match slots.
+
+## Website
+
+A small public website (`web/`, image `ghcr.io/letsmanu/cybergram-web`, one
+per release) runs next to the game server: home page with downloads, heroes,
+patch notes, live server status, the ranked leaderboard, Impressum and
+privacy. It is static nginx on host port 8080, behind the TLS proxy as
+`https://cyber.djboeck.at`. The live parts come from two local JSON files:
+
+- `/data/snapshot.json`: the front writes it every 5 s into
+  `CYBERGRAM_PUBLIC_DIR` (`/public`), a volume shared read-only with the web
+  container. Contents: up / draining, players online, running and starting
+  matches, queue sizes and estimated waits, and the top 100 of the ranked
+  leaderboard (display name, medal, rating) of players who switched on
+  *Show me on the public leaderboard* in the game (Ranks panel; off by
+  default, PRIVACY.md). No ids, usernames or IP addresses. If the file is
+  older than 60 s the site shows the server as offline.
+- `/data/release.json`: the web container reads the newest GitHub release
+  at start and every 6 h, so visitors never contact GitHub just by viewing
+  the site. Without it the download button links to the releases page.
+
+**Setup** (same host as the game server):
+
+1. Add `COMPOSE_PROFILES=web` to the `.env` file next to
+   `tools/server/docker-compose.yml` (or pass `--profile web`).
+2. `docker compose -f tools/server/docker-compose.yml up -d`. The site is on
+   `http://<host>:8080` (`CYBERGRAM_WEB_PORT`), the game server's HTTP side
+   on `http://<host>:8081` (`CYBERGRAM_API_PORT`).
+3. TLS reverse proxy (Caddy, Traefik or nginx with Let's Encrypt) on 80/443:
+   `cyber.djboeck.at` -> `127.0.0.1:8080`, `cyber-api.djboeck.at` ->
+   `127.0.0.1:8081`. Set HSTS there. A Caddyfile example:
+   ```
+   cyber.djboeck.at {
+     reverse_proxy 127.0.0.1:8080
+   }
+   cyber-api.djboeck.at {
+     reverse_proxy 127.0.0.1:8081
+   }
+   ```
+
+**Old launchers.** Launchers 1.4.0 and older ask
+`http://cyber.djboeck.at:8080/version.json` and the files next to it, which is
+now the website. The website answers every update feed path (`/version.json`,
+`/version.json.sig`, `/status.json`, `/blobs/`, `/files/`, `/game/`,
+`/launcher/`, `Cybergram*.zip` / `.tar.gz` / `.AppImage`, `*.zsync`) with a
+**301** to the same path on `CYBERGRAM_API_URL` (default
+`https://cyber-api.djboeck.at`; set at container start, URL-safe characters
+only). The launcher follows redirects (manifest, signature, status and the
+resumable downloader; tested in `launcher/tests/e2e_upd.sh` step 11). New
+launchers use `https://cyber-api.djboeck.at/version.json` and rewrite the
+old default in `launcher.cfg` on start; a custom `version_url` is kept.
+Keep TCP 8080 reachable over plain HTTP until the old launchers have
+updated themselves.
+
+The game server's HTTP side also serves `/snapshot.json` read-only (the same
+anonymous file the website reads), so `https://cyber-api.djboeck.at/snapshot.json`
+works for other tools.
+
+The container runs as an unprivileged user with a read-only root, no Linux
+capabilities, a strict Content Security Policy, `Referrer-Policy:
+no-referrer` and `nosniff`. Its access log (`docker logs cybergram-web`) has
+time, path, status, size and duration only: **no IP address, user agent,
+referrer or query string**; the error log records critical faults only.
+Logs are rotated at 3 x 10 MB. If your reverse proxy logs IP addresses,
+keep them at most 7 days and name it on the privacy page.
+
+Build it yourself from the repo root:
+`docker build -f web/Dockerfile -t cybergram-web .` and check it with
+`web/smoke.sh cybergram-web`. To preview without Docker:
+`python3 web/build.py` writes `web/dist/` (copy `web/sample/snapshot.json`
+to `web/dist/data/` and serve the folder; the sample timestamps are old, so
+it shows "offline").
+
+**Owner to-dos before the site goes public:**
+
+- **Impressum** (`web/pages/impressum.html`): fill every
+  `[TO BE FILLED]` field (name or company, address, e-mail; register
+  number, VAT number and chamber only if they apply) and delete the rest.
+- **Privacy** (`web/pages/privacy.html`): fill the operator contact, the
+  reverse proxy / hosting paragraph (or delete it) and whether HTTPS is used.
+- Have both pages and `PRIVACY.md` checked legally (lawyer or WKO).
+- Point the DNS names `cyber.djboeck.at` and `cyber-api.djboeck.at` at the
+  host and set up the TLS proxy.
+- Rebuild the image after editing (or edit and build in CI with the next
+  release).
+

@@ -26,6 +26,8 @@ var _violations: Dictionary = {}  # peer -> count
 var _budget: Dictionary = {}      # peer -> [tokens, last time]
 var _now: float = 0.0
 var _status := LobbyStatusWriter.new()
+## W20-WEB: the website's public snapshot (CYBERGRAM_PUBLIC_DIR; off when unset).
+var public_snapshot := PublicSnapshot.new()
 
 
 func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) -> void:
@@ -46,6 +48,7 @@ func step(delta: float) -> void:
 		pkt = transport.pop_packet()
 	front.step()
 	_status.tick(delta, accounts.peers.size(), false, 0)
+	public_snapshot.tick(delta, front, accounts.peers.size())
 
 
 func on_peer_left(peer: int) -> void:

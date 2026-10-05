@@ -53,6 +53,9 @@ signal custom_changed(lobby: Dictionary)
 signal failed(key: String)
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
+## W20-WEB public leaderboard opt-in: {public: bool, available: bool}
+## (available false = a guest or a server without accounts).
+signal leaderboard_changed(state: Dictionary)
 
 const ME := "me"
 const NAMES: Array[String] = ["Kestrel", "Nyx", "Orrin", "Talia", "Brick", "Mara", "Juno", "Vale", "Quill", "Rook"]
@@ -70,6 +73,10 @@ var locked_until: float = 0.0
 var my_ranked: Dictionary = {"calibrating": false, "games_left": 0, "rating": 1563,
 	"medal": {"band": 3, "name": "Gold", "division": 2, "label": "Gold II"}}
 var party: Array = []  # extra party members (names)
+## W20-WEB: the public leaderboard opt-in (default off) and whether this
+## player can opt in at all (accounts only).
+var leaderboard_public: bool = false
+var leaderboard_available: bool = true
 ## Last messages sent (tests read these).
 var sent: Array = []
 
@@ -207,6 +214,20 @@ func report(match_id: Variant, target: String, category: StringName) -> void:
 func request_profile() -> void:
 	sent.append({"op": &"profile"})
 	profile_received.emit(profile())
+
+
+## W20-WEB: asks for the leaderboard opt-in state (-> leaderboard_changed).
+func request_leaderboard() -> void:
+	sent.append({"op": &"leaderboard"})
+	leaderboard_changed.emit({"public": leaderboard_public, "available": leaderboard_available})
+
+
+## W20-WEB: opts in to (true) or out of the public leaderboard.
+func set_leaderboard_public(on: bool) -> void:
+	sent.append({"op": &"leaderboard_set", "public": on})
+	if leaderboard_available:
+		leaderboard_public = on
+	leaderboard_changed.emit({"public": leaderboard_public, "available": leaderboard_available})
 
 
 func custom_open() -> void:

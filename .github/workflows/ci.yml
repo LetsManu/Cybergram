@@ -67,3 +67,14 @@ jobs:
         with:
           name: screenshots
           path: ci-evidence/
+
+  # W20-WEB: the website image builds and serves (no push; build.yml publishes it).
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the website image
+        run: docker build -f web/Dockerfile -t cybergram-web:test .
+      - name: Smoke-test the website container
+        run: web/smoke.sh cybergram-web:test
