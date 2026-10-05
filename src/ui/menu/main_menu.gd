@@ -288,11 +288,11 @@ func _build_home(content: Control) -> void:
 		badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		v.add_child(badge)
 		var nm := UiKit.label(str(h.name), &"small", t.text, HORIZONTAL_ALIGNMENT_CENTER)
-		nm.clip_text = true
+		nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		v.add_child(nm)
 		var role := UiKit.label(tr(HeroShowcase.ROLE_KEYS.get(str(h.stem), "HUD_ROLE_SOLDIER")), &"caption",
 			t.text_off, HORIZONTAL_ALIGNMENT_CENTER)
-		role.clip_text = true
+		role.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		v.add_child(role)
 		b.add_child(v)
 		b.pressed.connect(func() -> void:
