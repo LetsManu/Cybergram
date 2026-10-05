@@ -16,6 +16,12 @@ for f in AppRun cybergram.desktop cybergram.png usr/bin/CybergramLauncher.x86_64
   [[ -e "$app/$f" ]] || { echo "FAIL: AppImage lacks $f"; exit 1; }
 done
 [[ -x "$app/AppRun" ]] || { echo "FAIL: AppRun not executable"; exit 1; }
+[[ -f "$app/usr/share/cybergram/game/installed_manifest.json" ]] || { echo "FAIL: AppImage lacks the delta baseline"; exit 1; }
+if [[ -n "${REQUIRE_PACKS:-}" ]]; then  # CI: the real split export
+  for p in Cybergram.pck packs/maps.pck packs/heroes_hd.pck; do
+    [[ -f "$app/usr/share/cybergram/game/$p" ]] || { echo "FAIL: AppImage lacks $p"; exit 1; }
+  done
+fi
 # Local feed with the same version: the launcher must report "current" (exit 0).
 mkdir -p "$tmp/w" "$tmp/l"
 echo e > "$tmp/w/Cybergram.exe"; printf '#!/bin/sh\n' > "$tmp/l/Cybergram.x86_64"; printf '# v%s\n- test\n' "$ver" > "$tmp/notes.md"

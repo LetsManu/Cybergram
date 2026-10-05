@@ -7,7 +7,11 @@ ver="${1#v}"; launcher="$(cd "$2" && pwd)"; game="$(cd "$3" && pwd)"; mkdir -p "
 num="$(echo "$ver" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
 [[ "$num" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || num="0.0.0"
 here="$(cd "$(dirname "$0")" && pwd)"
+# Copy the game so the delta-update baseline (installed_manifest.json, W15-UPD) can be added.
+work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+cp -r "$game" "$work/game"
+"$here/../launcher/tools/write_manifest.sh" "$work/game"
 (cd "$here/windows" && makensis -V2 -DVERSION="$ver" -DVERSION_NUM="$num" -DLAUNCHER_DIR="$launcher" \
-  -DGAME_DIR="$game" -DOUTFILE="$out/CybergramSetup-$ver.exe" cybergram.nsi)
+  -DGAME_DIR="$work/game" -DOUTFILE="$out/CybergramSetup-$ver.exe" cybergram.nsi)
 test -s "$out/CybergramSetup-$ver.exe"
 ls -la "$out/CybergramSetup-$ver.exe"
