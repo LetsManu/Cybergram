@@ -1,0 +1,34 @@
+<!-- title: Leaderboard -->
+<!-- description: The best ranked Cybergram players who chose to be listed. -->
+<section class="page-head">
+  <p class="eyebrow">Ranked 5v5</p>
+  <h1>Leaderboard</h1>
+  <p class="lede">The best ranked players on the official server. Only players who switched on
+    <strong>Show me on the public leaderboard</strong> (in the game, under Ranks) are listed, and only once their
+    calibration games are done. Switch it off at any time; you leave this list within about a minute.</p>
+</section>
+
+<section class="card board" data-board aria-live="polite">
+  <p class="updated" data-board-updated></p>
+  <div class="table-wrap">
+    <table class="leaderboard">
+      <caption class="sr-only">Ranked leaderboard</caption>
+      <thead><tr><th scope="col" class="num">#</th><th scope="col">Player</th><th scope="col">Medal</th><th scope="col" class="num">Rating</th></tr></thead>
+      <tbody data-board-rows><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</section>
+<section class="card medals" aria-labelledby="medal-title">
+  <h2 id="medal-title">Medals</h2>
+  <ul class="medal-list">
+    <li><span class="medal m-iron">Iron</span> below 1100</li>
+    <li><span class="medal m-bronze">Bronze</span> 1100</li>
+    <li><span class="medal m-silver">Silver</span> 1300</li>
+    <li><span class="medal m-gold">Gold</span> 1500</li>
+    <li><span class="medal m-platinum">Platinum</span> 1700</li>
+    <li><span class="medal m-diamond">Diamond</span> 1900</li>
+    <li><span class="medal m-master">Master</span> 2100</li>
+  </ul>
+  <p class="fine">Each medal below Master has five divisions (I lowest, V highest) of 40 rating points.</p>
+</section>
+<noscript><p class="card">This page needs JavaScript to load the list. The raw data is at <a href="/data/snapshot.json">/data/snapshot.json</a>.</p></noscript>

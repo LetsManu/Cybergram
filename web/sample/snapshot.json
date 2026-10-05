@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "updated": 1791200000,
+  "status": "up",
+  "build": "v0.13.1",
+  "players_online": 37,
+  "matches_running": 3,
+  "matches_forming": 1,
+  "queues": [
+    {"id": "normal_5v5", "name": "Normal 5v5", "players": 6, "estimated_wait_s": 95},
+    {"id": "ranked_5v5", "name": "Ranked 5v5", "players": 4, "estimated_wait_s": 210},
+    {"id": "all_random_3v3", "name": "3v3 All Random", "players": 2, "estimated_wait_s": 48}
+  ],
+  "leaderboard": {
+    "updated": 1791199980,
+    "entries": [
+      {"rank": 1, "name": "Kestrel", "rating": 2184, "medal": "Master", "band": "Master"},
+      {"rank": 2, "name": "NullPointer", "rating": 2031, "medal": "Diamond IV", "band": "Diamond"},
+      {"rank": 3, "name": "Vex_Halcyon", "rating": 1966, "medal": "Diamond II", "band": "Diamond"},
+      {"rank": 4, "name": "Marrow", "rating": 1822, "medal": "Platinum IV", "band": "Platinum"},
+      {"rank": 5, "name": "Tamsin", "rating": 1745, "medal": "Platinum II", "band": "Platinum"},
+      {"rank": 6, "name": "Ash.exe", "rating": 1611, "medal": "Gold III", "band": "Gold"},
+      {"rank": 7, "name": "Quillfire", "rating": 1540, "medal": "Gold II", "band": "Gold"},
+      {"rank": 8, "name": "Rook", "rating": 1402, "medal": "Silver III", "band": "Silver"},
+      {"rank": 9, "name": "Lanternjaw", "rating": 1187, "medal": "Bronze III", "band": "Bronze"},
+      {"rank": 10, "name": "Pebble", "rating": 1043, "medal": "Iron V", "band": "Iron"}
+    ]
+  }
+}
