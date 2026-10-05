@@ -46,6 +46,10 @@ Copy the Vesper entry. Same keys as the old path, plus `pipeline`, `body`, `pain
 | `idle` | optional `fn(poser, phase, frame)` personal idle. Only legs, hips, spine and chest show in game, because the upper body is the aim layer. |
 | `gait`, `casts` | as before |
 
+`Sec_` springs on the gen path: call `_springs(h, specs)` from the parts function (see
+`hero_defs_gen_a.py`). Mask close-ups and lane shots: `tools/art/render_hero_closeup.gd`
+(`-- --hero ryker [--lane res://assets/maps/slice/shardline_causeway.tscn]`).
+
 The hero key must be in `ModelCatalog.HERO_KEYS`. No game code changes.
 
 ## Body params (`body_gen.DEFAULT_BODY`, metres at 1.85 m)
@@ -84,6 +88,13 @@ ankles, soles, back of the head).
 - **Runtime shader overrides:** `paint.shader` = {uniform: value}. It is written to
   `<id>_anim.tres` and applied by `RiggedHeroModel` for this hero only (Vesper:
   `hatch_strength` 0.1, because the hatching is painted).
+- **Painted mask / helmet detail (W16-HERO-A):** `paint.post` = `fn(ctx) -> (albedo, spec, emit)`,
+  run at the end of the composite. `hero_decals.py` gives `region`, `bounds`, `wear` (edge
+  chips), `scratches`, `decal` (planar stencils: digits, chevrons, tally, holes, dents,
+  pixel faces) and `gloss` (mask G). Examples: `hero_defs_gen_a.py` (Ryker, Brannoc, Hex).
+- **UV packing:** `uv_max_tries` (default 30) raises the pack attempts for gear-heavy heroes.
+  Full ring bands from clipped spheres unwrap fine, but a clipped dome can collapse to a
+  zero-area island and drop the atlas to ~14 %: use a bevelled box cap instead.
 - **Highlights and ink:** `edge` (convex edge strokes), `ink`, `ink_border`, `ink_px`
   (colour-block borders), `grit`.
 - **Normals and UVs:** `normal_bump` (detail-only normal map), `uv_margin`.
