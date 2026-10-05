@@ -87,10 +87,12 @@ func _mounts(client: ClientWorld, at: Vector2) -> void:
 			_dashed(r, Color(HudPalette.HAIR_STRONG, a))
 		else:
 			draw_rect(r.grow(-0.5), Color(HudPalette.BRASS_DIM, a), false, 1.0)
-		caps(label, Vector2(r.position.x + 10.0, r.get_center().y + 5.0), 14,
-			Color(HudPalette.BRASS_HI if item != null else HudPalette.DIM, a), 0.1)
+		var pips_w := tiers * 10.5 + 8.0
+		var lsz := 14 if caps_width(label, 14, 0.1) <= r.size.x - pips_w - 14.0 else 12
+		caps(label, Vector2(r.position.x + 8.0, r.get_center().y + 5.0), lsz,
+			Color(HudPalette.BRASS_HI if item != null else HudPalette.DIM, a), 0.06 if lsz == 12 else 0.1)
 		for k in tiers:
-			var pc := Vector2(r.end.x - 12.0 - (tiers - 1 - k) * 10.5, r.get_center().y)
+			var pc := Vector2(r.end.x - 10.0 - (tiers - 1 - k) * 10.5, r.get_center().y)
 			if k < tier:
 				diamond(pc, 3.6, Color(HudPalette.BRASS, a))
 			else:

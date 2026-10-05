@@ -18,7 +18,7 @@ const HEIGHT: float = 30.0
 const CHIP: float = 12.0
 const COL_STEP: float = 36.75
 const GROUP_W: float = 177.0
-const GROUP_GAP: float = 30.0
+const GROUP_GAP: float = 45.0
 const KEY_W: float = 24.0
 const LANE_TAGS: Array[String] = ["HUD_LANE_TAG_N", "HUD_LANE_TAG_C", "HUD_LANE_TAG_S"]
 
@@ -105,7 +105,7 @@ func _group(x0: float, base: int, n: int, defs: Array[HardpointDef], states: Arr
 		elif st.contested or (st.progress > 0.0 and st.capturing_team >= 0):
 			capture_ring(center, CHIP, st.progress, ctx.team_color(st.capturing_team), pulse(_t, 1.6, 0.4) * a)
 		if dim or st.locked[team]:
-			padlock(center + Vector2(CHIP * 0.5 + 1.0, -CHIP * 0.5 - 2.0), 7.0, Color(HudPalette.IVORY, a))
+			padlock(center + Vector2(CHIP * 0.5 + 1.0, -CHIP * 0.5 - 2.0), 6.0, Color(HudPalette.IVORY, 0.6 * a))
 	draw_rect(Rect2(fx - 1.0, 0.0, 2.0, HEIGHT), Color(HudPalette.BRASS_HI, a))
 	draw_colored_polygon(PackedVector2Array([Vector2(fx - 5.0, 0.0), Vector2(fx + 5.0, 0.0), Vector2(fx, 5.0)]),
 		Color(HudPalette.BRASS_HI, a))

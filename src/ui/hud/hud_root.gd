@@ -74,6 +74,8 @@ func _ready() -> void:
 		tuning = HudTuningDef.new()
 	ctx = HudContext.new(session, HudSettings.load_user(OS.get_cmdline_user_args()), tuning)
 	ctx.roster.probe = OfflineRosterProbe.make(session)
+	if ctx.settings.debug_fx_zero:  # evidence: effects 0% for this run, not saved
+		GameSettings.shared().comfort_fx_intensity = 0.0
 	_world = WorldOverlay.new()
 	_world.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_world.bind(ctx)

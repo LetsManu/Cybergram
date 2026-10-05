@@ -96,8 +96,7 @@ func _draw() -> void:
 # --- W19-HUD: "SHARDLINE · WAVE 0:18" under the map (idle 42%) ---
 func _label(c: ClientWorld, at: Vector2) -> void:
 	var a := idle_a(0.42)
-	var name := c.map_def.display_name if c.map_def.display_name != "" else String(c.map_def.resource_path.get_file().get_basename())
-	caps(name, at, 16, Color(HudPalette.MUTED, a), 0.22)
+	var map_name := c.map_def.display_name if c.map_def.display_name != "" else String(c.map_def.resource_path.get_file().get_basename())
 	var rules: WardlingRulesDef = c.wardlings.rules if c.wardlings != null else null
 	if rules == null or c.match_state == null:
 		return
@@ -105,7 +104,11 @@ func _label(c: ClientWorld, at: Vector2) -> void:
 	var t := HudFormat.clock(ceilf(left))
 	var tw := text_width(t, 16, ctx.font_numbers)
 	text(t, Vector2(MAP_SIZE.x - tw, at.y), 16, Color(HudPalette.IVORY, a), ctx.font_numbers)
-	caps(tr("HUD_WAVE"), Vector2(0.0, at.y), 16, Color(HudPalette.MUTED, a), 0.22, HORIZONTAL_ALIGNMENT_RIGHT, MAP_SIZE.x - tw - 9.0)
+	var wave_w := caps_width(tr("HUD_WAVE"), 16)
+	caps(tr("HUD_WAVE"), Vector2(MAP_SIZE.x - tw - 9.0 - wave_w, at.y), 16, Color(HudPalette.MUTED, a), 0.22)
+	if caps_width(map_name, 16) > MAP_SIZE.x - tw - wave_w - 30.0:
+		map_name = map_name.split(" ")[0]  # "SHARDLINE FRONT" -> "SHARDLINE" when it would collide
+	caps(map_name, at, 16, Color(HudPalette.MUTED, a), 0.22)
 
 
 ## Seconds from match time `t` to the next Vanguard wave (first at
