@@ -71,6 +71,18 @@ const DEFAULT_PATH := "res://assets/data/app/comfort_rules.tres"
 @export_range(0.0, 1.0, 0.05) var damage_static_alpha: float = 0.15
 @export_range(0.1, 1.0, 0.05) var damage_static_inner: float = 0.88
 
+@export_group("Damage attribution")
+## Which source did the damage (DamageAttribution): a mana bolt that ended within
+## this distance (m) of the body; an enemy Wardling in combat within melee range;
+## an enemy ability's area / line / projectile within `attribution_fx_margin_m`
+## of the body; the line half-width; and the farthest caster of an instant skill.
+@export_range(0.3, 6.0, 0.1) var bolt_hit_radius_m: float = 1.6
+@export_range(0.5, 10.0, 0.1) var melee_range_m: float = 3.4
+@export_range(0.0, 4.0, 0.1) var attribution_fx_margin_m: float = 1.0
+@export_range(0.3, 4.0, 0.1) var attribution_line_halfwidth_m: float = 1.6
+@export_range(0.5, 6.0, 0.1) var attribution_projectile_radius_m: float = 2.5
+@export_range(5.0, 100.0, 1.0) var cast_max_range_m: float = 45.0
+
 @export_group("Viewmodel")
 ## FOV the viewmodel offsets were authored at; other FOVs scale the offsets by
 ## tan(fov/2) / tan(ref/2) so the gun keeps its screen footprint.
