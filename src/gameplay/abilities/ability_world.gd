@@ -19,6 +19,7 @@ const FX_CIRCLE: int = 5    # cast / landing telegraph (radius in pos2.x)
 const FX_TRAIL: int = 6     # line pos -> pos2 (Threadstep trail)
 const FX_BURST: int = 7     # one-shot ring (slam, Rewrite)
 const FX_ARROW: int = 8     # charge wind-up / path pos -> pos2
+const FX_WALL_SOLID: int = 9 # W11-M1: a wall that also blocks enemy movement (client builds the collider)
 
 ## PLACEHOLDER. Beacon hit capsule (m).
 const BEACON_RADIUS_M: float = 0.45
@@ -50,6 +51,10 @@ class Deployable:
 	var fx: Fx
 	var source_id: int = 0
 	var absorbed: float = 0.0
+	## W11-M1 Rampart: server collider that blocks enemy heroes (null = none).
+	var body: StaticBody3D
+	## W11-M1 expiry hooks: [EffectContext, effects Array] run when the deployable ends.
+	var on_end: Array = []
 
 
 class Projectile:
@@ -98,6 +103,8 @@ class Charge:
 	var mask: int
 	var pinned: bool = false
 	var fx: Fx
+	## W11-M1 Interceptor: the ally this charge homes in on (null = a normal charge).
+	var ally: HeroBody
 
 
 class Leap:
@@ -131,6 +138,10 @@ var _cast_fx: Dictionary = {}  # HeroCombat -> Fx
 var _blocker_set: bool = false
 ## W9-H2: traps, fields, hacks (Juniper Quill / Hex); stepped from step().
 var traps: TrapWorld
+## W11-M1: heroes revealed to a team through walls.
+var reveals := RevealSet.new()
+## W11-M1: open absorb windows [hero, until_tick, frac, mitigated_at_start, caster].
+var absorb_windows: Array = []
 ## Hero whose hitscan was just clipped by a deployable (Hex gadget bonus).
 var _shooter: HeroBody
 
@@ -157,6 +168,8 @@ func pre_move(h: HeroBody) -> void:
 		c.abilities.debug_grant_ult = true
 	c.stats.expire(server.tick)
 	c.status.step(server.tick)
+	h.collision_mask = (h.collision_mask & ~HeroBody.LAYERS_BLOCK_ALL) | HeroBody.block_layer(c.team)  # W11-M1 Rampart
+	_tick_bleed(h)
 	_zone_passive(h)
 	# Ratio against the block's own base (f32), so an unmodified hero is exactly 1.
 	var base := maxf(0.01, c.stats.get_base(StatCatalog.MOVE_SPEED))
@@ -187,6 +200,8 @@ func step() -> void:
 			continue
 		_tick_deployable(d, t)
 	traps.step()
+	reveals.step(t)
+	_step_absorb_windows(t)
 	_step_projectiles()
 	extras.step()
 	for i in range(leaps.size() - 1, -1, -1):
@@ -387,11 +402,64 @@ func apply_status(ctx: EffectContext, target: Node3D, kind: int, ticks: int, mag
 			return 0
 		if h != ctx.caster and h.combat.team == ctx.team and StatusComponent.is_hard_cc(kind):
 			return 0
-		return h.combat.status.apply(kind, ticks, magnitude, src, server.tick)
+		return h.combat.status.apply(kind, ticks, magnitude, src, server.tick, ctx.caster.net_id)
 	if target is WardlingSim and kind == StatusComponent.Kind.STUN and server.wardlings != null:
 		MinionmancerHooks.stun(target as WardlingSim, server.tick + ticks)
 		return ticks
 	return 0
+
+
+## W11-M1: the skill's damage-over-time and healing-reduction params applied to
+## `target` (Barbed Coil: `bleed` total HP over `bleed_time`, `heal_cut` fraction
+## for `heal_cut_time`). No-ops when the params are 0.
+func apply_skill_dots(ctx: EffectContext, target: Node3D) -> void:
+	var bt := ctx.ticks(&"bleed_time")
+	var total := ctx.power_param(&"bleed")
+	if total > 0.0 and bt > 0:
+		apply_status(ctx, target, StatusComponent.Kind.BLEED, bt, total / (bt / float(tick_hz)))
+	var ct := ctx.ticks(&"heal_cut_time")
+	var cut := ctx.param(&"heal_cut")
+	if cut > 0.0 and ct > 0:
+		apply_status(ctx, target, StatusComponent.Kind.HEAL_CUT, ct, cut)
+
+
+## Deals this tick's bleed of `h` (true damage; whole HP chunks so the feed is not spammed).
+func _tick_bleed(h: HeroBody) -> void:
+	var c := h.combat
+	if c.dead:
+		return
+	for e in c.status.entries:
+		if e.kind != StatusComponent.Kind.BLEED:
+			continue
+		e.carry += e.magnitude * dt
+		var last := server.tick + 1 >= e.expires_tick
+		if e.carry >= 1.0 or (last and e.carry > 0.0):
+			var amount := e.carry
+			e.carry = 0.0
+			var src := server.hero(e.attacker_id)
+			var team := src.combat.team if src != null and src.combat != null else 1 - c.team
+			server.damage_hero(h, DamageInfo.make(amount, e.attacker_id, team, 0, DamageInfo.Type.TRUE))
+			if c.dead:
+				return
+
+
+## W11-M1: Fortify Lifeblood. After the window, the caster heals a fraction of what its
+## damage reduction absorbed meanwhile (ticks = window, frac = fraction).
+func open_absorb_window(ctx: EffectContext, ticks: int, frac: float) -> void:
+	if ctx.caster == null or ticks <= 0 or frac <= 0.0:
+		return
+	absorb_windows.append([ctx.caster, server.tick + ticks, frac, ctx.caster.combat.health.mitigated])
+
+
+func _step_absorb_windows(t: int) -> void:
+	for i in range(absorb_windows.size() - 1, -1, -1):
+		var w: Array = absorb_windows[i]
+		var h := w[0] as HeroBody
+		if not is_instance_valid(h) or h.combat.dead:
+			absorb_windows.remove_at(i)
+		elif t >= int(w[1]):
+			absorb_windows.remove_at(i)
+			h.combat.health.heal((h.combat.health.mitigated - float(w[3])) * float(w[2]), h.net_id)
 
 
 func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployable:
@@ -430,6 +498,9 @@ func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployabl
 	d.source_id = Modifier.source(Modifier.SRC_ZONE, 0x800000 | d.id)
 	var kind := FX_WALL
 	var size := Vector3(d.width, d.height, d.thickness)
+	if def.kind == DeployableEffectDef.Kind.WALL and ctx.param(&"block_move") > 0.0:
+		kind = FX_WALL_SOLID
+		_make_wall_body(d)
 	if def.kind == DeployableEffectDef.Kind.BEACON:
 		kind = FX_BEACON
 		size = Vector3(d.radius, 0.0, 0.0)
@@ -477,6 +548,13 @@ func start_charge(ctx: EffectContext, def: ChargeEffectDef) -> void:
 	ch.half_width = def.path_half_width_m
 	ch.last_pos = h.state.position
 	ch.mask = h.collision_mask
+	var ally_range := ctx.param(&"ally_charge")
+	if ally_range > 0.0:  # Interceptor: an ally in the crosshair is charged instead of a lane
+		var a := extras.pick_ally_hero(h, ctx.origin, ctx.dir, ally_range, Targeting.ALLY_CONE_DEG)
+		if a != null:
+			ch.ally = a
+			var to := a.state.position - h.state.position
+			ch.dir = Vector3(to.x, 0.0, to.z).normalized()
 	# Charges pass through bodies; contact is resolved by _step_charge.
 	h.collision_mask = HeroBody.LAYER_WORLD | HeroBody.LAYER_EDGE_BLOCK
 	h.state.dash_velocity = ch.dir * ch.speed
@@ -644,7 +722,26 @@ func _block_bolt(from: Vector3, dir: Vector3, seg: float, team: int, damage: flo
 	return b[0]
 
 
+## W11-M1 Rampart: the wall's solid body, on the layer of the team it blocks.
+func _make_wall_body(d: Deployable) -> void:
+	var b := StaticBody3D.new()
+	b.collision_layer = HeroBody.block_layer(1 - d.team)
+	b.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(maxf(d.width, 0.1), maxf(d.height, 0.1), maxf(d.thickness, 0.1))
+	cs.shape = box
+	cs.position = Vector3(0.0, d.height * 0.5, 0.0)
+	b.add_child(cs)
+	server.add_child(b)
+	b.global_position = d.pos
+	b.rotation = Vector3(0.0, d.yaw, 0.0)
+	d.body = b
+
+
 func _tick_deployable(d: Deployable, t: int) -> void:
+	if d.body != null:  # a hacked wall does not block (as for shots)
+		d.body.collision_layer = 0 if traps.is_down(d) else HeroBody.block_layer(1 - d.team)
 	if d.fx != null:
 		d.fx.param = d.hp / d.max_hp if d.max_hp > 0.0 else 1.0
 	if d.kind >= TrapWorld.KIND_BASE or traps.is_down(d):
@@ -667,7 +764,16 @@ func _tick_deployable(d: Deployable, t: int) -> void:
 
 func _end_deployable(d: Deployable) -> void:
 	d.alive = false
+	if d.body != null:
+		d.body.queue_free()
+		d.body = null
 	traps.on_end(d)
+	for hook in d.on_end:  # W11-M1 expiry hooks (expiry or destruction)
+		var hc: EffectContext = hook[0]
+		if hc.caster != null and is_instance_valid(hc.caster):
+			hc.tick = server.tick
+			hc.run(hook[1])
+	d.on_end.clear()
 	_remove_fx(d.fx)
 	if d.ends_active and d.skill != null:
 		var owner := server.hero(d.owner_id)
@@ -739,6 +845,9 @@ func _step_charge(ch: Charge) -> void:
 	if h.combat.dead or ch.pinned:
 		_end_charge(ch)
 		return
+	if ch.ally != null:
+		_step_ally_charge(ch)
+		return
 	ch.ticks_left -= 1
 	var pos := h.state.position
 	var moved := Vector2(pos.x - ch.last_pos.x, pos.z - ch.last_pos.z).length()
@@ -791,6 +900,30 @@ func _step_charge(ch: Charge) -> void:
 	elif moved < expected * 0.3 and ch.total - ch.ticks_left > 1:
 		_end_charge(ch)  # ran into a wall with nobody to pin
 		return
+	if ch.ticks_left <= 0:
+		_end_charge(ch)
+
+
+## W11-M1 Interceptor: home in on the ally; on contact both gain the shield.
+func _step_ally_charge(ch: Charge) -> void:
+	var h := ch.hero
+	var a := ch.ally
+	if a.combat.dead:
+		_end_charge(ch)
+		return
+	ch.ticks_left -= 1
+	var to := a.state.position - h.state.position
+	to.y = 0.0
+	var contact := h.combat.def.body_radius * h.combat.def.hitbox_scale + a.combat.def.body_radius * a.combat.def.hitbox_scale + 0.6
+	if to.length() <= contact:
+		var ticks := ch.ctx.ticks(&"secondary_duration")
+		var amount := ch.ctx.power_param(&"extra")
+		apply_status(ch.ctx, h, StatusComponent.Kind.SHIELD, ticks, amount)
+		apply_status(ch.ctx, a, StatusComponent.Kind.SHIELD, ticks, amount)
+		_end_charge(ch)
+		return
+	ch.dir = to.normalized()
+	h.state.dash_velocity = ch.dir * ch.speed
 	if ch.ticks_left <= 0:
 		_end_charge(ch)
 

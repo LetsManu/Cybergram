@@ -3,7 +3,7 @@ extends RefCounted
 ## Message type ids (first byte of every packet) and the protocol version
 ## (architecture.md §8.2). Bump PROTOCOL_VERSION on any layout change.
 
-const PROTOCOL_VERSION: int = 13  # v13: Fork choice in ACTION_LEARN arg, hero bolts in the snapshot bolts block, PLAYER_STAT match-end events; v12: server accounts (ACCOUNT_REQ/RESULT, DTLS), identity from the session, LOBBY_JOIN without profile, presence via FRIENDS; v11: profiles (name/emblem/accent/id) in the lobby, chat, team switch, presence, player names in the match; v10: lobby + slot token in Hello; v9: hero pick in Hello; v8: M1 hero index per entity, Wardling tier (v7: E14 Plant/Breach task state in the hardpoint block; v6: E13/E15)
+const PROTOCOL_VERSION: int = 14  # v14: per-hero Fork/Mastery state (1 B base-6 per entity), GameEvent SKILL_CAST (id 6) for remote casts; v13: Fork choice in ACTION_LEARN arg, hero bolts in the snapshot bolts block, PLAYER_STAT match-end events; v12: server accounts (ACCOUNT_REQ/RESULT, DTLS), identity from the session, LOBBY_JOIN without profile, presence via FRIENDS; v11: profiles (name/emblem/accent/id) in the lobby, chat, team switch, presence, player names in the match; v10: lobby + slot token in Hello; v9: hero pick in Hello; v8: M1 hero index per entity, Wardling tier (v7: E14 Plant/Breach task state in the hardpoint block; v6: E13/E15)
 
 const HELLO: int = 1        ## C->S ch0: u16 protocol_version
 const WELCOME: int = 2      ## S->C ch0: u16 own net id, u32 server tick, u16 tick rate

@@ -538,3 +538,19 @@ HUD_TUT_SHOP_PAD,Y / Triangle
 HUD_TUT_BUY,Buy an item: move to it and confirm.
 HUD_TUT_BUY_PAD,A / Cross to buy
 HUD_MENU_PRACTICE,PRACTICE RANGE
+HUD_COL_FORKS,FORKS
+HUD_MENU_TUTORIAL,TUTORIAL
+HUD_SET_INPUT_DEVICE,Rebind controls for
+HUD_SET_DEVICE_KEYBOARD,Keyboard and mouse
+HUD_SET_DEVICE_GAMEPAD,Gamepad
+HUD_SET_SEC_GAMEPAD,Gamepad look and aim
+HUD_SET_PAD_SENS,Stick turn speed
+HUD_SET_PAD_DEADZONE,Stick dead zone
+HUD_SET_PAD_CURVE,Stick response curve
+HUD_SET_PAD_INVERT,Invert stick Y
+HUD_SET_AIM_ASSIST,Aim assist (gamepad)
+HUD_SET_RESET_PAD,Reset gamepad buttons to defaults
+HUD_SET_RESET_DONE_PAD,Gamepad buttons reset to defaults.
+HUD_SET_PRESS_BUTTON,Press a button...
+HUD_SET_CAPTURE_HINT_PAD,"Click a row, then press a button, trigger or stick direction. Esc cancels."
+HUD_SET_SWAPPED_PAD,"%s and %s swapped (they shared a button)."

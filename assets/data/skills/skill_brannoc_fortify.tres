@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="w10_2"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/area_effect_def.gd" id="w10_3"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/heal_effect_def.gd" id="w10_4"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/absorb_heal_effect_def.gd" id="m11_abs"]
 
 [sub_resource type="Resource" id="w10_sub_1"]
 script = ExtResource("w10_2")
@@ -22,9 +23,7 @@ radius_param = &"extra_b"
 effects = Array[Resource]([SubResource("w10_sub_1")])
 
 [sub_resource type="Resource" id="w10_sub_3"]
-script = ExtResource("w10_4")
-amount_param = &"count"
-on_caster = true
+script = ExtResource("m11_abs")
 
 [sub_resource type="Resource" id="w10_sub_4"]
 script = ExtResource("w10_2")
@@ -55,9 +54,9 @@ added_effects = Array[Resource]([SubResource("w10_sub_2")])
 
 [sub_resource type="Resource" id="w10_sub_8"]
 script = ExtResource("w10_0")
-stat = &"count"
+stat = &"recast_value"
 op = 0
-value = 50.0
+value = 0.2
 
 [sub_resource type="Resource" id="w10_sub_9"]
 script = ExtResource("w10_1")

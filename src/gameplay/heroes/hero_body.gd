@@ -9,6 +9,17 @@ const LAYER_WORLD: int = 1
 const LAYER_HEROES: int = 2
 ## Invisible walls above edge rails: block hero movement only, never shots.
 const LAYER_EDGE_BLOCK: int = 4
+## W11-M1 Rampart: a wall of team T carries the layer of the team it blocks; a
+## hero collides with the layer of its own team (server: AbilityWorld.pre_move,
+## client: AbilityPresenter). Shots never see these layers.
+const LAYER_BLOCK_TEAM0: int = 8
+const LAYER_BLOCK_TEAM1: int = 16
+const LAYERS_BLOCK_ALL: int = 24
+
+
+## Collision layer that blocks heroes of the given team.
+static func block_layer(team: int) -> int:
+	return LAYER_BLOCK_TEAM0 if team == 0 else LAYER_BLOCK_TEAM1
 
 var net_id: int = 0
 var state := MotorState.new()

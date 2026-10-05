@@ -16,6 +16,8 @@ signal hardpoint_owner_changed(index: int, old_team: int, new_team: int)
 signal match_phase_changed(phase: int)
 ## A shot was fired (any hero): drives bullet tracers.
 signal shot_received(event: GameEvent)
+## W11-V1: any hero's skill cast (own included; ClientSfx skips own, it hears them from cooldowns).
+signal skill_cast_received(event: GameEvent)
 ## E9: the match ended (winner -1 = draw; reason = MatchRules.EndReason).
 signal match_ended(winner: int, reason: int)
 ## E15: the own hero's level changed (HUD level-up flash).
@@ -67,6 +69,7 @@ var catalog: ArmoryCatalogDef
 var _mote_views: Array[MeshInstance3D] = []
 ## Stable content indices (hero identity of remote views).
 var content: ContentDB = ContentDB.shared()
+var _fork_bits: Dictionary = {}  # net id -> replicated Fork / Mastery bits (W11-V1)
 var _hero_index: Dictionary = {}  # net id -> replicated hero index
 
 var _views: Dictionary = {}  # net id -> HeroView
@@ -80,6 +83,8 @@ var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
 var _visual_offset: Vector3 = Vector3.ZERO
 var _cmd := InputCommand.new()
+## Buttons of the last sampled command (feel sounds read it: dry fire).
+var last_buttons: int = 0
 var _look: LookSettings
 
 
@@ -93,6 +98,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	player_input = source as PlayerInputSource
 	if player_input != null:
 		player_input.fork_slot_fn = fork_pending_slot
+		player_input.aim_targets_fn = aim_targets
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
 	session.token = hello_token
@@ -147,6 +153,28 @@ func own_team() -> int:
 	return ServerWorld.TEAM_PLAYERS
 
 
+## View-recoil multiplier for the own hero. GAP: the server's WeaponSim.recoil_mult
+## (Ryker Overdrive 0.5) is not replicated to the client (no field in OwnCombat,
+## protocol is off limits for this chunk), so this is 1.0 until it is.
+func own_recoil_mult() -> float:
+	return 1.0
+
+
+## W11-C1 gamepad aim assist: hitbox centres of visible enemy heroes relative to
+## the own eye (client-side view only; the server's hit logic is untouched).
+func aim_targets() -> Array:
+	var out: Array = []
+	if body == null or player_input == null or player_input.look == null:
+		return out
+	var eye := body.state.position + Vector3(0.0, body.eye_height(), 0.0)
+	var h := player_input.look.aim_assist_center_height_m
+	for id in _views:
+		var v: HeroView = _views[id]
+		if v.visible and v.team != own_team():
+			out.append(v.position + Vector3(0.0, h, 0.0) - eye)
+	return out
+
+
 ## Index of the hardpoint whose zone holds the predicted own hero, or -1.
 func own_hardpoint_index() -> int:
 	if body == null:
@@ -167,6 +195,7 @@ func tick() -> void:
 	client_seq += 1
 	_prev_pos = body.state.position
 	input_source.sample(client_seq, _cmd)
+	last_buttons = _cmd.buttons
 	# Lag compensation: the server rewinds targets to what this screen showed.
 	if view_render_tick > 0.0:
 		_cmd.view_tick = floori(view_render_tick)
@@ -182,6 +211,11 @@ func tick() -> void:
 		wardlings.resolve(_cmd)
 		_cmd.quantize()
 	body.state.speed_scale = own_speed_scale  # E10: slows / roots / stances
+	if player_input != null:
+		player_input.recoil_def = hero_def.weapon
+		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
+		var can := combat != null and combat.ammo > 0.0 and not combat.dead
+		player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -205,8 +239,8 @@ func render(delta: float) -> void:
 		_visual_offset = Vector3.ZERO
 	var frac := Engine.get_physics_interpolation_fraction()
 	var feet := _prev_pos.lerp(body.state.position, frac) + _visual_offset
-	var yaw := player_input.live_yaw if player_input != null else _cmd.yaw
-	var pitch := player_input.live_pitch if player_input != null else _cmd.pitch
+	var yaw := player_input.view_yaw() if player_input != null else _cmd.yaw
+	var pitch := player_input.view_pitch() if player_input != null else _cmd.pitch
 	rig.follow(feet, body.eye_height(), yaw, pitch)
 	wardlings.apply_debug_camera()
 
@@ -255,6 +289,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 		own_speed_scale = s.own_state.speed_scale
 	var seen := {}
 	for e in s.entities:
+		_fork_bits[e.net_id] = e.fork_bits
 		if e.net_id == s.own_net_id:
 			continue
 		seen[e.net_id] = true
@@ -276,6 +311,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 			_views.erase(id)
 			_buffers.erase(id)
 			_hero_index.erase(id)
+			_fork_bits.erase(id)
 
 
 ## Replicated hero identity -> the view's model (ContentDB index -> HeroDef id).
@@ -414,6 +450,9 @@ func _on_event(e: GameEvent, _server_tick: int) -> void:
 		GameEvent.SHOT:
 			_draw_tracer(e)
 			shot_received.emit(e)
+		GameEvent.SKILL_CAST:
+			abilities.on_skill_cast(e.cast_fork(), _team_of_hero(e.source_net_id), e.position)
+			skill_cast_received.emit(e)
 
 
 func _emit_summary_deferred() -> void:
@@ -470,3 +509,16 @@ func fork_pending_slot() -> int:
 		if hero_def.skills[i] != null and AbilityRunner.fork_offered(combat.skill_flags[i], hero_def.skills[i].ultimate):
 			return i
 	return -1
+
+
+## W11-V1: replicated team of a hero (-1 unknown).
+func _team_of_hero(net_id: int) -> int:
+	if net_id == session.own_net_id:
+		return own_team()
+	var v := _views.get(net_id) as HeroView
+	return v.team if v != null else -1
+
+
+## W11-V1: latest replicated Fork / Mastery bits of a hero (SnapshotData.EntityState.fork_bits).
+func fork_bits_of(net_id: int) -> int:
+	return int(_fork_bits.get(net_id, 0))

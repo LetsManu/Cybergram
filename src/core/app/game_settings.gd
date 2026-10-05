@@ -13,6 +13,12 @@ const SENS_MIN := 0.02
 const SENS_MAX := 0.5
 const FOV_MIN := 70.0
 const FOV_MAX := 110.0
+const PAD_SENS_MIN := 30.0
+const PAD_SENS_MAX := 540.0
+const PAD_DEADZONE_MIN := 0.0
+const PAD_DEADZONE_MAX := 0.5
+const PAD_CURVE_MIN := 1.0
+const PAD_CURVE_MAX := 3.0
 const RENDER_SCALE_MIN := 0.5
 const RENDER_SCALE_MAX := 1.0
 
@@ -31,6 +37,13 @@ const BUS_UI := &"UI"
 var mouse_sensitivity_deg: float = 0.12
 var invert_y: bool = false
 var fov_deg: float = 90.0
+## Gamepad look (W11-C1): right-stick rate at full tilt (deg/s), radial dead
+## zone, response-curve exponent, invert Y, and the aim-assist toggle.
+var pad_sensitivity_deg_s: float = 180.0
+var pad_deadzone: float = 0.15
+var pad_curve: float = 1.6
+var pad_invert_y: bool = false
+var aim_assist: bool = true
 ## Master volume, 0..1 (linear). Effects and UI buses sit below Master.
 var master_volume: float = 0.8
 var effects_volume: float = 1.0
@@ -96,6 +109,11 @@ func read_config(cfg: ConfigFile) -> void:
 	mouse_sensitivity_deg = clampf(cfg.get_value("look", "sensitivity_deg", mouse_sensitivity_deg), SENS_MIN, SENS_MAX)
 	invert_y = cfg.get_value("look", "invert_y", invert_y)
 	fov_deg = clampf(cfg.get_value("look", "fov_deg", fov_deg), FOV_MIN, FOV_MAX)
+	pad_sensitivity_deg_s = clampf(cfg.get_value("gamepad", "sensitivity_deg_s", pad_sensitivity_deg_s), PAD_SENS_MIN, PAD_SENS_MAX)
+	pad_deadzone = clampf(cfg.get_value("gamepad", "deadzone", pad_deadzone), PAD_DEADZONE_MIN, PAD_DEADZONE_MAX)
+	pad_curve = clampf(cfg.get_value("gamepad", "curve", pad_curve), PAD_CURVE_MIN, PAD_CURVE_MAX)
+	pad_invert_y = bool(cfg.get_value("gamepad", "invert_y", pad_invert_y))
+	aim_assist = bool(cfg.get_value("gamepad", "aim_assist", aim_assist))
 	master_volume = clampf(cfg.get_value("audio", "master", master_volume), 0.0, 1.0)
 	effects_volume = clampf(cfg.get_value("audio", "effects", effects_volume), 0.0, 1.0)
 	ui_volume = clampf(cfg.get_value("audio", "ui", ui_volume), 0.0, 1.0)
@@ -117,6 +135,11 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value("look", "sensitivity_deg", mouse_sensitivity_deg)
 	cfg.set_value("look", "invert_y", invert_y)
 	cfg.set_value("look", "fov_deg", fov_deg)
+	cfg.set_value("gamepad", "sensitivity_deg_s", pad_sensitivity_deg_s)
+	cfg.set_value("gamepad", "deadzone", pad_deadzone)
+	cfg.set_value("gamepad", "curve", pad_curve)
+	cfg.set_value("gamepad", "invert_y", pad_invert_y)
+	cfg.set_value("gamepad", "aim_assist", aim_assist)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "effects", effects_volume)
 	cfg.set_value("audio", "ui", ui_volume)
@@ -138,6 +161,11 @@ func apply_look(look: Resource) -> void:
 	look.set("mouse_sensitivity_deg", mouse_sensitivity_deg)
 	look.set("invert_y", invert_y)
 	look.set("fov_deg", fov_deg)
+	look.set("pad_sensitivity_deg_s", pad_sensitivity_deg_s)
+	look.set("pad_deadzone", pad_deadzone)
+	look.set("pad_curve", pad_curve)
+	look.set("pad_invert_y", pad_invert_y)
+	look.set("aim_assist", aim_assist)
 
 
 ## Pushes the key bindings into the InputMap.

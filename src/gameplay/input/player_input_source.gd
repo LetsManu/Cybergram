@@ -1,8 +1,11 @@
 class_name PlayerInputSource
 extends Node
-## Keyboard + mouse input for the local player (architecture.md §8.4).
-## Mouse look is applied every rendered frame (live_yaw/live_pitch, read by the
-## camera); sample() snapshots it into an InputCommand once per tick.
+## Keyboard + mouse + gamepad input for the local player (architecture.md §8.4).
+## Mouse look and the right stick (W11-C1: dead zone + response curve + optional
+## aim assist, all from LookSettings / GameSettings) are applied every rendered
+## frame (live_yaw/live_pitch, read by the camera); sample() snapshots them into
+## an InputCommand once per tick. Gamepad buttons / axes come from the InputMap
+## (InputBindings pad specs), so they rebind like keys.
 ## Mouse capture: left click captures, ui_cancel (Esc) releases. Capture is never
 ## forced at boot, so headless/Xvfb runs are unaffected.
 ##
@@ -40,6 +43,19 @@ var ui_captured: bool = false
 var paused: bool = false
 ## True when a pause menu handles Esc (it releases the mouse itself).
 var has_pause_menu: bool = false
+## Gamepad (W11-C1). True while the last input device used was the pad (fire
+## then works without mouse capture). aim_targets_fn() -> Array[Vector3]: enemy
+## hitbox centres relative to the eye (ClientWorld sets it; empty = no assist).
+## W11-C1 view punch (client-side only; see RecoilKick).
+var recoil := RecoilKick.new()
+## Weapon whose recovery values apply while no shot is kicking (ClientWorld sets it).
+var recoil_def: WeaponDef
+var pad_active: bool = false
+var aim_targets_fn: Callable
+## Last aim-assist multiplier applied to the stick turn (diagnostics / tests).
+var last_aim_scale: float = 1.0
+const WHEEL_STICK_PX: float = 100.0
+const PAD_ACTIVITY_AXIS: float = 0.4
 var _z_held_s: float = -1.0
 var _x_was_down: bool = false
 var _wheel_by_key: bool = false
@@ -49,6 +65,17 @@ func setup(look_settings: LookSettings, movement: MovementDef) -> void:
 	look = look_settings
 	GameSettings.shared()  # first use applies the saved key bindings to the InputMap
 	max_pitch_rad = deg_to_rad(movement.max_pitch_deg)
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton:
+		pad_active = true
+	elif event is InputEventJoypadMotion:
+		if absf(event.axis_value) >= PAD_ACTIVITY_AXIS:
+			pad_active = true  # below this is stick drift, not intent
+	elif event is InputEventMouseButton or event is InputEventKey \
+			or (event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED):
+		pad_active = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -77,7 +104,18 @@ func request_action(action: int, arg: int = 0) -> void:
 	_actions.append([action, arg])
 
 
+## Aim yaw / pitch = player look + recoil kick (camera and InputCommand agree).
+func view_yaw() -> float:
+	return fposmod(live_yaw + recoil.kick.x, TAU)
+
+
+func view_pitch() -> float:
+	return clampf(live_pitch + recoil.kick.y, -max_pitch_rad, max_pitch_rad)
+
+
 func _process(delta: float) -> void:
+	recoil.recover(delta, recoil_def)
+	_apply_stick_look(delta)
 	quick_spend = _pressed("quick_spend", KEY_ALT)
 	var keys := [KEY_Q, KEY_E, KEY_C, KEY_G]
 	for i in 4:
@@ -86,8 +124,8 @@ func _process(delta: float) -> void:
 			request_action(InputCommand.ACTION_LEARN, i)
 		_learn_was_down[i] = down
 	# W10-T1: Fork choice (keys 1 / 2 or L1 / R1) for the slot the HUD offers it on.
-	var fa := not ui_captured and (_pressed("fork_a", KEY_1) or Input.is_joy_button_pressed(0, JOY_BUTTON_LEFT_SHOULDER))
-	var fb := not ui_captured and (_pressed("fork_b", KEY_2) or Input.is_joy_button_pressed(0, JOY_BUTTON_RIGHT_SHOULDER))
+	var fa := not ui_captured and (_pressed("fork_a", KEY_1) or _pad_down("fork_a") or _pad_down("skill_1"))
+	var fb := not ui_captured and (_pressed("fork_b", KEY_2) or _pad_down("fork_b") or _pad_down("skill_2"))
 	if fork_slot_fn.is_valid():
 		var fs: int = fork_slot_fn.call()
 		if fs >= 0 and fa and not _fork_a_was_down:
@@ -133,6 +171,61 @@ func _process(delta: float) -> void:
 	_x_was_down = x
 
 
+## Raw right stick (device 0).
+func _right_stick() -> Vector2:
+	return Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+
+
+## Right-stick look for this frame (and the radial wheel pick while it is open).
+func _apply_stick_look(delta: float) -> void:
+	if paused or look == null:
+		return
+	var raw := _right_stick()
+	if wheel_open:
+		if raw.length() > PAD_ACTIVITY_AXIS:
+			wheel_vec = raw.normalized() * WHEEL_STICK_PX
+		return
+	var targets: Array = aim_targets_fn.call() if aim_targets_fn.is_valid() else []
+	var step := stick_look_step(raw, delta, targets)
+	if step != Vector2.ZERO:
+		live_yaw = fposmod(live_yaw + step.x, TAU)
+		live_pitch = clampf(live_pitch + step.y, -max_pitch_rad, max_pitch_rad)
+
+
+## (yaw, pitch) change in radians for a raw stick vector over `delta`: dead zone
+## + response curve + (gamepad only) aim-assist slowdown near `targets` (hitbox
+## centres relative to the eye). The mouse path never calls this.
+func stick_look_step(raw: Vector2, delta: float, targets: Array = []) -> Vector2:
+	var shaped := StickMath.shape(raw, look.pad_deadzone, look.pad_curve)
+	last_aim_scale = 1.0
+	if shaped == Vector2.ZERO:
+		return Vector2.ZERO
+	if look.aim_assist and not targets.is_empty():
+		var fwd := Basis.from_euler(Vector3(live_pitch, live_yaw, 0.0)) * Vector3.FORWARD
+		last_aim_scale = AimAssist.scale_for_targets(fwd, targets, look.aim_assist_radius_deg,
+			look.aim_assist_min_scale, look.aim_assist_hit_radius_m, look.aim_assist_max_range_m)
+	var rate := deg_to_rad(look.pad_sensitivity_deg_s) * delta * last_aim_scale
+	var dy := -shaped.y if not look.pad_invert_y else shaped.y
+	return Vector2(-shaped.x * rate, dy * rate)
+
+
+## Fire / alt-fire need the mouse captured, except while the pad is in use.
+func _can_shoot() -> bool:
+	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or pad_active
+
+
+## True while the gamepad spec bound to `action` is held (device 0). Used for
+## context buttons the InputMap action must not own (Fork picks on skill buttons).
+func _pad_down(action: String) -> bool:
+	var spec := GameSettings.shared().bindings.get_pad_spec(action)
+	var parts := spec.split(":")
+	if parts.size() == 2 and parts[0] == "j" and parts[1].is_valid_int():
+		return Input.is_joy_button_pressed(0, parts[1].to_int() as JoyButton)
+	if parts.size() == 3 and parts[0] == "a" and parts[1].is_valid_int() and parts[2].is_valid_int():
+		return Input.get_joy_axis(0, parts[1].to_int() as JoyAxis) * parts[2].to_int() > 0.5
+	return false
+
+
 ## Radial slice under the flick (SQUAD_NONE inside the dead zone = cancel).
 func wheel_selection() -> int:
 	if wheel_vec.length() < WHEEL_DEADZONE_PX:
@@ -148,8 +241,8 @@ func sample(seq: int, out: InputCommand) -> void:
 		_sample_neutral(out)
 		return
 	out.move = _move_vector()
-	out.yaw = live_yaw
-	out.pitch = live_pitch
+	out.yaw = view_yaw()
+	out.pitch = view_pitch()
 	out.buttons = 0
 	if _pressed("jump", KEY_SPACE):
 		out.buttons |= InputCommand.BTN_JUMP
@@ -158,10 +251,10 @@ func sample(seq: int, out: InputCommand) -> void:
 	if _pressed("sprint", KEY_SHIFT):
 		out.buttons |= InputCommand.BTN_SPRINT
 	# Fire only while the mouse is captured (the capturing click never shoots).
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _fire_down():
+	if _can_shoot() and _fire_down():
 		out.buttons |= InputCommand.BTN_FIRE
 	# Alt-fire (RMB, rebindable): Liora's heal beam (weapons-and-mods.md §3.3.1).
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and _alt_fire_down():
+	if _can_shoot() and _alt_fire_down():
 		out.buttons |= InputCommand.BTN_ALT
 	if _pressed("reload", KEY_R):
 		out.buttons |= InputCommand.BTN_RELOAD

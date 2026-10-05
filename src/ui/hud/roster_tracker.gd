@@ -22,6 +22,8 @@ class Hero:
 	var level: int = 0
 	var lumen: int = -1
 	var is_bot: bool = false
+	## W11-V1: SnapshotData.EntityState.fork_bits (Fork / Mastery of the 3 basic skills).
+	var fork_bits: int = 0
 
 
 var own_id: int = 0
@@ -45,6 +47,7 @@ func apply_entities(entities: Array, own_id_: int, own_team_: int) -> void:
 		h.hp = e.hp
 		h.max_hp = e.max_hp
 		h.dead = e.dead
+		h.fork_bits = e.fork_bits
 		seen[e.net_id] = true
 	for id in heroes.keys():
 		if not seen.has(id):
@@ -110,5 +113,6 @@ func rows() -> Array:
 		r.alive = not h.dead
 		r.is_self = id == own_id
 		r.is_bot = h.is_bot
+		r.fork_bits = h.fork_bits
 		out.append(r)
 	return out

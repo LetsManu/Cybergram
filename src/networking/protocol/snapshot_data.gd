@@ -22,6 +22,20 @@ class EntityState:
 	## M1: hero identity, ContentDB.index_of(ContentDB.HERO, HeroDef.id)
 	## (0 = unknown). Drives the remote HeroView model.
 	var hero_index: int = 0
+	## W11-V1: Fork / Mastery of the 3 basic skills, 3 bits per slot (slot i at bit 3i):
+	## bits 0-1 Fork (0 none, 1 A, 2 B), bit 2 Mastery. Use fork_of() / mastery_of().
+	var fork_bits: int = 0
+
+	func fork_of(slot: int) -> int:
+		return (fork_bits >> (slot * 3)) & 3
+
+	func mastery_of(slot: int) -> bool:
+		return ((fork_bits >> (slot * 3 + 2)) & 1) != 0
+
+	## Builds fork_bits from one slot's values.
+	static func with_slot(bits: int, slot: int, fork: int, mastery: bool) -> int:
+		var v := (clampi(fork, 0, 2)) | (4 if mastery else 0)
+		return (bits & ~(7 << (slot * 3))) | (v << (slot * 3))
 
 ## Combat state of the receiving client's own hero (health, feed, respawn).
 class OwnCombat:

@@ -30,15 +30,25 @@ var client: ClientWorld
 var _nodes: Dictionary = {}  # fx id -> [Node3D, kind]
 ## net id -> true while a remote hero is stealthed (from the replicated status).
 var _stealthed: Dictionary = {}
+var _revealed: Dictionary = {}  # net id -> true while revealed to our team (W11-M1)
 var _faded: Dictionary = {}  # net id -> true while its model is faded by us
 var _blind_rect: ColorRect
 var _blind: bool = false
+## W11-V1: recent SKILL_CAST events [team, fork, position, msec] and young, untinted FX
+## [node, team, position, msec]; matched either way round (event / snapshot order varies).
+var _recent_casts: Array = []
+var _young_fx: Array = []
+const _MATCH_MS: int = 600
+const _MATCH_RANGE_M: float = 45.0
 
 
 func apply_snapshot(s: SnapshotData) -> void:
 	_stealthed.clear()
+	_revealed.clear()
 	_blind = false
 	for e in s.entities:
+		if (e.status & SkillStatusBits.REVEALED) != 0 and e.net_id != s.own_net_id:
+			_revealed[e.net_id] = true
 		if e.net_id == s.own_net_id:
 			_blind = (e.status & SkillStatusBits.BLIND) != 0
 		elif (e.status & SkillStatusBits.STEALTH) != 0:
@@ -52,6 +62,8 @@ func apply_snapshot(s: SnapshotData) -> void:
 				(rec[0] as Node3D).queue_free()
 			rec = [_build(f), f.kind]
 			_nodes[f.id] = rec
+			_young_fx.append([rec[0], f.team, f.position, Time.get_ticks_msec()])
+			_match_tints()
 			fx_started.emit(f.kind, f.position, f.id)
 		elif f.kind == SkillEntities.FX_BEAM:
 			fx_moved.emit(f.kind, f.position, f.id)
@@ -63,15 +75,46 @@ func apply_snapshot(s: SnapshotData) -> void:
 			_nodes.erase(id)
 
 
+## W11-V1: a hero cast a skill (GameEvent.SKILL_CAST); its Fork tints the FX it spawns.
+## `team` is the caster's team (from the replicated snapshot).
+func on_skill_cast(fork: int, team: int, at: Vector3) -> void:
+	if fork < 1:
+		return
+	_recent_casts.append([team, fork, at, Time.get_ticks_msec()])
+	_match_tints()
+
+
+func _match_tints() -> void:
+	var now := Time.get_ticks_msec()
+	_recent_casts = _recent_casts.filter(func(c: Array) -> bool: return now - c[3] <= _MATCH_MS)
+	_young_fx = _young_fx.filter(func(f: Array) -> bool: return now - f[3] <= _MATCH_MS and is_instance_valid(f[0]))
+	for f in _young_fx.duplicate():
+		var best := -1
+		var best_d := _MATCH_RANGE_M
+		for i in _recent_casts.size():
+			var c: Array = _recent_casts[i]
+			var d := (c[2] as Vector3).distance_to(f[2])
+			if c[0] == f[1] and d <= best_d:
+				best = i
+				best_d = d
+		if best >= 0:
+			FxForkTint.tint_tree(f[0], f[1], _recent_casts[best][1])
+			_young_fx.erase(f)
+
+
 func _process(_delta: float) -> void:
 	_update_blind()
 	if client == null or client.body == null:
 		return
+	client.body.collision_mask |= HeroBody.block_layer(client.own_team())  # W11-M1 Rampart
 	var me := client.body.state.position
 	var views := client.remote_views()
 	for id in views:
 		var v := views[id] as HeroView
-		if v == null or v.model == null:
+		if v == null:
+			continue
+		_update_reveal_marker(v, _revealed.has(id))
+		if v.model == null:
 			continue
 		if _stealthed.has(id) and v.team != client.own_team():
 			var d := v.position.distance_to(me)
@@ -82,6 +125,36 @@ func _process(_delta: float) -> void:
 			v.model.visible = true
 			_set_fade(v.model, 0.0)
 			_faded.erase(id)
+
+
+const REVEAL_COLOR := Color(1.0, 0.25, 0.2, 0.45)
+
+
+## W11-M1: a see-through-walls silhouette on a revealed enemy (no depth test).
+func _update_reveal_marker(v: HeroView, on: bool) -> void:
+	var m := v.get_node_or_null("RevealMarker") as MeshInstance3D
+	if not on:
+		if m != null:
+			m.queue_free()
+			m.name = "RevealMarker_gone"
+		return
+	if m != null:
+		return
+	m = MeshInstance3D.new()
+	m.name = "RevealMarker"
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.45
+	cap.height = 1.9
+	m.mesh = cap
+	m.position.y = 0.95
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.no_depth_test = true
+	mat.albedo_color = REVEAL_COLOR
+	mat.render_priority = 100
+	m.material_override = mat
+	v.add_child(m)
 
 
 func _set_fade(n: Node, t: float) -> void:
@@ -129,7 +202,7 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 	var c := _team_color(f.team)
 	var hostile := _hostile(f.team)
 	match f.kind:
-		AbilityWorld.FX_WALL:
+		AbilityWorld.FX_WALL, AbilityWorld.FX_WALL_SOLID:
 			var size := f.position2
 			# G1: holo-scanline barrier (art bible §10.4); the replicated `param`
 			# still drives the fade, through the shader's `alpha`.
@@ -142,6 +215,17 @@ func _build(f: SnapshotData.FxState) -> Node3D:
 				post.position = Vector3(x * size.x, size.y * 0.5, 0.0)
 			var top := _mesh(root, _box(Vector3(size.x, 0.1, 0.45)), _mat(c, 0.95, true))
 			top.position.y = size.y
+			if f.kind == AbilityWorld.FX_WALL_SOLID:  # W11-M1 Rampart: the predicted body must collide too
+				var sb := StaticBody3D.new()
+				sb.collision_layer = HeroBody.block_layer(1 - f.team)
+				sb.collision_mask = 0
+				var cs := CollisionShape3D.new()
+				var bs := BoxShape3D.new()
+				bs.size = Vector3(size.x, size.y, maxf(size.z, 0.2))
+				cs.shape = bs
+				cs.position.y = size.y * 0.5
+				sb.add_child(cs)
+				root.add_child(sb)
 		AbilityWorld.FX_BEACON:
 			var pole := _mesh(root, _cyl(0.12, 1.6), _mat(VIOLET, 0.95, true))
 			pole.position.y = 0.8
@@ -213,7 +297,7 @@ func _update(n: Node3D, f: SnapshotData.FxState) -> void:
 		GadgetFx.update(n, f, client, _hostile(f.team))
 		return
 	match f.kind:
-		AbilityWorld.FX_WALL:
+		AbilityWorld.FX_WALL, AbilityWorld.FX_WALL_SOLID:
 			n.position = f.position
 			n.rotation = Vector3(0.0, f.yaw, 0.0)
 			var slab := n.get_node_or_null("Slab") as MeshInstance3D

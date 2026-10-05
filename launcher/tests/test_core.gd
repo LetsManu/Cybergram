@@ -126,5 +126,23 @@ func _init() -> void:
 	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old")), "cleanup removes .old")
 	LauncherCore.remove_tree(sb)
 
+	# Feed signature (W11-Q1 SEC-010). Fixtures: an ECDSA P-256 test key (the
+	# private half is not in the repo) and its signature over feed_version.json.
+	var fx: String = "res://tests/fixtures/"
+	var fbody: PackedByteArray = FileAccess.get_file_as_bytes(fx + "feed_version.json")
+	var fsig: String = FileAccess.get_file_as_string(fx + "feed_version.json.sig")
+	var fpem: String = FileAccess.get_file_as_string(fx + "feed_test_key.pub.pem")
+	var fv: Dictionary = LauncherCore.verify_feed(fbody, fsig, fpem)
+	_check(fv["ok"] and fv["signed"], "feed: valid signature accepted")
+	var tampered: PackedByteArray = fbody.duplicate()
+	tampered[2] ^= 1
+	_check(not LauncherCore.verify_feed(tampered, fsig, fpem)["ok"], "feed: tampered body refused")
+	_check(not LauncherCore.verify_feed(fbody, "", fpem)["ok"], "feed: missing signature refused with a pinned key")
+	_check(not LauncherCore.verify_feed(fbody, "AAAA", fpem)["ok"], "feed: garbage signature refused")
+	var unpinned: Dictionary = LauncherCore.verify_feed(fbody, "", "")
+	_check(unpinned["ok"] and not unpinned["signed"] and unpinned["message"] != "", "feed: no pinned key -> accepted with warning")
+	var bad_exe: String = good.replace('"exe":"g"', '"exe":"../../bin/sh"')
+	_check(not LauncherCore.parse_manifest(bad_exe)["ok"], "manifest unsafe exe path")
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

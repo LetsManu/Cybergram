@@ -13,6 +13,9 @@ const FLAG := "--practice"
 static var active: bool = false
 static var hero_id: String = ""
 static var _restart: bool = false
+## W11-V1: the menu's Tutorial button; the installer starts the tutorial straight away (like
+## --practice-tutorial) and clears it.
+static var tutorial_requested: bool = false
 
 
 ## Marks the next session as a practice range; returns the launch args.
@@ -20,6 +23,19 @@ static func begin(hero: String) -> PackedStringArray:
 	active = true
 	hero_id = hero
 	return PackedStringArray(["--map", MAP, "--hero", hero])
+
+
+## Like begin(), and starts the tutorial when the range is ready.
+static func begin_tutorial(hero: String) -> PackedStringArray:
+	tutorial_requested = true
+	return begin(hero)
+
+
+## True once (and clears) after begin_tutorial().
+static func consume_tutorial() -> bool:
+	var r := tutorial_requested
+	tutorial_requested = false
+	return r
 
 
 ## True when this process runs the range (menu entry or --practice).

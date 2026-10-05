@@ -9,7 +9,9 @@ extends RefCounted
 ## Rules: accounts need a DTLS link (`secure`), otherwise login / register are
 ## refused with E_NOT_SECURE (guests still work); passwords are PBKDF2-hashed
 ## off the sim thread (PasswordHasher); failed logins are rate-limited per
-## account and per connection; session tokens (32 random bytes) live in
+## (account, source address) and per source address (W11-Q1 SEC-002: a
+## reconnect does not reset the limit, and a stranger cannot lock a player out
+## of their own account); session tokens (32 random bytes) live in
 ## memory only and are dropped SESSION_GRACE after the connection is gone;
 ## inactive accounts are deleted after AuthRulesDef.retention_days (sweep at
 ## start and daily). Logs carry the 4-char id tag only, never usernames,
@@ -20,6 +22,8 @@ extends RefCounted
 ##   lobby = LobbyServer.new(enet, 3)   # uses AccountService.shared()
 
 const SWEEP_EVERY_S := 86400.0
+## Expired rate-limit entries (with IP addresses) are dropped this often.
+const PURGE_EVERY_S := 60.0
 ## Per-connection account request budget (token bucket).
 const REQ_BURST := 12.0
 const REQ_PER_S := 3.0
@@ -46,6 +50,7 @@ var _jobs_by_peer: Dictionary = {}  # peer -> true while a hash job runs
 var _req_budget: Dictionary = {}    # peer -> [tokens, last_s]
 var _now: float = 0.0
 var _since_sweep: float = 0.0
+var _since_purge: float = 0.0
 var _crypto := Crypto.new()
 
 
@@ -132,14 +137,18 @@ func step(delta: float) -> void:
 		var s: Dictionary = sessions[tok]
 		if s.peer < 0 and _now - float(s.detached_at) > rules.session_grace_s:
 			sessions.erase(tok)
+	_since_purge += delta
+	if _since_purge >= PURGE_EVERY_S:
+		# Failed-login entries hold an IP address: drop them once expired (PRIVACY.md).
+		_since_purge = 0.0
+		rl_account.purge(_now)
+		rl_peer.purge(_now)
 	_since_sweep += delta
 	if _since_sweep >= SWEEP_EVERY_S and store != null:
 		_since_sweep = 0.0
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
 			print("[accounts] retention: deleted %d inactive account(s)" % swept.size())
-		rl_account.purge(_now)
-		rl_peer.purge(_now)
 
 
 ## Handles one ACCOUNT_REQ packet from `peer`, replying on `t`.
@@ -206,7 +215,8 @@ func _login(t: Transport, peer: int, r: Dictionary) -> void:
 		_reply(t, peer, op, code)
 		return
 	var uname := str(r.username).to_lower()
-	if rl_account.is_locked("u:" + uname, _now) or rl_peer.is_locked("p:%d" % peer, _now):
+	var pk := source_key(t, peer)
+	if rl_account.is_locked(account_key(uname, pk), _now) or rl_peer.is_locked(pk, _now):
 		_reply(t, peer, op, AccountCodec.E_LOCKED)
 		return
 	var a := store.find_username(uname)
@@ -217,7 +227,7 @@ func _login(t: Transport, peer: int, r: Dictionary) -> void:
 		iters = int(a.password.iterations)
 	_jobs_by_peer[peer] = true
 	hasher.submit(str(r.password).to_utf8_buffer(), salt, iters,
-		{"op": op, "peer": peer, "t": t, "uname": uname, "id": str(a.get("id", ""))})
+		{"op": op, "peer": peer, "t": t, "uname": uname, "id": str(a.get("id", "")), "pk": pk})
 
 
 func _resume(t: Transport, peer: int, r: Dictionary) -> void:
@@ -361,12 +371,12 @@ func _finish(job: PasswordHasher.Job) -> void:
 			var a := store.get_by_id(str(c.id)) if str(c.id) != "" else {}
 			var ok := not a.is_empty() and Pbkdf2.constant_time_equals(job.hash, str(a.password.hash).hex_decode())
 			if not ok:
-				rl_account.fail("u:" + str(c.uname), _now)
-				rl_peer.fail("p:%d" % peer, _now)
+				rl_account.fail(account_key(str(c.uname), str(c.pk)), _now)
+				rl_peer.fail(str(c.pk), _now)
 				print("[accounts] failed login on peer %d" % peer)
 				_reply(t, peer, c.op, AccountCodec.E_CREDENTIALS)
 				return
-			rl_account.succeed("u:" + str(c.uname))
+			rl_account.succeed(account_key(str(c.uname), str(c.pk)))
 			a.last_login_at = int(Time.get_unix_time_from_system())
 			store.put(a)
 			print("[accounts] login account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
@@ -382,7 +392,11 @@ func _finish(job: PasswordHasher.Job) -> void:
 				return
 			a.password = {"algo": "pbkdf2-hmac-sha256", "hash": job.hash.hex_encode(),
 				"salt": (c.salt as PackedByteArray).hex_encode(), "iterations": job.iterations}
-			_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OK if store.put(a) else AccountCodec.E_STORE)
+			if not store.put(a):
+				_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.E_STORE)
+				return
+			end_other_sessions(a.id, peer)
+			_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OK)
 
 
 ## CHANGE_PASSWORD / DELETE_ACCOUNT after the current password was checked.
@@ -390,8 +404,8 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 	var op: int = c.op
 	var a := store.get_by_id(str(c.id))
 	if a.is_empty() or not Pbkdf2.constant_time_equals(job.hash, str(a.password.hash).hex_decode()):
-		rl_account.fail("u:" + str(a.get("username", "")).to_lower(), _now)
-		rl_peer.fail("p:%d" % peer, _now)
+		rl_account.fail(account_key(str(c.uname), str(c.pk)), _now)
+		rl_peer.fail(str(c.pk), _now)
 		_reply(t, peer, op, AccountCodec.E_CREDENTIALS)
 		return
 	if op == AccountCodec.OP_DELETE_ACCOUNT:
@@ -426,7 +440,9 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 			if _jobs_by_peer.has(peer):
 				_reply(t, peer, op, AccountCodec.E_BUSY)
 				return
-			if rl_account.is_locked("u:" + str(me.username).to_lower(), _now) or rl_peer.is_locked("p:%d" % peer, _now):
+			var pk := source_key(t, peer)
+			var uname := str(me.username).to_lower()
+			if rl_account.is_locked(account_key(uname, pk), _now) or rl_peer.is_locked(pk, _now):
 				_reply(t, peer, op, AccountCodec.E_LOCKED)
 				return
 			var pw := str(r.get("old_password", r.get("password", "")))
@@ -435,7 +451,8 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 				return
 			_jobs_by_peer[peer] = true
 			hasher.submit(pw.to_utf8_buffer(), str(me.password.salt).hex_decode(), int(me.password.iterations),
-				{"op": op, "peer": peer, "t": t, "id": me.id, "new_password": str(r.get("new_password", ""))})
+				{"op": op, "peer": peer, "t": t, "id": me.id, "new_password": str(r.get("new_password", "")),
+				"uname": uname, "pk": pk})
 		AccountCodec.OP_EXPORT:
 			_reply(t, peer, op, AccountCodec.OK, {"json": export_json(me)})
 		AccountCodec.OP_FRIENDS:
@@ -611,6 +628,29 @@ func unblock(me: Dictionary, id: String) -> int:
 
 
 # --- helpers ----------------------------------------------------------------
+
+## Rate-limit key of the sender: its IP address, or the connection when the
+## transport has none (loopback). In memory only, never logged.
+static func source_key(t: Transport, peer: int) -> String:
+	var addr := t.peer_address(peer) if t != null else ""
+	return "a:" + addr if addr != "" else "p:%d" % peer
+
+
+## Rate-limit key of an account as tried from one source.
+static func account_key(uname: String, source: String) -> String:
+	return "u:%s|%s" % [uname.to_lower(), source]
+
+
+## Ends every session of `account_id` except the one on `keep_peer` (after a
+## password change: a stolen token or a forgotten login elsewhere stops working).
+func end_other_sessions(account_id: String, keep_peer: int) -> void:
+	for tok in sessions.keys():
+		var s: Dictionary = sessions[tok]
+		if s.identity.id == account_id and s.peer != keep_peer:
+			if int(s.peer) >= 0:
+				peers.erase(s.peer)
+			sessions.erase(tok)
+
 
 func _reply(t: Transport, peer: int, op: int, code: int, fields: Dictionary = {}) -> void:
 	t.send(peer, Transport.CH_CONTROL, AccountCodec.encode_result(op, code, fields))

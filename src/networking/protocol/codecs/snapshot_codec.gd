@@ -4,12 +4,13 @@ extends RefCounted
 ## (architecture.md §8.5) replace the entity block in a later epic.
 ##
 ## Layout: u8 type, u32 tick, u32 last_processed_seq, u16 own_net_id,
-##   u8 has_own, [own block 27 B + own combat 19 B], u16 entity count, count x entity (41 B).
+##   u8 has_own, [own block 27 B + own combat 19 B], u16 entity count, count x entity (46 B).
 ## Own block: pos f32x3, vel f32x3, u8 flags, u8 coyote ticks, u8 jump buffer ticks.
 ## Own combat: u16 hp, u16 max_hp, u8 dead, u32 respawn_tick, u8 feed_kind,
 ##   f32 ammo, u16 ammo_capacity, u16 reserve, u8 ammo_flags.
 ## Entity: u16 net_id, u8 kind, pos f32x3, vel f32x3, yaw f32, pitch f32, u8 flags,
 ##   u8 team, u16 hp, u16 max_hp. M1 (v8): + u16 hero index (ContentDB, 0 = unknown).
+##   W11-V1 (v14): + u8 Fork/Mastery of the 3 basic skills (base 6 per slot, see pack_fork).
 ## Wardlings (E8, after the entities): u16 count, count x wardling (15 B), then
 ##   u16 bolt count, count x bolt (12 B: from i16x3, to i16x3; 1/32 m).
 ## Wardling: u16 net_id, pos i16x3 (1/32 m), u8 yaw, u8 hp (1/255), u8 team (bit 7 =
@@ -37,7 +38,7 @@ extends RefCounted
 const _HEADER: int = 12
 const _OWN: int = 27 + 17
 const _OWN_COMBAT: int = 19 + 25
-const _ENTITY: int = 2 + 1 + 12 + 12 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 2
+const _ENTITY: int = 2 + 1 + 12 + 12 + 4 + 4 + 1 + 1 + 2 + 2 + 2 + 2 + 1
 const _F_DASH_LAUNCH: int = 16
 const _FX: int = 20
 const _F_GROUNDED: int = 1
@@ -57,6 +58,25 @@ const _MATCH: int = 1 + 4 + 4 + 1 + 1 + 1
 const _UPLINK: int = 10
 const _PROGRESS: int = 1 + 4 + 1 + 4 + 1 + 1 + 4 + 3 * 6 + 1
 const _MOTE: int = 6
+
+
+## W11-V1: each basic slot has 6 states (Fork none/A/B x Mastery), 6^3 = 216 fit one byte.
+## `bits` is SnapshotData.EntityState.fork_bits; returns 0..215.
+static func pack_fork(bits: int) -> int:
+	var v := 0
+	for slot in 3:
+		var st := mini((bits >> (slot * 3)) & 3, 2) * 2 + ((bits >> (slot * 3 + 2)) & 1)
+		v = v * 6 + st
+	return v
+
+
+static func unpack_fork(v: int) -> int:
+	var bits := 0
+	for slot in [2, 1, 0]:
+		var st := v % 6
+		v /= 6
+		bits |= ((st >> 1) | ((st & 1) << 2)) << (slot * 3)
+	return bits
 
 
 static func encode(s: SnapshotData) -> PackedByteArray:
@@ -114,7 +134,8 @@ static func encode(s: SnapshotData) -> PackedByteArray:
 		b.encode_u16(off + 12, clampi(e.max_hp, 0, 65535))
 		b.encode_u16(off + 14, e.status & 0xFFFF)
 		b.encode_u16(off + 16, clampi(e.hero_index, 0, 65535))
-		off += 18
+		b.encode_u8(off + 18, pack_fork(e.fork_bits))
+		off += 19
 	off = _encode_wardlings(b, off, s)
 	off = _encode_fx(b, off, s)
 	off = _encode_objectives(b, off, s)
@@ -489,6 +510,7 @@ static func decode(b: PackedByteArray) -> SnapshotData:
 		e.max_hp = b.decode_u16(off + 39)
 		e.status = b.decode_u16(off + 41)
 		e.hero_index = b.decode_u16(off + 43)
+		e.fork_bits = unpack_fork(b.decode_u8(off + 45))
 		s.entities.append(e)
 		off += _ENTITY
 	off = _decode_wardlings(b, off, s)

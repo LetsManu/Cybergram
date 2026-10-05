@@ -14,3 +14,6 @@ enum Kind { UNLOCK, BOOST, FORK_A, FORK_B, MASTERY, ULT_RANK }
 @export_range(0, 3) var rank: int = 0
 @export var modifiers: Array[ModifierDef] = []
 @export var added_effects: Array[Resource] = []
+## W11-M1: effects of a second press of the skill inside its recast_window param
+## (Echo, Rebound). Unlike SkillDef.recast_effects they need no cooldown / active state.
+@export var recast_effects: Array[Resource] = []

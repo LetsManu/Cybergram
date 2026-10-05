@@ -19,7 +19,7 @@ tag="$1"; win="$2"; lin="$3"; notes="$4"; out="$5"
 ver="${tag#v}"
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
-rm -f "$out"/Cybergram-*.zip "$out"/CybergramLauncher-*.zip "$out/version.json"
+rm -f "$out"/Cybergram-*.zip "$out"/CybergramLauncher-*.zip "$out/version.json" "$out/version.json.sig"
 
 pack() { # <platform> <dir> [prefix]
   local f="${3:-Cybergram}-$tag-$1-x86_64.zip"
@@ -61,4 +61,19 @@ if [[ $# -eq 7 ]]; then
        linux:{file:$lf,size:$ls,sha256:$lh,exe:"CybergramLauncher.x86_64"}}}' \
     "$out/version.json" > "$out/version.json.tmp" && mv "$out/version.json.tmp" "$out/version.json"
   echo "launcher section added ($lw, $ln)"
+fi
+
+# Optional signature (W11-Q1 SEC-010): FEED_SIGNING_KEY_FILE = ECDSA P-256
+# private key (PEM). Writes version.json.sig = base64(DER ECDSA/SHA-256 over
+# the exact bytes of version.json), then checks it with the public half.
+if [[ -n "${FEED_SIGNING_KEY_FILE:-}" ]]; then
+  openssl dgst -sha256 -sign "$FEED_SIGNING_KEY_FILE" "$out/version.json" | base64 -w0 > "$out/version.json.sig"
+  openssl ec -in "$FEED_SIGNING_KEY_FILE" -pubout 2>/dev/null > "$out/.feed_pub.pem"
+  base64 -d "$out/version.json.sig" > "$out/.feed_sig.der"
+  openssl dgst -sha256 -verify "$out/.feed_pub.pem" -signature "$out/.feed_sig.der" "$out/version.json" >/dev/null \
+    || { rm -f "$out/.feed_pub.pem" "$out/.feed_sig.der"; echo "feed signature self-check FAILED" >&2; exit 1; }
+  rm -f "$out/.feed_pub.pem" "$out/.feed_sig.der"
+  echo "version.json signed (version.json.sig)"
+else
+  echo "WARNING: FEED_SIGNING_KEY_FILE not set; version.json is unsigned" >&2
 fi

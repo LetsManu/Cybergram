@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/stat_buff_effect_def.gd" id="w10_2"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/area_effect_def.gd" id="w10_3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/snap_back_effect_def.gd" id="m11_snap"]
 
 [sub_resource type="Resource" id="w10_sub_1"]
 script = ExtResource("w10_2")
@@ -26,15 +27,19 @@ effects = Array[Resource]([SubResource("w10_sub_1")])
 
 [sub_resource type="Resource" id="w10_sub_3"]
 script = ExtResource("w10_0")
-stat = &"cooldown"
+stat = &"recast_window"
 op = 0
-value = -4.0
+value = 3.0
+
+[sub_resource type="Resource" id="m11_rc"]
+script = ExtResource("m11_snap")
 
 [sub_resource type="Resource" id="w10_sub_4"]
 script = ExtResource("w10_1")
 kind = 2
 required_level = 5
 modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3")])
+recast_effects = Array[Resource]([SubResource("m11_rc")])
 
 [sub_resource type="Resource" id="w10_sub_5"]
 script = ExtResource("w10_0")

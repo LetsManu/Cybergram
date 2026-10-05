@@ -777,6 +777,10 @@ func _explode_charge(c: SabCharge) -> void:
 			server.damage_generator(g, g.hp_sim.generator_hp() * (c.def.structure_frac + ctx.param(&"extra")),
 				ctx.team, c.pos, false)  # `extra`: Demolition fork
 	var root := ctx.ticks(&"extra_b")  # Snare Charge fork: heroes hit are rooted
+	var seen_s := ctx.ticks(&"reveal")  # Snare Charge fork / Mastery: heroes hit are revealed
+	if seen_s > 0:
+		for e in server.abilities.entities_in_radius(c.pos, r, ctx.team, true, false, true, false):
+			server.abilities.reveals.reveal((e as HeroBody).net_id, ctx.team, seen_s, server.tick)
 	if root > 0:
 		for e in server.abilities.entities_in_radius(c.pos, r, ctx.team, true, false, true, false):
 			server.abilities.apply_status(ctx, e, StatusComponent.Kind.ROOT, root, 0.0)
@@ -1055,6 +1059,7 @@ func _clear_hero(h: HeroBody) -> void:
 	blinded.erase(h)
 	marks.erase(h)
 	riders.erase(h)
+	server.abilities.reveals.clear_hero(h.net_id)
 	h.combat.beaming = false
 	h.combat.health.floor_hp = 0.0
 	_end_beam(h)

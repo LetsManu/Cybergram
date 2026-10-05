@@ -49,6 +49,8 @@ var _version_url: String = ""
 var _platform: String = ""
 var _entry: Dictionary = {}
 var _http: HTTPRequest
+## Set when the feed was accepted without a signature check (no pinned key).
+var feed_warning: String = ""
 var _downloading: bool = false
 
 
@@ -113,6 +115,31 @@ func _on_manifest_done(result: int, code: int, _headers: PackedStringArray, body
 		_go_offline("Cannot reach the update server (%s)." % (
 			"HTTP %d" % code if result == HTTPRequest.RESULT_SUCCESS else "network error %d" % result))
 		return
+	if FeedKey.PEM.strip_edges() == "":
+		_accept_manifest(body, "")
+		return
+	# A key is pinned: fetch version.json.sig (plain HTTP is fine, the
+	# signature is what makes the feed trustworthy).
+	var sig_http := HTTPRequest.new()
+	sig_http.timeout = MANIFEST_TIMEOUT_S
+	add_child(sig_http)
+	sig_http.request_completed.connect(func(r: int, c: int, _h: PackedStringArray, b: PackedByteArray) -> void:
+		sig_http.queue_free()
+		_accept_manifest(body, b.get_string_from_utf8() if r == HTTPRequest.RESULT_SUCCESS and c == 200 else ""))
+	if sig_http.request(_version_url + LauncherCore.SIG_SUFFIX) != OK:
+		sig_http.queue_free()
+		_accept_manifest(body, "")
+
+
+## Verifies the feed signature (LauncherCore.verify_feed), then parses it.
+func _accept_manifest(body: PackedByteArray, sig_text: String) -> void:
+	var v: Dictionary = LauncherCore.verify_feed(body, sig_text, FeedKey.PEM)
+	feed_warning = "" if v["signed"] else String(v["message"])
+	if not v["ok"]:
+		_go_offline(String(v["message"]))
+		return
+	if feed_warning != "":
+		push_warning("LAUNCHER: " + feed_warning)
 	var m: Dictionary = LauncherCore.parse_manifest(body.get_string_from_utf8())
 	if not m["ok"]:
 		_go_offline("Update server sent bad data: %s" % m["error"])

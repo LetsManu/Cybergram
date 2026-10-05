@@ -422,7 +422,9 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		# Fell through the map: kill so respawn and Cell drop logic run.
 		damage_hero(h, DamageInfo.make(c.health.max_hp * 10.0, 0, -1, 0, DamageInfo.Type.TRUE))
 		return
+	var casts_before := _cast_counts(h)
 	abilities.post_move(h, cmd)  # E10: charge contact, skill casts
+	_broadcast_casts(h, casts_before)
 	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
 		wardlings.issue_command(h, cmd)
 	if c.dead or c.weapon == null:
@@ -773,6 +775,40 @@ func _broadcast_tracers(shooter: int, ends: Array[Vector3]) -> void:
 			_queue_event(peer, ev)
 
 
+## W11-V1: Fork / Mastery of the 3 basic skills as SnapshotData.EntityState.fork_bits.
+func _fork_bits(h: HeroBody) -> int:
+	var bits := 0
+	for slot in 3:
+		var sk := h.combat.abilities.skill(slot)
+		if sk != null:
+			bits = SnapshotData.EntityState.with_slot(bits, slot, sk.fork(), sk.has_mastery())
+	return bits
+
+
+func _cast_counts(h: HeroBody) -> PackedInt32Array:
+	var out := PackedInt32Array([0, 0, 0, 0])
+	for slot in 4:
+		var sk := h.combat.abilities.skill(slot)
+		if sk != null:
+			out[slot] = sk.casts
+	return out
+
+
+## W11-V1: one SKILL_CAST event to every client per skill cast this tick (the caster's own
+## client ignores it: it plays own casts from its cooldowns).
+func _broadcast_casts(h: HeroBody, before: PackedInt32Array) -> void:
+	if session.clients.is_empty():
+		return
+	for slot in 4:
+		var sk := h.combat.abilities.skill(slot)
+		if sk == null or sk.casts <= before[slot]:
+			continue
+		var fk := 0 if sk.def.ultimate else sk.fork()
+		var ev := GameEvent.skill_cast(h.net_id, slot, fk, not sk.def.ultimate and sk.has_mastery(), h.state.position)
+		for peer in session.clients:
+			_queue_event(peer, ev)
+
+
 func _queue_event(peer: int, ev: GameEvent) -> void:
 	if peer == 0 or not session.clients.has(peer):
 		return
@@ -812,6 +848,7 @@ func _send_snapshots() -> void:
 		e.status = abilities.status_bits(h)  # E10
 		if h.combat.def != null:
 			e.hero_index = content.index_of(ContentDB.HERO, h.combat.def.id)  # M1 remote hero models
+		e.fork_bits = _fork_bits(h)  # W11-V1 Pillar 4: everyone sees Fork / Mastery
 		entities.append(e)
 	for peer in session.clients:
 		var c: ServerSession.ClientConnection = session.clients[peer]
@@ -824,7 +861,7 @@ func _send_snapshots() -> void:
 			s.own_state = own.state
 			s.own_combat = _own_combat(own.combat)
 			abilities.fill_own(s.own_combat, own.combat)  # E10 skill bar
-		s.entities = entities
+		s.entities = _entities_for(entities, c, own)
 		if own != null and progression != null:
 			progression.fill_own(s, own)  # E13/E15 own progress + learnable slots
 		_fill_objectives(s)
@@ -834,6 +871,27 @@ func _send_snapshots() -> void:
 			wardlings.write_snapshot(s)
 		s.bolts.append_array(bolts.launched)  # hero bolts reuse the Wardling bolt block
 		session.send_snapshot(peer, s)
+
+
+## W11-M1: the shared entity list, with SkillStatusBits.REVEALED set (on copies)
+## for the heroes revealed to this recipient's team. Other teams never see it.
+func _entities_for(entities: Array[SnapshotData.EntityState], c: ServerSession.ClientConnection, own: HeroBody) -> Array[SnapshotData.EntityState]:
+	if own == null or own.combat == null:
+		return entities
+	var ids := abilities.reveals.revealed_ids(own.combat.team, tick)
+	if ids.is_empty():
+		return entities
+	var out: Array[SnapshotData.EntityState] = []
+	for e in entities:
+		if ids.has(e.net_id) and e.team != own.combat.team:
+			var n := SnapshotData.EntityState.new()
+			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index"]:
+				n.set(p, e.get(p))
+			n.status = e.status | SkillStatusBits.REVEALED
+			out.append(n)
+		else:
+			out.append(e)
+	return out
 
 
 func _fill_objectives(s: SnapshotData) -> void:

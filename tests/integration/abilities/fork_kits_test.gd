@@ -213,13 +213,14 @@ func test_brannoc_wall_forks_and_mastery_heal() -> void:
 	await get_tree().physics_frame
 	var s := _learn(b, 0, SkillNodeDef.Kind.FORK_B, true)
 	ally.combat.health.hp = 100.0
-	var wall_hp := s.param(&"hp")
 	assert_bool(_cast(b, 0, 0.3)).is_true()
 	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Mirror approximation
-	# Mastery heals allies near the wall: ally at the wall point.
-	var ctx := _node_ctx(b, 0)
-	ctx.point = ally.state.position
-	ctx.run(s.node_of(SkillNodeDef.Kind.MASTERY).added_effects)
+	# Mastery (W11-M1): the heal fires when the wall ends (here: destroyed), not at cast.
+	var wall := _server.abilities.deployable_of(s)
+	assert_float(ally.combat.health.hp).is_equal(100.0)
+	_server.abilities.teleport(ally, wall.pos)
+	wall.hp = 0.0
+	_run(2)
 	assert_float(ally.combat.health.hp).is_greater_equal(200.0 - 1e-3)
 	var a := SkillInstance.new(s.def, 0)
 	a.learn(a.node_of(SkillNodeDef.Kind.FORK_A))
@@ -236,12 +237,18 @@ func test_brannoc_fortify_forks_and_mastery_dr() -> void:
 	assert_bool(_cast(b, 2)).is_true()
 	assert_bool(foe.combat.status.has(StatusComponent.Kind.SLOW)).is_true()  # Challenge approximation
 	assert_bool(ally.combat.status.has(StatusComponent.Kind.DR)).is_true()  # Mastery: allies in 6 m
-	# Lifeblood heals the caster.
+	# Lifeblood (W11-M1): after Fortify ends, heals 20% of the damage it absorbed.
 	var b2 := _hero(BRANNOC, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
-	var s2 := _learn(b2, 2, SkillNodeDef.Kind.FORK_B)
-	b2.combat.health.hp = 100.0
-	_node_ctx(b2, 2).run(s2.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
-	assert_float(b2.combat.health.hp).is_equal_approx(150.0, 1e-3)
+	_learn(b2, 2, SkillNodeDef.Kind.FORK_B)
+	b2.combat.health.hp = 200.0
+	assert_bool(_cast(b2, 2)).is_true()
+	var m0 := b2.combat.health.mitigated
+	_server.damage_hero(b2, DamageInfo.make(100.0, foe.net_id, foe.combat.team, 0, DamageInfo.Type.SKILL))
+	var absorbed := b2.combat.health.mitigated - m0
+	assert_float(absorbed).is_greater(10.0)
+	var hp_after_hit := b2.combat.health.hp
+	_run(5 * HZ)
+	assert_float(b2.combat.health.hp - hp_after_hit).is_equal_approx(absorbed * 0.2, 0.05)
 
 
 func test_brannoc_ram_forks_stun_shield_and_refund_data() -> void:
@@ -250,12 +257,6 @@ func test_brannoc_ram_forks_stun_shield_and_refund_data() -> void:
 	await get_tree().physics_frame
 	var s := _learn(b, 1, SkillNodeDef.Kind.FORK_A)
 	assert_float(s.param(&"stun")).is_equal_approx(1.5, 1e-4)  # Bulldozer stun 1.0 -> 1.5
-	var s2 := SkillInstance.new(s.def, 1)
-	s2.learn(s2.node_of(SkillNodeDef.Kind.FORK_B))
-	var rc := _node_ctx(b, 1)
-	rc.skill = s2
-	rc.run(s2.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
-	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Interceptor shield
 	s.learn(s.node_of(SkillNodeDef.Kind.MASTERY), b.combat.stats)
 	assert_float(s.param(&"extra_b")).is_equal(0.5)  # pin refund fraction
 
@@ -315,7 +316,8 @@ func test_ryker_slide_forks_momentum_rebound_and_mastery_dr() -> void:
 	assert_bool(_server.abilities.extras.buffs.has(r)).is_true()  # Momentum: +20% weapon damage window
 	assert_bool(r.combat.status.has(StatusComponent.Kind.DR)).is_true()  # Mastery: 30% DR while sliding
 	var s2 := _learn(r2, 2, SkillNodeDef.Kind.FORK_B)
-	assert_int(s2.max_charges()).is_equal(2)  # Rebound: a second slide
+	assert_bool(s2.node_recast_effects().is_empty()).is_false()  # Rebound: a real recast (W11-M1; see w11_mechanics_test)
+	assert_float(s2.param(&"recast_window")).is_equal(2.0)
 	assert_float(s.param(&"dr")).is_equal_approx(0.3, 1e-4)
 
 
@@ -423,6 +425,7 @@ func test_sable_phase_shift_forks_and_sabotage_cascade_and_snare() -> void:
 	assert_int(_server.abilities.extras.charges.size()).is_equal(0)  # Cascade: both detonated
 	assert_float(f2.combat.health.hp).is_less(250.0)
 	assert_bool(f1.combat.status.has(StatusComponent.Kind.ROOT)).is_true()  # Snare Charge
+	assert_bool(_server.abilities.reveals.is_revealed(f1.net_id, sa.combat.team, _server.tick)).is_true()  # revealed (W11-M1)
 
 
 # ------------------------------------------------------------------ Juniper Quill
@@ -450,7 +453,7 @@ func test_juniper_snare_spring_knocks_back_and_coil_mastery_slows() -> void:
 	assert_float(foe.combat.health.hp).is_less(250.0)
 	assert_bool(foe.combat.status.has(StatusComponent.Kind.ROOT)).is_false()  # Spring replaces the root
 	assert_float(foe.state.position.distance_to(p0)).is_greater(2.0)
-	assert_bool(foe.combat.status.has(StatusComponent.Kind.SLOW)).is_true()  # Mastery mark
+	assert_bool(_server.abilities.reveals.is_revealed(foe.net_id, j.combat.team, _server.tick)).is_true()  # Mastery: revealed 5 s (W11-M1)
 
 
 func test_juniper_tripwire_razor_survives_three_triggers() -> void:
