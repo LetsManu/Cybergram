@@ -931,6 +931,7 @@ func _request(op: int, fields: Dictionary) -> void:
 
 func _on_account(d: Dictionary) -> void:
 	var op: int = d.op
+	RecoveryCodeDialog.show_if_issued(self, d)  # W21-N1: register / recover / new code, shown once
 	var ok: bool = d.code == AccountCodec.OK
 	if not ok:
 		_watch.on_account_error(op, int(d.code))
@@ -962,11 +963,11 @@ func _on_account(d: Dictionary) -> void:
 			if _party_check and ok and should_join_party(d):
 				_open_lobby(_server)  # the server seats the party together
 			_party_check = false
-		AccountCodec.OP_REGISTER, AccountCodec.OP_LOGIN, AccountCodec.OP_GUEST:
+		AccountCodec.OP_REGISTER, AccountCodec.OP_LOGIN, AccountCodec.OP_GUEST, AccountCodec.OP_RECOVER:
 			if _login != null:
-				_login.show_error(_error_text(d.code))
+				_login.show_error(LoginScreen.result_text(op, int(d.code)))
 			else:
-				_status.text = _error_text(d.code)
+				_status.text = LoginScreen.result_text(op, int(d.code))
 		AccountCodec.OP_LOGOUT, AccountCodec.OP_DELETE_ACCOUNT:
 			if ok:
 				session_token = ""
@@ -979,7 +980,7 @@ func _on_account(d: Dictionary) -> void:
 			if _profile_screen != null:
 				_profile_screen.on_result(d)
 			_refresh_chip()
-		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_EXPORT:
+		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_EXPORT, AccountCodec.OP_RECOVERY_CODE, AccountCodec.OP_RECOVERY_INFO:
 			if _profile_screen != null:
 				_profile_screen.on_result(d)
 		_:

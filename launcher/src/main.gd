@@ -1247,3 +1247,4 @@ func _build_login_modal() -> void:
 	_guest_btn = UiKit.button("PLAY AS GUEST", _on_guest_pressed, &"secondary", 42)
 	_guest_btn.visible = false
 	_login_box.add_child(_guest_btn)
+	LauncherRecoverPanel.attach(_login_box, func() -> LauncherLogin: return _login)  # W21-N1 forgot password

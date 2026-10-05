@@ -113,10 +113,13 @@ jobs:
           # The launcher reuses the game's login protocol scripts (copies in launcher/src/shared).
           launcher/tools/sync_shared.sh
           launcher/tools/sync_notes.sh
-          # The launcher compares its own version with the feed's launcher section.
-          if [[ -n "$RELEASE_TAG" ]]; then
-            sed -i "s|^config/version=.*|config/version=\"${RELEASE_TAG#v}\"|" launcher/project.godot
-          fi
+          # The launcher keeps its OWN version (launcher/project.godot), which is
+          # what make_update_feed.sh advertises in the feed's launcher section.
+          # Never stamp the game tag here: a launcher reporting the game version
+          # sees the feed's launcher as newer and self-updates on every start.
+          lv="$(sed -n 's/^config\/version="\(.*\)"/\1/p' launcher/project.godot)"
+          [[ -n "$lv" && "$lv" != "${RELEASE_TAG#v}" ]] || { echo "::error::launcher version '$lv' is empty or equals the game tag"; exit 1; }
+          echo "Launcher version $lv"
           $GODOT --headless --path launcher --import || true
           mkdir -p build/launcher-windows build/launcher-linux
           $GODOT --headless --path launcher --export-release "Windows Desktop" ../build/launcher-windows/CybergramLauncher.exe
