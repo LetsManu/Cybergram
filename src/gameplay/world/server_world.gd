@@ -42,6 +42,9 @@ var _humans: Dictionary = {}  # peer id -> HeroBody
 ## Online lobby: token -> {team, hero_index} for players who start the match
 ## from the lobby (bots leave these slots free). Consumed on join.
 var reserved_slots: Dictionary = {}
+## W17B: slot token -> the hero it played (a reconnect with the same token
+## takes its hero back from the bot that covered it).
+var token_heroes: Dictionary = {}
 var _peer_of: Dictionary = {}  # hero net id -> peer id
 var _dummies: Array = []      # [HeroBody, ScriptedInputSource]
 var _map: Node3D
@@ -763,7 +766,11 @@ func _on_client_joined(peer_id: int) -> void:
 	var def := _hero_for_peer(peer_id)
 	var h: HeroBody = null
 	var token: int = session.hello_token.get(peer_id, 0)
-	if token != 0 and reserved_slots.has(token):
+	var back: HeroBody = token_heroes.get(token) if token != 0 else null
+	if back != null and is_instance_valid(back) and not _humans.values().has(back):
+		h = back
+		controller_taken.emit(h.net_id)
+	elif token != 0 and reserved_slots.has(token):
 		var slot: Dictionary = reserved_slots[token]
 		reserved_slots.erase(token)
 		h = _spawn_hero(team_spawn(slot.team, spawn_point(PLAYER_SPAWN)), def, slot.team)
@@ -775,6 +782,8 @@ func _on_client_joined(peer_id: int) -> void:
 		h = _spawn_hero(at, def, TEAM_PLAYERS)
 	_humans[peer_id] = h
 	_peer_of[h.net_id] = peer_id
+	if token != 0:
+		token_heroes[token] = h
 	session.accept(peer_id, h.net_id, tick)
 
 

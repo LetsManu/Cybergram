@@ -116,6 +116,16 @@ func accept_swap(me: String, from: String, now: float) -> Err:
 	return Err.OK
 
 
+## Seats with an open (unexpired) swap request to `seat`.
+func swap_requests_to(seat: String, now: float) -> Array:
+	var out: Array = []
+	for k: String in _requests:
+		var p := k.split(">")
+		if p.size() == 2 and p[1] == seat and now <= float(_requests[k]):
+			out.append(p[0])
+	return out
+
+
 func tick(now: float) -> State:
 	if state == State.OPEN and now >= deadline:
 		state = State.LOCKED

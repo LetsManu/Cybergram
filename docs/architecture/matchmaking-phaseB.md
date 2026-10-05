@@ -156,3 +156,38 @@ The front then does:
    LEAVE strike (escalating ranked lockout), see section 4.
 4. Remake threshold: every connected human teammate must vote yes (no
    fraction knob).
+
+## 8. As built (W17B-SRV, protocol 17)
+
+- **Front** (`--server --front --port 7777`): `FrontServer` (connection loop) +
+  `MatchmakingFront` (`src/networking/front/`) + `MatchSupervisor`. Client API:
+  `docs/architecture/matchmaking-client-api.md`.
+- **Match process** (spawned with `--server --port N --host-boot <file>`;
+  `--match-host` also marks one): `MatchHostAgent` + `MatchHostRuntime`
+  (no-shows, abandons, remake vote). Hello carries the join ticket;
+  `REJECT_BAD_TICKET` (6) otherwise. Reconnect: `OP_REJOIN` on the front gives a
+  fresh ticket; the player takes their hero back from the covering bot.
+- **Welcome** carries the match `mood_seed` (u32), `ClientSession.mood_seed`.
+- **Data folders** (env, defaults next to `CYBERGRAM_DATA_DIR`):
+  `CYBERGRAM_RATINGS_DIR` (`ratings/`), `CYBERGRAM_REPORTS_DIR` (`reports/`),
+  `CYBERGRAM_MM_DIR` (`matchmaking/`: `lockouts.json`, `history.json`).
+- **Retention** (`MatchmakingRulesDef`, purged at start and daily): reports
+  30 days, match history 180 days, lockout records 30 days after the last
+  strike. `AccountService.account_deleted` erases ratings, reports, history and
+  lockouts of the account (owner deletion and the inactivity sweep).
+- **Guests** may play Normal, 3v3 and Custom, never Ranked; their ratings are
+  not stored (`CYBERGRAM_RATE_GUESTS=1` keeps them, for tests only).
+- **Front log lines** (stable, for tooling): `[front] listening on UDP <port>: ...`,
+  `[front] match_started id=<match> pid=<pid> port=<port> players=<n>`,
+  `[front] match_result id=<match> winner=<0|1|-1> voided=<bool> rated=<bool> changes=<n> leavers=<n>`,
+  `[front] match_voided id=<match> reason=<reason>`, `[front] drained: exiting`.
+  The supervisor's `[hosting] ...` lines and the health file are unchanged
+  (`processes.allocated`, `processes.draining`, ...).
+- **Testing flags**: front `--mm-team-size N` (matchmade 5v5 queues become NvN),
+  `--mm-pick-s S` (pick turn), `--mm-match-s S` (matches end after S s);
+  client `--mm-script-client <win|crash> --connect host:port --user <name>`
+  (`MatchmakingScriptClient`, logs `[mm-client] ...`, exit 0 on the expected
+  verdict).
+- **Known gaps**: party members other than the leader queue as Fill (one lane
+  pair per request); bot seats play the BotDirector's roster heroes, not the
+  drafted bot picks; match process stdout goes to the front's log.

@@ -23,8 +23,8 @@ const PATH := "res://assets/data/net/online_rules.tres"
 @export_range(1, 100) var crash_per_account_per_day: int = 5
 ## Seconds an unfinished chunked report may take before it is dropped.
 @export_range(5.0, 600.0) var crash_upload_timeout_s: float = 60.0
-## Party size (leader included). Matchmaking (a later wave) may raise it.
-@export_range(2, 10) var party_max: int = 3
+## Party size (leader included). 5 since W17B (any party size 1-5 in every queue).
+@export_range(2, 10) var party_max: int = 5
 ## A party invite expires after this long.
 @export_range(10.0, 3600.0) var party_invite_ttl_s: float = 120.0
 
