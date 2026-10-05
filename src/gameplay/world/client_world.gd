@@ -91,6 +91,8 @@ var _cmd := InputCommand.new()
 ## Buttons of the last sampled command (feel sounds read it: dry fire).
 var last_buttons: int = 0
 var _look: LookSettings
+## W16-COMFORT: client mirror of the server's spread cone (dynamic crosshair).
+var spread := SpreadModel.new()
 
 
 func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
@@ -220,7 +222,8 @@ func tick() -> void:
 		player_input.recoil_def = hero_def.weapon
 		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
 		var can := combat != null and combat.ammo > 0.0 and not combat.dead
-		player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
+		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
+		_step_spread(kicked)
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -251,6 +254,17 @@ func render(delta: float) -> void:
 	var pitch := player_input.view_pitch() if player_input != null else _cmd.pitch
 	rig.follow(feet, body.eye_height(), yaw, pitch, hidden_kick)
 	wardlings.apply_debug_camera()
+
+
+## Mirrors the server spread from the predicted shots (see SpreadModel).
+func _step_spread(kicked: bool) -> void:
+	if spread.tick_rate_hz != net.tick_rate_hz or spread.def == null and hero_def.weapon != null:
+		spread = SpreadModel.new(hero_def.weapon, net.tick_rate_hz)
+	spread.set_weapon(hero_def.weapon)
+	spread.recoil_mult = own_recoil_mult()
+	if is_dead():
+		spread.reset()
+	spread.step(kicked and not is_dead())
 
 
 func _comfort() -> GameSettings:
@@ -303,6 +317,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 		server_tick_estimate = s.tick
 	if s.own_combat != null:
 		combat = s.own_combat
+		spread.reconcile(combat.ammo, 1.0 / float(maxi(net.tick_rate_hz, 1)))
 	if s.own_state != null:
 		if body == null:
 			_spawn_own(s.own_state)

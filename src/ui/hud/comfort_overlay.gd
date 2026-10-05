@@ -41,6 +41,9 @@ var _wardlings: Array = []  # latest snapshot: {pos, team, combat}
 var _casts: Array = []  # {src: int, pos: Vector3, t}
 var _pending: Array = []  # {amount: float, max_hp: float, t: float}
 var _hooked: Object
+## HUD colour-blind preset source (re-read twice a second: F6 saves the file).
+var hud_settings: HudSettings = HudSettings.new()
+var _hud_t: float = 0.0
 var _dot: _Dot
 var _dot_top: _Dot
 var _top_layer: CanvasLayer
@@ -66,6 +69,8 @@ class _Ring extends Control:
 	var own_pos: Vector3 = Vector3.ZERO
 	var yaw: float = 0.0
 	var active: bool = false
+	## Warning colour of the HUD colour-blind preset (HudPalette.damage_color).
+	var base_color: Color = HudPalette.DANGER
 
 	func _draw() -> void:
 		var o := owner_overlay
@@ -79,13 +84,23 @@ class _Ring extends Control:
 			if a <= 0.01:
 				continue
 			var w := m.indicator_width_px(ind, fx, reduce)
-			var col := Color(HudPalette.DANGER, a)
+			var col := Color(base_color, a)
 			var dark := Color(0, 0, 0, a * 0.55)
 			if ind.has_dir:
 				var mid := DamageFeedbackModel.relative_angle(own_pos, yaw, ind.pos) - PI * 0.5  # 0 = up on screen
 				var half := m.indicator_half_arc_rad(ind)
 				draw_arc(c, r, mid - half, mid + half, 24, dark, w + 3.0, true)
 				draw_arc(c, r, mid - half, mid + half, 24, col, w, true)
+				# Shape cue (direction never relies on colour alone): a chevron at the
+				# arc centre pointing outward toward the attacker.
+				var dir := Vector2(cos(mid), sin(mid))
+				var perp := Vector2(-dir.y, dir.x)
+				var base := c + dir * (r + w * 0.5 + 5.0)
+				var tip := c + dir * (r + w * 0.5 + 5.0 + 12.0 + w)
+				var wing := 6.0 + w * 0.6
+				var pts := PackedVector2Array([base + perp * wing, tip, base - perp * wing])
+				draw_polyline(pts, dark, 5.0, true)
+				draw_polyline(pts, col, 3.0, true)
 			else:  # environment / unattributed: a thin full ring pulse
 				draw_arc(c, r, 0.0, TAU, 64, dark, w * 0.5 + 2.0, true)
 				draw_arc(c, r, 0.0, TAU, 64, Color(col, a * 0.8), w * 0.5, true)
@@ -94,6 +109,7 @@ class _Ring extends Control:
 func _ready() -> void:
 	layer = LAYER_UNDER_HUD
 	feedback = DamageFeedbackModel.new(rules)
+	hud_settings = HudSettings.load_user(OS.get_cmdline_user_args())
 	var dd := OS.get_cmdline_user_args().find("--debug-damage")
 	if dd >= 0 and dd + 1 < OS.get_cmdline_user_args().size():
 		debug_damage = OS.get_cmdline_user_args()[dd + 1]
@@ -188,6 +204,12 @@ const _EYE_H: float = 1.0
 func _damage_feedback(delta: float, client: Variant, gs: GameSettings) -> void:
 	var fx := gs.comfort_fx_intensity
 	var reduce := gs.reduce_motion
+	_hud_t -= delta
+	if _hud_t <= 0.0:
+		_hud_t = 0.5
+		hud_settings = HudSettings.load_user(OS.get_cmdline_user_args())
+	var warn := HudPalette.damage_color(hud_settings.colorblind)
+	_ring.base_color = warn
 	if client != null and client.body != null and client.combat != null:
 		if _hooked != client:
 			_hooked = client
@@ -223,6 +245,7 @@ func _damage_feedback(delta: float, client: Variant, gs: GameSettings) -> void:
 		var m := _dmg.material as ShaderMaterial
 		m.set_shader_parameter("alpha", a)
 		m.set_shader_parameter("inner", feedback.vignette_inner(fx))
+		m.set_shader_parameter("tint", Vector3(warn.r, warn.g, warn.b) * 0.8)
 
 
 func _on_shot(e: GameEvent) -> void:

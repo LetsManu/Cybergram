@@ -31,6 +31,7 @@ func build() -> void:
 	_preview = SettingsCrosshairPreview.new()
 	row.add_child(_preview)
 	_update_preview()
+	check(tr("HUD_SET_XH_DYNAMIC"), s.crosshair_dynamic, func(on: bool) -> void: s.crosshair_dynamic = on)
 	section(tr("HUD_SET_SEC_HUD"))
 	option(tr("HUD_SET_DMG_NUMBERS"), [tr("HUD_DMG_OFF"), tr("HUD_DMG_COMPACT"), tr("HUD_DMG_FULL")],
 		_hud.damage_numbers, func(i: int) -> void: _hud.damage_numbers = i; _save_hud())

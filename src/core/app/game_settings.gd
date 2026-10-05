@@ -67,6 +67,8 @@ var graphics_quality: int = Quality.HIGH
 ## Crosshair style (Crosshair) and colour index (CROSSHAIR_COLORS).
 var crosshair_style: int = Crosshair.CROSS_DOT
 var crosshair_color: int = 0
+## Dynamic crosshair: the gap opens to the real spread cone (SpreadModel).
+var crosshair_dynamic: bool = true
 ## Key bindings (applied to the InputMap by apply_bindings()).
 var bindings: InputBindings = InputBindings.new()
 ## W10-W4: the first-time Practice Range tutorial was finished or skipped.
@@ -159,6 +161,7 @@ func read_config(cfg: ConfigFile) -> void:
 	reduce_motion = bool(cfg.get_value("accessibility", "reduce_motion", reduce_motion))
 	crosshair_style = clampi(int(cfg.get_value("crosshair", "style", crosshair_style)), 0, Crosshair.CIRCLE)
 	crosshair_color = clampi(int(cfg.get_value("crosshair", "color", crosshair_color)), 0, CROSSHAIR_COLORS.size() - 1)
+	crosshair_dynamic = bool(cfg.get_value("crosshair", "dynamic", crosshair_dynamic))
 	comfort_camera_recoil = clampf(float(cfg.get_value("comfort", "camera_recoil", comfort_camera_recoil)), 0.0, 1.0)
 	comfort_weapon_bob = bool(cfg.get_value("comfort", "weapon_bob", comfort_weapon_bob))
 	comfort_fx_intensity = clampf(float(cfg.get_value("comfort", "fx_intensity", comfort_fx_intensity)), 0.0, 1.0)
@@ -194,6 +197,7 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value("display", "quality", graphics_quality)
 	cfg.set_value("crosshair", "style", crosshair_style)
 	cfg.set_value("crosshair", "color", crosshair_color)
+	cfg.set_value("crosshair", "dynamic", crosshair_dynamic)
 	cfg.set_value("comfort", "camera_recoil", comfort_camera_recoil)
 	cfg.set_value("comfort", "weapon_bob", comfort_weapon_bob)
 	cfg.set_value("comfort", "fx_intensity", comfort_fx_intensity)
