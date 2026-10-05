@@ -39,6 +39,14 @@ def region(c, colours, zmin=None, zmax=None, box=None, tol=0.02):
     return (m & c["inside"]).astype(np.float32)
 
 
+def bounds(c, m):
+    """Object-space bounding box (lo, hi) of the texels in mask `m`."""
+    P = c["P"][m > 0.5]
+    if len(P) == 0:
+        return np.zeros(3), np.zeros(3)
+    return np.percentile(P, 1, axis=0), np.percentile(P, 99, axis=0)
+
+
 def wear(c, m, colour, amount=0.8, scale=70.0, seed=3.0):
     """Paint chips on convex edges: bare `colour` breaking through where an edge noise
     crosses a threshold (so the wear is broken, never a uniform outline)."""
@@ -180,4 +188,27 @@ def pixel_face(rows):
         for x, ch in enumerate(row):
             if ch == "#":
                 img[y * s + 1:(y + 1) * s - 1, x * s + 1:(x + 1) * s - 1] = 1.0
+    return img
+
+
+def holes(nx=4, ny=3, w=96, h=64, r=0.32):
+    """A grid of round breathing holes."""
+    img = canvas(w, h)
+    yy, xx = np.mgrid[0:h, 0:w]
+    for i in range(nx):
+        for j in range(ny):
+            cx, cy = (i + 0.5) / nx * w, (j + 0.5) / ny * h
+            rr = r * min(w / nx, h / ny)
+            img[(xx - cx) ** 2 + (yy - cy) ** 2 < rr * rr] = 1.0
+    return img
+
+
+def dent(w=64, h=48):
+    """A dent: dark crescent (the shadowed lip) under a soft dark core."""
+    img = canvas(w, h)
+    yy, xx = np.mgrid[0:h, 0:w]
+    u, v = (xx / w - 0.5) * 2, (yy / h - 0.5) * 2
+    d = u * u + v * v
+    img[d < 1.0] = 0.35
+    img[(d < 1.0) & (d > 0.55) & (v > 0.0)] = 0.9
     return img

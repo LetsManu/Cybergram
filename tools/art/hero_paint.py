@@ -375,7 +375,7 @@ def bake_textures(h, ob, out_dir, size=1024):
     cfg = paint_cfg(h)
     me = ob.data
     _classify(h, ob)
-    unwrap_pack(ob, cfg["uv_margin"])  # on quads: triangles give worse islands (58 % vs 76 %)
+    unwrap_pack(ob, cfg["uv_margin"], max_tries=int(cfg.get("uv_max_tries", 30)))  # on quads: triangles give worse islands (58 % vs 76 %)
     bm = bmesh.new()
     bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method="BEAUTY", ngon_method="BEAUTY")

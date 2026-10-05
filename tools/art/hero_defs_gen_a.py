@@ -69,8 +69,10 @@ def _yaw(n):
 
 
 def _bolt(h, bone, p, n, r, col="gun", ch="flat"):
-    """A hex bolt head standing on the surface (p, n)."""
-    h.cyl(bone, p - n * 0.002, p + n * r * 0.9, r, r * 0.8, col, ch, seg=6)
+    """A domed bolt head on the surface (p, n): one UV island (a capped cylinder makes three)."""
+    q = Vector((0, 0, 1)).rotation_difference(n)
+    h.sphere(bone, p, (r, r, r * 0.75), col, ch, seg=(6, 3), rot=tuple(math.degrees(a) for a in q.to_euler("XYZ")),
+             clip=[((0, 0, -0.05), (0, 0, -1))])
 
 
 def _springs(h, specs):
@@ -83,6 +85,11 @@ def _springs(h, specs):
         return hero_hd.add_secondary(h)
     finally:
         hero_hd._sec_specs = orig
+
+
+def _generic(spec):
+    import hero_defs_more
+    return hero_defs_more.generic(spec)
 
 
 def _sel(names=None, bones=None, extra=None):
@@ -203,8 +210,8 @@ def ryker_parts(h):
     p, n = h.surface(0, zc, 1)
     plate = p + n * 0.03 * k
     h.box("UpperChest", plate, Vector((0.28, 0.035, 0.26)) * k, "olive", bevel=0.35, taper=(1.08, 1.0))
-    for i in range(3):  # MOLLE rows
-        h.box("UpperChest", plate + Vector((0, 0.02, -0.08 + i * 0.04)) * k, Vector((0.26, 0.008, 0.012)) * k,
+    for i in range(2):  # MOLLE rows
+        h.box("UpperChest", plate + Vector((0, 0.02, -0.08 + i * 0.05)) * k, Vector((0.26, 0.008, 0.012)) * k,
               "trim", bevel=0.1)
     for x in (-0.085, 0.0, 0.085):  # mag pouches on the front flap
         q, qn = h.surface(x * k, h.jh("Chest").z - 0.03 * k, 1)
@@ -296,15 +303,14 @@ def breakline_ar7(h, W):
     wb((0, 0.07, 0.035), (0.062, 0.3, 0.09), "gun", bevel=0.25)                         # lower receiver
     wb((0, 0.08, 0.088), (0.058, 0.27, 0.03), "olive", bevel=0.3)                       # upper receiver
     wb((0.033, 0.05, 0.045), (0.006, 0.07, 0.035), "chrome", "chrome", bevel=0.2)      # ejection port
-    for i in range(6):                                                                  # top rail teeth
-        wb((0, 0.0 + i * 0.045, 0.108), (0.03, 0.022, 0.012), "gun", bevel=0.15)
+    for i in range(4):                                                                  # top rail teeth
+        wb((0, 0.0 + i * 0.065, 0.108), (0.03, 0.03, 0.012), "gun", bevel=0.15)
     wb((0, 0.04, 0.135), (0.04, 0.07, 0.04), "gun", bevel=0.3)                          # holo sight body
     wb((0, 0.072, 0.15), (0.044, 0.008, 0.05), "rubber", bevel=0.2)                    # hood
     wb((0, 0.074, 0.15), (0.03, 0.006, 0.032), "team", "team_emit", bevel=0.0)        # lens
     wb((0, 0.33, 0.045), (0.07, 0.24, 0.08), "olive", bevel=0.35, taper=(0.9, 1.0))     # handguard slab
     for i in range(4):                                                                  # vent cuts
-        for sx in (-1, 1):
-            wb((sx * 0.036, 0.25 + i * 0.05, 0.055), (0.004, 0.03, 0.012), "rubber", bevel=0.1)
+        wb((0, 0.25 + i * 0.05, 0.055), (0.074, 0.03, 0.012), "rubber", bevel=0.1)
     wb((0, 0.3, -0.005), (0.03, 0.05, 0.05), "rubber", rx=8, bevel=0.3)                # foregrip stub
     cyl((0, 0.44, 0.05), (0, 0.6, 0.05), 0.014, 0.014, "gun", seg=10)                  # barrel
     cyl((0, 0.6, 0.05), (0, 0.67, 0.05), 0.024, 0.024, "gun", seg=8)                   # muzzle brake
@@ -350,22 +356,247 @@ def ryker_post(c):
     helm = D.region(c, ["#6F8C45", "#EAD49C"], zmin=z0)
     D.wear(c, helm, "#C7C3AE", 0.9)
     D.scratches(c, helm, "#D8D3BC", density=0.45, strength=0.55)
-    D.gloss(c, D.region(c, ["#6F8C45"], zmin=z0), 0.28)
-    D.gloss(c, D.region(c, ["#1D3A55"], zmin=z0), 0.95)
-    D.gloss(c, D.region(c, ["#4C5564"], zmin=z0), 0.6)
+    D.gloss(c, D.region(c, ["#6F8C45"], zmin=z0), 0.08)   # satin paint
+    D.gloss(c, D.region(c, ["#1D3A55"], zmin=z0), 0.75)   # glossy visor glass
+    D.gloss(c, D.region(c, ["#4C5564"], zmin=z0), 0.35)   # rims and hubs
     olive = D.region(c, ["#6F8C45"], zmin=z0)
-    top = H * 0.955
+    lo, hi = D.bounds(c, olive)
+    mid = (lo + hi) / 2
     lx = -1.0  # body_gen: the hero's left is -X
-    D.decal(c, D.digits("07"), (-lx * 0.11 * k, -0.035 * k, top - 0.03 * k), (-lx, 0, 0), (0, 0, 1),
-            (0.07 * k, 0.045 * k), olive, "#EAD49C", depth=0.06)
-    D.decal(c, D.tally(5), (lx * 0.11 * k, -0.045 * k, top - 0.03 * k), (lx, 0, 0), (0, 0, 1),
-            (0.07 * k, 0.035 * k), olive, "#EAD49C", depth=0.06)
-    D.decal(c, D.chevron(n=2), (0, 0.06 * k, top + 0.02 * k), (0, 0.3, 1), (0, 1, 0), (0.06 * k, 0.05 * k), olive,
-            "#EAD49C", depth=0.06, face=0.2)
+    zs = mid[2] + (hi[2] - mid[2]) * 0.45
+    D.decal(c, D.digits("07"), (0, mid[1] - 0.005, zs), (-lx, 0, 0), (0, 0, 1), (0.055 * k, 0.034 * k), olive,
+            "#EAD49C", depth=0.2)
+    D.decal(c, D.tally(5), (0, mid[1] - 0.01, zs), (lx, 0, 0), (0, 0, 1), (0.055 * k, 0.028 * k), olive,
+            "#EAD49C", depth=0.2)
+    D.decal(c, D.chevron(n=2), (0, lo[1], mid[2] + 0.01 * k), (0, -1, 0), (0, 0, 1), (0.05 * k, 0.045 * k), olive,
+            "#EAD49C", depth=0.2)
     jaw = D.region(c, ["#3E4F6A"], zmin=z0 - 0.04 * k)
     D.decal(c, D.stripes(3), (lx * 0.035 * k, 0.12 * k, H * 0.87), (0, 1, 0), (0, 0, 1), (0.035 * k, 0.025 * k), jaw,
             "#E8B23A", depth=0.08, face=0.3)
     D.scratches(c, D.region(c, ["#6F8C45", "#4C5564"], zmax=z0), "#C9C4AE", density=0.25, strength=0.4, seed=19.0)
+    return c["alb"], c["spec"], c["emit"]
+
+
+# ======================================================================== Brannoc
+BRANNOC_PAL = {"teal": "#2F9A90", "iron": "#9AA3AD", "soot": "#5E554C", "bone": "#E8D9B0", "gold": "#E0AC48",
+               "gun": "#565E69", "slit": "#15191E", "team": TEAM, "eye": "#101014"}
+BRANNOC_SPEC = {"paint": {"head": "soot", "torso": "soot", "sleeves": "soot", "gloves": "iron", "legs": "soot",
+                          "boots": "soot", "belt": "iron", "forearm": "teal"}, "sleeve_t": 0.85, "boot_t": 0.35,
+                "torso_shell": {"offset": 0.03, "color": "teal", "rim": "iron", "arms": True},
+                "boot_shell": (0.02, "soot", "iron"), "thigh_shell": (0.026, "teal", "iron")}
+
+
+def brannoc_parts(h):
+    import hero_hd
+    k = _k(h)
+    lo, hi, hc, hr, eye_z = _head(h)
+    skin = hero_hd.BodySkin(h)
+    lx = 1.0 if h.jh("UpperLeg_L").x > 0 else -1.0
+    # ---------------------------------------------------------------- heavy closed helm
+    W, D, Hh = hr.x * 2.55, hr.y * 2.45, hr.z * 2.3
+    hb = Vector((0, hc.y - 0.006, hc.z + 0.012))
+    h.box("Head", hb, (W, D, Hh), "teal", bevel=0.55, taper=(0.86, 0.9))                   # bucket
+    fy = hb.y + D / 2                                                                       # front face plane
+    # sculpted faceplate: two angled halves meeting in a prow ridge
+    for sx in (-1, 1):
+        c = Vector((sx * W * 0.24, fy + 0.006 - W * 0.06, hb.z - Hh * 0.08))
+        h.box("Head", c, (W * 0.52, 0.03 * k, Hh * 0.8), "iron", rot=(0, 0, sx * 18), bevel=0.4,
+              taper=(0.9, 1.0))
+    h.box("Head", (0, fy + 0.016, hb.z - Hh * 0.1), (0.022 * k, 0.03 * k, Hh * 0.82), "gun", bevel=0.4,
+          taper=(1.4, 1.0))                                                                 # prow ridge
+    # T-visor: dark slit frame + team glow
+    zt = eye_z + 0.006
+    h.box("Head", (0, fy + 0.02, zt), (W * 0.82, 0.03 * k, 0.034 * k), "slit", bevel=0.3)
+    h.box("Head", (0, fy + 0.032, zt), (W * 0.76, 0.012, 0.016 * k), "team", "team_emit", bevel=0.2)
+    h.box("Head", (0, fy + 0.034, zt - 0.05 * k), (0.03 * k, 0.03 * k, 0.1 * k), "slit", bevel=0.3)
+    h.box("Head", (0, fy + 0.046, zt - 0.05 * k), (0.014 * k, 0.012, 0.09 * k), "team", "team_emit", bevel=0.2)
+    # heavy brow ridge (overhang) with a gold trim line
+    h.box("Head", (0, fy + 0.03, zt + 0.042 * k), (W * 1.02, 0.06 * k, 0.04 * k), "iron", rot=(-10, 0, 0),
+          bevel=0.45, taper=(0.95, 0.8))
+    h.box("Head", (0, fy + 0.052, zt + 0.03 * k), (W * 0.9, 0.012, 0.008 * k), "gold", rot=(-10, 0, 0), bevel=0.2)
+    # cheek guards down to the jaw
+    for sx in (-1, 1):
+        c = Vector((sx * W * 0.47, fy - 0.03 * k, hb.z - Hh * 0.22))
+        h.box("Head", c, (0.03 * k, D * 0.55, Hh * 0.6), "iron", rot=(0, sx * -8, sx * 12), bevel=0.4,
+              taper=(1.0, 0.8))
+        for i in range(3):  # side breathing slats
+            h.box("Head", c + Vector((sx * 0.018 * k, 0.02 * k, -0.035 * k + i * 0.028 * k)),
+                  (0.008, 0.06 * k, 0.009 * k), "slit", rot=(0, sx * -8, sx * 12), bevel=0.2)
+    # crest ridge front -> back, gold capped
+    h.box("Head", (0, hb.y - 0.01, hb.z + Hh * 0.5), (0.04 * k, D * 0.95, 0.05 * k), "teal", bevel=0.5,
+          taper=(0.6, 1.0))
+    h.box("Head", (0, hb.y - 0.01, hb.z + Hh * 0.5 + 0.026 * k), (0.016 * k, D * 0.9, 0.01 * k), "gold", bevel=0.3)
+    # rivets: faceplate rim, brow, crest base
+    for i in range(5):
+        z = hb.z - Hh * 0.42 + i * Hh * 0.17
+        for sx in (-1, 1):
+            p = Vector((sx * W * 0.43, fy + 0.014 - W * 0.12, z))
+            _bolt(h, "Head", p, Vector((sx * 0.31, 0.95, 0)).normalized(), 0.0075 * k)
+    for i in range(4):
+        x = (-0.75 + i * 0.5) * W * 0.5
+        _bolt(h, "Head", Vector((x, fy + 0.055, zt + 0.05 * k)), Vector((0, 0.8, 0.6)), 0.007 * k, "gun")
+    # gorget: stacked iron rings under the helm
+    nk = h.jh("Neck")
+    for i, (r, z) in enumerate(((0.15, 0.0), (0.135, 0.035))):
+        h.cyl("Neck" if i else "UpperChest", (0, nk.y, nk.z + (z - 0.02) * k), (0, nk.y, nk.z + (z + 0.02) * k),
+              r * k, (r - 0.012) * k, "iron" if i == 0 else "gun", seg=20)
+    # ---------------------------------------------------------------- tiered pauldrons
+    for s in ("L", "R"):
+        sh = h.jh("UpperArm_" + s)
+        sg = 1.0 if sh.x > 0 else -1.0
+        for i, (w, d, z, col) in enumerate(((0.3, 0.3, 0.09, "teal"), (0.27, 0.28, 0.035, "iron"),
+                                          (0.24, 0.26, -0.02, "teal"))):
+            c = sh + Vector((sg * (0.03 + i * 0.015), 0, z)) * k
+            h.box("Clavicle_" + s, c, Vector((w, d, 0.07)) * k, col, rot=(0, sg * (16 + i * 8), 0), bevel=0.45,
+                  taper=(0.8, 0.85))
+            h.box("Clavicle_" + s, c + Vector((sg * 0.0, d * 0.5, -0.02)) * k, Vector((w * 0.92, 0.012, 0.014)) * k,
+                  "gold", rot=(0, sg * (16 + i * 8), 0), bevel=0.2)
+        top = sh + Vector((sg * 0.03, 0, 0.13)) * k
+        h.box("Clavicle_" + s, top + Vector((0, 0.06, 0)) * k, Vector((0.2, 0.02, 0.026)) * k, "team", "team",
+              rot=(0, sg * 16, 0), bevel=0.2)
+        for j in range(3):
+            _bolt(h, "Clavicle_" + s, top + Vector((sg * (-0.06 + j * 0.06), -0.06, 0.012)) * k,
+                  Vector((sg * 0.28, 0, 0.96)), 0.009 * k)
+    # ---------------------------------------------------------------- gauntlets
+    for s in ("L", "R"):
+        a, b = h.jh("LowerArm_" + s), h.jt("LowerArm_" + s)
+        ax = (b - a).normalized()
+        g = hero_hd.ring(h, h.jl("LowerArm_" + s, 0.55), ax, ("LowerArm_" + s,), n=16, off=0.012, reach=0.3)
+        hero_hd.strap(h, g, ax, 0.2 * k, 0.03, "iron", skin)
+        g = hero_hd.ring(h, h.jl("LowerArm_" + s, 0.9), ax, ("LowerArm_" + s, "Hand_" + s), n=16, off=0.04,
+                         reach=0.3)
+        hero_hd.strap(h, g, ax, 0.05 * k, 0.025, "gold", skin)
+        wr = h.jh("Hand_" + s)
+        fwd = (h.jt("Hand_" + s) - wr).normalized()
+        back = -h.palm[s]
+        p0 = wr + fwd * 0.07 * k + back * 0.035 * k
+        h.box("Hand_" + s, p0, (0.1 * k, 0.04 * k, 0.03 * k), "iron", mat=_along(p0 - fwd * 0.03, p0 + fwd * 0.03,
+              back), bevel=0.4)
+        for j in range(3):
+            q = p0 + fwd * 0.04 * k + (h.palm[s].cross(fwd)).normalized() * (j - 1) * 0.028 * k + back * 0.014 * k
+            _bolt(h, "Hand_" + s, q, back, 0.008 * k, "gun")
+    # right forearm shield-generator slab (asymmetric hook)
+    a, b = h.jh("LowerArm_R"), h.jt("LowerArm_R")
+    m = _along(a, b, Vector((1, 0, 0)))
+    w1 = lambda co: {"LowerArm_R": 1.0}
+    h.box(None, None, (0.06 * k, (b - a).length * 0.95, 0.24 * k), "teal", mat=m @ Matrix.Translation((0.09 * k, 0, 0)),
+          weights=w1, bevel=0.35)
+    h.box(None, None, (0.016 * k, (b - a).length * 0.7, 0.13 * k), "team", "team_emit",
+          mat=m @ Matrix.Translation((0.125 * k, 0, 0)), weights=w1, bevel=0.2)
+    # ---------------------------------------------------------------- chest: furnace-heart grille
+    uc = h.jh("UpperChest")
+    p, n = h.surface(0, uc.z - 0.07 * k, 1)
+    c = p + n * 0.04 * k
+    h.box("UpperChest", c, Vector((0.38, 0.06, 0.3)) * k, "teal", bevel=0.35, taper=(1.12, 1.0))
+    h.box("UpperChest", c + Vector((0, 0.035, 0)) * k, Vector((0.16, 0.02, 0.13)) * k, "gun", bevel=0.25)
+    for i in range(4):
+        h.box("UpperChest", c + Vector((0, 0.047, (i - 1.5) * 0.028)) * k, Vector((0.13, 0.008, 0.012)) * k,
+              "team", "team_emit", bevel=0.0)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            _bolt(h, "UpperChest", c + Vector((sx * 0.07, 0.045, sz * 0.055)) * k, Vector((0, 1, 0)), 0.008 * k)
+    pb, nb = h.surface(0, uc.z - 0.05 * k, -1)
+    h.box("UpperChest", pb + nb * 0.07 * k, Vector((0.32, 0.12, 0.34)) * k, "soot", bevel=0.3)
+    for i in range(3):
+        h.box("UpperChest", pb + nb * 0.135 * k + Vector((0, 0, 0.07 * (i - 1))) * k, Vector((0.24, 0.016, 0.022)) * k,
+              "team", "team_emit", bevel=0.0)
+    # ---------------------------------------------------------------- belt plates, knees, boots
+    pts = hero_hd.ring(h, Vector((0, h.jh("Hips").y, h.belt_z)), (0, 0, 1), ("Hips", "Spine"), n=32, off=0.014)
+    hero_hd.strap(h, pts, (0, 0, 1), 0.07 * k, 0.018, "iron", skin)
+    q, d = max(pts, key=lambda pd: pd[1].y)
+    M = hero_hd.frame(q + d * 0.02, d, Vector((0, 0, 1)))
+    hero_hd.piece(h, M, (0, 0, 0.006), (0.1 * k, 0.08 * k, 0.016), "gold", skin.fixed(q), bevel=0.4)
+    for x in (-0.15, 0.15):
+        q, qn = h.surface(x * k, h.belt_z - 0.09 * k, 1)
+        h.box("Hips", q + qn * 0.04 * k, Vector((0.14, 0.03, 0.16)) * k, "teal", bevel=0.3, taper=(0.8, 1.0))
+    for s in ("L", "R"):
+        kn = h.jh("LowerLeg_" + s)
+        h.box("LowerLeg_" + s, kn + Vector((0, 0.085, 0)) * k, Vector((0.14, 0.05, 0.16)) * k, "iron", bevel=0.45,
+              taper=(0.8, 0.8))
+        _bolt(h, "LowerLeg_" + s, kn + Vector((0, 0.112, 0.02)) * k, Vector((0, 1, 0)), 0.01 * k, "gun")
+    hero_defs.closed_boots(h, "soot", "iron", k)
+
+
+def ironmaw_w16(h, W):
+    """Brannoc's own Ironmaw (W16): a two-hand siege scattergun. Slab receiver, a drum
+    magazine, a thick barrel shroud with heat vents and a toothed 'maw' muzzle that
+    glows inside, a top carry handle and a side grip. Weapon space: origin = right
+    grip, +Y barrel, +Z up."""
+    def wb(c, s, col, ch="flat", **kw):
+        h.box("Weapon", None, s, col, ch, mat=W @ Matrix.Translation(Vector(c)) @ _rx(kw.pop("rx", 0)), **kw)
+
+    def cyl(a, b, r0, r1, col, ch="flat", seg=12):
+        h.cyl("Weapon", W @ Vector(a), W @ Vector(b), r0, r1, col, ch, seg=seg)
+    wb((0, -0.012, -0.055), (0.045, 0.055, 0.12), "soot", rx=-20, bevel=0.35)            # grip
+    wb((0, 0.03, -0.015), (0.016, 0.07, 0.008), "gun", bevel=0.3)                        # guard
+    wb((0, 0.08, 0.04), (0.1, 0.28, 0.12), "iron", bevel=0.3)                            # receiver
+    wb((0, 0.08, 0.105), (0.08, 0.22, 0.02), "teal", bevel=0.3)                          # top plate
+    cyl((-0.06, 0.1, -0.03), (0.06, 0.1, -0.03), 0.075, 0.075, "teal", seg=16)          # drum
+    for x in (-0.062, 0.062):
+        cyl((x, 0.1, -0.03), (x * 1.06, 0.1, -0.03), 0.06, 0.05, "gun", seg=16)
+    cyl((0, 0.22, 0.045), (0, 0.56, 0.045), 0.05, 0.054, "soot", seg=12)                 # shroud
+    for i in range(4):                                                                   # heat vents
+        wb((0, 0.28 + i * 0.07, 0.096), (0.05, 0.03, 0.012), "team", "team_emit", bevel=0.1)
+    cyl((0, 0.56, 0.045), (0, 0.6, 0.045), 0.064, 0.064, "iron", seg=12)                 # maw collar
+    cyl((0, 0.6, 0.045), (0, 0.63, 0.045), 0.05, 0.05, "team", "team_emit", seg=12)      # glowing throat
+    for sz in (1, -1):                                                                   # jaws with teeth
+        wb((0, 0.64, 0.045 + sz * 0.045), (0.12, 0.09, 0.035), "iron", rx=sz * 16, bevel=0.3)
+        for j in range(3):
+            wb(((j - 1) * 0.035, 0.69, 0.045 + sz * 0.028), (0.016, 0.02, 0.022), "bone", rx=sz * 16, bevel=0.2,
+               taper=(0.3, 0.3) if sz < 0 else (1.0, 1.0))
+    wb((0, 0.06, 0.15), (0.026, 0.16, 0.024), "gun", bevel=0.3)                          # carry handle
+    for y in (0.0, 0.12):
+        wb((0, y, 0.128), (0.024, 0.024, 0.05), "gun", bevel=0.3)
+    wb((-0.07, 0.32, 0.03), (0.04, 0.05, 0.1), "soot", bevel=0.35)                        # side grip
+    wb((0, -0.15, 0.03), (0.08, 0.16, 0.1), "teal", bevel=0.35, taper=(0.9, 0.8))          # stock
+    wb((0, -0.235, 0.025), (0.085, 0.03, 0.13), "soot", bevel=0.35)
+    wb((0.052, 0.08, 0.04), (0.006, 0.2, 0.03), "team", "team", bevel=0.0)
+
+
+def brannoc_idle(p, ph, f):
+    """Personal idle: planted wide like a wall, knees sunk, a slow heavy breath that
+    lifts the chest, weight rocking a little from heel to toe."""
+    from hero_anims import legs
+    w = math.sin(ph)
+    b = math.sin(2 * ph)
+    legs(p, 0, 0, 0)
+    for s, sg in (("L", 1), ("R", -1)):
+        p.rot("UpperLeg_" + s, [("x", 9), ("z", -sg * 10), ("y", sg * 6)])
+        p.rot("LowerLeg_" + s, [("x", -16)])
+        p.rot("Foot_" + s, [("x", 7), ("z", sg * 8)])
+    p.rot("Hips", [("x", 1.5 * w)])
+    p.hips((0, 0.006 * w * p.k, -0.045 * p.k - 0.006 * b * p.k))
+    p.rot("Spine", [("x", 3 + 1.2 * b)])
+    p.rot("Chest", [("x", -3 + 1.0 * b)])
+
+
+def brannoc_post(c):
+    """Painted helm detail: chipped edges and scratches on the plates, two dents, a
+    breathing-hole grid on the faceplate, a clan mark; brushed iron versus satin teal."""
+    import hero_decals as D
+    H, k = c["H"], c["k"]
+    z0 = H * 0.86
+    helm = D.region(c, ["#2F9A90", "#9AA3AD", "#565E69"], zmin=z0)
+    D.wear(c, helm, "#D6DCE2", 0.95, scale=55.0)
+    D.scratches(c, helm, "#DCE1E6", density=0.55, strength=0.6)
+    iron = D.region(c, ["#9AA3AD"], zmin=z0)
+    teal = D.region(c, ["#2F9A90"], zmin=z0)
+    D.gloss(c, iron, 0.45)
+    D.gloss(c, teal, 0.1)
+    lo, hi = D.bounds(c, D.region(c, ["#2F9A90"], zmin=z0))
+    mid = (lo + hi) / 2
+    flo, fhi = D.bounds(c, iron)
+    D.decal(c, D.holes(4, 3), (0, fhi[1], mid[2] - (hi[2] - lo[2]) * 0.3), (0, 1, 0), (0, 0, 1),
+            (0.07 * k, 0.04 * k), iron, "#15191E", depth=0.08, face=0.3)
+    D.decal(c, D.dent(), (0.05 * k, fhi[1], mid[2] - 0.02 * k), (0, 1, 0), (0, 0, 1), (0.04 * k, 0.03 * k), iron,
+            "#3B4148", depth=0.08, face=0.2)
+    D.decal(c, D.dent(), (-0.06 * k, mid[1], hi[2] - 0.02 * k), (0, 0, 1), (0, 1, 0), (0.045 * k, 0.035 * k), teal,
+            "#1C5C56", depth=0.08, face=0.3)
+    D.decal(c, D.chevron(n=3), (0, lo[1], mid[2]), (0, -1, 0), (0, 0, 1), (0.06 * k, 0.06 * k), teal, "#E8D9B0",
+            depth=0.2)
+    body = D.region(c, ["#2F9A90", "#9AA3AD"], zmax=z0)
+    D.wear(c, body, "#D6DCE2", 0.7, scale=40.0, seed=11.0)
+    D.scratches(c, body, "#DCE1E6", density=0.3, strength=0.4, seed=23.0)
     return c["alb"], c["spec"], c["emit"]
 
 
@@ -382,7 +613,7 @@ HEROES = {
                  "calf_r": 0.074, "ankle_r": 0.048, "hand": 1.4, "foot": 1.35, "boot_r": 1.3,
                  "deltoid": 1.2, "pecs": 0.7, "glutes": 0.5, "calves": 0.7, "forearms": 0.8, "traps": 0.9,
                  "chest_lift": 0.016, "arm_angle": 50.0, "stance": 0.03},
-        "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05, "post": ryker_post,
+        "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05, "post": ryker_post, "uv_margin": 0.0012, "uv_max_tries": 40,
                   "shader": {"hatch_strength": 0.1}},
         "palette": RYKER_PAL,
         "cuts": ryker_cuts,
@@ -399,6 +630,37 @@ HEROES = {
         "gait": {"run_amp": 40, "lean": 9},
         "casts": [("throw", [("z", 12)]), ("inject", []), ("thrust", [("x", -6)]), ("raise", [("x", 8)])],
     },
+    "brannoc": {
+        "key": "brannoc",
+        "pipeline": "gen",
+        "legacy": hero_defs.HEROES["brannoc"],
+        "height": 2.2,
+        "body": {"leg": 0.92, "torso": 0.6, "shoulder_w": 0.6, "chest_w": 0.52, "chest_d": 0.33,
+                 "waist_w": 0.42, "waist_d": 0.3, "hip_w": 0.42, "hip_d": 0.28, "hip_joint_w": 0.22,
+                 "neck": 0.05, "neck_r": 0.08, "head_w": 0.145, "head_d": 0.175, "head_h": 0.2,
+                 "upper_arm": 0.29, "forearm": 0.27,
+                 "arm_r": 0.08, "forearm_r": 0.078, "wrist_r": 0.05, "thigh_r": 0.118, "knee_r": 0.08,
+                 "calf_r": 0.09, "ankle_r": 0.06, "hand": 1.55, "foot": 1.4, "boot_r": 1.35,
+                 "deltoid": 1.3, "pecs": 0.9, "glutes": 0.5, "calves": 0.8, "forearms": 1.0, "traps": 1.4,
+                 "boxy": 2.8, "chest_lift": 0.02, "arm_angle": 46.0, "stance": 0.06},
+        "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05, "post": brannoc_post, "uv_margin": 0.0012,
+                  "uv_max_tries": 40, "shader": {"hatch_strength": 0.1}},
+        "palette": BRANNOC_PAL,
+        "cuts": _generic(BRANNOC_SPEC)[0],
+        "regions": _generic(BRANNOC_SPEC)[1],
+        "shells": _generic(BRANNOC_SPEC)[2],
+        "parts": brannoc_parts,
+        "weapon": "ironmaw_w16",
+        "cloth": [],
+        # Two-handed at belly / low chest (v0.10 held it at the thighs).
+        "stance": {"grip_r": (0.14, 0.27, 1.17), "pivot": (0.16, 0.02, 1.36), "twist": -18, "clav_l": -8,
+                   "pole_r": (1, -0.4, -1), "pole_l": (-0.6, -0.2, -1), "two_handed": True,
+                   "grip_l": (-0.07, 0.32, 0.03), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),
+                   "hand_l_y": (0.3, 0.3, -1), "hand_l_n": (1, 0, 0), "mag": (0, 0.1, -0.06)},
+        "idle": brannoc_idle,
+        "gait": {"run_amp": 34, "lean": 5},
+        "casts": [("thrust", [("x", -8)]), ("raise", []), ("sweep", [("z", 10)]), ("raise", [("x", 10)])],
+    },
 }
 
-WEAPONS = {"breakline_ar7": breakline_ar7}
+WEAPONS = {"breakline_ar7": breakline_ar7, "ironmaw_w16": ironmaw_w16}
