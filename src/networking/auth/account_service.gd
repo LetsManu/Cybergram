@@ -56,6 +56,9 @@ var _crypto := Crypto.new()
 var online: OnlineRulesDef
 ## W15: single-use launcher -> game sign-in tokens (hashes only).
 var launch_tokens: LaunchTokenStore
+## W15: opt-in crash reports (null = not accepted on this server).
+var crash_store: CrashReportStore
+var _crash_up: Dictionary = {}  # peer -> {total, next, buf: PackedByteArray, started}
 
 
 ## Process-wide service (guest-only until configure_shared()).
@@ -72,6 +75,12 @@ static func configure_shared(store_: AccountStore, rules_: AuthRulesDef, secure_
 		_shared = AccountService.new(store_, rules_, secure_)
 	else:
 		_shared.secure = secure_
+	if secure_ and _shared.crash_store == null:
+		# W15: crash reports only where they can arrive encrypted.
+		_shared.crash_store = CrashReportStore.new(AuthConfig.from_os().crash_reports_dir(), _shared.online)
+		var n := _shared.crash_store.sweep(int(Time.get_unix_time_from_system()))
+		if n > 0:
+			print("[crash] retention: deleted %d old report(s)" % n)
 	_shared.allow_guests = allow_guests_ or not secure_
 	return _shared
 
@@ -127,6 +136,7 @@ func adopt(account_id: String, peer: int) -> void:
 func on_disconnect(peer: int) -> void:
 	peers.erase(peer)
 	_req_budget.erase(peer)
+	_crash_up.erase(peer)
 	for tok in sessions:
 		var s: Dictionary = sessions[tok]
 		if s.peer == peer:
@@ -156,11 +166,20 @@ func step(delta: float) -> void:
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
 			print("[accounts] retention: deleted %d inactive account(s)" % swept.size())
+		if crash_store != null:
+			var n := crash_store.sweep(int(Time.get_unix_time_from_system()))
+			if n > 0:
+				print("[crash] retention: deleted %d old report(s)" % n)
+	for p in _crash_up.keys():
+		if _now - float(_crash_up[p].started) > online.crash_upload_timeout_s:
+			_crash_up.erase(p)
 
 
 ## Handles one ACCOUNT_REQ packet from `peer`, replying on `t`.
 func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
-	if not _budget(peer):
+	# Crash report chunks have their own limits (CrashReportStore), not the request budget.
+	var is_chunk := data.size() > 1 and data.decode_u8(1) == AccountCodec.OP_CRASH_CHUNK
+	if not is_chunk and not _budget(peer):
 		return
 	var r := AccountCodec.decode_request(data)
 	if r.is_empty():
@@ -178,6 +197,8 @@ func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
 			_guest(t, peer, r)
 		AccountCodec.OP_REDEEM:
 			_redeem(t, peer, r)
+		AccountCodec.OP_CRASH_CHUNK:
+			_crash_chunk(t, peer, r)
 		AccountCodec.OP_PING:
 			_reply(t, peer, op, AccountCodec.OK)  # W15 RTT probe: answered at once
 		AccountCodec.OP_LOGOUT:
@@ -285,6 +306,55 @@ func _redeem(t: Transport, peer: int, r: Dictionary) -> void:
 	print("[accounts] launch token redeemed: account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
 	_logout(peer)
 	_start_session(t, peer, op, _identity_of(a))
+
+
+## W15: one chunk of an opt-in crash report. DTLS only; chunks arrive in
+## order (reliable channel); the first one checks the rate limits, the last
+## one stores the report. Answers only on the last chunk or on an error.
+func _crash_chunk(t: Transport, peer: int, r: Dictionary) -> void:
+	var op := AccountCodec.OP_CRASH_CHUNK
+	var seq := int(r.seq)
+	var total := int(r.total)
+	var max_chunks := ceili(float(online.crash_max_bytes) / AccountCodec.CHUNK_MAX)
+	if not secure or crash_store == null:
+		if seq == 0:
+			_reply(t, peer, op, AccountCodec.E_NOT_SECURE)
+		return
+	var who: Dictionary = peers.get(peer, {})
+	var account := "" if who.is_empty() or who.guest else str(who.id)
+	if seq == 0:
+		if total < 1 or total > max_chunks:
+			_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+			return
+		if not crash_store.allowed(source_key(t, peer), account, int(Time.get_unix_time_from_system())):
+			_reply(t, peer, op, AccountCodec.E_RATE)
+			return
+		_crash_up[peer] = {"total": total, "next": 0, "buf": PackedByteArray(), "started": _now}
+	var up: Dictionary = _crash_up.get(peer, {})
+	if up.is_empty():
+		return  # chunks of a refused / dropped upload
+	if seq != int(up.next) or total != int(up.total):
+		_crash_up.erase(peer)
+		_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+		return
+	var buf: PackedByteArray = up.buf  # a value type: append, then store back
+	buf.append_array(r.data)
+	up.buf = buf
+	up.next = seq + 1
+	if buf.size() > online.crash_max_bytes:
+		_crash_up.erase(peer)
+		_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+		return
+	if int(up.next) < total:
+		return
+	_crash_up.erase(peer)
+	var res := crash_store.accept(up.buf, source_key(t, peer), account, int(Time.get_unix_time_from_system()))
+	var codes := {CrashReportStore.Result.OK: AccountCodec.OK, CrashReportStore.Result.RATE_LIMITED: AccountCodec.E_RATE,
+		CrashReportStore.Result.STORE_FAILED: AccountCodec.E_STORE}
+	var code: int = codes.get(res, AccountCodec.E_BAD_REQUEST)
+	print("[crash] report from peer %d: %s (%d bytes)" % [peer, CrashReportStore.Result.keys()[res].to_lower(),
+		(up.buf as PackedByteArray).size()])
+	_reply(t, peer, op, code, {"seq": seq})
 
 
 ## W15: a launch token for the logged-in account on `peer` (DTLS only; the
