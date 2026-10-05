@@ -79,9 +79,9 @@ func _process(_d: float) -> bool:
 		_m.set_motion(_m.global_transform.basis * Vector3(0, 0, -6.0), false, 0.0)
 	var shots := {20: 0, 30: 1, 36: 2, 44: 3}
 	if _mode == "hit":
-		if _frame == 24:
+		if _frame == 23:
 			_m.flinch(1.0, Vector3(3, 1, 0))  # big hit from the hero right (screen left): stagger
-		shots = {23: 0, 27: 1, 33: 2, 44: 3}
+		shots = {24: 0, 26: 1, 29: 2, 40: 3}
 	if _mode == "run":
 		shots = {40: 0, 46: 1, 52: 2, 58: 3}
 	if shots.has(_frame):

@@ -8,7 +8,7 @@ extends SkeletonModifier3D
 
 ## Hits at or above this strength (0..1) stagger.
 const STAGGER_AT: float = 0.85
-const LEAN_RAD: float = 0.22
+const LEAN_RAD: float = 0.32
 const STAGGER_MULT: float = 2.0
 const DURATION_S: float = 0.35
 const STAGGER_DURATION_S: float = 0.7
@@ -47,7 +47,7 @@ static func envelope(t: float, duration: float) -> float:
 	if t < 0.0 or t >= duration:
 		return 0.0
 	var u := t / duration
-	return exp(-4.0 * u) * cos(u * 5.0)
+	return exp(-3.0 * u) * cos(u * 5.0)
 
 
 func _ready() -> void:
