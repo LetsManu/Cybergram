@@ -45,6 +45,16 @@ static func tokens() -> UiKitTokens:
 	return _tokens
 
 
+## Drops the cached tokens / theme / fonts / icons (screens call it when they
+## leave the tree, so no static Resource outlives the scene tree at exit;
+## live controls keep their own references).
+static func clear_cache() -> void:
+	_tokens = null
+	_theme = null
+	_fonts.clear()
+	_icons.clear()
+
+
 ## True when animations must be skipped (accessibility setting).
 static func reduce_motion() -> bool:
 	if force_reduce_motion >= 0:

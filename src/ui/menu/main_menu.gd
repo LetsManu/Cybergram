@@ -663,6 +663,10 @@ func _disconnect() -> void:
 	_server = ""
 
 
+func _exit_tree() -> void:
+	UiKit.clear_cache()
+
+
 func _process(_delta: float) -> void:
 	if _online == null or _lobby != null:
 		return  # the lobby view steps the client while it is open

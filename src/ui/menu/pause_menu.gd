@@ -58,6 +58,10 @@ func _ready() -> void:
 	_apply_look()
 
 
+func _exit_tree() -> void:
+	UiKit.clear_cache()
+
+
 func _process(_delta: float) -> void:
 	if _player == null:
 		_player = _find_input()
