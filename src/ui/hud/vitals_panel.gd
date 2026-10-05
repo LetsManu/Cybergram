@@ -139,7 +139,10 @@ func _lumen_row(at: Vector2, p: SnapshotData.ProgressState) -> void:
 		var a := minf(1.0, _gain_t * 2.0)
 		var lift := 0.0 if UiKit.reduce_motion() else (ctx.tuning.lumen_flyout_seconds - _gain_t) * 10.0
 		text("+%d" % _gain, Vector2(x, at.y - lift), 16, Color(HudPalette.BRASS, a), ctx.font_mono)
-	x += 30.0 if size.x < 560.0 else 54.0
+	# Reserve room for a 3-digit gain so the flyout never runs into RES (at 720p
+	# the old fixed 30 px gap was narrower than "+24").
+	var narrow := size.x < 560.0
+	x += maxf(text_width("+99" if narrow else "+999", 16, ctx.font_mono) + 6.0, 30.0 if narrow else 54.0)
 	var econ_frac := 0.0
 	if _econ != null:
 		var cur := EconomyMath.exp_for_level(_econ, p.level)
@@ -149,7 +152,13 @@ func _lumen_row(at: Vector2, p: SnapshotData.ProgressState) -> void:
 	caps(res, Vector2(x, at.y - 1.0), 16, Color(HudPalette.MUTED, idle_a(0.55)), 0.18)
 	x += caps_width(res, 16, 0.18) + (12.0 if size.x < 560.0 else 21.0)
 	if p.skill_points > 0:
-		brass_chip(Vector2(x, at.y - 7.0), tr("HUD_SP_BADGE") % p.skill_points, 16)
+		var bw := brass_chip(Vector2(x, at.y - 7.0), tr("HUD_SP_BADGE") % p.skill_points, 16)
+		# How to spend (polish 2026-10-05): the bound quick-spend modifier, held
+		# with a skill key; the skill bar then names the node each key buys.
+		var kl := ctx.key_label(&"quick_spend", "Alt")
+		var kw := maxf(24.0, text_width(kl, 13, ctx.font_mono) + 10.0)
+		if x + bw + 6.0 + kw <= size.x:  # never into the skill bar
+			key_chip(Vector2(x + bw + 6.0 + kw * 0.5, at.y - 7.0), kl, 24.0, idle_a(0.55))
 
 
 ## Segmented HP bar: one segment per tuning.hp_segment HP with 3 px gaps; the
