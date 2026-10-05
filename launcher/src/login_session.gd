@@ -14,6 +14,10 @@ extends Node
 ##   single-use launch token (60 s, bound to this account, only on DTLS) and
 ##   `hand_over_env` passes that to the game through environment variables
 ##   (LaunchHandoff; not the command line, which other users can read).
+## - W21-N1 "Forgot password?": recover() sends username + one-time recovery
+##   code + new password (DTLS only, like login). Success signs in like a
+##   login (login_result) and hands the NEXT code to `recovery_code_issued`
+##   once; this object does not keep it.
 ## - The link also gives the server round-trip time (`rtt_ms`, ENet's own
 ##   ping) for the status widget, and carries friends / party requests.
 
@@ -26,6 +30,11 @@ signal link_ready(secure: bool)
 signal link_failed(message: String)
 ## Result of login(): ok, player-facing message, display name when ok.
 signal login_result(ok: bool, message: String, display_name: String)
+## W21-N1: result of recover() (failure only; success also emits
+## login_result). Message is player-facing.
+signal recover_failed(message: String)
+## W21-N1: a new recovery code to show the player exactly once.
+signal recovery_code_issued(code: String)
 ## Every ACCOUNT_RESULT other than login ({op, code, ...}): friends, party.
 signal account_result(result: Dictionary)
 ## Answer to request_launch(): the hand-over ({token, server, account}) or {}.
@@ -152,6 +161,20 @@ func login(username: String, password: String) -> void:
 		"username": username.strip_edges(), "password": password})
 
 
+## "Forgot password?" (W21-N1): sets `new_password` with the account's
+## one-time recovery `code`. Refused on an unencrypted link. The caller clears
+## its fields right after; nothing is kept here.
+func recover(username: String, code: String, new_password: String) -> void:
+	if _client == null or not link_up:
+		recover_failed.emit("Not connected to the server.")
+		return
+	if not secure:
+		recover_failed.emit("This server has no encrypted login, so passwords cannot be reset here.")
+		return
+	_client.request(AccountCodec.OP_RECOVER, {"ver": MsgType.PROTOCOL_VERSION,
+		"username": username.strip_edges(), "code": code.strip_edges(), "new_password": new_password})
+
+
 ## Signs out (the server forgets the session) and drops the token.
 func logout() -> void:
 	if _client != null and link_up:
@@ -210,13 +233,18 @@ func _on_account(d: Dictionary) -> void:
 		launch_ready.emit(h if not LaunchHandoff.parse({LaunchHandoff.ENV_TOKEN: h.get("token", ""),
 			LaunchHandoff.ENV_SERVER: server, LaunchHandoff.ENV_ACCOUNT: _account_id}).is_empty() else {})
 		return
-	if op != AccountCodec.OP_LOGIN:
+	if op == AccountCodec.OP_RECOVER and int(d.code) != AccountCodec.OK:
+		recover_failed.emit(recover_error_text(int(d.code)))
+		return
+	if op != AccountCodec.OP_LOGIN and op != AccountCodec.OP_RECOVER:
 		account_result.emit(d)
 		return
 	if int(d.code) == AccountCodec.OK and d.has("token"):
 		_token = str(d.token)
 		_account_id = str(d.get("id", ""))
 		_display_name = str(d.get("display_name", d.get("username", "")))
+		if str(d.get("recovery_code", "")) != "":
+			recovery_code_issued.emit(str(d.recovery_code))  # first: the dialog opens before the sign-in UI moves on
 		login_result.emit(true, "Signed in as %s" % _display_name, _display_name)
 	else:
 		login_result.emit(false, error_text(int(d.code)), "")
@@ -226,7 +254,7 @@ func _on_account(d: Dictionary) -> void:
 static func error_text(code: int) -> String:
 	match code:
 		AccountCodec.E_CREDENTIALS:
-			return "Wrong username or password."
+			return "Wrong username or password. Sign in with your username, not your display name."
 		AccountCodec.E_LOCKED:
 			return "Too many failed logins. Try again in a few minutes."
 		AccountCodec.E_VERSION:
@@ -238,6 +266,16 @@ static func error_text(code: int) -> String:
 		AccountCodec.E_BAD_REQUEST:
 			return "Enter your username and password."
 	return "Login failed (code %d)." % code
+
+
+## Player-facing text for a failed recover() (W21-N1).
+static func recover_error_text(code: int) -> String:
+	match code:
+		AccountCodec.E_CREDENTIALS:
+			return "Wrong username or recovery code."
+		AccountCodec.E_WEAK_PASSWORD:
+			return "The new password is too short or too long."
+	return error_text(code)
 
 
 ## Passes the launch token `h` (from launch_ready) to this process's

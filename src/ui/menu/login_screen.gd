@@ -2,7 +2,11 @@ class_name LoginScreen
 extends PanelContainer
 ## Online sign-in ahead of the lobby (design/ux/lobby-and-social.md §6):
 ## LOG IN, CREATE ACCOUNT (privacy notice + "I am at least 14", and the note
-## that there is no password recovery) or PLAY AS GUEST. Display only: it
+## about the one-time recovery code) or PLAY AS GUEST, plus "Forgot
+## password?" (W21-N1: username + recovery code + new password,
+## AccountCodec.OP_RECOVER; the menu shows the next code with
+## RecoveryCodeDialog). Password fields never cut what is typed: a password
+## longer than the rules allow is refused with a message. Display only: it
 ## emits `submitted(op, fields)`; the menu sends it and calls show_error() /
 ## the menu closes it on success. Nothing is stored except the optional
 ## "remember username" (menu.cfg, done by the menu).
@@ -15,7 +19,7 @@ extends PanelContainer
 signal submitted(op: int, fields: Dictionary)
 signal cancelled
 
-enum Mode { LOGIN, REGISTER, GUEST }
+enum Mode { LOGIN, REGISTER, GUEST, RECOVER }
 
 const PRIVACY_URL := "https://github.com/LetsManu/Cybergram/blob/main/PRIVACY.md"
 
@@ -45,6 +49,10 @@ var _r_privacy: CheckBox
 var _r_age: CheckBox
 var _g_name: LineEdit
 var _g_privacy: CheckBox
+var _f_user: LineEdit
+var _f_code: LineEdit
+var _f_pass: LineEdit
+var _f_pass2: LineEdit
 var _emblem: int = 0
 var _accent: int = 0
 var _pickers: Array[HBoxContainer] = []
@@ -66,6 +74,7 @@ func _ready() -> void:
 	_pages.append(_login_page())
 	_pages.append(_register_page())
 	_pages.append(_guest_page())
+	_pages.append(_recover_page())
 	for p in _pages:
 		col.add_child(p)
 	_msg = MenuStyle.label("", 13, HudPalette.WARN, HORIZONTAL_ALIGNMENT_CENTER)
@@ -85,9 +94,11 @@ func set_mode(m: Mode) -> void:
 	mode = m
 	for i in _pages.size():
 		_pages[i].visible = i == m
+	for i in _tabs.size():
 		_tabs[i].set_pressed_no_signal(i == m)
 	_refresh_pickers()
-	var first: LineEdit = [_user if remembered_username == "" else _pass, _r_user, _g_name][m]
+	var first: LineEdit = [_user if remembered_username == "" else _pass, _r_user, _g_name,
+		_f_user if _f_user.text == "" else _f_code][m]
 	first.grab_focus.call_deferred()
 
 
@@ -129,7 +140,48 @@ func _login_page() -> Control:
 	v.add_child(_remember)
 	v.add_child(UiKit.spacer(4))
 	v.add_child(UiKit.button(tr("HUD_LOGIN_SUBMIT"), _submit_login, &"primary"))
+	var forgot := UiKit.button(tr("HUD_LOGIN_FORGOT"), open_recover, &"ghost", 30)
+	forgot.add_theme_font_size_override("font_size", 12)
+	v.add_child(forgot)
 	return v
+
+
+## "Forgot password?" (W21-N1): username, recovery code, new password twice.
+func _recover_page() -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	var info := MenuStyle.label(tr("HUD_LOGIN_RECOVER_INFO"), 12, HudPalette.TEXT_DIM)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(info)
+	_f_user = MenuStyle.line_edit(tr("HUD_LOGIN_USERNAME"), PlayerProfile.NAME_MAX)
+	v.add_child(_f_user)
+	_f_code = MenuStyle.line_edit(tr("HUD_LOGIN_RECOVER_CODE"), AccountCodec.STR_MAX)
+	v.add_child(_f_code)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_f_pass = _secret()
+	_f_pass.placeholder_text = tr("HUD_ACCOUNT_NEW_PW")
+	_f_pass.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_f_pass)
+	_f_pass2 = _secret()
+	_f_pass2.placeholder_text = tr("HUD_LOGIN_PASSWORD_AGAIN")
+	_f_pass2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_f_pass2.text_submitted.connect(func(_t: String) -> void: _submit_recover())
+	row.add_child(_f_pass2)
+	v.add_child(row)
+	v.add_child(UiKit.button(tr("HUD_LOGIN_RECOVER_SUBMIT"), _submit_recover, &"primary"))
+	var back := UiKit.button(tr("HUD_LOGIN_RECOVER_BACK"), func() -> void: set_mode(Mode.LOGIN), &"ghost", 30)
+	back.add_theme_font_size_override("font_size", 12)
+	v.add_child(back)
+	return v
+
+
+## Opens "Forgot password?" with the username from the login page.
+func open_recover() -> void:
+	if _f_user.text == "":
+		_f_user.text = _user.text.strip_edges()
+	show_info("")
+	set_mode(Mode.RECOVER)
 
 
 func _register_page() -> Control:
@@ -170,7 +222,7 @@ func _register_page() -> Control:
 	v.add_child(prow)
 	_r_age = _check(tr("HUD_LOGIN_AGE") % AuthConfig.rules().min_age)
 	v.add_child(_r_age)
-	var rec := MenuStyle.label(tr("HUD_LOGIN_NO_RECOVERY"), 11, HudPalette.LUMEN)
+	var rec := MenuStyle.label(tr("HUD_LOGIN_RECOVERY_NOTE"), 11, HudPalette.LUMEN)
 	rec.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(rec)
 	v.add_child(UiKit.button(tr("HUD_LOGIN_CREATE"), _submit_register, &"primary", 46))
@@ -263,16 +315,54 @@ func _submit_register() -> void:
 	_r_pass2.text = ""
 
 
+func _submit_recover() -> void:
+	var err := recover_error()
+	if err != "":
+		show_error(err)
+		return
+	show_info(tr("HUD_LOGIN_WORKING"))
+	submitted.emit(AccountCodec.OP_RECOVER, {"ver": MsgType.PROTOCOL_VERSION, "username": _f_user.text.strip_edges(),
+		"code": _f_code.text.strip_edges(), "new_password": _f_pass.text})
+	_f_pass.text = ""
+	_f_pass2.text = ""
+	_f_code.text = ""
+
+
+## Client-side checks of the "Forgot password?" page; "" = fine.
+func recover_error() -> String:
+	if _f_user.text.strip_edges() == "" or _f_code.text.strip_edges() == "":
+		return tr("HUD_LOGIN_ERR_EMPTY")
+	return new_password_error(_f_pass.text, _f_pass2.text)
+
+
+## A new password against the rules and its repetition; "" = fine.
+static func new_password_error(pw: String, again: String) -> String:
+	var n := pw.to_utf8_buffer().size()
+	var rules := AuthConfig.rules()
+	if n < rules.password_min or n > rules.password_max:
+		return TranslationServer.translate("HUD_LOGIN_ERR_PASSWORD") % [rules.password_min, rules.password_max]
+	if pw != again:
+		return TranslationServer.translate("HUD_LOGIN_ERR_MISMATCH")
+	return ""
+
+
+## Player-facing text for a failed LOGIN / REGISTER / GUEST / RECOVER result
+## (the menu shows it with show_error()).
+static func result_text(op: int, code: int) -> String:
+	if op == AccountCodec.OP_RECOVER and code == AccountCodec.E_CREDENTIALS:
+		return TranslationServer.translate("HUD_LOGIN_RECOVER_WRONG")
+	var t := TranslationServer.translate(LobbyClient.account_error_key(code))
+	return t % AuthConfig.rules().min_age if code == AccountCodec.E_AGE else t
+
+
 ## Client-side checks (the server checks again); "" = fine.
 func _register_error() -> String:
 	if not AccountService.valid_username(_r_user.text.strip_edges()):
 		return tr("HUD_ACCOUNT_ERR_6")
-	var n := _r_pass.text.to_utf8_buffer().size()
 	var rules := AuthConfig.rules()
-	if n < rules.password_min or n > rules.password_max:
-		return tr("HUD_LOGIN_ERR_PASSWORD") % [rules.password_min, rules.password_max]
-	if _r_pass.text != _r_pass2.text:
-		return tr("HUD_LOGIN_ERR_MISMATCH")
+	var pw_err := new_password_error(_r_pass.text, _r_pass2.text)
+	if pw_err != "":
+		return pw_err
 	var dn := _r_name.text.strip_edges()
 	if PlayerProfile.validate_name(dn) != PlayerProfile.NameError.OK or not PlayerProfile.name_allowed(dn):
 		return tr("HUD_ACCOUNT_ERR_8")
@@ -296,6 +386,20 @@ func _submit_guest() -> void:
 		"accent": _accent, "flags": AccountCodec.FLAG_PRIVACY})
 
 
+## Testing / automation: fill the "Forgot password?" form.
+func fill_recover(username: String, code: String, password: String) -> void:
+	_f_user.text = username
+	_f_code.text = code
+	_f_pass.text = password
+	_f_pass2.text = password
+
+
+## Testing / automation: the password typed on the register page (W21-N1
+## relog regression: it must be exactly what was typed, never cut).
+func register_password() -> String:
+	return _r_pass.text
+
+
 ## Testing / automation: fill the register form.
 func fill_register(username: String, password: String, display: String, privacy: bool, age: bool) -> void:
 	_r_user.text = username
@@ -306,8 +410,11 @@ func fill_register(username: String, password: String, display: String, privacy:
 	_r_age.button_pressed = age
 
 
+## A password field. Its limit is the wire limit, not password_max: a field
+## that cuts a pasted password silently stores a different one than the
+## player believes (the W21-N1 relog bug); too long is refused with a message.
 func _secret() -> LineEdit:
-	var e := MenuStyle.line_edit("", AuthConfig.rules().password_max)
+	var e := MenuStyle.line_edit("", AccountCodec.PASSWORD_MAX_BYTES)
 	e.secret = true
 	return e
 

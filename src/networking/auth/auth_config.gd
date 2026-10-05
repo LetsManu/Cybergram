@@ -100,6 +100,12 @@ func crash_reports_dir() -> String:
 	return crash_dir if crash_dir != "" else data_dir.get_base_dir().path_join("crash_reports")
 
 
+## W21-N1: folder of host password-reset requests ("admin" next to data_dir;
+## Docker: /data/admin). See AccountAdmin.
+func admin_dir() -> String:
+	return data_dir.get_base_dir().path_join("admin")
+
+
 ## Loads the server certificate + key. Returns the TLSOptions or null
 ## (tls_error says why); null means guest-only.
 func load_server_tls() -> TLSOptions:

@@ -27,10 +27,21 @@ const PURGE_EVERY_S := 60.0
 ## Per-connection account request budget (token bucket).
 const REQ_BURST := 12.0
 const REQ_PER_S := 3.0
-## Hash used to keep the timing of "no such user" like a real check.
 ## Profile key of the public leaderboard opt-in (W20-WEB; absent = off).
 const PROFILE_LEADERBOARD := "leaderboard_public"
+## Hash used to keep the timing of "no such user" like a real check.
 const DUMMY_SALT := "c7b1e0a4d2f3958b6a1c0e9d8f7a6b5c"
+
+## Internal second stages of hash jobs (negative: never a wire op).
+const STAGE_NEW_PASSWORD := -1      ## change password: the new hash
+const STAGE_REGISTER_CODE := -2     ## register: the recovery code hash
+const STAGE_REGEN_CODE := -3        ## RECOVERY_CODE: the new code hash
+const STAGE_RECOVER_PASSWORD := -4  ## RECOVER: the new password hash
+const STAGE_RECOVER_CODE := -5      ## RECOVER: the next code hash
+## Key of the recovery code record inside the account's `password` object
+## (W21-N1). Nested there, not a new top-level key: AccountStore.is_well_formed
+## stays the same, so an older server image still loads these accounts.
+const RECOVERY_KEY := "recovery"
 
 static var _shared: AccountService
 
@@ -63,6 +74,9 @@ var crash_store: CrashReportStore
 ## W15: parties (memory only).
 var parties: PartyService
 var _crash_up: Dictionary = {}  # peer -> {total, next, buf: PackedByteArray, started}
+## W21-N1: folder of host reset requests (AccountAdmin; "" = off).
+var admin_dir: String = ""
+var _since_admin: float = 1.0e9  # the first step() looks at once
 
 ## W17B: an account was deleted (by its owner or by the inactivity sweep);
 ## other stores (ratings, reports, match history, lockouts) erase it too.
@@ -83,6 +97,8 @@ static func configure_shared(store_: AccountStore, rules_: AuthRulesDef, secure_
 		_shared = AccountService.new(store_, rules_, secure_)
 	else:
 		_shared.secure = secure_
+	if store_ != null and _shared.admin_dir == "":
+		_shared.admin_dir = AuthConfig.from_os().admin_dir()  # W21-N1 host password resets
 	if secure_ and _shared.crash_store == null:
 		# W15: crash reports only where they can arrive encrypted.
 		_shared.crash_store = CrashReportStore.new(AuthConfig.from_os().crash_reports_dir(), _shared.online)
@@ -188,6 +204,11 @@ func step(delta: float) -> void:
 	for p in _crash_up.keys():
 		if _now - float(_crash_up[p].started) > online.crash_upload_timeout_s:
 			_crash_up.erase(p)
+	if store != null and admin_dir != "":
+		_since_admin += delta
+		if _since_admin >= rules.admin_poll_s:
+			_since_admin = 0.0
+			poll_admin()
 
 
 ## Handles one ACCOUNT_REQ packet from `peer`, replying on `t`.
@@ -206,6 +227,8 @@ func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
 			_register(t, peer, r)
 		AccountCodec.OP_LOGIN:
 			_login(t, peer, r)
+		AccountCodec.OP_RECOVER:
+			_recover(t, peer, r)
 		AccountCodec.OP_RESUME:
 			_resume(t, peer, r)
 		AccountCodec.OP_GUEST:
@@ -273,8 +296,43 @@ func _login(t: Transport, peer: int, r: Dictionary) -> void:
 		salt = str(a.password.salt).hex_decode()
 		iters = int(a.password.iterations)
 	_jobs_by_peer[peer] = true
-	hasher.submit(str(r.password).to_utf8_buffer(), salt, iters,
+	hasher.submit(login_form(str(r.password)).to_utf8_buffer(), salt, iters,
 		{"op": op, "peer": peer, "t": t, "uname": uname, "id": str(a.get("id", "")), "pk": pk})
+
+
+## W21-N1: password recovery with the one-time recovery code. No session
+## needed; DTLS only; rate-limited and answered exactly like a login (an
+## unknown user, an account without a code and a wrong code all hash once
+## and give E_CREDENTIALS), so it is not an account oracle.
+func _recover(t: Transport, peer: int, r: Dictionary) -> void:
+	var op := AccountCodec.OP_RECOVER
+	if _jobs_by_peer.has(peer):
+		_reply(t, peer, op, AccountCodec.E_BUSY)
+		return
+	var code := _session_preconditions(r)
+	if code != AccountCodec.OK:
+		_reply(t, peer, op, code)
+		return
+	var uname := str(r.username).to_lower()
+	var pk := source_key(t, peer)
+	if rl_account.is_locked(account_key(uname, pk), _now) or rl_peer.is_locked(pk, _now):
+		_reply(t, peer, op, AccountCodec.E_LOCKED)
+		return
+	if not _valid_password(str(r.new_password)):
+		_reply(t, peer, op, AccountCodec.E_WEAK_PASSWORD)
+		return
+	var a := store.find_username(uname)
+	var rec := recovery_of(a)
+	var salt := DUMMY_SALT.hex_decode()
+	var iters := rules.pbkdf2_iterations
+	if not rec.is_empty():
+		salt = str(rec.salt).hex_decode()
+		iters = int(rec.iterations)
+	var canon := RecoveryCode.normalize(str(r.code), rules)
+	_jobs_by_peer[peer] = true
+	hasher.submit((canon if canon != "" else str(r.code)).to_utf8_buffer(), salt, iters,
+		{"op": op, "peer": peer, "t": t, "uname": uname, "id": str(a.get("id", "")), "pk": pk,
+		"well_formed": canon != "", "new_password": str(r.new_password)})
 
 
 func _resume(t: Transport, peer: int, r: Dictionary) -> void:
@@ -410,12 +468,15 @@ func _logout(peer: int) -> void:
 		sessions.erase(str(who.get("token", "")))
 
 
-func _start_session(t: Transport, peer: int, op: int, who: Dictionary) -> void:
+## `extra`: more result fields (W21-N1: the new recovery code, shown once).
+func _start_session(t: Transport, peer: int, op: int, who: Dictionary, extra: Dictionary = {}) -> void:
 	var tok := _crypto.generate_random_bytes(AccountCodec.TOKEN_BYTES).hex_encode()
 	who["token"] = tok
 	sessions[tok] = {"identity": who, "peer": peer, "detached_at": 0.0}
 	peers[peer] = who
-	_reply(t, peer, op, AccountCodec.OK, _session_fields(who))
+	var fields := _session_fields(who)
+	fields.merge(extra)
+	_reply(t, peer, op, AccountCodec.OK, fields)
 
 
 func _session_fields(who: Dictionary) -> Dictionary:
@@ -472,6 +533,22 @@ func _valid_password(p: String) -> bool:
 	return n >= rules.password_min and n <= rules.password_max
 
 
+## The form of a typed password that is checked against the stored hash
+## (W21-N1 relog fix). Up to v0.15 the game's password fields had
+## max_length = password_max characters, so a longer password (pasted from a
+## password manager) was cut to its first password_max characters at
+## registration / change, while the launcher field (128) sent all of it: the
+## same password then failed in the launcher with "wrong username or
+## password". No stored password is longer than password_max bytes (the
+## server never accepted one), so a longer one can only ever match as that
+## prefix: checking the prefix gives an attacker nothing (still one hash per
+## attempt, same rate limit) and makes both clients agree.
+func login_form(p: String) -> String:
+	if p.to_utf8_buffer().size() <= rules.password_max:
+		return p
+	return p.left(rules.password_max)
+
+
 static func _valid_display(n: String) -> bool:
 	return PlayerProfile.validate_name(n) == PlayerProfile.NameError.OK and PlayerProfile.name_allowed(n)
 
@@ -495,12 +572,19 @@ func _finish(job: PasswordHasher.Job) -> void:
 			var profile := {"display_name": str(r.display_name), "emblem": int(r.emblem), "accent": int(r.accent),
 				"favourite_hero": ""}
 			var a := AccountStore.new_account(PlayerProfile.random_hex(16), str(r.username), pw, profile, now)
+			_submit_code(STAGE_REGISTER_CODE, {"peer": peer, "t": t, "account": a})
+		STAGE_REGISTER_CODE:
+			var a: Dictionary = c.account
+			if not store.find_username(str(a.username)).is_empty():
+				_reply(t, peer, AccountCodec.OP_REGISTER, AccountCodec.E_NAME_TAKEN)
+				return
+			a.password[RECOVERY_KEY] = _code_record(job)
 			if not store.put(a):
-				_reply(t, peer, c.op, AccountCodec.E_STORE)
+				_reply(t, peer, AccountCodec.OP_REGISTER, AccountCodec.E_STORE)
 				return
 			print("[accounts] registered account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
 			_logout(peer)
-			_start_session(t, peer, c.op, _identity_of(a))
+			_start_session(t, peer, AccountCodec.OP_REGISTER, _identity_of(a), {"recovery_code": str(c.code)})
 		AccountCodec.OP_LOGIN:
 			var a := store.get_by_id(str(c.id)) if str(c.id) != "" else {}
 			var ok := not a.is_empty() and Pbkdf2.constant_time_equals(job.hash, str(a.password.hash).hex_decode())
@@ -516,16 +600,51 @@ func _finish(job: PasswordHasher.Job) -> void:
 			print("[accounts] login account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
 			_logout(peer)
 			_start_session(t, peer, c.op, _identity_of(a))
-		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_DELETE_ACCOUNT:
+		AccountCodec.OP_RECOVER:
+			_finish_recover(job, c, t, peer)
+		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_DELETE_ACCOUNT, AccountCodec.OP_RECOVERY_CODE:
 			_finish_verified(job, c, t, peer)
-		-1:
+		STAGE_REGEN_CODE:
+			var a := store.get_by_id(str(c.id))
+			if a.is_empty():
+				_reply(t, peer, AccountCodec.OP_RECOVERY_CODE, AccountCodec.E_NOT_FOUND)
+				return
+			a.password[RECOVERY_KEY] = _code_record(job)
+			if not store.put(a):
+				_reply(t, peer, AccountCodec.OP_RECOVERY_CODE, AccountCodec.E_STORE)
+				return
+			print("[accounts] new recovery code: account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
+			_reply(t, peer, AccountCodec.OP_RECOVERY_CODE, AccountCodec.OK, {"recovery_code": str(c.code)})
+		STAGE_RECOVER_PASSWORD:
+			_submit_code(STAGE_RECOVER_CODE, {"peer": peer, "t": t, "id": str(c.id),
+				"password": _password_record(job, c.salt)})
+		STAGE_RECOVER_CODE:
+			var a := store.get_by_id(str(c.id))
+			if a.is_empty():
+				_reply(t, peer, AccountCodec.OP_RECOVER, AccountCodec.E_CREDENTIALS)
+				return
+			var pw: Dictionary = c.password
+			pw[RECOVERY_KEY] = _code_record(job)
+			a.password = pw
+			a.last_login_at = int(Time.get_unix_time_from_system())
+			if not store.put(a):
+				_reply(t, peer, AccountCodec.OP_RECOVER, AccountCodec.E_STORE)
+				return
+			end_other_sessions(a.id, -2)  # every session, this connection's included
+			launch_tokens.revoke_account(a.id)
+			print("[accounts] password recovered: account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
+			_logout(peer)
+			_start_session(t, peer, AccountCodec.OP_RECOVER, _identity_of(a), {"recovery_code": str(c.code)})
+		STAGE_NEW_PASSWORD:
 			# Second stage of a password change: the new hash.
 			var a := store.get_by_id(str(c.id))
 			if a.is_empty():
 				_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.E_NOT_FOUND)
 				return
-			a.password = {"algo": "pbkdf2-hmac-sha256", "hash": job.hash.hex_encode(),
-				"salt": (c.salt as PackedByteArray).hex_encode(), "iterations": job.iterations}
+			var keep := recovery_of(a)
+			a.password = _password_record(job, c.salt)
+			if not keep.is_empty():
+				a.password[RECOVERY_KEY] = keep  # a password change keeps the recovery code
 			if not store.put(a):
 				_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.E_STORE)
 				return
@@ -558,10 +677,60 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 		print("[accounts] deleted account #%s on request" % PlayerProfile.tag_of(a.id))
 		_reply(t, peer, op, AccountCodec.OK)
 		return
+	if op == AccountCodec.OP_RECOVERY_CODE:
+		_submit_code(STAGE_REGEN_CODE, {"peer": peer, "t": t, "id": a.id})
+		return
 	var salt := _crypto.generate_random_bytes(rules.salt_bytes)
 	_jobs_by_peer[peer] = true
 	hasher.submit(str(c.new_password).to_utf8_buffer(), salt, rules.pbkdf2_iterations,
-		{"op": -1, "peer": peer, "t": t, "id": a.id, "salt": salt})
+		{"op": STAGE_NEW_PASSWORD, "peer": peer, "t": t, "id": a.id, "salt": salt})
+
+
+## RECOVER after the code hash: a match uses the code up at once (a second
+## request with the same code fails from here on), then hashes the new
+## password and the next code (STAGE_RECOVER_PASSWORD / _CODE).
+func _finish_recover(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer: int) -> void:
+	var op := AccountCodec.OP_RECOVER
+	var a := store.get_by_id(str(c.id)) if str(c.id) != "" else {}
+	var rec := recovery_of(a)
+	var ok := bool(c.well_formed) and not rec.is_empty() \
+		and Pbkdf2.constant_time_equals(job.hash, str(rec.get("hash", "")).hex_decode())
+	if not ok:
+		rl_account.fail(account_key(str(c.uname), str(c.pk)), _now)
+		rl_peer.fail(str(c.pk), _now)
+		print("[accounts] failed recovery on peer %d" % peer)
+		_reply(t, peer, op, AccountCodec.E_CREDENTIALS)
+		return
+	rl_account.succeed(account_key(str(c.uname), str(c.pk)))
+	(a.password as Dictionary).erase(RECOVERY_KEY)
+	if not store.put(a):
+		_reply(t, peer, op, AccountCodec.E_STORE)
+		return
+	var salt := _crypto.generate_random_bytes(rules.salt_bytes)
+	_jobs_by_peer[peer] = true
+	hasher.submit(str(c.new_password).to_utf8_buffer(), salt, rules.pbkdf2_iterations,
+		{"op": STAGE_RECOVER_PASSWORD, "peer": peer, "t": t, "id": a.id, "salt": salt})
+
+
+## Queues the hash of a fresh recovery code as stage `stage`; `ctx` comes
+## back with `code` (the plaintext, kept only until the reply) and `salt`.
+func _submit_code(stage: int, ctx: Dictionary) -> void:
+	var code := RecoveryCode.generate(rules)
+	var salt := _crypto.generate_random_bytes(rules.salt_bytes)
+	ctx["op"] = stage
+	ctx["code"] = code
+	ctx["salt"] = salt
+	_jobs_by_peer[int(ctx.peer)] = true
+	hasher.submit(RecoveryCode.normalize(code, rules).to_utf8_buffer(), salt, rules.pbkdf2_iterations, ctx)
+
+
+func _code_record(job: PasswordHasher.Job) -> Dictionary:
+	return RecoveryCode.record(job.hash, job.context.salt, job.iterations, int(Time.get_unix_time_from_system()))
+
+
+static func _password_record(job: PasswordHasher.Job, salt: PackedByteArray) -> Dictionary:
+	return {"algo": "pbkdf2-hmac-sha256", "hash": job.hash.hex_encode(), "salt": salt.hex_encode(),
+		"iterations": job.iterations}
 
 
 # --- account ops (logged in, DTLS) -----------------------------------------
@@ -574,7 +743,7 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 		_reply(t, peer, op, AccountCodec.E_NOT_LOGGED_IN)
 		return
 	match op:
-		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_DELETE_ACCOUNT:
+		AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OP_DELETE_ACCOUNT, AccountCodec.OP_RECOVERY_CODE:
 			if _jobs_by_peer.has(peer):
 				_reply(t, peer, op, AccountCodec.E_BUSY)
 				return
@@ -588,11 +757,13 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 				_reply(t, peer, op, AccountCodec.E_WEAK_PASSWORD)
 				return
 			_jobs_by_peer[peer] = true
-			hasher.submit(pw.to_utf8_buffer(), str(me.password.salt).hex_decode(), int(me.password.iterations),
+			hasher.submit(login_form(pw).to_utf8_buffer(), str(me.password.salt).hex_decode(), int(me.password.iterations),
 				{"op": op, "peer": peer, "t": t, "id": me.id, "new_password": str(r.get("new_password", "")),
 				"uname": uname, "pk": pk})
 		AccountCodec.OP_EXPORT:
 			_reply(t, peer, op, AccountCodec.OK, {"json": export_json(me)})
+		AccountCodec.OP_RECOVERY_INFO:
+			_reply(t, peer, op, AccountCodec.OK, {"has_code": 1 if has_recovery_code(me) else 0})
 		AccountCodec.OP_LAUNCH_TOKEN:
 			_issue_launch_token(t, peer, me)
 		AccountCodec.OP_PARTY:
@@ -698,11 +869,14 @@ static func set_leaderboard_public(a: Dictionary, on: bool) -> void:
 	a["profile"] = p
 
 
-## The account as readable JSON, without the password hash and salt.
+## The account as readable JSON, without the password hash and salt and
+## without the recovery code hash (only whether one exists, and since when).
 static func export_json(a: Dictionary) -> String:
 	var out := a.duplicate(true)
+	var rec := recovery_of(a)
 	out.password = {"algo": a.password.get("algo", ""), "iterations": a.password.get("iterations", 0),
-		"note": "the password hash and salt are not exported"}
+		"recovery_code_set": not rec.is_empty(), "recovery_code_created_at": int(rec.get("created_at", 0)),
+		"note": "the password hash and salt and the recovery code hash are not exported"}
 	out["exported_at"] = int(Time.get_unix_time_from_system())
 	out["note"] = "Everything the Cybergram server stores about this account. Chat is never stored."
 	return JSON.stringify(out, "  ")
@@ -908,7 +1082,58 @@ func _budget(peer: int) -> bool:
 
 static func _without_passwords(r: Dictionary) -> Dictionary:
 	var out := r.duplicate()
+	out.erase("code")
 	out.erase("password")
 	out.erase("old_password")
 	out.erase("new_password")
 	return out
+
+
+# --- recovery code (W21-N1) ----------------------------------------------------
+
+## The recovery code record of account `a` ({algo, hash, salt, iterations,
+## created_at}) or {} when it has none (accounts from before v0.16, or a used code).
+static func recovery_of(a: Dictionary) -> Dictionary:
+	var pw: Variant = a.get("password", {})
+	if not (pw is Dictionary):
+		return {}
+	var rec: Variant = (pw as Dictionary).get(RECOVERY_KEY, {})
+	return rec if rec is Dictionary and str((rec as Dictionary).get("hash", "")) != "" else {}
+
+
+static func has_recovery_code(a: Dictionary) -> bool:
+	return not recovery_of(a).is_empty()
+
+
+## Applies every waiting host reset request (AccountAdmin) and answers it.
+## Called from step() every AuthRulesDef.admin_poll_s.
+func poll_admin() -> void:
+	for item in AccountAdmin.take_requests(admin_dir):
+		AccountAdmin.write_result(admin_dir, str(item.id), apply_admin_reset(item.request))
+
+
+## One host reset: the old password stops working, the request's recovery
+## code (hash only) replaces any old one, every session of the account ends
+## and its launch tokens are revoked. Returns {ok, error, tag}.
+func apply_admin_reset(req: Dictionary) -> Dictionary:
+	if not AccountAdmin.is_valid_reset(req):
+		print("[accounts] admin request refused: malformed")
+		return {"ok": false, "error": "malformed request"}
+	var a := store.find_username(str(req.username))
+	if a.is_empty():
+		print("[accounts] admin reset: no such account")
+		return {"ok": false, "error": "no such account"}
+	var rec: Dictionary = req.recovery
+	var pw: Dictionary = a.password
+	pw["hash"] = ""  # no password matches an empty hash: the player sets a new one with the code
+	pw[RECOVERY_KEY] = {"algo": "pbkdf2-hmac-sha256", "hash": str(rec.hash).to_lower(), "salt": str(rec.salt).to_lower(),
+		"iterations": int(rec.iterations), "created_at": int(rec.get("created_at", 0))}
+	a.password = pw
+	if not store.put(a):
+		print("[accounts] admin reset: account #%s could not be saved" % PlayerProfile.tag_of(a.id))
+		return {"ok": false, "error": "could not save the account"}
+	end_other_sessions(a.id, -2)
+	launch_tokens.revoke_account(a.id)
+	print("[accounts] admin reset: account #%s (password cleared, new recovery code, sessions ended)" %
+		PlayerProfile.tag_of(a.id))
+	return {"ok": true, "error": "", "tag": PlayerProfile.tag_of(a.id)}

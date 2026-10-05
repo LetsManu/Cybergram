@@ -1,0 +1,22 @@
+keys,en
+HUD_LOGIN_FORGOT,Forgot password?
+HUD_LOGIN_RECOVER_INFO,"Enter your username, the recovery code you wrote down when you created the account (or the one the server host gave you) and a new password."
+HUD_LOGIN_RECOVER_CODE,Recovery code (XXXXX-XXXXX-XXXXX-XXXXX)
+HUD_LOGIN_RECOVER_SUBMIT,SET NEW PASSWORD
+HUD_LOGIN_RECOVER_BACK,Back to log in
+HUD_LOGIN_RECOVER_WRONG,Wrong username or recovery code.
+HUD_LOGIN_RECOVERY_NOTE,"There is no e-mail. After sign-up you get a one-time recovery code: write it down. With it you can set a new password if you forget yours."
+HUD_RECOVERY_TITLE,YOUR RECOVERY CODE
+HUD_RECOVERY_BODY,"Write this code down or store it in a password manager. It is the only way to set a new password if you forget yours: there is no e-mail. It is shown only now and works once; you then get a new one."
+HUD_RECOVERY_COPY,COPY
+HUD_RECOVERY_COPIED,Copied to the clipboard.
+HUD_RECOVERY_ACK,I wrote the code down or saved it
+HUD_RECOVERY_DONE,DONE
+HUD_RECOVERY_STATE_UNKNOWN,Recovery code: checking ...
+HUD_RECOVERY_STATE_SET,"You have a recovery code. A new one replaces it (the old one stops working)."
+HUD_RECOVERY_STATE_NONE,No recovery code yet - create one so you can reset a forgotten password.
+HUD_RECOVERY_PW,Current password
+HUD_RECOVERY_NEW,NEW RECOVERY CODE
+HUD_RECOVERY_CREATE,CREATE RECOVERY CODE
+HUD_RECOVERY_NEEDS_PW,Enter your current password for a new recovery code.
+HUD_RECOVERY_NEW_OK,New recovery code issued. The old one no longer works.
