@@ -19,3 +19,6 @@ max_violations = 50
 net_id_recycle_s = 2.0
 max_rewind_ms = 200
 snapshot_budget_bytes = 1100
+stats_log_interval_s = 10.0
+stats_log_max_lines = 12
+jitter_window_samples = 90

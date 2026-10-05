@@ -123,6 +123,20 @@ func rtt_ms() -> int:
 	return int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
 
 
+## W16-NET: ENet's own estimates for `peer` (server: a client; client: 1 = the
+## server): smoothed RTT and its variance in ms, and packet loss in percent
+## (ENet measures loss on reliable traffic; scale ENET_PEER_PACKET_LOSS_SCALE = 65536).
+func peer_stats(peer: int) -> Dictionary:
+	var p: ENetPacketPeer = _peer_of.get(peer)
+	if p == null or (not _is_server and not _connected):
+		return {}
+	return {
+		"rtt_ms": int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME)),
+		"rtt_var_ms": int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME_VARIANCE)),
+		"loss_pct": p.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS) / 65536.0 * 100.0,
+	}
+
+
 func poll() -> void:
 	while true:
 		var ev: Array = _host.service(0)

@@ -31,8 +31,15 @@ extends Resource
 @export_range(0.0, 10.0, 0.1) var net_id_recycle_s: float = 2.0
 ## Lag-compensation rewind cap (used from E4).
 @export_range(0, 1000) var max_rewind_ms: int = 200
-## Per-client snapshot byte budget (enforced once delta compression lands).
+## Per-client snapshot byte budget (W16-NET: enforced by SnapshotEncoder; keeps
+## a snapshot inside one ENet fragment of 1364 B with room for DTLS).
 @export_range(256, 65535) var snapshot_budget_bytes: int = 1100
+## W16-NET: seconds between the server's per-client [net] log lines.
+@export_range(1.0, 600.0, 0.5) var stats_log_interval_s: float = 10.0
+## W16-NET: max [net] lines per interval (the rest are summarised in one line).
+@export_range(1, 64) var stats_log_max_lines: int = 12
+## W16-NET: snapshot arrivals the client keeps for jitter / loss (90 = 3 s).
+@export_range(8, 600) var jitter_window_samples: int = 90
 
 
 ## Seconds per tick.

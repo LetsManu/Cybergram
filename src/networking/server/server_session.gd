@@ -14,6 +14,8 @@ class ClientConnection:
 	var inputs: InputBuffer
 	var ack_snapshot_tick: int = 0
 	var violations: int = 0
+	## W16-NET: what the server sent this peer (bytes, snapshot sizes).
+	var stats := SnapshotStats.new()
 
 var transport: Transport
 var net: NetConfig
@@ -33,6 +35,10 @@ var registry: PresenceRegistry = PresenceRegistry.shared()
 var accounts: AccountService = AccountService.shared()
 var _rng := RandomNumberGenerator.new()
 var _scratch: Array[InputCommand] = []
+## W16-NET: print the per-client [net] line every net.stats_log_interval_s
+## (GameSession turns it on for dedicated servers; off in tests).
+var stats_log_enabled: bool = false
+var _stats_window_tick: int = -1
 
 
 func _init(t: Transport, net_config: NetConfig) -> void:
@@ -56,7 +62,7 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	c.own_net_id = own_net_id
 	c.inputs = InputBuffer.new(net.max_buffered_inputs)
 	clients[peer_id] = c
-	transport.send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
+	_send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
 	var who: Dictionary = token_names.get(hello_token.get(peer_id, 0), {})
 	if not who.is_empty():
 		names[own_net_id] = {"name": who.name, "accent": who.accent, "id": who.id}
@@ -87,7 +93,7 @@ func _send_names() -> void:
 		return
 	var b := LobbyCodec.encode_player_names(names)
 	for peer in clients:
-		transport.send(peer, Transport.CH_CONTROL, b)
+		_send(peer, Transport.CH_CONTROL, b)
 
 
 func reject(peer_id: int, reason: int) -> void:
@@ -95,14 +101,59 @@ func reject(peer_id: int, reason: int) -> void:
 
 
 func send_snapshot(peer_id: int, snap: SnapshotData) -> void:
-	transport.send(peer_id, Transport.CH_SNAPSHOT, SnapshotCodec.encode(snap))
+	var b := SnapshotCodec.encode(snap)
+	_send(peer_id, Transport.CH_SNAPSHOT, b)
+	var c: ClientConnection = clients.get(peer_id)
+	if c != null:
+		c.stats.on_snapshot(b.size(), net.snapshot_budget_bytes)
 
 
 ## Sends a reliable batch of gameplay events (no-op when empty).
 func send_events(peer_id: int, tick: int, events: Array[GameEvent]) -> void:
 	if events.is_empty():
 		return
-	transport.send(peer_id, Transport.CH_EVENTS, EventCodec.encode(tick, events))
+	_send(peer_id, Transport.CH_EVENTS, EventCodec.encode(tick, events))
+
+
+## Sends and counts the bytes in the peer's SnapshotStats.
+func _send(peer_id: int, channel: int, b: PackedByteArray) -> void:
+	transport.send(peer_id, channel, b)
+	var c: ClientConnection = clients.get(peer_id)
+	if c != null:
+		c.stats.on_send(channel, b.size())
+
+
+## W16-NET: the per-client [net] lines for the window ending at `tick` (one per
+## client, at most net.stats_log_max_lines plus one summary line), or [] when
+## the interval has not elapsed. Peer ids only: no names (privacy).
+func stats_lines(tick: int) -> PackedStringArray:
+	var out := PackedStringArray()
+	var every := maxi(1, roundi(net.stats_log_interval_s * net.tick_rate_hz))
+	if _stats_window_tick < 0:
+		_stats_window_tick = tick
+		return out
+	if tick - _stats_window_tick < every:
+		return out
+	var secs := (tick - _stats_window_tick) / float(net.tick_rate_hz)
+	_stats_window_tick = tick
+	var skipped := 0
+	for peer in clients:
+		var w: Dictionary = clients[peer].stats.take_window(secs)
+		if out.size() < net.stats_log_max_lines:
+			out.append(SnapshotStats.format_line(peer, w, transport.peer_stats(peer)))
+		else:
+			skipped += 1
+	if skipped > 0:
+		out.append("[net] ... %d more client(s) not shown (rate limit)" % skipped)
+	return out
+
+
+## Prints stats_lines() when logging is on (call once per tick).
+func log_stats(tick: int) -> void:
+	if not stats_log_enabled:
+		return
+	for line in stats_lines(tick):
+		print(line)
 
 
 func _handle(pkt: Transport.Packet) -> void:

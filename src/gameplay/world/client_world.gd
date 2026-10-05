@@ -229,7 +229,7 @@ func tick() -> void:
 func render(delta: float) -> void:
 	var latest := float(session.latest_snapshot_tick)
 	server_tick_estimate = clampf(server_tick_estimate + delta * net.tick_rate_hz, latest - 1.0, latest + 1.0)
-	var render_tick := server_tick_estimate - net.interp_delay_ticks
+	var render_tick := server_tick_estimate - interp_delay_ticks()
 	view_render_tick = render_tick
 	for id in _views:
 		var buf: InterpolationBuffer = _buffers[id]
@@ -282,6 +282,12 @@ func respawn_seconds_left() -> float:
 	if not is_dead():
 		return 0.0
 	return maxf(0.0, (combat.respawn_tick - server_tick_estimate) / net.tick_rate_hz)
+
+
+## Current interpolation delay in ticks (remote heroes / Wardlings render this
+## far behind the newest snapshot).
+func interp_delay_ticks() -> float:
+	return float(net.interp_delay_ticks)
 
 
 ## Number of remote entity views (tests/diagnostics).

@@ -313,6 +313,7 @@ func step() -> void:
 	_tracer.record(tick, _hero_bodies())  # lag compensation: pose history per tick
 	_send_snapshots()
 	_flush_events()
+	session.log_stats(tick)  # W16-NET: [net] line per client every 10 s (dedicated only)
 	tick += 1
 	tick_usec.append(Time.get_ticks_usec() - t0)
 
