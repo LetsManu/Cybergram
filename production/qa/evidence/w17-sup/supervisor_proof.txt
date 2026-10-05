@@ -1,0 +1,47 @@
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+
+[proof] capacity 4, warm pool 2, cores 4
+   0.00 [hosting] slot 1 starting: pid 29048, port 47800, build proof-1
+   0.01 [hosting] slot 2 starting: pid 29049, port 47801, build proof-1
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+
+
+[stub] slot 1 ready on port 47800 (build proof-1)
+[stub] slot 2 ready on port 47801 (build proof-1)
+   0.32 [proof] slot 1 pid 29048 READY, RSS 102432 KiB
+   0.32 [proof] slot 2 pid 29049 READY, RSS 102404 KiB
+   0.32 [proof] step 1 OK: 2 processes Ready
+   0.82 [hosting] slot 3 starting: pid 29066, port 47802, build proof-1
+[stub] match proofshort000001 started, ends in 4 s
+[stub] match prooflong0000002 started, ends in 600 s
+   0.82 [hosting] slot 4 starting: pid 29067, port 47803, build proof-1
+   0.83 [hosting] match proofshort000001 running on port 47800 (slot 1)
+   0.83 [proof] started proofshort000001 at { "host": "127.0.0.1", "port": 47800 }
+   0.83 [hosting] match prooflong0000002 running on port 47801 (slot 2)
+   0.83 [proof] started prooflong0000002 at { "host": "127.0.0.1", "port": 47801 }
+   0.83 [proof] step 2 OK: 2 matches running; join ticket for port 47801 issued
+   0.83 [proof] killing pid 29049 (match prooflong0000002)
+   0.84 [hosting] slot 2 shut down (process_exit), port 47801 free
+   0.84 [hosting] match prooflong0000002 VOID (process_exit)
+   0.84 [proof] VOID prooflong0000002 (process_exit)
+   0.84 [proof] step 3 OK: crash detected and match voided
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+Godot Engine v4.7.stable.official.5b4e0cb0f - https://godotengine.org
+
+
+[stub] slot 4 ready on port 47803 (build proof-1)
+[stub] slot 3 ready on port 47802 (build proof-1)
+   4.84 [hosting] match proofshort000001 result received
+   4.84 [proof] result proofshort000001 winner=0 players=2
+   4.84 [proof] step 4 OK: result received; requesting drain
+   4.84 [hosting] drain started: 0 match(es) running, deadline in 30 s
+[stub] slot 4 exiting
+[stub] slot 1 exiting
+[stub] slot 3 exiting
+   4.96 [hosting] slot 4 shut down (exited), port 47803 free
+   4.96 [hosting] slot 1 shut down (exited), port 47800 free
+   5.02 [hosting] slot 3 shut down (exited), port 47802 free
+   5.02 [hosting] drain finished
+   5.02 [proof] step 5 OK: drain finished, ports in use 0, voids 1, results 1
+[proof] RSS per stub process (KiB): [[1, 29048, 102432], [2, 29049, 102404]]

@@ -1,0 +1,14 @@
+# W17-SUP RSS per headless match process (2026-10-05T12:23:22Z, 4 cores, Godot 4.7.stable.official.5b4e0cb0f)
+# real dedicated server: --server --no-lobby --bots-only (10 bots playing a 5v5 match), sampled every 10 s
+pids: 29610 29611 29612
+t=10s pid29610=192572KiB pid29611=192428KiB pid29612=192340KiB
+t=20s pid29610=192580KiB pid29611=192432KiB pid29612=192344KiB
+t=30s pid29610=192580KiB pid29611=192432KiB pid29612=192344KiB
+t=40s pid29610=192580KiB pid29611=192432KiB pid29612=192344KiB
+t=50s pid29610=192580KiB pid29611=192432KiB pid29612=192344KiB
+t=60s pid29610=192580KiB pid29611=192432KiB pid29612=192344KiB
+# stub match process (agent only, no game): ~102400 KiB (supervisor_proof.txt)
+# last server tick lines per process (CPU: 3 matches in parallel on 4 cores):
+[server] tick=1650 entities=43 | server tick avg 4.92 ms max 41.99 ms (budget 33.3 ms)
+[server] tick=1650 entities=43 | server tick avg 5.55 ms max 35.03 ms (budget 33.3 ms)
+[server] tick=1650 entities=43 | server tick avg 5.03 ms max 31.62 ms (budget 33.3 ms)

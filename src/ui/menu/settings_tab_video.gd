@@ -16,4 +16,9 @@ func build() -> void:
 	option(tr("HUD_SET_FPS_CAP"), caps, s.fps_cap_index, func(i: int) -> void: s.fps_cap_index = i)
 	option(tr("HUD_SET_QUALITY"), [tr("HUD_SET_Q_LOW"), tr("HUD_SET_Q_MEDIUM"), tr("HUD_SET_Q_HIGH"),
 		tr("HUD_SET_Q_ULTRA")], s.graphics_quality, func(i: int) -> void: s.graphics_quality = i)
+	# --- W18-LIFE ---
+	option(tr("HUD_SET_AMBIENCE"), [tr("HUD_SET_Q_LOW"), tr("HUD_SET_Q_MEDIUM"), tr("HUD_SET_Q_HIGH")],
+		s.ambient_level, func(i: int) -> void: s.ambient_level = i)
+	check(tr("HUD_SET_AMBIENT_RAIN"), s.ambient_rain, func(on: bool) -> void: s.ambient_rain = on)
+	# --- end W18-LIFE ---
 	check(tr("HUD_SET_REDUCE_MOTION"), s.reduce_motion, func(on: bool) -> void: s.reduce_motion = on)

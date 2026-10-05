@@ -1,0 +1,17 @@
+# One update check (see auto_update.sh). Started by cybergram-update.timer.
+# Install (NAS with systemd, or VPS), paths adjusted:
+#   sudo cp tools/server/cybergram-update.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cybergram-update.timer
+#   journalctl -u cybergram-update -n 20     # or: cat /var/log/cybergram-update.log
+[Unit]
+Description=Cybergram server update check
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Set the path to your checkout / folder with docker-compose.yml:
+ExecStart=/opt/cybergram-server/auto_update.sh
+Environment=CYBERGRAM_UPDATE_LOG=/var/log/cybergram-update.log
+# The run may wait for matches (default max 30 min) plus the drain.
+TimeoutStartSec=3h

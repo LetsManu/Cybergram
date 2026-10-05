@@ -267,6 +267,13 @@ static func _caps(size: int, em: float) -> Font:
 	return f
 
 
+# --- W17B-UI --- the matchmaking pick screens share the lobby's caption face.
+## Public alias of _caps() (body-face caps, `em` tracking at `size` px).
+static func caps_font(size: int, em: float) -> Font:
+	return _caps(size, em)
+# --- end W17B-UI ---
+
+
 ## The centred hero (live model on a warm spotlight) and its eyebrow + name.
 func _build_centre(t: UiKitTokens) -> void:
 	_stage = HeroShowcase.new()

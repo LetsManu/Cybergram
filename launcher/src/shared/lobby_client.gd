@@ -36,10 +36,15 @@ var chat: Array = []
 ## favourite_hero, guest}); {} = not logged in. Memory only.
 var session: Dictionary = {}
 var joined: bool = false
+## v17: matchmaking on this connection (queues, ready check, picks, custom games).
+var matchmaking: MatchmakingClient
 
 
-func _init(t: Transport) -> void:
+## `server_host`: the address used to reach the server (match tickets with no
+## host point there).
+func _init(t: Transport, server_host: String = "") -> void:
 	transport = t
+	matchmaking = MatchmakingClient.new(t, server_host)
 
 
 ## Sends an account request (AccountCodec.OP_*, fields per REQ_SCHEMA).
@@ -95,6 +100,8 @@ func _handle(b: PackedByteArray) -> void:
 	if b.is_empty():
 		return
 	match b.decode_u8(0):
+		MsgType.MM_EVENT:
+			matchmaking.handle(b)
 		MsgType.ACCOUNT_RESULT:
 			var d := AccountCodec.decode_result(b)
 			if d.is_empty():

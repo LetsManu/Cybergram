@@ -702,12 +702,12 @@ HUD_MODE_CTA_START,START
 HUD_MODE_CTA_PRACTICE,ENTER RANGE
 HUD_MODE_CTA_TUTORIAL,START TUTORIAL
 HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
-HUD_PATCH_1_TITLE,Smoother online play
-HUD_PATCH_1_SUB,"About 80% less network traffic, no more split updates"
-HUD_PATCH_2_TITLE,Adaptive smoothing
-HUD_PATCH_2_SUB,"Other players look more current on steady connections"
-HUD_PATCH_3_TITLE,Net graph
-HUD_PATCH_3_SUB,"Ping, loss, jitter and data rates in the HUD settings"
+HUD_PATCH_1_TITLE,Matchmaking
+HUD_PATCH_1_SUB,"Normal, Ranked and 3v3 All Random queues with a hero draft"
+HUD_PATCH_2_TITLE,Ranks from Iron to Master
+HUD_PATCH_2_SUB,"Ready check, reconnect, remake vote and honour"
+HUD_PATCH_3_TITLE,A living Shardline Front
+HUD_PATCH_3_SUB,"Hills, buildings, jungle paths and a busy city around it"
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
@@ -734,3 +734,179 @@ HUD_COMFORT_HINT_DISMISS,Dismiss
 HUD_SET_XH_DYNAMIC,Dynamic crosshair (shows spread)
 HUD_RING_OUTSIDE,OUTSIDE THE RING
 HUD_RING_RETURN,Return to the plaza
+HUD_MM_PLAY_EYEBROW,Choose your queue
+HUD_MM_Q_NORMAL,Normal 5v5
+HUD_MM_Q_NORMAL_DESC,"Shardline Front, alternating draft. Hidden rating; bots fill empty seats after a wait."
+HUD_MM_Q_RANKED,Ranked 5v5
+HUD_MM_Q_RANKED_DESC,"Shardline Front, alternating draft. Visible rating and medals. Real players only."
+HUD_MM_Q_ARAM,3v3 All Random
+HUD_MM_Q_ARAM_DESC,"The fun mode: random heroes, rerolls and swaps on the Slice map. No rank."
+HUD_MM_Q_CUSTOM,Custom game
+HUD_MM_Q_CUSTOM_DESC,"Your lobby: pick the map, mode and bots, invite friends. No rating."
+HUD_MM_FUN_TAG,Fun mode
+HUD_MM_UNRANKED,Unranked
+HUD_MM_CALIBRATING,Calibrating %d/%d
+HUD_MM_LANE_PRIMARY,Primary lane
+HUD_MM_LANE_SECONDARY,Secondary lane
+HUD_MM_LANE_NORTH,North
+HUD_MM_LANE_CENTER,Center
+HUD_MM_LANE_SOUTH,South
+HUD_MM_LANE_FLEX,Flex
+HUD_MM_LANE_FILL,Fill
+HUD_MM_LANE_NONE,No lane
+HUD_MM_PARTY,Party
+HUD_MM_PARTY_COUNT,%d / %d
+HUD_MM_PARTY_OPEN,Open seat: invite a friend from the social panel
+HUD_MM_PARTY_LEADER,Leader
+HUD_MM_PARTY_RULE_SIZE,Parties of 1 to %d players can queue together.
+HUD_MM_PARTY_RULE_RANKED,"Ranked parties: the highest and lowest rating may be at most %d apart."
+HUD_MM_RANKED_NO_BOTS,Ranked never fills seats with bots.
+HUD_MM_BOT_FILL_NOTE,"Labelled bots fill empty seats after about %d s."
+HUD_MM_LEADER_ONLY,Only the party leader can start the queue.
+HUD_MM_FIND_MATCH,FIND MATCH
+HUD_MM_CREATE_LOBBY,CREATE LOBBY
+HUD_MM_CANCEL,CANCEL
+HUD_MM_IN_QUEUE,In queue
+HUD_MM_QUEUE_LINE,"%s · estimated %s · %d players in queue"
+HUD_MM_LOCKOUT_BANNER,"Queue lockout after a declined or missed match: %s left."
+HUD_MM_READY_EYEBROW,Ready check
+HUD_MM_READY_TITLE,Match found
+HUD_MM_ACCEPT,ACCEPT
+HUD_MM_ACCEPT_PAD,Accept (pad)
+HUD_MM_ACCEPTED,ACCEPTED
+HUD_MM_DECLINE,DECLINE
+HUD_MM_READY_ACCEPTED_N,%d of %d players accepted
+HUD_MM_READY_WAITING,Waiting for the others: %d of %d accepted
+HUD_MM_READY_YOU_DECLINED,You declined. A short queue lockout applies.
+HUD_MM_READY_MISSED,Time is up.
+HUD_MM_READY_DECLINED,"You missed or declined the match. Queue lockout: %s."
+HUD_MM_READY_OTHERS,"Someone did not accept. You are back in the queue with priority."
+HUD_MM_READY_PARTY_MISSED,A party member did not accept. Your party left the queue.
+HUD_MM_MATCH_VOIDED,"The match server was lost. No rating change; please queue again."
+HUD_MM_YOUR_TEAM,Your team
+HUD_MM_ENEMY_TEAM,Enemy team
+HUD_MM_DRAFT_YOUR_TURN,Your turn: pick a hero
+HUD_MM_DRAFT_ALLY_TURN,Allies are picking
+HUD_MM_DRAFT_ENEMY_TURN,Enemy is picking
+HUD_MM_DRAFT_DONE,Draft complete
+HUD_MM_DRAFT_SUB,"Draft 1-2-2-2-2-1 · heroes are unique within a team"
+HUD_MM_SEAT_WAITING,Waiting
+HUD_MM_SEAT_AUTO,Auto-picked
+HUD_MM_SEAT_DEALT,Dealt
+HUD_MM_BOT_TAG,BOT
+HUD_MM_LOCKED_AS,LOCKED: %s
+HUD_MM_TAKEN_BY_TEAM,TAKEN BY YOUR TEAM
+HUD_MM_DODGE_WARN,"Leaving now is a dodge: you get a queue lockout."
+HUD_MM_DODGE_WARN_RANKED,"Leaving now is a dodge: a queue lockout and -%d ranked rating."
+HUD_MM_DODGE_TITLE,Leave the draft?
+HUD_MM_DODGE_BODY,"Leaving counts as declining the match: everyone else is re-queued and you get a queue lockout."
+HUD_MM_DODGE_BODY_RANKED,"Leaving counts as declining the match: everyone else is re-queued, you get a queue lockout and lose ranked rating."
+HUD_MM_DODGE_CONFIRM,LEAVE
+HUD_MM_STAY,STAY
+HUD_MM_ARAM_TITLE,All Random
+HUD_MM_ARAM_LOCKED,Heroes locked
+HUD_MM_ARAM_SUB,"Reroll, take a hero from the bench or swap with a teammate."
+HUD_MM_REROLL,REROLL (%d)
+HUD_MM_BENCH,Team bench: click to take
+HUD_MM_BENCH_EMPTY,Rerolled heroes land here.
+HUD_MM_BENCH_TAKE,Take %s
+HUD_MM_SWAP,SWAP
+HUD_MM_SWAP_SENT,Swap asked
+HUD_MM_SWAP_ASK,%s wants to swap you their %s.
+HUD_MM_LOADING_EYEBROW,Loading match
+HUD_MM_MAP_SHARDLINE,Shardline Front
+HUD_MM_MAP_SLICE,Slice
+HUD_MM_VS,vs
+HUD_MM_CONNECTING,Connecting to the match server...
+HUD_MM_DISCONNECTED,"Connection lost. Your match is still running: reconnect to rejoin your team."
+HUD_MM_MATCH_GONE,This match is no longer running.
+HUD_MM_RECONNECT,RECONNECT
+HUD_MM_LEAVE_MATCH,LEAVE
+HUD_MM_POST_VICTORY,Victory
+HUD_MM_POST_DEFEAT,Defeat
+HUD_MM_POST_REMAKE,Remake
+HUD_MM_POST_VOID_NO_CHANGE,No rating change
+HUD_MM_POST_YOUR_STATS,Your stats
+HUD_MM_POST_RATING,Ranked rating
+HUD_MM_STAT_KILLS,Kills
+HUD_MM_STAT_DEATHS,Deaths
+HUD_MM_STAT_ASSISTS,Assists
+HUD_MM_STAT_DAMAGE,Damage
+HUD_MM_STAT_HEALING,Healing
+HUD_MM_STAT_OBJECTIVES,Objectives
+HUD_MM_HONOUR,HONOUR
+HUD_MM_HONOURED,HONOURED
+HUD_MM_REPORT,REPORT
+HUD_MM_REPORTED,REPORTED
+HUD_MM_REPORT_TITLE,Report %s
+HUD_MM_REPORT_BODY,"Pick what happened. Reports are reviewed and deleted after 30 days."
+HUD_MM_REPORT_CHEATING,Cheating
+HUD_MM_REPORT_GRIEFING,Griefing
+HUD_MM_REPORT_ABUSIVE,Abusive chat
+HUD_MM_REPORT_AFK,AFK / leaving
+HUD_MM_REPORT_NAME,Offensive name
+HUD_MM_CONTINUE,CONTINUE
+HUD_MM_PROFILE_TITLE,Ranks
+HUD_MM_CALIBRATING_HINT,"Your rating shows after %d ranked games."
+HUD_MM_DIVISION_PROGRESS,Progress to the next division
+HUD_MM_HIDDEN_RATING,Hidden rating
+HUD_MM_GAMES_HIDDEN,"%d games · hidden rating"
+HUD_MM_HISTORY,Recent matches
+HUD_MM_HISTORY_EMPTY,No matches yet.
+HUD_MM_CUSTOM_TITLE,Custom game
+HUD_MM_CUSTOM_HOST_NOTE,"You are the host: set up the match, invite players, then start."
+HUD_MM_CUSTOM_GUEST_NOTE,The host sets up this match.
+HUD_MM_CUSTOM_MAP,Map
+HUD_MM_CUSTOM_MODE,Hero picking
+HUD_MM_CUSTOM_SIZE,Team size
+HUD_MM_CUSTOM_BOTS,Fill empty seats with bots
+HUD_MM_CUSTOM_INVITE,Invite
+HUD_MM_INVITE_PARTY,INVITE PARTY
+HUD_MM_INVITE,INVITE
+HUD_MM_INVITED,INVITED
+HUD_MM_NO_FRIENDS_ONLINE,No friends online.
+HUD_MM_CUSTOM_START,START
+HUD_MM_CUSTOM_STARTING,STARTING...
+HUD_MM_HOST,host
+HUD_MM_MODE_FREE_PICK,Free pick
+HUD_MM_MODE_ALL_RANDOM,All random
+HUD_MM_ERR_LOCKED,You are locked out of the queue for now.
+HUD_MM_ERR_PARTY_SIZE,Your party is too big for this queue.
+HUD_MM_ERR_PARTY_GAP,Your party's ratings are too far apart for ranked.
+HUD_MM_ERR_GUEST,Ranked needs an account. Guests can play Normal and 3v3.
+HUD_MM_ERR_IN_MATCH,A party member is still in a match.
+HUD_MM_ERR_NO_REROLLS,No rerolls left.
+HUD_MM_ERR_NOT_FOUND,No running match to rejoin.
+HUD_MM_ERR_BUSY,"No match server is free right now, please try again shortly."
+HUD_MM_ERR_TOO_LATE,The remake window is over.
+HUD_MM_ERR_GENERIC,That did not work. Please try again.
+HUD_MM_REMAKE_TITLE,REMAKE VOTE
+HUD_MM_REMAKE_ELIGIBLE,"A teammate is missing. End the match with no rating change?"
+HUD_MM_REMAKE_YES_COUNT,Yes votes
+HUD_MM_REMAKE_KEYS,[F1] Yes   [F2] No   (pad: up / down)
+HUD_MM_REMAKE_VOTED,Vote sent
+HUD_MM_REMAKE_PASSED,REMAKE PASSED
+HUD_MM_REMAKE_FAILED,Remake vote failed
+HUD_MM_REMAKE_NO_RATING,The match ends with no rating change.
+HUD_SET_AMBIENCE,World ambience
+HUD_SET_AMBIENT_RAIN,Rain in matches
+HUD_AMB_AD_LUMENFIZZ,LUMENFIZZ
+HUD_AMB_AD_LUMENFIZZ_TAG,Sip the glow.
+HUD_AMB_AD_SHARDSNAX,SHARDSNAX
+HUD_AMB_AD_SHARDSNAX_TAG,Crunch the void.
+HUD_AMB_AD_NEONOODLE,NEONOODLE
+HUD_AMB_AD_NEONOODLE_TAG,Hot in 90 seconds.
+HUD_AMB_AD_LEYFALL_LINE,LEYFALL LINE
+HUD_AMB_AD_LEYFALL_LINE_TAG,Ride above it all.
+HUD_AMB_AD_VOIDSURE,VOIDSURE
+HUD_AMB_AD_VOIDSURE_TAG,Cover for floating homes.
+HUD_AMB_AD_RESONA,RESONA TEA
+HUD_AMB_AD_RESONA_TAG,Calm frequencies.
+HUD_AMB_SHOP_NOODLES,NOODLES
+HUD_AMB_SHOP_MODS,MODS + PARTS
+HUD_AMB_SHOP_LUMEN,LUMEN XCHG
+HUD_AMB_SHOP_REPAIR,REPAIR
+HUD_AMB_SHOP_TEA,TEA HOUSE
+HUD_AMB_SHOP_SYNTH,SYNTH BAR
+HUD_AMB_SHOP_DUMPLING,DUMPLING DECK
+HUD_AMB_SHOP_OPEN,OPEN 25H
