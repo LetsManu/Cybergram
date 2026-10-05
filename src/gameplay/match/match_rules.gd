@@ -17,12 +17,15 @@ signal phase_changed(old_phase: int, new_phase: int)
 ## index 0 = Surge I (Wardlings Tier II), 1 = Surge II (Tier III).
 signal surge_started(index: int, task_scale: float)
 signal match_ended(winner: int, reason: int)
+## Time-out tie went to Sudden Death (C10): ServerWorld moves heroes to the plaza.
+signal sudden_death_started
 
-enum Phase { LOAD, DEPLOY, SKIRMISH, SURGE_I, SURGE_II, DROUGHT, TIME_OUT, END }
-enum EndReason { NONE, UPLINK_DESTROYED, INCURSION, UPLINK_DAMAGE, DRAW }
+## SUDDEN_DEATH is appended after END so existing wire values stay unchanged.
+enum Phase { LOAD, DEPLOY, SKIRMISH, SURGE_I, SURGE_II, DROUGHT, TIME_OUT, END, SUDDEN_DEATH }
+enum EndReason { NONE, UPLINK_DESTROYED, INCURSION, UPLINK_DAMAGE, DRAW, SUDDEN_DEATH }
 
 const PHASE_NAMES := ["LOADING", "DEPLOY", "SKIRMISH", "SURGE I", "SURGE II", "DROUGHT",
-	"TIME-OUT", "MATCH OVER"]
+	"TIME-OUT", "MATCH OVER", "SUDDEN DEATH"]
 const NEUTRAL: int = MapDef.TEAM_NEUTRAL
 
 var def: MatchRulesDef
@@ -49,6 +52,8 @@ var final_uplink_pct: PackedFloat32Array = PackedFloat32Array([0.0, 0.0])
 ## Phase changes not yet replicated; the owner (ServerWorld) drains it every
 ## tick. An Uplink kill mid-tick queues END here before step() runs.
 var phase_events: Array[int] = []
+## Seconds into Sudden Death (clock-scaled like the match clock).
+var sudden_death_s: float = 0.0
 
 
 func _init(rules: MatchRulesDef, objective_system: ObjectiveSystem = null) -> void:
@@ -135,6 +140,11 @@ func step(dt: float) -> void:
 			_advance_phases()
 		refresh_exposure()
 		return
+	if phase == Phase.SUDDEN_DEATH:
+		sudden_death_s += dt * clock_scale
+		if sudden_death_s >= def.sudden_death_max_s:
+			_end(NEUTRAL, EndReason.DRAW)
+		return
 	time_s += dt * clock_scale
 	_advance_phases()
 	if phase != Phase.END:
@@ -150,7 +160,7 @@ func refresh_exposure() -> void:
 ## F6: enemy holds >= 1 Inner of `team`, or (Drought, or the slice's
 ## outer_exposure_from_s) >= 1 Outer.
 func exposed_now(team: int) -> bool:
-	if objectives == null:
+	if objectives == null or phase == Phase.SUDDEN_DEATH:
 		return false
 	var outer_too := time_s >= def.drought_time_s and def.drought_time_s < def.time_cap_s
 	if def.outer_exposure_from_s >= 0.0 and time_s >= def.outer_exposure_from_s:
@@ -224,8 +234,42 @@ func resolve_time_out() -> void:
 	if absf(du) >= def.uplink_tiebreak_min_pct:
 		_end(0 if du > 0.0 else 1, EndReason.UPLINK_DAMAGE)
 		return
-	# Sudden Death (C10) is M3; the M1 slice rule is a draw (sudden_death_enabled is ignored).
+	if def.sudden_death_enabled:
+		_enter(Phase.SUDDEN_DEATH)  # C10: the Mid Plaza decides it
+		sudden_death_s = 0.0
+		for u in uplinks:
+			u.set_exposed(false)
+		sudden_death_started.emit()
+		return
 	_end(NEUTRAL, EndReason.DRAW)
+
+
+## Sudden Death ring radius now (shrinks linearly, then holds at the end radius).
+func sudden_death_radius() -> float:
+	var t := clampf(sudden_death_s / maxf(def.sudden_death_shrink_s, 0.01), 0.0, 1.0)
+	return lerpf(def.sudden_death_ring_start_m, def.sudden_death_ring_end_m, t)
+
+
+## Fraction of max HP per second a fighter loses now (`outside`: beyond the ring).
+func sudden_death_damage_frac_s(outside: bool) -> float:
+	var f := def.sudden_death_outside_frac_s if outside else 0.0
+	if sudden_death_s >= def.sudden_death_shrink_s:
+		var steps := floorf((sudden_death_s - def.sudden_death_shrink_s) / maxf(def.sudden_death_bloom_step_s, 0.01))
+		f += def.sudden_death_bloom_frac_s + steps * def.sudden_death_bloom_step_frac
+	return f
+
+
+## Sudden Death result from living heroes per team: the last team standing wins;
+## both wiped on the same tick is a draw. No-op while both teams live.
+func resolve_sudden_death(alive_concord: int, alive_syndicate: int) -> void:
+	if phase != Phase.SUDDEN_DEATH:
+		return
+	if alive_concord > 0 and alive_syndicate > 0:
+		return
+	if alive_concord == 0 and alive_syndicate == 0:
+		_end(NEUTRAL, EndReason.DRAW)
+	else:
+		_end(0 if alive_concord > 0 else 1, EndReason.SUDDEN_DEATH)
 
 
 func _advance_phases() -> void:
