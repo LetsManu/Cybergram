@@ -9,6 +9,10 @@ const GOAL_MOVED_M: float = 3.0
 const STUCK_WINDOW_S: float = 1.0
 const STUCK_MIN_M: float = 0.6
 const UNSTICK_S: float = 0.6
+## Nav layers bots path on: the lanes (1) plus the between-lane jungle (W18-GEO).
+## The jungle region and its entrance links sit on MapDef.JUNGLE_NAV_LAYER only,
+## so Wardling paths (layer 1) never enter it while bots take it when shorter.
+const NAV_LAYERS: int = 1 | MapDef.JUNGLE_NAV_LAYER
 
 var nav_map: RID
 var tick_hz: int = 30
@@ -84,6 +88,6 @@ func _repath(from: Vector3, tick: int) -> void:
 	if not nav_map.is_valid() or NavigationServer3D.map_get_iteration_id(nav_map) == 0:
 		path = PackedVector3Array()
 		return
-	path = NavigationServer3D.map_get_path(nav_map, from, goal, true)
+	path = NavigationServer3D.map_get_path(nav_map, from, goal, true, NAV_LAYERS)
 	queries += 1
 	index = 1 if path.size() > 1 else 0
