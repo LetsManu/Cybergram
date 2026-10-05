@@ -239,7 +239,7 @@ def _bm_usage(bm, uvl):
     return a
 
 
-def unwrap_pack(ob, margin, tries=10):
+def unwrap_pack(ob, margin, tries=10, target=0.75, max_tries=30):
     """Body + shells (hd_kind 0/1): angle-based unwrap along the body_gen cage seams.
     Parts, garments, weapon: generated seams (_part_seams) + angle-based unwrap, so
     every island is a flat disk (no annuli, few shards). Then one pack of everything."""
@@ -271,9 +271,12 @@ def unwrap_pack(ob, margin, tries=10):
         bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0.0, correct_aspect=True)
     bpy.ops.uv.select_all(action="SELECT")
     # SCALED margin: measured >= 2 texels between islands at 1024 for margin 0.002.
-    # Blender's packer is not deterministic: keep the best of `tries` packs.
+    # Blender's packer is not deterministic: keep the best of `tries` packs, and keep
+    # packing (up to `max_tries`) while the atlas is below `target`.
     best, best_uv = -1.0, None
-    for _ in range(tries):
+    for i in range(max_tries):
+        if i >= tries and best >= target:
+            break
         bpy.ops.uv.pack_islands(rotate=True, rotate_method="ANY", scale=True, margin_method="SCALED", margin=margin,
                                 shape_method="CONCAVE")
         bm = bmesh.from_edit_mesh(me)
