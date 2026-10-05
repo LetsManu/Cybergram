@@ -95,7 +95,7 @@ func _strip(glb: String, clip: String, out: String, tag: String) -> void:
 		var bb := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
 		top = maxf(top, bb.end.y)
 	top = minf(top, 2.6)
-	_frame_cam(top, 4.0 * top / 1.9, top * 0.5, 32.0)
+	_frame_cam(top, 4.4 * top / 1.9, top * 0.52, 32.0)
 	var n := 6
 	var tiles: Array[Image] = []
 	var length := ap.get_animation(clip).length
