@@ -47,6 +47,7 @@ var _grounded: bool = true
 var _prev_cd := PackedInt32Array()
 var _was_reloading: bool = false
 var _was_burnout: bool = false
+var _prev_ammo: float = 0.0
 
 
 func setup(look: LookSettings) -> void:
@@ -362,8 +363,9 @@ func on_own_combat(c: SnapshotData.OwnCombat) -> void:
 	var reloading := (c.ammo_flags & AmmoFeed.FLAG_RELOADING) != 0
 	var burnout := (c.ammo_flags & AmmoFeed.FLAG_BURNOUT) != 0
 	if fp_model != null and not c.dead:
-		if reloading and not _was_reloading:
-			fp_model.play_reload(FpViewmodel.reload_duration(_weapon_def, c.ammo <= 0.0))
+		var per_round := _weapon_def != null and _weapon_def.reload_per_round
+		if reloading and (not _was_reloading or (per_round and c.ammo > _prev_ammo)):
+			fp_model.play_reload(FpViewmodel.reload_duration(_weapon_def, c.ammo <= 0.0))  # per-round: once a round
 		elif burnout and not _was_burnout:
 			fp_model.play_reload(FpViewmodel.reload_duration(_weapon_def))
 		if _prev_cd.size() == c.skill_cd_left.size():
@@ -372,6 +374,7 @@ func on_own_combat(c: SnapshotData.OwnCombat) -> void:
 					fp_model.play_cast(i)
 	_was_reloading = reloading
 	_was_burnout = burnout
+	_prev_ammo = c.ammo
 	_prev_cd = c.skill_cd_left.duplicate()
 
 
