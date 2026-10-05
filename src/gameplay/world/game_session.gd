@@ -199,6 +199,7 @@ func _build_match() -> void:
 			source = input
 		client.setup(net_config, movement, look, map_scene, link.create_endpoint(LOCAL_CLIENT_PEER), source,
 			player_hero)
+		HeroPlayHistory.track(client, player_hero)  # W15-UX: local hero play history
 		client.setup_objectives(map_def)
 		if wardling_rules != null:
 			client.wardlings.rules = wardling_rules
@@ -488,6 +489,7 @@ func _setup_remote_client() -> void:
 	var wardling_rules := load(WARDLING_RULES) as WardlingRulesDef
 	if wardling_rules != null:
 		client.wardlings.rules = wardling_rules
+	HeroPlayHistory.track(client, player_hero)  # W15-UX: local hero play history
 	client.match_ended.connect(func(_w: int, _r: int) -> void:
 		get_tree().create_timer(POST_MATCH_S - 3.0).timeout.connect(func() -> void:
 			if not is_inside_tree():
