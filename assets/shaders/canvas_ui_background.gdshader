@@ -1,74 +1,78 @@
-// Menu / launcher background (design/ux/ui-kit.md §5): night ink gradient, a
-// distant skyline silhouette with a violet horizon glow, and a perspective
-// floor grid drifting toward the viewer. Pure math, one full-screen quad,
-// no textures. `speed` = 0 freezes it (reduce motion).
-// Author: UI kit (W12-K1). Target: desktop, Forward+ and Compatibility; budget
-// ~40 ALU per pixel, no texture samples, no variants.
+// Menu / lobby / launcher background (design/ux/mockups/v0.9): flat ground
+// ink, two faint brass hairline arches behind the hero, a ground hairline and
+// a warm radial spotlight. Layout is in the mockup's 1440x810 reference space
+// scaled to the rect, so it follows any resolution. Pure math, one quad, no
+// textures. `speed` drives a very slow spotlight breath; 0 (reduce motion)
+// freezes it.
+// Author: UI kit (W13-V9). Target: desktop, Forward+ and Compatibility;
+// budget ~30 ALU per pixel, no texture samples, no variants.
 shader_type canvas_item;
 
 group_uniforms colours;
-uniform vec4 bg_top : source_color = vec4(0.02, 0.024, 0.05, 1.0);
-uniform vec4 bg_bottom : source_color = vec4(0.04, 0.05, 0.1, 1.0);
-uniform vec4 glow : source_color = vec4(0.556, 0.36, 1.0, 1.0);
-uniform vec4 glow2 : source_color = vec4(0.85, 0.7, 0.42, 1.0);
-uniform vec4 grid : source_color = vec4(0.556, 0.36, 1.0, 1.0);
+uniform vec4 ink : source_color = vec4(0.043, 0.063, 0.082, 1.0);
+uniform vec4 brass : source_color = vec4(0.761, 0.635, 0.404, 1.0);
+// Arch / ground hairline opacity (mockup: stroke-opacity .07).
+uniform float line_alpha : hint_range(0.0, 0.5) = 0.07;
+// Spotlight centre opacity (mockup: .14).
+uniform float spot_alpha : hint_range(0.0, 0.6) = 0.14;
 group_uniforms layout;
-// Grid drift in cells per second (0 = static).
+// Spotlight breath speed (0 = static).
 uniform float speed : hint_range(0.0, 1.0) = 0.05;
-// Horizon height as a fraction of the screen from the top.
-uniform float horizon : hint_range(0.2, 0.9) = 0.58;
-// Width / height of the rect (set by UiKit.background()).
+// Rect size in px (set by UiKit.background()).
+uniform vec2 rect_size = vec2(1440.0, 810.0);
+// Width / height of the rect (kept for older callers; unused when rect_size is set).
 uniform float aspect : hint_range(0.5, 4.0) = 1.7778;
+// Arch centre x, spotlight centre and radius, ground line y and right end,
+// in 1440x810 reference px.
+uniform float arch_x = 850.0;
+uniform vec2 spot_center = vec2(850.0, 450.0);
+uniform float spot_radius = 290.0;
+uniform float ground_y = 772.0;
+uniform float ground_end = 1160.0;
+// 0 = no arches (plain spotlight).
+uniform float arches : hint_range(0.0, 1.0) = 1.0;
 group_uniforms;
 
-// Window cell size of the far skyline (UV units).
-const vec2 WINDOW_CELL = vec2(0.009, 0.012);
+// Coverage of a 1 px line at distance `d` (reference px) with `px` = one
+// screen pixel in reference px.
+float hair(float d, float px) {
+	return 1.0 - smoothstep(px * 0.5, px * 1.5, abs(d));
+}
 
-float h1(float x) {
-	return fract(sin(x * 127.1) * 43758.5453);
+// One arch: two verticals at arch_x +- half from `base` down, joined by a
+// parabola rising `depth` (the mockup's quadratic curve).
+float arch(vec2 p, float half_w, float base, float depth, float px) {
+	float u = (p.x - arch_x) / half_w;
+	float a = 0.0;
+	if (abs(u) <= 1.0) {
+		float y = base - depth * (1.0 - u * u);
+		float slope = 2.0 * depth * u / half_w;
+		a = hair((p.y - y) / sqrt(1.0 + slope * slope), px);
+	}
+	if (p.y >= base) {
+		a = max(a, hair(p.x - (arch_x - half_w), px));
+		a = max(a, hair(p.x - (arch_x + half_w), px));
+	}
+	return a;
 }
 
 void fragment() {
-	vec2 uv = UV;
-	float t = TIME * speed;
-	vec3 col = mix(bg_top.rgb, bg_bottom.rgb, uv.y);
-	// Horizon glow (violet core, faint brass edge).
-	float d = uv.y - horizon;
-	col += glow.rgb * 0.22 * exp(-abs(d) * 14.0);
-	col += glow2.rgb * 0.05 * exp(-abs(d + 0.06) * 30.0);
-	// Skyline: blocky towers above the horizon (two layers, parallax-free).
-	float x = uv.x * aspect;
-	for (int layer = 0; layer < 2; layer++) {
-		float w = layer == 0 ? 0.045 : 0.08;
-		float cell = floor(x / w + float(layer) * 7.3);
-		float bh = (layer == 0 ? 0.07 : 0.13) * (0.35 + h1(cell + float(layer) * 31.0));
-		float top = horizon - bh;
-		float inb = step(top, uv.y) * step(uv.y, horizon);
-		vec3 tower = layer == 0 ? vec3(0.06, 0.06, 0.13) : vec3(0.035, 0.035, 0.08);
-		col = mix(col, tower, inb * (layer == 0 ? 0.85 : 1.0));
-		// Lit windows on the far layer only (layer 0), sparse: 14% of cells.
-		vec2 wv = vec2(fract(x / WINDOW_CELL.x), fract((uv.y - top) / WINDOW_CELL.y));
-		float win = step(0.35, wv.x) * step(wv.x, 0.7) * step(0.4, wv.y) * step(wv.y, 0.75);
-		float lit = step(0.86, h1(floor(x / WINDOW_CELL.x) * 3.1 + floor(uv.y / WINDOW_CELL.y) * 17.0));
-		col += glow.rgb * 0.35 * win * lit * inb * (1.0 - float(layer));
+	float s = rect_size.y / 810.0;
+	// Centre the 1440-wide reference horizontally when the rect is wider/narrower.
+	float off = (rect_size.x / s - 1440.0) * 0.5;
+	vec2 p = UV * rect_size / s - vec2(off, 0.0);
+	float px = 1.0 / s;
+	vec3 col = ink.rgb;
+	float breath = 1.0 + 0.08 * sin(TIME * speed * 6.2831);
+	float r = length(p - spot_center) / spot_radius;
+	col += brass.rgb * spot_alpha * breath * (1.0 - smoothstep(0.0, 1.0, r)) * 0.9;
+	float l = 0.0;
+	if (arches > 0.5) {
+		l = max(arch(p, 290.0, 402.0, 145.0, px), arch(p, 240.0, 422.0, 120.0, px));
+		if (p.x <= ground_end) {
+			l = max(l, hair(p.y - ground_y, px));
+		}
 	}
-	// Perspective floor grid below the horizon: z = depth of the floor row
-	// seen at this pixel (1 / distance below the horizon).
-	{
-		float below = step(0.0, d);
-		float z = 0.08 / max(d, 0.001);
-		float gx = (uv.x - 0.5) * aspect * z;
-		float gz = z + t * 6.0;
-		float lx = abs(fract(gx * 2.0) - 0.5);
-		float lz = abs(fract(gz * 0.5) - 0.5);
-		float fw = fwidth(gx * 2.0) * 1.2;
-		float fz = fwidth(gz * 0.5) * 1.2;
-		float line = max(1.0 - smoothstep(0.0, fw, lx), 1.0 - smoothstep(0.0, fz, lz));
-		float fade = clamp(d * 3.5, 0.0, 1.0) * (1.0 - clamp(z / 30.0, 0.0, 1.0));
-		col += grid.rgb * line * 0.32 * fade * below;
-	}
-	// Vignette.
-	vec2 v = uv - 0.5;
-	col *= 1.0 - dot(v, v) * 0.9;
+	col = mix(col, brass.rgb, l * line_alpha);
 	COLOR = vec4(col, 1.0);
 }

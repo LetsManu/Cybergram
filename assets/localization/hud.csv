@@ -615,7 +615,7 @@ HUD_LOBBY_LOCKED_CANCEL_TIP,Click to cancel your lock-in
 HUD_LOBBY_PICK_TO_LOCK,Pick a hero to lock in
 HUD_LOBBY_YOUR_TEAM,Your team
 HUD_LOBBY_ENEMY_TEAM,Enemy team
-HUD_LOBBY_BOT_FILL,Bot will fill
+HUD_LOBBY_BOT_FILL,A bot will fill it
 HUD_LOBBY_STATE_LOCKED,Locked
 HUD_LOBBY_SEARCH,Search heroes
 HUD_LOBBY_ROLE_ALL,All
@@ -660,3 +660,45 @@ HUD_SKILL_VESPER_MARIONETTE_THREAD,"Mana thread: damage, and your squad attacks 
 HUD_SKILL_VESPER_RALLY_BEACON,Beacon that heals and shields nearby Wardlings.
 HUD_SKILL_VESPER_THREADSTEP,Swap places with one of your Wardlings.
 HUD_SKILL_VESPER_REWRITE,"Upgrade allied Wardlings in range, turn enemy ones."
+HUD_HERO_LINE_VESPER_LOOM,"Commands a squad of Wardlings: threads them onto targets, heals them with beacons and swaps places with them."
+HUD_HERO_LINE_BRANNOC,"Holds the line with shield walls, a shoulder charge and an earth-breaking slam."
+HUD_HERO_LINE_RYKER_VANCE,"A straight rifleman: grenades, combat stims, slides and a bottomless-magazine Overdrive."
+HUD_HERO_LINE_LIORA_VALE,"Keeps the team alive with a heal beam, drones, shields and a dome of light."
+HUD_HERO_LINE_SABLE,"Slips in unseen, sabotages objectives and silences a target from behind."
+HUD_HERO_LINE_JUNIPER_QUILL,"Controls space with snares, laser tripwires and buried mines."
+HUD_HERO_LINE_HEX,"Turns enemy gadgets against them: breach, scramble and hop between devices."
+HUD_NAV_CAREER,CAREER
+HUD_MENU_STATUS_ONLINE,● Online
+HUD_HEROES_EYEBROW,ROSTER · %d HEROES
+HUD_MODE_EYEBROW,PLAY · CHOOSE A MODE
+HUD_MODE_NAME_ONLINE,Online
+HUD_MODE_NAME_BOTS,Vs Bots
+HUD_MODE_NAME_PRACTICE,Practice Range
+HUD_MODE_NAME_TUTORIAL,Tutorial
+HUD_MODE_NAME_COURSE,Movement Course
+HUD_MODE_META_ONLINE,3v3 · official server · bots fill empty slots
+HUD_MODE_META_BOTS,3v3 offline · no account needed
+HUD_MODE_META_PRACTICE,Dummies · unlimited Lumen · every skill
+HUD_MODE_META_TUTORIAL,10 short steps · about 5 minutes
+HUD_MODE_META_COURSE,"Parkour test map · slides, jumps, wall tech"
+HUD_MODE_LONG_ONLINE,"Join the lobby on the official server, pick your hero with your team and lock in. Friends can join your team directly."
+HUD_MODE_LONG_BOTS,A full match against bots on your own machine. Good for learning a hero before playing online.
+HUD_MODE_LONG_PRACTICE,"Try every skill and fork on static and moving dummies. Level up with F5, reset with F10."
+HUD_MODE_LONG_TUTORIAL,"Move, shoot, use skills, pick a fork and buy from the shop, step by step with your own key bindings."
+HUD_MODE_CTA_ONLINE,FIND MATCH
+HUD_MODE_CTA_START,START
+HUD_MODE_CTA_PRACTICE,ENTER RANGE
+HUD_MODE_CTA_TUTORIAL,START TUTORIAL
+HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
+HUD_PATCH_1_TITLE,New look
+HUD_PATCH_1_SUB,"Brass and ink client, real hero portraits"
+HUD_PATCH_2_TITLE,Hero select
+HUD_PATCH_2_SUB,Lock in with your team
+HUD_PATCH_3_TITLE,Launcher
+HUD_PATCH_3_SUB,One-click update and play
+HUD_FRIENDS_SEARCH_HINT,Search or add by name
+HUD_FRIENDS_N_ONLINE,%d online
+HUD_FRIENDS_OFFLINE_N,Offline · %d
+HUD_LOBBY_ABILITIES,ABILITIES
+HUD_LOBBY_OPEN_SLOT,Open slot
+HUD_LOBBY_MODE_LINE,Online 3v3
