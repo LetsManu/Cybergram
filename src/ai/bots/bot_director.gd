@@ -20,6 +20,8 @@ var meter := BotCostMeter.new()
 var sources: Array[BotInputSource] = []
 var _by_hero: Dictionary = {}  # hero net id -> BotBrain
 var _claims: Dictionary = {}  # E14 Cell job claims, shared by every brain
+## W14 lane choice shared by every brain (1 lane = everyone in lane 0).
+var lanes: BotLanePlanner
 
 
 func setup(s: ServerWorld, r: BotRosterDef, p: BotProfile, seed_: int) -> void:
@@ -27,6 +29,10 @@ func setup(s: ServerWorld, r: BotRosterDef, p: BotProfile, seed_: int) -> void:
 	roster = r
 	profile = p
 	seed_value = seed_
+	var md := server.wardlings.map_def if server.wardlings != null else null
+	lanes = BotLanePlanner.new(md.lanes.size() if md != null else 1)
+	lanes.eval_interval_s = p.lane_eval_interval_s
+	lanes.switch_margin = p.lane_switch_margin
 	if not server.hero_damaged.is_connected(_on_hero_damaged):
 		server.hero_damaged.connect(_on_hero_damaged)
 
@@ -76,6 +82,7 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 	b.tuning = roster.tuning()
 	b.team_brains = brains  # E14: shared, for Cell job claims
 	b.claims = _claims
+	b.lanes = lanes
 	var src := BotInputSource.new(b, meter)
 	sources.append(src)
 	b.hero_id = server.add_scripted_hero(src, spawn, hero_def, team)
@@ -92,6 +99,7 @@ func add_bot(team: int, hero_def: HeroDef, spawn: Vector3, yaw: float = 0.0) -> 
 func adopt(b: BotBrain) -> void:
 	b.team_brains = brains
 	b.claims = _claims
+	b.lanes = lanes
 	brains.append(b)
 	_by_hero[b.hero_id] = b
 
@@ -103,6 +111,8 @@ func release_hero(hero_id: int) -> void:
 		return
 	_by_hero.erase(hero_id)
 	brains.erase(b)
+	if lanes != null:
+		lanes.release(hero_id)
 
 
 ## Online: a human left; a new bot brain drives their hero from now on.
@@ -116,6 +126,7 @@ func take_over(hero_id: int) -> BotBrain:
 	b.tuning = roster.tuning()
 	b.team_brains = brains
 	b.claims = _claims
+	b.lanes = lanes
 	var src := BotInputSource.new(b, meter)
 	sources.append(src)
 	b.hero_id = hero_id
