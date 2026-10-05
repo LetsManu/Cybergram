@@ -5,7 +5,7 @@ extends RefCounted
 ## JSON object. Listens to ServerWorld / ObjectiveSystem / MatchRules signals.
 
 const TEAM_NAMES: Array[String] = ["concord", "syndicate"]
-const REASONS: Array[String] = ["none", "uplink_destroyed", "incursion", "uplink_damage", "draw"]
+const REASONS: Array[String] = ["none", "uplink_destroyed", "incursion", "uplink_damage", "draw", "sudden_death"]
 
 var server: ServerWorld
 var director: BotDirector

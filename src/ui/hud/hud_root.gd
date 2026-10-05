@@ -91,6 +91,8 @@ func _build() -> void:
 	# E14: minimal Plant / Breach cue under the tracker (Cell carried, channel, Generator).
 	_task_cue = _add(TaskCue.new(), _tracker.get_parent(), Rect2(0, 0, 1, 0), Vector2(ObjectiveTracker.H + 6.0, ObjectiveTracker.H + 6.0 + TaskCue.H))
 	_toasts = _fill(ToastLane.new(), _zone("Toasts", 0.70, 0.48, 1.0, 0.64)) as ToastLane
+	# W16-SDWATER: "OUTSIDE THE RING" (Sudden Death) under the front strip.
+	_fill(RingWarning.new(), _zone("RingWarning", 0.30, 0.26, 0.70, 0.36))
 	_center = _fill(CenterFeedback.new(), _zone("Centre", 0.30, 0.30, 0.70, 0.70)) as CenterFeedback
 	var z_bl := _zone("BottomLeft", 0.0, 0.70, 0.34, 1.0)
 	_vitals = _fill(VitalsPanel.new(), z_bl) as VitalsPanel
