@@ -3,7 +3,8 @@ extends RefCounted
 ## Server-side account storage interface (design/ux/lobby-and-social.md §6).
 ## An account is a JSON-safe Dictionary with exactly these keys:
 ##   id (32 hex), username, password {algo, hash, salt, iterations},
-##   profile {display_name, emblem, accent, favourite_hero},
+##   profile {display_name, emblem, accent, favourite_hero, and
+##   leaderboard_public: true only while the player opts in (W20-WEB)},
 ##   friends [ids], requests_in [ids], requests_out [ids], blocks [ids],
 ##   created_at, last_login_at (unix seconds).
 ## Nothing else: no e-mail, no IP, no hardware ids. Implementations:

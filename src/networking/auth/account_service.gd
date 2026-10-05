@@ -28,6 +28,8 @@ const PURGE_EVERY_S := 60.0
 const REQ_BURST := 12.0
 const REQ_PER_S := 3.0
 ## Hash used to keep the timing of "no such user" like a real check.
+## Profile key of the public leaderboard opt-in (W20-WEB; absent = off).
+const PROFILE_LEADERBOARD := "leaderboard_public"
 const DUMMY_SALT := "c7b1e0a4d2f3958b6a1c0e9d8f7a6b5c"
 
 static var _shared: AccountService
@@ -628,6 +630,8 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 			_reply(t, peer, op, block(me, str(r.id)))
 		AccountCodec.OP_UNBLOCK:
 			_reply(t, peer, op, unblock(me, str(r.id)))
+		AccountCodec.OP_LEADERBOARD:
+			_leaderboard(t, peer, me, int(r.set))
 
 
 func _update_profile(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> void:
@@ -650,12 +654,48 @@ func _update_profile(t: Transport, peer: int, who: Dictionary, r: Dictionary) ->
 		if a.is_empty():
 			_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
 			return
+		var keep_public := is_leaderboard_public(a)
 		a.profile = {"display_name": who.name, "emblem": who.emblem, "accent": who.accent, "favourite_hero": hero}
+		if keep_public:
+			a.profile[PROFILE_LEADERBOARD] = true
 		if not store.put(a):
 			_reply(t, peer, op, AccountCodec.E_STORE)
 			return
 	_reply(t, peer, op, AccountCodec.OK, {"display_name": who.name, "emblem": who.emblem, "accent": who.accent,
 		"favourite_hero": hero})
+
+
+## W20-WEB: the public leaderboard opt-in (default off, PRIVACY.md). Only
+## the stored value changes; LB_QUERY reads it. The flag lives in the
+## account's profile, so deleting the account removes it with everything else.
+func _leaderboard(t: Transport, peer: int, me: Dictionary, set_: int) -> void:
+	var op := AccountCodec.OP_LEADERBOARD
+	if set_ != AccountCodec.LB_QUERY:
+		if set_ != AccountCodec.LB_OFF and set_ != AccountCodec.LB_ON:
+			_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+			return
+		set_leaderboard_public(me, set_ == AccountCodec.LB_ON)
+		if not store.put(me):
+			_reply(t, peer, op, AccountCodec.E_STORE)
+			return
+	_reply(t, peer, op, AccountCodec.OK, {"public": 1 if is_leaderboard_public(me) else 0})
+
+
+## True when the account opted in to the public leaderboard (W20-WEB).
+static func is_leaderboard_public(a: Dictionary) -> bool:
+	var p: Variant = a.get("profile", {})
+	return p is Dictionary and bool((p as Dictionary).get(PROFILE_LEADERBOARD, false))
+
+
+## Sets or clears the opt-in on `a` (in memory; the caller stores it). Off
+## removes the key, so an account that never opted in carries nothing.
+static func set_leaderboard_public(a: Dictionary, on: bool) -> void:
+	var p: Dictionary = a.get("profile", {})
+	if on:
+		p[PROFILE_LEADERBOARD] = true
+	else:
+		p.erase(PROFILE_LEADERBOARD)
+	a["profile"] = p
 
 
 ## The account as readable JSON, without the password hash and salt.

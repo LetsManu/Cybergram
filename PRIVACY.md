@@ -1,7 +1,7 @@
 # Cybergram: Privacy Notice
 
 > **Draft. Needs a legal check before public release.** Written in plain
-> words for players. Version 4 (2026-10-05, game v0.13.0, protocol v17).
+> words for players. Version 5 (2026-10-05, after game v0.13.1, protocol v18).
 
 **Offline play (PLAY VS BOTS, the test course) sends nothing anywhere.** This
 notice is about **online play**.
@@ -24,6 +24,7 @@ If you run your own server, you are the controller for that server.
 | Username | to log in |
 | Password, stored only as a salted hash (PBKDF2-HMAC-SHA256) | to log in; nobody, not even the operator, can read your password |
 | Display name, emblem, accent colour, favourite hero | so other players see you in the lobby, the scoreboard and the kill feed |
+| Whether you chose to appear on the public leaderboard (off unless you switch it on) | the website's ranked leaderboard (see *Public leaderboard*) |
 | A random player id | to tell accounts apart |
 | Friends, friend requests, players you blocked | the friends list and blocking |
 | Date of sign-up and of your last login | to delete unused accounts (see *How long*) |
@@ -173,11 +174,36 @@ Discord does with this is covered by Discord's own privacy policy. Switch it
 off at any time; the status disappears when the game closes. If Discord is
 not running, nothing happens.
 
+## Public leaderboard on the website (only if you switch it on)
+
+Off by default. In the game, under **RANKS** (the matchmaking ranks panel),
+you can switch on **Show me on the public leaderboard**. Then the Cybergram
+website lists your **display name, your ranked medal (Iron to Master) and
+your visible ranked rating** among the best ranked players, once you have
+finished your calibration games. Nothing else about you is published: no
+username, no player id, no match history, no IP address.
+
+- The setting is stored with your account (one yes/no value) and you can
+  switch it off at any time. The website stops showing you within about a
+  minute (the leaderboard is rebuilt every 60 seconds).
+- Deleting your account deletes the setting with it, and you leave the
+  leaderboard at the next rebuild.
+- Guests cannot appear on the leaderboard.
+- The leaderboard is public: anyone can see it while you are on it.
+
+**Public server status.** The game server also publishes, for the website,
+anonymous numbers only: whether the server is up, how many players are
+online, how many matches run, how many players wait in each queue and the
+estimated wait. These numbers say nothing about any single person. The
+website's own privacy page (no cookies, no trackers, its server logs) is
+part of the website.
+
 ## Legal basis
 
 Art. 6(1)(b) GDPR: we need this data to provide the online game you sign up
-for (the contract). Crash reports and Discord Rich Presence are based on your
-consent (Art. 6(1)(a) GDPR), see their sections above. You must be **at least 14** to create an account
+for (the contract). Crash reports, Discord Rich Presence and the public
+leaderboard are based on your consent (Art. 6(1)(a) GDPR), see their
+sections above; you can withdraw it at any time by switching them off. You must be **at least 14** to create an account
 (Austria, Art. 8 GDPR and § 4 DSG). You confirm both when you register.
 
 ## How long
@@ -193,6 +219,8 @@ consent (Art. 6(1)(a) GDPR), see their sections above. You must be **at least 14
 - Ratings: while the account exists. Match history: 180 days. Strikes and
   lockouts: until they decay, 30 days at the latest. Reports and honour
   records: 30 days. All of it is deleted with the account.
+- Public leaderboard setting: while the account exists, or until you switch
+  it off. The published entry disappears within about a minute after that.
 
 ## Server logs
 
@@ -214,8 +242,9 @@ In the game, under **PROFILE**:
   JSON file where you choose.
 - **Delete account**: needs your password. The account is deleted at once.
   You are also removed from every other player's friends, requests and
-  blocks. Your ratings, match history, strikes, filed reports and honour count
-  are deleted too.
+  blocks. Your ratings, match history, strikes, filed reports, honour count
+  and your public leaderboard setting are deleted too.
+- Under **RANKS**, switch **Show me on the public leaderboard** on or off.
 - Changing your display name, emblem, colour or favourite hero corrects your
   data. You can change your password there too.
 

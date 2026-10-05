@@ -1036,6 +1036,68 @@ func send_ranked_info(id: String) -> void:
 		"division": int(medal.get("division", 0))}]})
 
 
+# --- public snapshot (W20-WEB) ------------------------------------------------------
+
+## Matches whose players are in the game right now (anonymous count).
+func running_matches() -> int:
+	var n := 0
+	for m: Match in _matches.values():
+		if m.state == State.RUNNING:
+			n += 1
+	return n
+
+
+## Matches between "found" and "running" (ready check, pick, starting).
+func forming_matches() -> int:
+	var n := 0
+	for m: Match in _matches.values():
+		if m.state != State.RUNNING:
+			n += 1
+	return n
+
+
+## The matchmade queues for the public status: [{id, name, players,
+## estimated_wait_s}] (counts only, never who is queued).
+func queue_overview() -> Array:
+	var out: Array = []
+	for q in rules.queues:
+		if not q.matchmade:
+			continue
+		var info := matchmaker.queue_info(q.id)
+		out.append({"id": String(q.id), "name": q.display_name, "players": int(info.players),
+			"estimated_wait_s": roundi(float(info.estimated_wait_s))})
+	return out
+
+
+## The public ranked leaderboard: the `top_n` best calibrated ranked
+## ratings of accounts that opted in (AccountService.is_leaderboard_public).
+## Entries {rank, name (display name), rating, medal (label), band (name)};
+## no account id leaves this function. Ties: rating, then name, descending /
+## ascending, so the order is stable. Guests and deleted accounts never show.
+func leaderboard(top_n: int) -> Array:
+	var rows: Array = []
+	if ratings == null or accounts == null or accounts.store == null or top_n <= 0:
+		return rows
+	for id in ratings.store.ids():
+		var a := accounts.store.get_by_id(id)
+		if a.is_empty() or not AccountService.is_leaderboard_public(a):
+			continue
+		var v := ratings.visible_rating(id)
+		if v < 0:
+			continue
+		var medal := ratings.medal_for(v)
+		rows.append({"name": str((a.profile as Dictionary).get("display_name", a.username)), "rating": v,
+			"medal": str(medal.label), "band": str(medal.name)})
+	rows.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
+		if int(x.rating) != int(y.rating):
+			return int(x.rating) > int(y.rating)
+		return str(x.name).to_lower() < str(y.name).to_lower())
+	rows = rows.slice(0, top_n)
+	for i in rows.size():
+		rows[i]["rank"] = i + 1
+	return rows
+
+
 # --- account deletion, lockout persistence ------------------------------------------
 
 ## Account deletion cascade: ratings, reports, match history, lockouts.

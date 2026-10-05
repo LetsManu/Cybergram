@@ -24,6 +24,8 @@ signal profile_received(profile: Dictionary)
 signal party_changed(party: Dictionary)
 signal custom_changed(lobby: Dictionary)
 signal feedback_result(result: Dictionary)
+## W20-WEB public leaderboard opt-in: {public: bool, available: bool}.
+signal leaderboard_changed(state: Dictionary)
 ## A request failed: a HUD_MM_ERR_* key.
 signal failed(key: String)
 
@@ -67,6 +69,8 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 	mm.rating_update.connect(func(d: Dictionary) -> void: profile_received.emit(profile_of(d, rules)))
 	mm.custom_state.connect(func(d: Dictionary) -> void: custom_changed.emit(custom_of(d)))
 	mm.request_failed.connect(func(_op: int, code: int) -> void: failed.emit(error_key(code)))
+	if lobby != null and lobby.has_signal("account_result"):
+		lobby.connect("account_result", _on_account_result)
 
 
 # --- requests (MatchmakingFakeClient's interface) -------------------------------
@@ -135,6 +139,25 @@ func report(match_id: Variant, target: String, category: StringName) -> void:
 
 func request_profile() -> void:
 	mm.request_ranked_info()
+
+
+## W20-WEB: asks the front for the leaderboard opt-in (-> leaderboard_changed).
+func request_leaderboard() -> void:
+	if lobby != null and lobby.has_method("request"):
+		lobby.call("request", AccountCodec.OP_LEADERBOARD, {"set": AccountCodec.LB_QUERY})
+
+
+## W20-WEB: opts in to (true) or out of the public leaderboard (stored on
+## the account by the front; PRIVACY.md).
+func set_leaderboard_public(on: bool) -> void:
+	if lobby != null and lobby.has_method("request"):
+		lobby.call("request", AccountCodec.OP_LEADERBOARD, {"set": AccountCodec.LB_ON if on else AccountCodec.LB_OFF})
+
+
+func _on_account_result(d: Dictionary) -> void:
+	var st := leaderboard_of(d)
+	if not st.is_empty():
+		leaderboard_changed.emit(st)
 
 
 func custom_open() -> void:
@@ -324,6 +347,19 @@ static func profile_of(d: Dictionary, rules: MatchmakingRulesDef) -> Dictionary:
 			"medal": {} if r < 0 else svc.medal_for(r), "progress": 0.0 if r < 0 else MmView.medal_progress(r, rules.medal_division_span, rules.medal_bands)}
 		tracks[StringName(t.get("track_id", &""))] = e
 	return {"calibration_games": rules.calibration_games, "tracks": tracks, "history": []}
+
+
+## An ACCOUNT_RESULT as a leaderboard_changed state ({} = another op).
+## Guests and plain (non-DTLS) links cannot opt in: available false. Any
+## other failure keeps it available and sets error (the view keeps its state).
+static func leaderboard_of(d: Dictionary) -> Dictionary:
+	if int(d.get("op", -1)) != AccountCodec.OP_LEADERBOARD:
+		return {}
+	var code := int(d.get("code", AccountCodec.E_BAD_REQUEST))
+	if code == AccountCodec.OK:
+		return {"public": int(d.get("public", 0)) == 1, "available": true}
+	var no_account := code in [AccountCodec.E_GUEST, AccountCodec.E_NOT_SECURE, AccountCodec.E_NOT_LOGGED_IN]
+	return {"public": false, "available": not no_account, "error": not no_account}
 
 
 static func custom_of(d: Dictionary) -> Dictionary:

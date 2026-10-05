@@ -6,6 +6,9 @@ extends PanelContainer
 ## that their rating is hidden (games played when known); a minimal recent
 ## match history (queue, hero, result, K/D/A, ranked rating change).
 ## Fed by client.request_profile() -> profile_received.
+## W20-WEB: a "show me on the public leaderboard" toggle (off by default,
+## accounts only; PRIVACY.md), fed by client.request_leaderboard() ->
+## leaderboard_changed and changed with client.set_leaderboard_public().
 
 var client: Object
 var profile: Dictionary = {}
@@ -17,6 +20,9 @@ var _pips: HBoxContainer
 var _others: VBoxContainer
 var _history: VBoxContainer
 var _empty: Label
+var _lb_toggle: CheckButton
+var _lb_hint: Label
+var _lb_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -29,11 +35,44 @@ func _ready() -> void:
 		if client.has_signal("profile_received"):
 			client.connect("profile_received", set_profile)
 		client.call("request_profile")
+		if client.has_signal("leaderboard_changed"):
+			client.connect("leaderboard_changed", set_leaderboard_state)
+		if client.has_method("request_leaderboard"):
+			client.call("request_leaderboard")
 
 
 func set_profile(p: Dictionary) -> void:
 	profile = p
 	_apply()
+
+
+## W20-WEB: {public: bool, available: bool, error?: bool} from the client.
+func set_leaderboard_state(st: Dictionary) -> void:
+	if st.get("error", false):
+		st = {"public": bool(_lb_state.get("public", false)), "available": true, "error": true}
+	_lb_state = st
+	_apply_leaderboard()
+
+
+func _on_leaderboard_toggled(on: bool) -> void:
+	if client != null and client.has_method("set_leaderboard_public"):
+		_lb_toggle.disabled = true  # until the server confirms
+		client.call("set_leaderboard_public", on)
+
+
+func _apply_leaderboard() -> void:
+	if _lb_toggle == null:
+		return
+	var known := not _lb_state.is_empty()
+	var available := bool(_lb_state.get("available", false))
+	_lb_toggle.set_pressed_no_signal(bool(_lb_state.get("public", false)))
+	_lb_toggle.disabled = not known or not available
+	var key := "HUD_MM_LEADERBOARD_HINT"
+	if _lb_state.get("error", false):
+		key = "HUD_MM_LEADERBOARD_ERROR"
+	elif known and not available:
+		key = "HUD_MM_LEADERBOARD_GUEST"
+	_lb_hint.text = tr(key)
 
 
 func _build() -> void:
@@ -51,6 +90,17 @@ func _build() -> void:
 	_pips = HBoxContainer.new()
 	_pips.add_theme_constant_override("separation", 5)
 	col.add_child(_pips)
+	_lb_toggle = CheckButton.new()
+	_lb_toggle.name = "LeaderboardToggle"
+	_lb_toggle.text = tr("HUD_MM_LEADERBOARD_TOGGLE")
+	_lb_toggle.focus_mode = Control.FOCUS_ALL
+	_lb_toggle.disabled = true
+	_lb_toggle.toggled.connect(_on_leaderboard_toggled)
+	col.add_child(_lb_toggle)
+	_lb_hint = UiKit.label(tr("HUD_MM_LEADERBOARD_HINT"), &"small", t.text_dim)
+	_lb_hint.name = "LeaderboardHint"
+	_lb_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(_lb_hint)
 	col.add_child(UiKit.hairline())
 	_others = VBoxContainer.new()
 	_others.add_theme_constant_override("separation", 4)
@@ -67,6 +117,7 @@ func _build() -> void:
 func _apply() -> void:
 	if _ranked_line == null:
 		return
+	_apply_leaderboard()
 	var t := UiKit.tokens()
 	var n := int(profile.get("calibration_games", 10))
 	var tracks: Dictionary = profile.get("tracks", {})

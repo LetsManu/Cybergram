@@ -40,6 +40,13 @@ const OP_PARTY_DECLINE: int = 23  ## decline the invite of `id`
 const OP_PARTY_LEAVE: int = 24    ## leave the party (a leader hands over)
 ## v15: RTT probe for the launcher's status widget (no fields, any session or none).
 const OP_PING: int = 25
+## v18 (W20-WEB): public leaderboard opt-in (accounts only, DTLS). Request
+## `set`: LB_OFF / LB_ON change the flag, LB_QUERY only reads it. The result
+## carries the stored value (`public` 0/1).
+const OP_LEADERBOARD: int = 26
+const LB_OFF: int = 0
+const LB_ON: int = 1
+const LB_QUERY: int = 2
 
 ## Request fields per op.
 const REQ_SCHEMA := {
@@ -69,6 +76,7 @@ const REQ_SCHEMA := {
 	OP_PARTY_DECLINE: [["id", "i"]],
 	OP_PARTY_LEAVE: [],
 	OP_PING: [],
+	OP_LEADERBOARD: [["set", "b"]],
 }
 const SESSION_FIELDS := [["token", "t"], ["id", "i"], ["username", "s"], ["display_name", "s"], ["emblem", "b"],
 	["accent", "b"], ["favourite_hero", "s"], ["guest", "b"]]
@@ -85,6 +93,7 @@ const RES_SCHEMA := {
 	OP_REDEEM: SESSION_FIELDS,
 	OP_CRASH_CHUNK: [["seq", "u"]],
 	OP_PARTY: [["party", "i"], ["leader", "i"], ["members", "P"]],
+	OP_LEADERBOARD: [["public", "b"]],
 }
 
 ## REGISTER / GUEST flags.
