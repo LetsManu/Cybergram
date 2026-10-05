@@ -95,6 +95,11 @@ func _process(delta: float) -> void:
 		var m := _vig.material as ShaderMaterial
 		m.set_shader_parameter("alpha", a)
 		m.set_shader_parameter("inner", rules.vignette_inner_radius)
+	# A CanvasLayer has no Control parent, so anchors resolve to size 0: size by hand.
+	var vp := get_viewport().get_visible_rect().size
+	_vig.size = vp
+	_dot.size = vp
+	_dot_top.size = vp
 	_dot.gs = gs
 	_dot_top.gs = gs
 	_dot_top.active = paused
