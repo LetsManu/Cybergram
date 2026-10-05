@@ -38,7 +38,7 @@ void fragment() {
 	float frame = step(min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)), 0.025);
 	float scan = 0.82 + 0.18 * sin((uv.y + t * 0.08) * 220.0);
 	float sweep = smoothstep(0.92, 1.0, 1.0 - abs(fract(uv.x * 0.6 - t * 0.12) - 0.5) * 2.0) * 0.35;
-	float fill = 0.18 + g * 0.75 + frame * 0.8 + sweep;
+	float fill = 0.4 + g * 0.6 + frame * 0.8 + sweep;
 	ALBEDO = base * fill * scan * gain;
-	ALPHA = clamp(alpha * (0.35 + 0.65 * max(g, frame)) * (0.6 + 0.4 * scan), 0.0, 1.0);
+	ALPHA = clamp(alpha * (0.55 + 0.45 * max(g, frame)) * (0.6 + 0.4 * scan), 0.0, 1.0);
 }

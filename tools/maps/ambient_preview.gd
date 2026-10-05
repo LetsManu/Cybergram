@@ -11,7 +11,7 @@ const MAP := "res://assets/maps/front/shardline_front.tscn"
 const CAMS := {
 	"skyline": [Vector3(-88.0, 7.0, -150.0), Vector3(-260.0, 45.0, -260.0)],
 	"market": [Vector3(0.0, 2.2, -70.0), Vector3(0.0, 4.5, -170.0)],
-	"train": [Vector3(-90.0, 6.0, -100.0), Vector3(-130.0, 58.0, -170.0)],
+	"train": [Vector3(-88.0, 5.0, -150.0), Vector3(-134.0, 60.0, -215.0)],
 	"lane": [Vector3(-80.0, 2.0, -104.0), Vector3(-80.0, 2.0, -200.0)],
 	"wide": [Vector3(110.0, 26.0, 20.0), Vector3(-60.0, 10.0, -220.0)],
 }

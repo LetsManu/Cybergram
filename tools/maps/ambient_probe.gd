@@ -57,5 +57,11 @@ func _initialize() -> void:
 		tot_ms += ms
 		print("PROBE %-8s draw_calls=%d objects=%d frame_ms=%.2f worst_ms=%.2f render_cpu_ms=%.2f render_gpu_ms=%.2f" % [
 			v[0], dc, obj, ms, worst_us / 1000.0, cpu / MEASURE, gpu / MEASURE])
+	var aw := map.find_child("AmbientWorld", true, false)
+	if aw != null:
+		var t0 := Time.get_ticks_usec()
+		for i in 500:
+			aw._process(1.0 / 60.0)
+		print("PROBE ambient_cpu_per_frame_ms=%.4f level=%d" % [(Time.get_ticks_usec() - t0) / 1000.0 / 500.0, aw.level])
 	print("PROBE mean draw_calls=%.1f frame_ms=%.2f" % [tot_dc / float(VIEWS.size()), tot_ms / VIEWS.size()])
 	quit()
