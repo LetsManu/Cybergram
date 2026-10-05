@@ -595,6 +595,7 @@ func build_setup(m: Match) -> Dictionary:
 		roster.append({"account": "" if s.bot else s.id, "team": s.team, "hero": String(s.hero),
 			"lane": String(s.lane), "bot": s.bot, "name": s.name, "accent": s.accent})
 	var r := {"remake_window_s": rules.remake_window_s, "remake_vote_s": rules.remake_vote_s,
+		"no_show_s": rules.no_show_s, "abandon_after_s": rules.abandon_after_s,
 		"team_size": m.queue.team_size if m.queue != null else _team_size(m), "mood_seed": m.mood,
 		"rated": m.rated, "custom": m.custom, "bots": _has_bots(m)}
 	for k in setup_rules:
@@ -630,7 +631,7 @@ func _send_assigned(m: Match, id: String, t: float) -> bool:
 	var seat := m.seats[_seat_index(m, id)] as Dictionary
 	return _send(id, MatchmakingCodec.EV_MATCH_ASSIGNED, MatchmakingCodec.OK, {"host": str(tk.host),
 		"port": int(tk.port), "ticket": str(tk.ticket), "match": m.id, "team": seat.team,
-		"hero": _hero_index(seat.hero)})
+		"hero": _hero_index(seat.hero), "map": m.map})
 
 
 func _on_abandon(match_id: String, account_id: String) -> void:

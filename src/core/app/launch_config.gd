@@ -19,6 +19,11 @@ extends RefCounted
 ##                                                  spawns one match process per match
 ##   ... -- --server --port 7801 --host-boot <file>  -> W17B match process (started by the front;
 ##                                                  --match-host also marks one)
+##   ... -- --server --front ... --mm-team-size 1 --mm-pick-s 3 --mm-match-s 20
+##                                                -> W17B testing: 1v1 queues, short picks, matches end after 20 s
+##   godot --headless --path . -- --mm-script-client win --connect host:7777 --user e2e1
+##                                                -> W17B testing: scripted client (guest, normal queue,
+##                                                  accepts, never picks, joins, waits for the result)
 ##   godot --path . -- --open-lobby 1.2.3.4[:7777] -> menu opened straight into that server's lobby
 ##   ... -- --server --quit-after-ticks 900      -> soak run that exits
 ##   godot --path . -- --map slice               -> load assets/data/match/map_<name>.tres (or map_<name>_lane.tres)
@@ -138,6 +143,17 @@ var front: bool = false
 var match_host: bool = false
 ## W17B: the supervisor's boot file (owner-only, deleted on read).
 var host_boot: String = ""
+## W17B testing: a headless scripted matchmaking client (MatchmakingScriptClient):
+## scenario "win" (default flow) or "crash" (waits for the void). "" = off.
+var mm_script: String = ""
+## W17B testing: the scripted client's guest display name.
+var mm_user: String = ""
+## W17B testing (front): team size of the matchmade 5v5 queues (1 = 1v1), 0 = data.
+var mm_team_size: int = 0
+## W17B testing (front): pick-phase seconds per turn / all-random phase, 0 = data.
+var mm_pick_s: float = 0.0
+## W17B testing (front): match processes end their match after this many seconds, 0 = off.
+var mm_match_s: float = 0.0
 
 
 ## `--map test_course` selects the movement test course (no MapDef).
@@ -169,6 +185,26 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				if i + 1 < args.size():
 					i += 1
 					c.ticket = args[i].left(255)
+			"--mm-script-client":
+				if i + 1 < args.size():
+					i += 1
+					c.mm_script = args[i].validate_filename().left(16)
+			"--user":
+				if i + 1 < args.size():
+					i += 1
+					c.mm_user = args[i].left(32)
+			"--mm-team-size":
+				if i + 1 < args.size():
+					i += 1
+					c.mm_team_size = clampi(args[i].to_int(), 0, 5)
+			"--mm-pick-s":
+				if i + 1 < args.size():
+					i += 1
+					c.mm_pick_s = clampf(args[i].to_float(), 0.0, 120.0)
+			"--mm-match-s":
+				if i + 1 < args.size():
+					i += 1
+					c.mm_match_s = clampf(args[i].to_float(), 0.0, 7200.0)
 			"--front":
 				c.front = true
 				c.mode = Mode.DEDICATED

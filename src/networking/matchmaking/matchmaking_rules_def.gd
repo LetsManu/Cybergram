@@ -121,6 +121,12 @@ const BOT_PREFIX := "bot:"
 @export_range(60.0, 300.0) var remake_window_s: float = 180.0
 ## A started remake vote stays open this long (s). Safe range 15-60.
 @export_range(10.0, 90.0) var remake_vote_s: float = 30.0
+## W17B: a seat with no connection this long after the match start counts as
+## absent (remake trigger). Safe range 30-120.
+@export_range(10.0, 300.0) var no_show_s: float = 60.0
+## W17B: a player disconnected this long is reported as an abandon (leaver
+## penalty) unless they reconnect first. Safe range 60-600.
+@export_range(10.0, 1800.0) var abandon_after_s: float = 180.0
 ## Report categories (ids; the client localises them).
 @export var report_categories: Array[StringName] = [&"cheating", &"griefing", &"abusive_chat", &"afk", &"offensive_name"]
 ## Reports are deleted this many days after they were filed (PRIVACY.md).

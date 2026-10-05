@@ -65,6 +65,15 @@ signal match_built
 const POST_MATCH_S := 15.0
 var clock: SimClock
 var dedicated: bool = false
+## W17B front mode (--front): the connection loop, matchmaking and the supervisor.
+var front_server: FrontServer
+var front: MatchmakingFront
+var supervisor: MatchSupervisor
+var _front_enet: ENetTransport
+## W17B match process (--host-boot / --match-host): supervisor link + fair play.
+var host_agent: MatchHostAgent
+var host_runtime: MatchHostRuntime
+var _host_enet: ENetTransport
 var _quit_after_ticks: int = 0
 var _log_every_ticks: int = 0
 ## W14 perf: whole server.step() time over the current log window (microseconds).
@@ -104,8 +113,17 @@ func _ready() -> void:
 		GameSettings.shared().apply_look(look)
 	Engine.physics_ticks_per_second = net_config.tick_rate_hz
 	clock = SimClock.new(net_config.tick_rate_hz)
+	if launch_config != null and launch_config.mm_script != "":
+		_start_script_client()
+		return
 	if launch_config != null and launch_config.mode == LaunchConfig.Mode.CLIENT:
 		_setup_remote_client()
+		return
+	if dedicated and launch_config != null and launch_config.front:
+		_start_front()
+		return
+	if dedicated and launch_config != null and launch_config.match_host:
+		_start_match_host()
 		return
 	if dedicated and launch_config != null and launch_config.port > 0 and not launch_config.no_lobby:
 		_start_lobby()
@@ -398,6 +416,29 @@ func _apply_debug_capture() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if front_server != null:
+		_step_front(delta)
+		return
+	if host_agent != null:
+		var mono := Time.get_ticks_msec() / 1000.0
+		host_agent.tick(mono)
+		if host_runtime != null:
+			host_runtime.tick(mono)
+		if host_agent.should_exit():
+			print("[match-host] exiting (result acknowledged or shut down)")
+			host_agent.close()
+			if _host_enet != null:
+				_host_enet.close()
+			host_agent = null
+			get_tree().quit()
+			return
+		if server == null:
+			_lobby_ticks += 1
+			if _quit_after_ticks > 0 and _lobby_ticks >= _quit_after_ticks:
+				get_tree().quit()
+			return  # waiting for the match setup
+	if launch_config != null and launch_config.mm_script != "" and remote == null:
+		return  # scripted client: no match until the front assigns one
 	if lobby != null:
 		var l := lobby  # keeps the lobby alive while _on_lobby_started drops it
 		l.step(delta)
@@ -531,6 +572,8 @@ func _setup_remote_client() -> void:
 		client.wardlings.rules = wardling_rules
 	HeroPlayHistory.track(client, player_hero)  # W15-UX: local hero play history
 	client.match_ended.connect(func(_w: int, _r: int) -> void:
+		if lc.mm_script != "" or lc.ticket != "":
+			return  # matchmade: the front reports the result; the menu / script handles it
 		get_tree().create_timer(POST_MATCH_S - 3.0).timeout.connect(func() -> void:
 			if not is_inside_tree():
 				return  # the player already left through the match-end screen
@@ -575,6 +618,8 @@ func _watch_remote() -> void:
 		push_warning("[client] %s" % remote_status)
 		remote.close()
 		set_physics_process(false)
+		if launch_config.mm_script != "":
+			return  # the scripted client waits for the front's verdict
 		AppRoot.back_to_menu(get_tree(), remote_status)
 
 
@@ -587,19 +632,7 @@ func _start_lobby() -> void:
 	var tls := auth.load_server_tls()
 	_lobby_enet = ENetTransport.listen(launch_config.port, launch_config.max_clients, tls)
 	if _lobby_enet.error_text == "":
-		var store: AccountStore = null
-		if tls != null:
-			store = FileAccountStore.new(auth.data_dir)
-			if store.open() != OK:
-				push_error("[accounts] cannot open the account store in %s" % auth.data_dir)
-				store = null
-		var svc := AccountService.configure_shared(store, AuthConfig.rules(), tls != null and store != null,
-			auth.allow_guests)
-		if store != null:
-			print("[accounts] encrypted login enabled (%d account(s) in %s); guests %s" % [store.count(),
-				auth.data_dir, "allowed" if svc.allow_guests else "off (login required)"])
-		else:
-			print("[accounts] %s; guest-only (login disabled)" % (auth.tls_error if tls == null else "no account store"))
+		_open_accounts(auth, tls)
 	if _lobby_enet.error_text != "":
 		push_error("GameSession: %s" % _lobby_enet.error_text)
 		get_tree().quit(1)
@@ -629,3 +662,254 @@ func _on_lobby_started(slots: Array) -> void:
 			get_tree().create_timer(POST_MATCH_S).timeout.connect(func() -> void:
 				enet.close()
 				get_tree().reload_current_scene()))
+
+
+## Accounts for an online server (lobby or front): file store with DTLS,
+## else guest-only. Returns the process-wide AccountService.
+func _open_accounts(auth: AuthConfig, tls: TLSOptions) -> AccountService:
+	var store: AccountStore = null
+	if tls != null:
+		store = FileAccountStore.new(auth.data_dir)
+		if store.open() != OK:
+			push_error("[accounts] cannot open the account store in %s" % auth.data_dir)
+			store = null
+	var svc := AccountService.configure_shared(store, AuthConfig.rules(), tls != null and store != null,
+		auth.allow_guests)
+	if store != null:
+		print("[accounts] encrypted login enabled (%d account(s) in %s); guests %s" % [store.count(),
+			auth.data_dir, "allowed" if svc.allow_guests else "off (login required)"])
+	else:
+		print("[accounts] %s; guest-only (login disabled)" % (auth.tls_error if tls == null else "no account store"))
+	return svc
+
+
+# --- W17B front (--front) ---------------------------------------------------------
+
+## Front mode: accounts, parties, queues, picks and the match supervisor on the
+## UDP port; matches run in supervised processes (docs/HOSTING.md).
+func _start_front() -> void:
+	var lc := launch_config
+	var auth := AuthConfig.from_os()
+	var tls := auth.load_server_tls()
+	_front_enet = ENetTransport.listen(lc.port if lc.port > 0 else LaunchConfig.DEFAULT_PORT, lc.max_clients, tls)
+	if _front_enet.error_text != "":
+		push_error("GameSession: %s" % _front_enet.error_text)
+		get_tree().quit(1)
+		return
+	var accounts := _open_accounts(auth, tls)
+	var rules := front_rules(MatchmakingRulesDef.load_default(), lc)
+	var base := auth.data_dir.get_base_dir()
+	var ratings_dir := _env_or("CYBERGRAM_RATINGS_DIR", base.path_join("ratings"))
+	var reports_dir := _env_or("CYBERGRAM_REPORTS_DIR", base.path_join("reports"))
+	var mm_dir := _env_or("CYBERGRAM_MM_DIR", base.path_join("matchmaking"))
+	var store := FileRatingStore.new(ratings_dir)
+	if store.open() != OK:
+		push_error("[front] cannot open the rating store in %s" % ratings_dir)
+	var reports := ReportStore.new(reports_dir, rules)
+	reports.open()
+	var history := MatchHistoryStore.new(mm_dir, rules)
+	history.open()
+	var hc := HostingConfig.from_env()
+	var chan := HostChannelUdp.new()
+	if chan.open_server(0) != OK:
+		push_error("[front] cannot open the supervisor channel")
+		get_tree().quit(1)
+		return
+	var files := MatchHostFiles.new()
+	files.prepare()
+	var engine_args := PackedStringArray(["--headless"])
+	if not OS.has_feature("template"):
+		engine_args.append_array(["--path", ProjectSettings.globalize_path("res://")])  # running from source
+	supervisor = MatchSupervisor.new(hc, MatchProcessLauncher.new("", engine_args), chan, files, TicketKeyRing.from_env())
+	front = MatchmakingFront.new(_front_enet, accounts, supervisor, RatingService.new(store, rules), reports, history,
+		rules, mm_dir)
+	if lc.match_clock != 1.0:
+		front.setup_rules["match_clock"] = lc.match_clock
+	if lc.mm_match_s > 0.0:
+		front.setup_rules["end_after_s"] = lc.mm_match_s
+	front.rate_guests = OS.get_environment("CYBERGRAM_RATE_GUESTS").to_lower() in ["1", "true", "yes", "on"]
+	front.housekeeping(front.now())
+	front_server = FrontServer.new(_front_enet, accounts, front)
+	supervisor.drained.connect(func() -> void:
+		print("[front] drained: exiting")
+		_front_enet.close()
+		get_tree().quit())
+	Engine.max_fps = net_config.tick_rate_hz * 2
+	print("[front] listening on UDP %d: build %s, match ports %d-%d, capacity %d, warm pool %d" % [
+		lc.port if lc.port > 0 else LaunchConfig.DEFAULT_PORT, hc.build_version, hc.port_first, hc.port_last,
+		hc.capacity(), hc.warm_pool])
+	print("[front] data: ratings %s, reports %s, matchmaking %s" % [ratings_dir, reports_dir, mm_dir])
+
+
+## The data rules with the testing overrides of `lc` (--mm-team-size, --mm-pick-s).
+static func front_rules(base: MatchmakingRulesDef, lc: LaunchConfig) -> MatchmakingRulesDef:
+	if lc == null or (lc.mm_team_size <= 0 and lc.mm_pick_s <= 0.0):
+		return base
+	var r := base.duplicate(true) as MatchmakingRulesDef
+	if lc.mm_team_size > 0:
+		var qs: Array[MatchQueueDef] = []
+		for q in base.queues:
+			var c := q.duplicate() as MatchQueueDef
+			if c.team_size == 5 and c.matchmade:
+				c.team_size = lc.mm_team_size
+				c.lane_slots = [] if lc.mm_team_size < 5 else c.lane_slots
+			qs.append(c)
+		r.queues = qs
+		var order := PackedInt32Array([1])
+		var left := lc.mm_team_size * 2 - 1
+		while left > 0:
+			order.append(mini(2, left))
+			left -= mini(2, left)
+		r.draft_order = order
+	if lc.mm_pick_s > 0.0:
+		r.pick_turn_s = lc.mm_pick_s
+		r.all_random_s = lc.mm_pick_s * 2.0
+	return r
+
+
+static func _env_or(key: String, fallback: String) -> String:
+	var v := OS.get_environment(key).strip_edges()
+	return v if v != "" else fallback
+
+
+func _step_front(delta: float) -> void:
+	front_server.step(delta)
+	supervisor.tick(Time.get_ticks_msec() / 1000.0)
+	_lobby_ticks += 1
+	if _quit_after_ticks > 0 and _lobby_ticks >= _quit_after_ticks:
+		print("[front] quit after %d ticks" % _lobby_ticks)
+		supervisor.shutdown_now("front_exit")
+		_front_enet.close()
+		get_tree().quit()
+
+
+func _exit_tree() -> void:
+	if supervisor != null:
+		supervisor.shutdown_now("front_exit")  # never leave match processes behind
+
+
+# --- W17B match process (--host-boot) -----------------------------------------------
+
+## Match process: report Ready to the supervisor, wait for the match setup,
+## then build the match directly (no lobby). Clients join with join tickets.
+func _start_match_host() -> void:
+	host_agent = MatchHostAgent.from_cmdline(OS.get_cmdline_user_args())
+	if host_agent == null:
+		push_error("[match-host] not started by a supervisor (no valid --host-boot)")
+		get_tree().quit(2)
+		return
+	_host_enet = ENetTransport.listen(host_agent.port(), launch_config.max_clients, AuthConfig.from_os().load_server_tls())
+	if _host_enet.error_text != "":
+		push_error("[match-host] %s" % _host_enet.error_text)
+		get_tree().quit(1)
+		return
+	match_pending = true
+	Engine.max_fps = net_config.tick_rate_hz * 2
+	host_agent.allocated.connect(_on_host_allocated)
+	host_agent.mark_ready()
+	print("[match-host] slot %d ready on UDP %d (build %s)" % [int(host_agent.boot.slot), host_agent.port(),
+		host_agent.build()])
+
+
+func _on_host_allocated(setup: Dictionary) -> void:
+	var r: Dictionary = setup.get("rules", {})
+	var md := load_map_def(str(setup.map))
+	if md != null and md.scene != null:
+		map_def = md
+		map_scene = md.scene
+		if md.match_rules != null:
+			match_rules = md.match_rules
+	if r.has("team_size") and match_rules != null and int(r.team_size) != match_rules.team_size:
+		match_rules = match_rules.duplicate() as MatchRulesDef
+		match_rules.team_size = clampi(int(r.team_size), 1, 5)
+	if r.has("match_clock"):
+		launch_config.match_clock = clampf(float(r.match_clock), 0.1, 100.0)
+	launch_config.bots = true  # bots fill every seat not reserved for a human
+	_lobby_enet = _host_enet
+	_build_match()
+	var content := ContentDB.shared()
+	var token := 0
+	for e: Dictionary in setup.roster:
+		if bool(e.get("bot", false)):
+			continue
+		token += 1
+		var acc := str(e.account)
+		var hero := content.index_of(ContentDB.HERO, StringName(str(e.get("hero", ""))))
+		server.reserved_slots[token] = {"team": int(e.team), "hero_index": hero}
+		server.session.token_names[token] = {"name": str(e.get("name", "")), "id": acc, "accent": int(e.get("accent", 0))}
+		server.session.account_tokens[acc] = token
+		server.session.account_heroes[acc] = hero
+	server.session.mood_seed = int(r.get("mood_seed", 0))
+	server.session.ticket_verifier = func(t: String) -> Dictionary:
+		return host_agent.verify_ticket(t, Time.get_unix_time_from_system())
+	host_runtime = MatchHostRuntime.new(host_agent, setup, func(p: int, b: PackedByteArray) -> void:
+		_host_enet.send(p, Transport.CH_CONTROL, b))
+	host_runtime.stats_fn = _host_stats
+	server.session.mm_handler = func(p: int, d: PackedByteArray) -> void:
+		host_runtime.handle(p, d, Time.get_ticks_msec() / 1000.0)
+	_host_enet.peer_disconnected.connect(func(id: int) -> void:
+		host_runtime.on_leave(id, Time.get_ticks_msec() / 1000.0)
+		server.on_peer_left(id))
+	server.session.client_joined.connect(func(peer: int) -> void:
+		var acc := str(server.session.peer_accounts.get(peer, ""))
+		host_runtime.on_join(peer, acc, Time.get_ticks_msec() / 1000.0)
+		print("[match-host] player #%s joined (peer %d)" % [PlayerProfile.tag_of(acc), peer]), CONNECT_DEFERRED)
+	host_runtime.start(Time.get_ticks_msec() / 1000.0)
+	if server.match_flow != null:
+		server.match_flow.match_ended.connect(func(w: int, _reason: int) -> void:
+			print("[match-host] match over: winner team %d" % w)
+			host_runtime.finish(w, Time.get_ticks_msec() / 1000.0))
+	print("[match-host] match %s started: map %s, %d human seat(s), mood %d" % [str(setup.match_id), str(setup.map),
+		token, server.session.mood_seed])
+	match_pending = false
+	match_built.emit()
+
+
+## Per-player stats for the result report (ids and numbers only).
+func _host_stats() -> Array:
+	var out: Array = []
+	for e: Dictionary in host_agent.setup.get("roster", []):
+		if bool(e.get("bot", false)):
+			continue
+		var acc := str(e.account)
+		var h: HeroBody = server.token_heroes.get(server.session.account_tokens.get(acc, 0)) if server != null else null
+		var row := {"account": acc, "team": int(e.team), "hero": str(e.get("hero", "")), "kills": 0, "deaths": 0,
+			"assists": 0}
+		if h != null and is_instance_valid(h):
+			row.kills = int(server.stats.value(h.net_id, MatchStats.Stat.KILLS))
+			row.deaths = int(server.stats.value(h.net_id, MatchStats.Stat.DEATHS))
+			row.assists = int(server.stats.value(h.net_id, MatchStats.Stat.ASSISTS))
+		out.append(row)
+	return out
+
+
+# --- W17B scripted client (--mm-script-client) ----------------------------------------
+
+func _start_script_client() -> void:
+	var lc := launch_config
+	var sc := MatchmakingScriptClient.new()
+	sc.session = self
+	sc.scenario = lc.mm_script
+	sc.user = lc.mm_user if lc.mm_user != "" else "Script"
+	sc.address = lc.connect_address if lc.connect_address != "" else "127.0.0.1"
+	sc.port = lc.port if lc.port > 0 else LaunchConfig.DEFAULT_PORT
+	add_child(sc)
+
+
+## Joins a matchmade match process (the menu or the scripted client calls it
+## after MATCH_ASSIGNED): this session becomes a remote client with the ticket.
+func join_matchmade(host: String, port: int, ticket: String, hero_index: int, map_name: String) -> void:
+	var lc := launch_config
+	lc.mode = LaunchConfig.Mode.CLIENT
+	lc.connect_address = host
+	lc.port = port
+	lc.ticket = ticket
+	var id := ContentDB.shared().id_at(ContentDB.HERO, hero_index)
+	if id != &"" and ResourceLoader.exists(HERO_PATH % String(id).trim_prefix("hero_")):
+		player_hero = load(HERO_PATH % String(id).trim_prefix("hero_")) as HeroDef
+	if map_name != "":
+		var md := load_map_def(map_name)
+		if md != null and md.scene != null:
+			map_def = md
+			map_scene = md.scene
+	_setup_remote_client()

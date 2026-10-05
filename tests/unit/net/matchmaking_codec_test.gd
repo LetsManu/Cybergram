@@ -47,7 +47,7 @@ func _evt_samples() -> Dictionary:
 			"rerolls": 1, "bench": [3, 5], "swap_from": [2]},
 		MatchmakingCodec.EV_MATCH_ASSIGNED: {"host": "play.example.org", "port": 7801,
 			"ticket": "cgt1.k1.%s.abcdef0123456789abcdef01.1999999999.%s.%s" % [ID_A, ID_B, ID_A + ID_B],
-			"match": "abcdef0123456789abcdef01", "team": 1, "hero": 4},
+			"match": "abcdef0123456789abcdef01", "team": 1, "hero": 4, "map": "slice"},
 		MatchmakingCodec.EV_RANKED_INFO: {"tracks": [{"track": 1, "rating": 1734, "games_left": 0, "band": 4,
 			"division": 1}]},
 		MatchmakingCodec.EV_LOCKOUT: {"seconds": 600, "ranked": 1, "reason": 1},
