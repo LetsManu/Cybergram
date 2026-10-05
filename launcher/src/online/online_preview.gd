@@ -23,9 +23,22 @@ static func apply(main: Node, state: String) -> void:
 			var sc: SupportCard = main.get("_support")
 			if sc != null:
 				sc.create(false)
+				_scroll_to(main, sc)
 		"crash":
 			var cr: CrashReporter = main.get("_crash")
 			if cr != null:
 				cr.prompt(11, true)
 		"privacy":
 			main.call("_show_page", "settings")
+			_scroll_to(main, main.get("_privacy"))
+
+
+## Scrolls the settings page so `c` is in view (it may sit under other cards).
+static func _scroll_to(main: Node, c: Control) -> void:
+	var pages: Dictionary = main.get("_pages")
+	var sc: ScrollContainer = pages.get("settings") as ScrollContainer
+	if sc == null or c == null:
+		return
+	await main.get_tree().process_frame
+	await main.get_tree().process_frame
+	sc.scroll_vertical = int(c.global_position.y - sc.global_position.y + sc.scroll_vertical - 20)

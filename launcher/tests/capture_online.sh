@@ -25,8 +25,8 @@ pids+=($!)
 pids+=($!)
 for _ in $(seq 1 60); do grep -q "open on UDP 7795" "$tmp/server.log" && break; sleep 0.5; done
 printf '[launcher]\nversion_url="http://127.0.0.1:8092/version.json"\ngame_server="127.0.0.1:7795"\nclose_on_launch=false\n' > "$tmp/l.cfg"
-extra=""
-[[ "$state" != "status" ]] && extra="--online-preview $state"
+extra="--page home"  # skips the UX first-run system check dialog
+[[ "$state" != "status" ]] && extra="$extra --online-preview $state"
 HOME="$tmp/home" XDG_DATA_HOME="$tmp/home/.local/share" xvfb-run -a -s "-screen 0 ${CAP_RES:-1280x720}x24" timeout 90 "$godot" --path "$here" --rendering-driver opengl3 --resolution ${CAP_RES:-1280x720} \
   --write-movie "$tmp/frames/f.png" --quit-after "${FRAMES:-240}" -- --config "$tmp/l.cfg" --install-root "$tmp/inst" \
   --settings "$tmp/settings.cfg" --no-launch $extra > "$tmp/launcher.log" 2>&1
