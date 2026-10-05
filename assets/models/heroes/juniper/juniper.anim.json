@@ -12,17 +12,17 @@
   },
   "run": {
    "frames": 25,
-   "speed": 2.741,
+   "speed": 2.491,
    "trial": "16_35"
   },
   "run_back": {
    "frames": 36,
-   "speed": 1.099,
+   "speed": 0.998,
    "trial": "16_15"
   },
   "walk": {
    "frames": 36,
-   "speed": 1.099,
+   "speed": 0.998,
    "trial": "16_15"
   }
  },

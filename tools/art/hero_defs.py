@@ -468,3 +468,8 @@ import hero_defs_gen_a  # noqa: E402  (W16-HERO-A: Ryker, Brannoc, Hex on the be
 
 HEROES.update(hero_defs_gen_a.HEROES)
 WEAPONS.update(hero_defs_gen_a.WEAPONS)
+
+import hero_defs_gen_b  # noqa: E402  (W16-HERO-B: Liora, Sable, Juniper on the bespoke pipeline)
+
+HEROES.update(hero_defs_gen_b.HEROES)
+WEAPONS.update(hero_defs_gen_b.WEAPONS)

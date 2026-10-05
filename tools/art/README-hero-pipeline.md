@@ -98,6 +98,13 @@ ankles, soles, back of the head).
 - **Highlights and ink:** `edge` (convex edge strokes), `ink`, `ink_border`, `ink_px`
   (colour-block borders), `grit`.
 - **Normals and UVs:** `normal_bump` (detail-only normal map), `uv_margin`.
+- **Masks and helmets (W16-B):** `uv_head` scales the Head-bone UV islands before the pack
+  (1.6 = 2.6x the texels on the mask); `detail` is a `fn(ctx)` hook that paints markings,
+  wear, scratches, sheen (mask G) and emissive lines onto the flat colours before the
+  painted light, using `tools/art/mask_paint.py` (Region, line, blob, edge_wear,
+  scratches, crack). Colour-border ink follows the modelled colour blocks, never the
+  painted detail. Examples: `vesper_mask_paint`, `liora_paint`, `sable_paint`,
+  `juniper_paint` (`hero_defs_gen_b.py`). Close-ups: `render_hero_extra.gd -- --close`.
 
 The output keeps the W14 contract (`<key>_albedo/_normal/_mask.png`, mask R AO, G spec,
 B emissive, A team), so `spatial_char_toon_rigged` and `RiggedHeroModel._bind_maps` are
@@ -107,7 +114,10 @@ unchanged. A lite install without the `heroes_hd` pack still falls back to flat 
 `{"part", "kind": "skirt", "top", "hem", "offset", "flare", "clear", "open_front",
 "slits": [(deg, frac)], "chains": [(name, deg)], "bones", "rows", "col_deg", "thick",
 "colors": {outer, inner, hem, trim}, "sim": {...}}`. Angles: 0 = front, +90 = the hero's
-right. Chains must not sit on a slit. Keep the total at 42 bones or fewer (20 body +
+right. Capes, mantles and scarves: `"parent": "UpperChest"` and `"around"` (the torso bones the
+clearance rays hit; leave the shoulders out or the top rows fold). Closed rings
+(`open_front` 0) can take `"convex": True` (no dent between the legs) and get four UV
+seams automatically. Chains must not sit on a slit. Keep the total at 42 bones or fewer (20 body +
 Weapon + chains x bones). A part is cloth OR `Sec_` spring, never both.
 
 ## Budgets and checks (Vesper)
@@ -143,5 +153,8 @@ the tri budget, clips, cloth bones and death_back).
 - **Strap colour picks the bake class.** `hero_hd.strap` with a palette colour is a
   "soft part"; gold reads as metal (spec band) through `hero_hd.METAL`.
 - **`subdiv: 2` breaks the 30k budget once gear is added.** Add detail as parts instead.
+- **Thin clipped-sphere rings and folded garment rows unwrap into giant UV islands** (one
+  took Sable's atlas to 51 %). Use a torus for rims; degenerate garment faces are dissolved
+  before the unwrap.
 - **Big flat dark areas break the art-bible value rule.** Keep the bodysuit mid-dark and
   saturated (Vesper `#3D2C5F`), never ink black.

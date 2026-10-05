@@ -11,6 +11,7 @@ Space: Blender metres, X = character right, Y = forward, Z = up, feet at Z = 0.
 """
 import math
 
+import numpy as np
 from mathutils import Matrix, Vector
 
 import hero_defs
@@ -72,10 +73,16 @@ def vesper_parts(h):
     hr = (hi - lo) / 2
     eye_z = (h.eye("L").z + h.eye("R").z) / 2
     skin = hero_hd.BodySkin(h)
-    # --- porcelain marionette mask: smooth oval, hinge lines, gold seam + glyph, violet slits.
+    # --- porcelain marionette mask (W16-B upgrade): sculpted brow and cheek planes, a hinged
+    # marionette jaw plate with gold pivots, layered eye slits (gold rim, ink socket, violet
+    # glow), a gold filigree crest with a violet gem and a gold rim band. Painted on top
+    # (vesper_mask_paint): kintsugi cracks, tear streaks, lash wedges, sheen, edge wear.
     mc = Vector((0, hc.y + hr.y * 0.2, hc.z - 0.01))
     rad = Vector((hr.x * 1.04, hr.y * 0.95, hr.z * 1.02))
-    h.sphere("Head", mc, rad, "white", seg=(20, 14), clip=[((0, -0.1, 0), (0, -1, 0))])
+    h.sphere("Head", mc, rad, "white", seg=(24, 16), clip=[((0, -0.1, 0), (0, -1, 0))])
+    # gold rim band where the porcelain meets the hood
+    h.sphere("Head", mc + Vector((0, -0.004, 0)), rad * 1.035, "gold", seg=(24, 16),
+             clip=[((0, -0.1, 0), (0, -1, 0)), ((0, 0.05, 0), (0, 1, 0))])
 
     def on_mask(x, z, out=0.003):
         q = 1.0 - (x / rad.x) ** 2 - ((z - mc.z) / rad.z) ** 2
@@ -85,22 +92,64 @@ def vesper_parts(h):
 
     def yaw(nrm):
         return -math.degrees(math.atan2(nrm.x, nrm.y))
+
+    def pitch(nrm):
+        return math.degrees(math.atan2(nrm.z, math.hypot(nrm.x, nrm.y)))
+    jaw_z = eye_z - 0.052 * k                      # top of the marionette jaw plate (mouth line)
     for sx in (-1, 1):
+        # sculpted brow ridge over the slit (outer end lifted) and a cheek plane below it
+        p, nrm = on_mask(sx * 0.036 * k, eye_z + 0.024 * k, -0.004)
+        h.sphere("Head", p, Vector((0.034, 0.012, 0.009)) * k, "white", seg=(12, 6),
+                 rot=(-pitch(nrm), sx * 12, yaw(nrm)))
+        p, nrm = on_mask(sx * 0.048 * k, eye_z - 0.032 * k, -0.0065)
+        h.sphere("Head", p, Vector((0.021, 0.0095, 0.026)) * k, "white", seg=(12, 6),
+                 rot=(-pitch(nrm), -sx * 8, yaw(nrm)))
+        # layered eye slit: gold rim, ink socket, small violet glow
         p, nrm = on_mask(sx * 0.036 * k, eye_z + 0.004)
-        h.box("Head", p, (0.046 * k, 0.01, 0.008 * k), "violet", "emit", rot=(0, -sx * 16, yaw(nrm)), bevel=0.3)
-        # marionette hinge lines: mouth corner -> jaw
+        r = (-pitch(nrm), -sx * 16, yaw(nrm))
+        h.box("Head", p, (0.05 * k, 0.008, 0.017 * k), "gold", rot=r, bevel=0.45)
+        h.box("Head", p + nrm * 0.003, (0.043 * k, 0.008, 0.011 * k), "ink", rot=r, bevel=0.45)
+        h.box("Head", p + nrm * 0.0055, (0.032 * k, 0.006, 0.0045 * k), "violet", "emit", rot=r, bevel=0.45)
+        # marionette hinge lines: ink grooves from the mouth corner down to the chin
         for i in range(3):
-            z = eye_z - (0.06 + i * 0.022) * k
-            p, nrm = on_mask(sx * (0.026 + i * 0.002) * k, z)
-            h.box("Head", p, (0.005 * k, 0.006, 0.024 * k), "ink", rot=(0, 0, yaw(nrm)), bevel=0.2)
-        p, nrm = on_mask(sx * 0.05 * k, eye_z - 0.03 * k)  # painted cheek diamond
-        h.box("Head", p, (0.012 * k, 0.004, 0.012 * k), "gold", rot=(0, 45, yaw(nrm)), bevel=0.2)
-    for i in range(5):
-        z = eye_z - 0.03 * k + (i - 2) * 0.03 * k
-        p, nrm = on_mask(0.0, z, 0.002)
-        h.box("Head", p, (0.006 * k, 0.008, 0.032 * k), "gold", bevel=0.2)
-    p, nrm = on_mask(0.0, eye_z + 0.055 * k)
-    h.box("Head", p, (0.026 * k, 0.008, 0.026 * k), "gold", rot=(0, 45, 0), bevel=0.2)
+            z = jaw_z - (0.012 + i * 0.022) * k
+            p, nrm = on_mask(sx * (0.025 + i * 0.0015) * k, z, 0.004)
+            h.box("Head", p, (0.0045 * k, 0.006, 0.025 * k), "ink", rot=(-pitch(nrm), 0, yaw(nrm)), bevel=0.2)
+        # gold jaw pivot pin at the mouth corner
+        p, nrm = on_mask(sx * 0.026 * k, jaw_z, 0.004)
+        h.cyl("Head", p - nrm * 0.004, p + nrm * 0.004, 0.0065 * k, 0.0065 * k, "gold", seg=10)
+        # temple studs where the mask is pinned to the hood
+        p, nrm = on_mask(sx * rad.x * 0.86, eye_z + 0.01 * k, 0.002)
+        h.sphere("Head", p, Vector((0.007, 0.007, 0.007)) * k, "gold", seg=(8, 5))
+    # hinged jaw plate: a proud copy of the porcelain below the mouth line, between the hinges
+    zc = (jaw_z - mc.z) / rad.z
+    h.sphere("Head", mc + Vector((0, 0.002, 0)), rad * 1.02, "white", seg=(24, 16),
+             clip=[((0, -0.05, 0), (0, -1, 0)), ((0, 0, zc), (0, 0, 1)), ((0.33, 0, 0), (1, 0, 0)),
+                   ((-0.33, 0, 0), (-1, 0, 0))])
+    p, nrm = on_mask(0.0, jaw_z, 0.004)              # mouth line
+    h.box("Head", p, (0.05 * k, 0.006, 0.0035 * k), "ink", rot=(-pitch(nrm), 0, 0), bevel=0.2)
+    # gold filigree crest: diamond with a violet gem, scroll arms over the brows, curls
+    p, nrm = on_mask(0.0, eye_z + 0.058 * k, 0.002)
+    h.box("Head", p, (0.03 * k, 0.012, 0.03 * k), "gold", rot=(-pitch(nrm), 45, 0), bevel=0.3)
+    h.sphere("Head", p + nrm * 0.008, Vector((0.007, 0.006, 0.009)) * k, "violet", "emit", seg=(8, 5))
+    p2, n2 = on_mask(0.0, eye_z + 0.03 * k, 0.003)  # drop below the diamond
+    h.box("Head", p2, (0.012 * k, 0.008, 0.012 * k), "gold", rot=(-pitch(n2), 45, 0), bevel=0.3)
+    for sx in (-1, 1):
+        prev = None
+        for i in range(6):
+            t = i / 5.0
+            x = sx * (0.012 + 0.05 * t) * k
+            z = eye_z + (0.056 - 0.012 * t + 0.016 * math.sin(t * math.pi)) * k
+            p, nrm = on_mask(x, z, 0.002)
+            if prev is not None:
+                mid = (prev + p) / 2
+                h.box("Head", mid, (((p - prev).length + 0.002), 0.005, 0.0045 * k), "gold",
+                      rot=(-pitch(nrm), -math.degrees(math.atan2(p.z - prev.z, abs(p.x - prev.x))) * sx, yaw(nrm)),
+                      bevel=0.3)
+            prev = p
+        for (x, z, R) in ((0.064, 0.044, 0.008), (0.03, 0.074, 0.006)):
+            p, nrm = on_mask(sx * x * k, eye_z + z * k, 0.002)
+            h.torus("Head", p, nrm, R * k, 0.0022 * k, "gold", seg=(12, 4))
     # --- sharp A-line bob over the hood + gold-wrapped braid.
     bc = Vector((0, hc.y - 0.006, hc.z + 0.012))
     h.sphere("Head", bc, Vector((hr.x * 1.2, hr.y * 1.14, hr.z * 1.1)), "hair", seg=(18, 12),
@@ -185,6 +234,48 @@ def vesper_parts(h):
         h.cyl(None, cr, end, 0.004 * k, 0.003 * k, "team", "team_emit", seg=4, weights=thread_w, caps=False)
 
 
+def vesper_mask_paint(ctx):
+    """Painted porcelain (W16-B): gold kintsugi cracks with an ink edge, violet tear streaks,
+    plum lash wedges over the slits, a porcelain sheen in the mask G, fine edge wear and
+    hairline scratches. Works in the mask's normalised front projection (mask_paint.Region)."""
+    import mask_paint as mp
+    pal = HEROES["vesper"]["palette"]
+    m = mp.Region(ctx, [pal["white"]], zmin=1.4 * ctx["k"], front=0.05)
+    if len(m) == 0:
+        return
+    x0, x1, z0, z1 = m.box                         # the slits: violet glow pixels inside the mask box
+    eye = mp.Region(ctx, [pal["violet"]], zmin=z0, zmax=z1, front=0.3, box=m.box)
+    inb = np.abs(eye.u) < 0.9
+    eu = float(np.median(np.abs(eye.u[inb]))) if inb.any() else 0.45
+    ev = float(np.median(eye.v[inb])) if inb.any() else 0.1
+    print("vesper mask paint: %d px, slits at u %.2f v %.2f" % (len(m), eu, ev))
+    m.sheen(0.3)
+    m.edge_wear(mp.rgb("#D8CCB4"), amount=0.7, freq=55.0, seed=4)
+    m.scratches(mp.rgb("#C9BFAE"), count=22, length=0.14, width=0.009, seed=7, strength=0.45)
+    gold, ink = mp.rgb(pal["gold"]), mp.rgb("#1A1220")
+    lines = mp.crack((-0.30, 0.98), (-0.62, -0.55), seed=11, steps=8, jitter=0.18, branches=3, blen=0.32)
+    lines += mp.crack((0.58, -0.92), (0.22, -0.08), seed=5, steps=6, jitter=0.2, branches=2, blen=0.25)
+    lines += mp.crack((0.86, 0.5), (0.62, 0.3), seed=9, steps=3, jitter=0.15, branches=0)
+    w_ink = np.zeros(len(m), dtype=np.float32)
+    w_gold = np.zeros(len(m), dtype=np.float32)
+    for i, ln in enumerate(lines):
+        wd = 0.04 if i == 0 else 0.03
+        w_ink = np.maximum(w_ink, m.line(ln, wd * 2.3))
+        w_gold = np.maximum(w_gold, m.line(ln, wd))
+    m.paint(w_ink, ink, noink=1.0)
+    m.paint(w_gold, gold, spec=0.95, noink=1.0)
+    for sx in (-1, 1):
+        u = sx * eu
+        tl = [(u + sx * 0.04, ev - 0.14), (u + sx * 0.05, ev - 0.38), (u + sx * 0.035, ev - 0.56)]
+        tear = np.maximum(m.line(tl, 0.075), m.blob(u + sx * 0.035, ev - 0.62, 0.055, 0.075, sharp=0.2))
+        m.paint(np.maximum(m.line(tl, 0.115), m.blob(u + sx * 0.035, ev - 0.62, 0.08, 0.1, sharp=0.2)), ink,
+                noink=1.0)
+        m.paint(tear, mp.rgb("#8E4FE0"), noink=1.0)
+        ll = [(u - sx * 0.24, ev + 0.13), (u, ev + 0.21), (u + sx * 0.32, ev + 0.26)]
+        m.paint(m.line(ll, 0.12), ink, noink=1.0)
+        m.paint(m.line(ll, 0.08), mp.rgb(pal["plum"]), noink=1.0)
+
+
 def threadcaster(h, W):
     """Vesper's own Threadcaster (W16): a one-hand loom carbine. Receiver shaped like a
     weaving shuttle, a gold spool drum with a violet core, thread guides along a needle
@@ -252,7 +343,9 @@ HEROES = {
         # Painted hatching is sparse; the runtime shader hatch is turned down so it
         # does not double up (per-hero shader overrides -> <id>_anim.tres metadata).
         "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05,
-                  "shader": {"hatch_strength": 0.1}},
+                  "shader": {"hatch_strength": 0.1},
+                  # W16-B mask upgrade: more texels on the head, painted porcelain detail.
+                  "uv_head": 1.6, "detail": lambda ctx: vesper_mask_paint(ctx)},
         "palette": {"plum": "#8E3FB4", "gold": "#F5B83A", "ink": "#3D2C5F", "chrome": "#C9D4E2",
                     "violet": "#B57DFF", "hair": "#30234A", "glove": "#5A4483", "trim": "#4A2260",
                     "team": TEAM, "white": "#F4EEE2", "eye": "#1A1220",

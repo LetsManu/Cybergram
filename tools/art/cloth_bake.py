@@ -30,6 +30,10 @@ Garment spec ("cloth" list in the hero def), angles in degrees with 0 = front
   colors      {"outer", "inner", "hem", "trim"} palette names
   hem_rows    rows of the layered hem band (default 2); trim_cols: front edge trim
   sim         overrides of SIM (Blender cloth settings)
+  parent      bone the chain roots hang from (default Hips); around: body bones the
+              clearance rays hit (default hips + legs; capes and scarves add the chest)
+  convex      closed rings only: radius from the convex hull of the body section, so a
+              closed skirt never dents between the legs (the legs would pierce it)
 """
 import math
 import time
@@ -96,7 +100,8 @@ def _skirt(h, spec):
     yc = hips.y
     z_top = hips.z + spec.get("top", 0.03) * k
     z_hem = spec.get("hem", 0.45) * k
-    bvh = hero_hd.body_bvh(h, ("Hips", "Spine", "Chest", "UpperLeg_L", "UpperLeg_R", "LowerLeg_L", "LowerLeg_R"))
+    bvh = hero_hd.body_bvh(h, tuple(spec.get("around", ("Hips", "Spine", "Chest", "UpperLeg_L", "UpperLeg_R",
+                                                         "LowerLeg_L", "LowerLeg_R"))))
 
     def body_r(z, a):
         d = Vector((math.sin(a), math.cos(a), 0.0))
@@ -111,6 +116,9 @@ def _skirt(h, spec):
         rr = top_r + spec.get("flare", 0.1) * k * f ** 1.3
         need = np.array([body_r(z, a) for a in ang]) + spec.get("clear", 0.02) * k
         rr = np.maximum(rr, need)
+        if spec.get("convex") and closed:  # closed rings wrap the legs' hull (no dent between the knees)
+            dc = np.cos(ang[:, None] - ang[None, :])
+            rr = np.max(np.where(dc > 0, rr[None, :] * dc, 0.0), axis=1)
         for _ in range(6):  # a garment bridges the gaps between the legs
             nb_ = np.roll(rr, 1) * 0.5 + np.roll(rr, -1) * 0.5 if closed else np.concatenate(
                 [[rr[1]], (rr[:-2] + rr[2:]) * 0.5, [rr[-2]]])
@@ -274,6 +282,14 @@ def _emit(h, g, k):
                     f = bm.faces.new([outer[y], outer[x], inner[x], inner[y]])
                     _paint_face(f, h.pcol, h.puv, h.color(c_rim), "flat")
                     new.append(f)
+        if g.closed:  # a closed ring unwraps into an annulus that overlaps itself: cut it in four
+            cuts = {0, g.nc // 4, g.nc // 2, (3 * g.nc) // 4}
+            for (a, _b, _c, d), _r, cc in faces:
+                if cc in cuts:
+                    for store in (outer, inner):
+                        e = bm.edges.get([store[a], store[d]])
+                        if e is not None:
+                            e.seam = True
         for f in new:
             f[h.pkind] = KIND_SOFT
             f.smooth = True
