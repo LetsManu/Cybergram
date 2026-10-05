@@ -147,20 +147,28 @@ func _uplink(u: SnapshotData.UplinkState, team: int, x: float, bw: float, right:
 		chevron(Vector2(gx, mid), 8.0, col)
 	else:
 		diamond(Vector2(gx, mid), 7.0, col)
-	var nw := caps_width(name, 18, 0.24)
+	var pct := str(HudFormat.percent(frac))
+	var pw := text_width(pct, 30, ctx.font_numbers)
+	var sw := text_width("%", 16, ctx.font_numbers)
+	# Narrow blocks (720p floor scale): drop the YOU tag, then use a smaller name.
+	var yt := tr("HUD_YOU_TAG")
+	var yw := text_width(yt, 13, ctx.font_mono) + 10.0
+	var name_px := 18
+	var nw := caps_width(name, name_px, 0.24)
+	var room := bw - 22.0 - pw - sw - 12.0
+	var show_you := own and nw + yw <= room
+	if nw > room:
+		name_px = 15
+		nw = caps_width(name, name_px, 0.18)
 	var nx := gx - 14.0 - nw if right else gx + 14.0
-	caps(name, Vector2(nx, mid + 6.0), 18, col, 0.24)
+	caps(name, Vector2(nx, mid + 6.0), name_px, col, 0.24 if name_px == 18 else 0.18)
 	var tag_x := nx - 10.0 if right else nx + nw + 10.0
-	if own:
-		var yt := tr("HUD_YOU_TAG")
-		var tw := text_width(yt, 13, ctx.font_mono)
+	if show_you:
+		var tw := yw - 10.0
 		text(yt, Vector2(tag_x - tw if right else tag_x, mid + 5.0), 13, HudPalette.DIM, ctx.font_mono)
 		tag_x += -(tw + 10.0) if right else tw + 10.0
 	if u.exposed:
 		_exposed_tag(Vector2(tag_x, mid), col, right)
-	var pct := str(HudFormat.percent(frac))
-	var pw := text_width(pct, 30, ctx.font_numbers)
-	var sw := text_width("%", 16, ctx.font_numbers)
 	var px := x if right else x + bw - pw - sw
 	text(pct, Vector2(px, mid + 10.0), 30, HudPalette.IVORY, ctx.font_numbers)
 	text("%", Vector2(px + pw + 1.0, mid + 10.0), 16, HudPalette.MUTED, ctx.font_numbers)
