@@ -24,6 +24,10 @@ static func apply(main: Node, state: String) -> void:
 			if sc != null:
 				sc.create(false)
 				_scroll_to(main, sc)
+		"friends", "party":
+			var rail: OnlineRail = main.get("_rail")
+			if rail != null:
+				rail.social.show_sample(state == "party")
 		"crash":
 			var cr: CrashReporter = main.get("_crash")
 			if cr != null:

@@ -20,6 +20,7 @@ func _init() -> void:
 	_test_status()
 	_test_redaction()
 	_test_crash_consent()
+	_test_social()
 	print("launcher online tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)
 
@@ -149,3 +150,29 @@ func _test_crash_consent() -> void:
 	var login: LauncherLogin = LauncherLogin.new()
 	_check(not login.send_crash_report(PackedByteArray([1, 2, 3])), "crash: nothing sent without an encrypted link")
 	login.free()
+
+
+func _test_social() -> void:
+	var list: Array = [
+		{"id": "1", "status": 0, "relation": 0, "display_name": "zed"},
+		{"id": "2", "status": 3, "relation": 0, "display_name": "Bea"},
+		{"id": "3", "status": 1, "relation": 0, "display_name": "amy"},
+		{"id": "4", "status": 0, "relation": 1, "display_name": "Req"},
+		{"id": "5", "status": 0, "relation": 2, "display_name": "Out"},
+		{"id": "6", "status": 0, "relation": 3, "display_name": "Blk"},
+	]
+	var g: Dictionary = SocialView.group(list)
+	_check((g.friends as Array).map(func(e: Dictionary) -> String: return String(e.id)) == ["2", "3", "1"], "friends: sorted by presence")
+	_check((g.incoming as Array).size() == 1 and (g.outgoing as Array).size() == 1 and (g.blocked as Array).size() == 1, "friends: grouped")
+	var pr: Dictionary = SocialView.party_rows({"members": [
+		{"id": "m", "kind": AccountCodec.PARTY_MEMBER}, {"id": "l", "kind": AccountCodec.PARTY_LEADER},
+		{"id": "i", "kind": AccountCodec.PARTY_INVITE_IN}, {"id": "o", "kind": AccountCodec.PARTY_INVITE_OUT}]})
+	_check(String(pr.members[0].id) == "l" and (pr.members as Array).size() == 2, "party: leader first")
+	_check((pr.invites_in as Array).size() == 1 and (pr.invites_out as Array).size() == 1, "party: invites split")
+	_check(SocialView.action_text(AccountCodec.OP_PARTY_INVITE, AccountCodec.E_LIMIT) == "The party is full.", "party: full text")
+	_check(SocialView.action_text(AccountCodec.OP_FRIEND_REQUEST, AccountCodec.E_NOT_FOUND).begins_with("No player"), "friends: not found text")
+	# Party op round trip through the shared codec.
+	var b: PackedByteArray = AccountCodec.encode_result(AccountCodec.OP_PARTY, AccountCodec.OK, {"party": "ab".repeat(16),
+		"leader": "cd".repeat(16), "members": [{"id": "cd".repeat(16), "kind": 0, "status": 2, "display_name": "Lead", "emblem": 1, "accent": 2}]})
+	var d: Dictionary = AccountCodec.decode_result(b)
+	_check(String(d.members[0].display_name) == "Lead" and int(d.members[0].status) == 2, "party: codec round trip")

@@ -12,6 +12,7 @@ const TOP: int = 76
 const BOTTOM: int = 112
 
 var status: LauncherStatusWidget
+var social: SocialView
 var login: LauncherLogin
 var collapsed: bool = false
 var _body: VBoxContainer
@@ -27,6 +28,8 @@ func _init() -> void:
 ## Wires the rail to the launcher's probe and sign-in link (`login_` may be null).
 func setup(probe: StatusProbe, version_url: String, login_: LauncherLogin) -> void:
 	login = login_
+	if login != null:
+		social.bind(login)
 	status.setup(probe, version_url, func() -> int: return login.rtt_ms() if login != null else -1,
 		func() -> void:
 			if login != null:
@@ -42,6 +45,7 @@ func setup(probe: StatusProbe, version_url: String, login_: LauncherLogin) -> vo
 func _ready() -> void:
 	var t: UiKitTokens = UiKit.tokens()
 	set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	clip_contents = true
 	offset_top = TOP
 	offset_bottom = -BOTTOM
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -74,6 +78,8 @@ func _ready() -> void:
 	_social.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_social.add_theme_constant_override("separation", 12)
 	_body.add_child(_social)
+	social = SocialView.new()
+	_social.add_child(social)
 	_mini = VBoxContainer.new()
 	_mini.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_mini.add_theme_constant_override("separation", 14)
