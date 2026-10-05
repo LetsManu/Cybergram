@@ -151,8 +151,29 @@ below; keep Cybergram's palette, font and cyberpunk identity.
 
 ## 9. Kit API (summary)
 
-See the doc comments in `src/ui/theme/ui_kit.gd`. Entry points:
-`UiKit.tokens()`, `UiKit.theme()`, `UiKit.button(text, cb, style)`,
-`UiKit.card(title)`, `UiKit.tab_bar(keys, cb)`, `UiKit.toast(parent, text)`,
-`UiKit.modal(parent, title, body, ok, cancel)`, `UiKit.transition_in(node)`,
-`UiKit.background()`, `UiKit.tween(node)`, `UiKit.reduce_motion()`.
+Doc comments in `src/ui/theme/ui_kit.gd` are the reference. All static.
+
+| Call | What |
+|---|---|
+| `UiKit.tokens()` | `UiKitTokens` from `res://assets/ui/ui_kit_tokens.tres` (colours, type scale, spacing, motion) |
+| `UiKit.theme()` | cached Theme: Button, OptionButton, CheckBox / CheckButton (toggle), HSlider, LineEdit, PopupMenu, scrollbars, tooltip, ProgressBar. Set it on your root Control |
+| `UiKit.label(text, role, color, align)` | roles `display / title / heading / nav / body / small / caption` (first four use Orbitron) |
+| `UiKit.button(text, cb, kind, height)` | kinds `primary / secondary / ghost / danger / play`; hover tween, press state, focus ring, UiSfx |
+| `UiKit.style_button(b, kind)` / `swatch_button(b, colour)` | style an existing button / a colour swatch |
+| `UiKit.icon_button(glyph, cb, tooltip, side)` | square ghost button with a `UiIcon` glyph (gear, close, minus, left/right/up/down, friends, play, check, ring, target) |
+| `UiKit.tab_bar(labels, cb, selected, nav)` / `tab_button(text, nav)` | underline tabs (ButtonGroup) |
+| `UiKit.line_edit(placeholder, max)` | sunken input |
+| `UiKit.card(title, pad)` | `UiCard`: panel + header strip; content in `.body`, actions in `.header_right` |
+| `UiKit.screen_frame(panel, title, subtitle, pad)` | turns a PanelContainer into a kit screen (header strip + padded body column, returned) |
+| `UiKit.avatar(icon, ring_colour, side)` | emblem inside a status ring (account chip) |
+| `UiKit.toast(parent, text, kind, seconds)` | top-centre toast lane; kinds info / ok / warn / danger |
+| `UiKit.modal(parent, title, body, ok, on_ok, cancel, on_cancel, danger)` | `UiModal` dialog, Esc / B cancel |
+| `UiKit.transition_in(node)` / `transition_out(node, then)` | fade (+ slide outside containers) |
+| `UiKit.animate(owner, target, prop, value, ms)` | the one tween gate; null + instant under reduce motion |
+| `UiKit.background()` / `refresh_background(bg)` | the animated shader background (frozen under reduce motion) |
+| `UiKit.reduce_motion()` | `GameSettings.reduce_motion` (tests: `UiKit.force_reduce_motion`) |
+
+Reusable menu pieces: `HeroShowcase` (one-SubViewport 3D hero stage +
+badges, `src/ui/menu/hero_showcase.gd`), `FriendsPanel` (grouped,
+collapsible sidebar). `MenuStyle` and `SettingsTheme` remain as thin shims
+over the kit for older call sites (lobby); new code calls `UiKit`.

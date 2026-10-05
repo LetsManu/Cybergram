@@ -291,6 +291,10 @@ static func _pulse(b: Button, sb: UiBevelBox) -> void:
 	var tw := b.create_tween().set_loops()
 	tw.tween_property(sb, "pulse", 1.5, 1.1).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(sb, "pulse", 1.0, 1.1).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(func() -> void:
+		if reduce_motion():  # the setting was turned on while the menu is open
+			tw.kill()
+			sb.pulse = 1.0)
 
 
 ## A flat swatch-style button tinted `bg` (colour pickers): kit frame, accent
