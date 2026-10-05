@@ -123,7 +123,7 @@ def Rx(deg):
     return Matrix.Rotation(math.radians(deg), 3, "X")
 
 
-def _two(hero, weapon, pal, right, left, sockets, mag, arm, grip=(0.12, 0.2, -0.185), rot=(3.0, -3.0, 3.0),
+def _two(hero, weapon, pal, right, left, sockets, mag, arm, grip=(0.15, 0.21, -0.2), rot=(3.0, -3.0, 4.0),
          scale=1.12, reload="mag"):
     hr, rs = right
     hl, ls = left
