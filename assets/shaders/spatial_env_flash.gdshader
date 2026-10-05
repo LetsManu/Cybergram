@@ -58,7 +58,7 @@ void fragment() {
 			discard;
 		}
 		float ink = edge * (1.0 - fill);
-		vec3 body = mix(color.rgb, vec3(1.0), 0.25) * energy;
+		vec3 body = mix(color.rgb, vec3(1.0), 0.08) * (0.8 + 0.2 * energy);
 		ALBEDO = mix(body, ink_color, ink);
 		ALBEDO = mix(ALBEDO, vec3(1.0) * energy, core * (1.0 - ink));
 		ALPHA = color.a * (t > 0.74 ? 0.0 : 1.0);  // hard cut on the last frame

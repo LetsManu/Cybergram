@@ -88,12 +88,12 @@ func _process(_d: float) -> bool:
 	if _mode == "fx":
 		if _frame % 10 == 2 and _frame < 50:
 			var k := (_frame / 10) % 4
-			_fx.flash(Vector3(-2.4, 1.2, 0), Color(1.0, 0.82, 0.35), 0.8, 0.3, false, 2.0, 5.0)  # muzzle
-			_fx.flash(Vector3(-0.8, 1.2, 0), Color(1.0, 0.42, 0.2), 1.0, 0.3, false, 1.8, 6.0)  # hit star
+			_fx.flash(Vector3(-2.4, 1.2, 0), Color(1.0, 0.82, 0.35), 0.8, 3.0, false, 2.0, 5.0)  # muzzle
+			_fx.flash(Vector3(-0.8, 1.2, 0), Color(1.0, 0.42, 0.2), 1.0, 3.0, false, 1.8, 6.0)  # hit star
 			_fx.burst(Vector3(-0.8, 1.2, 0), Vector3.UP, Color(1.0, 0.7, 0.5), 8, 5.0, 0.5, 70.0)
-			_fx.flash(Vector3(1.0, 1.2, 0), Color(0.18, 0.525, 1.0), 2.2, 0.5, true, 1.8)  # kill ring
-			_fx.flash(Vector3(1.0, 1.2, 0), Color.WHITE, 2.0, 0.5, false, 2.0, 8.0)  # cel explosion
-			_fx.flash(Vector3(1.0, 1.2, 0), Color(0.18, 0.525, 1.0), 3.0, 0.5, false, 1.6, 12.0)
+			_fx.flash(Vector3(1.0, 1.2, 0), Color(0.18, 0.525, 1.0), 2.2, 3.0, true, 1.8)  # kill ring
+			_fx.flash(Vector3(1.0, 1.2, 0), Color.WHITE, 2.0, 3.0, false, 2.0, 8.0)  # cel explosion
+			_fx.flash(Vector3(1.0, 1.2, 0), Color(0.18, 0.525, 1.0), 3.0, 3.0, false, 1.6, 12.0)
 			var dome := MeshInstance3D.new()
 			var sm := SphereMesh.new()
 			sm.radius = 0.5
