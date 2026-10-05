@@ -702,12 +702,12 @@ HUD_MODE_CTA_START,START
 HUD_MODE_CTA_PRACTICE,ENTER RANGE
 HUD_MODE_CTA_TUTORIAL,START TUTORIAL
 HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
-HUD_PATCH_1_TITLE,Smaller updates
-HUD_PATCH_1_SUB,"Only changed files download; pause, pre-load, lite install"
-HUD_PATCH_2_TITLE,Friends and party
-HUD_PATCH_2_SUB,"Sign in once in the launcher, party up before you play"
-HUD_PATCH_3_TITLE,New launcher
-HUD_PATCH_3_SUB,"Patch notes for your heroes, game settings, system check"
+HUD_PATCH_1_TITLE,Comfort settings
+HUD_PATCH_1_SUB,"Against motion sickness: one-click preset in Settings > Comfort"
+HUD_PATCH_2_TITLE,Damage direction
+HUD_PATCH_2_SUB,"See where hits come from, with a damage vignette"
+HUD_PATCH_3_TITLE,Fair recoil
+HUD_PATCH_3_SUB,"Same recoil for everyone; move the crosshair, not the screen"
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
