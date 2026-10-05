@@ -47,7 +47,8 @@ func _draw() -> void:
 	task_chip(Vector2(gx, 18.0), 21.0, def.task, ownership(st.owner, team), ctx.team_color(st.owner), false)
 	var verb := tr(VERB_KEYS[clampi(def.task, 0, 2)])
 	caps(verb, Vector2(gx + 24.0, 26.0), 22, HudPalette.IVORY, 0.2)
-	var where := def.display_name
+	var lanes := c.map_def.lanes.size() if c.map_def != null else 1
+	var where := FrontStrip.tag_of(def.id, lanes)  # short tag (C-MID) as on the front strip
 	where += " · " + (tr("HUD_IN_ZONE") if dist <= 0.0 else tr("HUD_DISTANCE_M") % ceili(dist))
 	var vw := caps_width(verb, 22, 0.2)
 	text(where, Vector2(gx + 36.0 + vw, 25.0), 18, HudPalette.MUTED, ctx.font_body, HORIZONTAL_ALIGNMENT_RIGHT,
