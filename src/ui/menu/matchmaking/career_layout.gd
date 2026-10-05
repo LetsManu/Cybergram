@@ -14,6 +14,8 @@ extends ScrollContainer
 
 ## Gap between the panels and the page edge, in menu pixels.
 @export var gap: int = 24
+## Padding between the page and the window edge, in menu pixels.
+@export var edge: int = 12
 
 var _flow: HFlowContainer
 
@@ -28,7 +30,7 @@ func _init() -> void:
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, gap)
+		margin.add_theme_constant_override("margin_" + side, edge if side in ["left", "right"] else gap)
 	add_child(margin)
 	_flow = HFlowContainer.new()
 	_flow.alignment = FlowContainer.ALIGNMENT_CENTER
