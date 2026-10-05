@@ -33,6 +33,9 @@ and its players are re-queued.
 | `CYBERGRAM_IMAGE_TAG` | `latest` | (compose and `auto_update.sh`) The image tag. Pin e.g. `v0.13.0` to stop following `latest`. |
 | `CYBERGRAM_MOTD_FILE` | `/data/motd.txt` | Path inside the container of the launcher message of the day. |
 | `CYBERGRAM_TLS_DIR` | `./tls` | (compose only) The host folder with `fullchain.pem` and `privkey.pem`. |
+| `CYBERGRAM_PUBLIC_DIR` | `/public` | Folder where the front writes `snapshot.json` for the website every 5 s (see *Website*). Empty switches it off. |
+| `CYBERGRAM_WEB_PORT` | `8081` | (compose, `web` profile) The website's TCP port on the host. |
+| `CYBERGRAM_RELEASE_FETCH` | `1` | (website) `0` stops the website container from reading the latest release from the GitHub API. |
 
 No variable or path is NAS-specific. The same compose file runs on a VPS.
 
@@ -120,6 +123,8 @@ Widen `CYBERGRAM_MATCH_PORTS` if `MAX_MATCHES` is larger than 10.
 - **UDP 7777**: the lobby and the front.
 - **UDP 7800-7809** (or your `CYBERGRAM_MATCH_PORTS`): the matches. Front mode only, but open it now so the switch needs no firewall change.
 - **TCP 8080**: launcher updates and the status file.
+- **TCP 8081** (optional): the website, if you run it (see *Website*). Usually
+  you put a TLS reverse proxy in front and open 443 instead.
 - On a VPS, open the ports in **both** the OS firewall (`ufw allow 7777/udp`,
   `ufw allow 7800:7809/udp`, `ufw allow 8080/tcp`) and the provider's panel.
 
@@ -209,3 +214,59 @@ internet, and your ISP cannot filter it for you.
 - What we do in the game itself: match ports are only useful with a one-time
   join ticket, and a match process ignores clients that have no valid ticket.
   This does not stop floods. It does stop strangers from occupying match slots.
+
+## Website
+
+A small public website (`web/`, image `ghcr.io/letsmanu/cybergram-web`, one
+per release) runs next to the game server: home page with downloads, heroes,
+patch notes, live server status, the ranked leaderboard, Impressum and
+privacy. It is static nginx; the live parts come from two local JSON files:
+
+- `/data/snapshot.json`: the front writes it every 5 s into
+  `CYBERGRAM_PUBLIC_DIR` (`/public`), a volume shared read-only with the web
+  container. Contents: up / draining, players online, running and starting
+  matches, queue sizes and estimated waits, and the top 100 of the ranked
+  leaderboard (display name, medal, rating) of players who switched on
+  *Show me on the public leaderboard* in the game (Ranks panel; off by
+  default, PRIVACY.md). No ids, usernames or IP addresses. If the file is
+  older than 60 s the site shows the server as offline.
+- `/data/release.json`: the web container reads the newest GitHub release
+  at start and every 6 h, so visitors never contact GitHub just by viewing
+  the site. Without it the download button links to the releases page.
+
+**Setup** (same host as the game server):
+
+1. Add `COMPOSE_PROFILES=web` to the `.env` file next to
+   `tools/server/docker-compose.yml` (or pass `--profile web`).
+2. `docker compose -f tools/server/docker-compose.yml up -d`. The site is on
+   `http://<host>:8081` (`CYBERGRAM_WEB_PORT`).
+3. For a public site put a TLS reverse proxy in front (Caddy, Traefik or
+   nginx with Let's Encrypt), forward your domain to port 8081, and set HSTS
+   there. Do not expose 8081 directly to the internet without TLS.
+
+The container runs as an unprivileged user with a read-only root, no Linux
+capabilities, a strict Content Security Policy, `Referrer-Policy:
+no-referrer` and `nosniff`. Its access log (`docker logs cybergram-web`) has
+time, path, status, size and duration only: **no IP address, user agent,
+referrer or query string**; the error log records critical faults only.
+Logs are rotated at 3 x 10 MB. If your reverse proxy logs IP addresses,
+keep them at most 7 days and name it on the privacy page.
+
+Build it yourself from the repo root:
+`docker build -f web/Dockerfile -t cybergram-web .` and check it with
+`web/smoke.sh cybergram-web`. To preview without Docker:
+`python3 web/build.py` writes `web/dist/` (copy `web/sample/snapshot.json`
+to `web/dist/data/` and serve the folder; the sample timestamps are old, so
+it shows "offline").
+
+**Owner to-dos before the site goes public:**
+
+- **Impressum** (`web/pages/impressum.html`): fill every
+  `[TO BE FILLED]` field (name or company, address, e-mail; register
+  number, VAT number and chamber only if they apply) and delete the rest.
+- **Privacy** (`web/pages/privacy.html`): fill the operator contact, the
+  reverse proxy / hosting paragraph (or delete it) and whether HTTPS is used.
+- Have both pages and `PRIVACY.md` checked legally (lawyer or WKO).
+- Rebuild the image after editing (or edit and build in CI with the next
+  release).
+

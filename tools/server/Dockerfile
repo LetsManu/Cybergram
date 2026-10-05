@@ -17,7 +17,8 @@ COPY game/ /opt/cybergram/
 COPY updates/ /opt/cybergram-updates/
 COPY entrypoint.sh healthcheck.sh review_reports.sh review_reports.gd /opt/
 RUN chmod +x /opt/cybergram/Cybergram.x86_64 /opt/entrypoint.sh /opt/healthcheck.sh /opt/review_reports.sh \
-    && mkdir -p /data/accounts /data/ratings /data/reports /data/tls && chown -R cybergram:cybergram /data \
+    && mkdir -p /data/accounts /data/ratings /data/reports /data/tls /public \
+    && chown -R cybergram:cybergram /data /public \
     && chown cybergram:cybergram /opt/cybergram-updates
 # Accounts (one JSON store, written atomically) and the TLS certificate for
 # encrypted login live in the /data volume. Without a certificate the server
@@ -31,7 +32,10 @@ ENV CYBERGRAM_DATA_DIR=/data/accounts \
     CYBERGRAM_MAX_MATCHES=0 \
     CYBERGRAM_PUBLIC_HOST="" \
     CYBERGRAM_RATINGS_DIR=/data/ratings \
-    CYBERGRAM_REPORTS_DIR=/data/reports
+    CYBERGRAM_REPORTS_DIR=/data/reports \
+    CYBERGRAM_PUBLIC_DIR=/public
+# W20-WEB: the front writes /public/snapshot.json for the website container
+# (a shared volume; see docs/HOSTING.md "Website").
 # Hosting (W17, docs/HOSTING.md): CYBERGRAM_MODE=front keeps one process on
 # 7777; front (phase B) runs one process per match on CYBERGRAM_MATCH_PORTS.
 # CYBERGRAM_PUBLIC_HOST is the address handed to clients (empty = the address
