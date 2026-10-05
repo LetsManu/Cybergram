@@ -36,3 +36,17 @@ func test_bleed_entry_keeps_attacker_and_refreshes_per_source() -> void:
 	assert_float(st.entries[0].magnitude).is_equal(12.0)
 	assert_int(st.entries[0].attacker_id).is_equal(42)
 	assert_int(st.ticks_left(StatusComponent.Kind.BLEED, 30)).is_equal(90)
+
+
+func test_mitigated_tallies_only_status_damage_reduction() -> void:
+	var st := _status()
+	st.health.stats = st.stats
+	var before := st.health.mitigated
+	st.health.apply_damage(DamageInfo.make(100.0, 9, 1, 0, DamageInfo.Type.SKILL))
+	assert_float(st.health.mitigated - before).is_equal(0.0)  # no DR: nothing absorbed
+	st.apply(StatusComponent.Kind.DR, 90, 0.4, 3, 0)
+	var m := st.health.mitigated
+	var hp := st.health.hp
+	st.health.apply_damage(DamageInfo.make(100.0, 9, 1, 0, DamageInfo.Type.SKILL))
+	assert_float(hp - st.health.hp).is_equal_approx(60.0, 1e-3)
+	assert_float(st.health.mitigated - m).is_equal_approx(40.0, 1e-3)

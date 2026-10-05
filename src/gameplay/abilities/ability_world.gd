@@ -53,6 +53,8 @@ class Deployable:
 	var absorbed: float = 0.0
 	## W11-M1 Rampart: server collider that blocks enemy heroes (null = none).
 	var body: StaticBody3D
+	## W11-M1 expiry hooks: [EffectContext, effects Array] run when the deployable ends.
+	var on_end: Array = []
 
 
 class Projectile:
@@ -136,6 +138,8 @@ var _blocker_set: bool = false
 var traps: TrapWorld
 ## W11-M1: heroes revealed to a team through walls.
 var reveals := RevealSet.new()
+## W11-M1: open absorb windows [hero, until_tick, frac, mitigated_at_start, caster].
+var absorb_windows: Array = []
 ## Hero whose hitscan was just clipped by a deployable (Hex gadget bonus).
 var _shooter: HeroBody
 
@@ -195,6 +199,7 @@ func step() -> void:
 		_tick_deployable(d, t)
 	traps.step()
 	reveals.step(t)
+	_step_absorb_windows(t)
 	_step_projectiles()
 	extras.step()
 	for i in range(leaps.size() - 1, -1, -1):
@@ -434,6 +439,25 @@ func _tick_bleed(h: HeroBody) -> void:
 			server.damage_hero(h, DamageInfo.make(amount, e.attacker_id, team, 0, DamageInfo.Type.TRUE))
 			if c.dead:
 				return
+
+
+## W11-M1: Fortify Lifeblood. After the window, the caster heals a fraction of what its
+## damage reduction absorbed meanwhile (ticks = window, frac = fraction).
+func open_absorb_window(ctx: EffectContext, ticks: int, frac: float) -> void:
+	if ctx.caster == null or ticks <= 0 or frac <= 0.0:
+		return
+	absorb_windows.append([ctx.caster, server.tick + ticks, frac, ctx.caster.combat.health.mitigated])
+
+
+func _step_absorb_windows(t: int) -> void:
+	for i in range(absorb_windows.size() - 1, -1, -1):
+		var w: Array = absorb_windows[i]
+		var h := w[0] as HeroBody
+		if not is_instance_valid(h) or h.combat.dead:
+			absorb_windows.remove_at(i)
+		elif t >= int(w[1]):
+			absorb_windows.remove_at(i)
+			h.combat.health.heal((h.combat.health.mitigated - float(w[3])) * float(w[2]), h.net_id)
 
 
 func spawn_deployable(ctx: EffectContext, def: DeployableEffectDef) -> Deployable:
@@ -735,6 +759,12 @@ func _end_deployable(d: Deployable) -> void:
 		d.body.queue_free()
 		d.body = null
 	traps.on_end(d)
+	for hook in d.on_end:  # W11-M1 expiry hooks (expiry or destruction)
+		var hc: EffectContext = hook[0]
+		if hc.caster != null and is_instance_valid(hc.caster):
+			hc.tick = server.tick
+			hc.run(hook[1])
+	d.on_end.clear()
 	_remove_fx(d.fx)
 	if d.ends_active and d.skill != null:
 		var owner := server.hero(d.owner_id)

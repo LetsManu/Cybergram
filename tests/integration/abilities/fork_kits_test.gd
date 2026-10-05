@@ -213,13 +213,14 @@ func test_brannoc_wall_forks_and_mastery_heal() -> void:
 	await get_tree().physics_frame
 	var s := _learn(b, 0, SkillNodeDef.Kind.FORK_B, true)
 	ally.combat.health.hp = 100.0
-	var wall_hp := s.param(&"hp")
 	assert_bool(_cast(b, 0, 0.3)).is_true()
 	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Mirror approximation
-	# Mastery heals allies near the wall: ally at the wall point.
-	var ctx := _node_ctx(b, 0)
-	ctx.point = ally.state.position
-	ctx.run(s.node_of(SkillNodeDef.Kind.MASTERY).added_effects)
+	# Mastery (W11-M1): the heal fires when the wall ends (here: destroyed), not at cast.
+	var wall := _server.abilities.deployable_of(s)
+	assert_float(ally.combat.health.hp).is_equal(100.0)
+	_server.abilities.teleport(ally, wall.pos)
+	wall.hp = 0.0
+	_run(2)
 	assert_float(ally.combat.health.hp).is_greater_equal(200.0 - 1e-3)
 	var a := SkillInstance.new(s.def, 0)
 	a.learn(a.node_of(SkillNodeDef.Kind.FORK_A))
@@ -236,12 +237,18 @@ func test_brannoc_fortify_forks_and_mastery_dr() -> void:
 	assert_bool(_cast(b, 2)).is_true()
 	assert_bool(foe.combat.status.has(StatusComponent.Kind.SLOW)).is_true()  # Challenge approximation
 	assert_bool(ally.combat.status.has(StatusComponent.Kind.DR)).is_true()  # Mastery: allies in 6 m
-	# Lifeblood heals the caster.
+	# Lifeblood (W11-M1): after Fortify ends, heals 20% of the damage it absorbed.
 	var b2 := _hero(BRANNOC, Vector3(30.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
-	var s2 := _learn(b2, 2, SkillNodeDef.Kind.FORK_B)
-	b2.combat.health.hp = 100.0
-	_node_ctx(b2, 2).run(s2.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
-	assert_float(b2.combat.health.hp).is_equal_approx(150.0, 1e-3)
+	_learn(b2, 2, SkillNodeDef.Kind.FORK_B)
+	b2.combat.health.hp = 200.0
+	assert_bool(_cast(b2, 2)).is_true()
+	var m0 := b2.combat.health.mitigated
+	_server.damage_hero(b2, DamageInfo.make(100.0, foe.net_id, foe.combat.team, 0, DamageInfo.Type.SKILL))
+	var absorbed := b2.combat.health.mitigated - m0
+	assert_float(absorbed).is_greater(10.0)
+	var hp_after_hit := b2.combat.health.hp
+	_run(5 * HZ)
+	assert_float(b2.combat.health.hp - hp_after_hit).is_equal_approx(absorbed * 0.2, 0.05)
 
 
 func test_brannoc_ram_forks_stun_shield_and_refund_data() -> void:

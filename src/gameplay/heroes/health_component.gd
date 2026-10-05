@@ -28,6 +28,9 @@ var last_attacker: int = 0
 var floor_hp: float = 0.0
 ## W11-M1 Healing reduction: incoming heals are multiplied by this (StatusComponent HEAL_CUT).
 var heal_mult: float = 1.0
+## W11-M1: running total of damage removed by the stats' DAMAGE_REDUCTION (statuses,
+## zones); window readers (Fortify Lifeblood) take differences.
+var mitigated: float = 0.0
 
 
 func _init(max_hp_: float, armor_: float, team_: int) -> void:
@@ -53,7 +56,11 @@ func apply_damage(info: DamageInfo) -> float:
 		var dr := damage_reduction
 		if stats != null:
 			dr += stats.get_value(StatCatalog.DAMAGE_REDUCTION)
-		amount *= DamageMath.armor_mult(armor * (1.0 - minf(0.60, maxf(info.armor_pen, 0.0))), dr)
+		var arm := armor * (1.0 - minf(0.60, maxf(info.armor_pen, 0.0)))
+		var after := DamageMath.armor_mult(arm, dr)
+		if stats != null:
+			mitigated += amount * (DamageMath.armor_mult(arm, damage_reduction) - after)
+		amount *= after
 		if stats != null:
 			amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
 	last_absorbed = 0.0

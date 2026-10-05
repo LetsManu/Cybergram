@@ -237,3 +237,23 @@ func test_rampart_body_is_freed_when_the_wall_ends() -> void:
 	assert_bool(d.alive).is_false()
 	assert_object(d.body).is_null()
 	assert_bool(not is_instance_valid(body) or body.is_queued_for_deletion()).is_true()
+
+
+# ------------------------------------------------------------------ Expiry hooks
+
+func test_expiry_hook_runs_on_expiry_and_not_before() -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(BRANNOC, Vector3(0.0, 0.05, -4.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := b.combat.abilities.skill(0)
+	s.learn(s.node_of(SkillNodeDef.Kind.MASTERY))
+	ally.combat.health.hp = 50.0
+	var c := _ctx(b, null, 0)
+	c.point = Vector3(0.0, 0.05, -4.0)
+	c.run(s.effects())
+	c.run(s.node_of(SkillNodeDef.Kind.MASTERY).added_effects)  # registers the hook
+	_run(HZ)
+	assert_float(ally.combat.health.hp).is_equal(50.0)
+	_run(11 * HZ)  # 10 s wall expires
+	assert_float(ally.combat.health.hp).is_greater(100.0)

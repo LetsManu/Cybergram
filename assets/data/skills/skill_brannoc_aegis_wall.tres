@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="w10_2"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/heal_effect_def.gd" id="w10_3"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/area_effect_def.gd" id="w10_4"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/expiry_effect_def.gd" id="m11_exp"]
 
 [sub_resource type="Resource" id="w10_sub_1"]
 script = ExtResource("w10_2")
@@ -28,6 +29,10 @@ enemies = false
 allies = true
 include_caster = true
 effects = Array[Resource]([SubResource("w10_sub_2")])
+
+[sub_resource type="Resource" id="m11_expiry"]
+script = ExtResource("m11_exp")
+effects = Array[Resource]([SubResource("w10_sub_3")])
 
 [sub_resource type="Resource" id="w10_sub_4"]
 script = ExtResource("w10_0")
@@ -89,7 +94,7 @@ script = ExtResource("w10_1")
 kind = 4
 required_level = 9
 modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_10"), SubResource("w10_sub_11")])
-added_effects = Array[Resource]([SubResource("w10_sub_3")])
+added_effects = Array[Resource]([SubResource("m11_expiry")])
 
 [sub_resource type="Resource" id="deploy_1"]
 script = ExtResource("1")
