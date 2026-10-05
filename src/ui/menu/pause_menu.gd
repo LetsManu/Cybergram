@@ -9,6 +9,7 @@ var session: Node
 
 var _root: Control
 var _main: VBoxContainer
+var _card: PanelContainer
 var _settings: SettingsPanel
 var _resume: Button
 var _player: PlayerInputSource
@@ -24,8 +25,10 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP  # clicks never reach the game
 	_root.visible = false
 	add_child(_root)
+	_root.theme = UiKit.theme()
+	var t := UiKit.tokens()
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.025, 0.05, 0.78)
+	dim.color = Color(t.bg_deep, 0.8)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	var center := CenterContainer.new()
@@ -33,31 +36,30 @@ func _ready() -> void:
 	_root.add_child(center)
 	var box := VBoxContainer.new()
 	center.add_child(box)
-	_main = VBoxContainer.new()
-	_main.custom_minimum_size = Vector2(360, 0)
-	_main.add_theme_constant_override("separation", 10)
-	box.add_child(_main)
-	var title := Label.new()
-	title.text = tr("HUD_PAUSE_TITLE")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", HudPalette.TEXT)
-	_main.add_child(title)
-	var note := Label.new()
-	note.text = tr("HUD_PAUSE_NOTE")
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	note.add_theme_color_override("font_color", HudPalette.TEXT_DIM)
+	_card = PanelContainer.new()
+	_card.custom_minimum_size = Vector2(400, 0)
+	box.add_child(_card)
+	_main = UiKit.screen_frame(_card, tr("HUD_PAUSE_TITLE"), "", 22)
+	_main.add_theme_constant_override("separation", t.space_m)
+	var note := UiKit.label(tr("HUD_PAUSE_NOTE"), &"small", t.text_dim)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_main.add_child(note)
-	_resume = _button(tr("HUD_PAUSE_RESUME"), close)
+	_main.add_child(UiKit.spacer(2))
+	_resume = _button(tr("HUD_PAUSE_RESUME"), close, &"primary")
 	_button(tr("HUD_PAUSE_SETTINGS"), _show_settings)
 	_button(tr("HUD_PAUSE_MENU"), _to_menu)
-	_button(tr("HUD_PAUSE_QUIT"), func() -> void: get_tree().quit())
+	_main.add_child(HSeparator.new())
+	_button(tr("HUD_PAUSE_QUIT"), func() -> void: get_tree().quit(), &"danger")
 	_settings = SettingsPanel.new()
 	_settings.visible = false
 	_settings.back_pressed.connect(_show_main)
 	_settings.changed.connect(_apply_look)
 	box.add_child(_settings)
 	_apply_look()
+
+
+func _exit_tree() -> void:
+	UiKit.clear_cache()
 
 
 func _process(_delta: float) -> void:
@@ -115,13 +117,15 @@ func is_open() -> bool:
 
 func _show_main() -> void:
 	_settings.visible = false
-	_main.visible = true
+	_card.visible = true
+	UiKit.transition_in(_card)
 	_resume.grab_focus()
 
 
 func _show_settings() -> void:
-	_main.visible = false
+	_card.visible = false
 	_settings.visible = true
+	UiKit.transition_in(_settings)
 	_settings.focus_first()
 
 
@@ -155,11 +159,7 @@ func _find_input() -> PlayerInputSource:
 	return client.player_input
 
 
-func _button(text: String, on_press: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size.y = 46
-	b.add_theme_font_size_override("font_size", 18)
-	b.pressed.connect(on_press)
+func _button(text: String, on_press: Callable, kind: StringName = &"secondary") -> Button:
+	var b := UiKit.button(text, on_press, kind, 46)
 	_main.add_child(b)
 	return b

@@ -554,3 +554,51 @@ HUD_SET_RESET_DONE_PAD,Gamepad buttons reset to defaults.
 HUD_SET_PRESS_BUTTON,Press a button...
 HUD_SET_CAPTURE_HINT_PAD,"Click a row, then press a button, trigger or stick direction. Esc cancels."
 HUD_SET_SWAPPED_PAD,"%s and %s swapped (they shared a button)."
+HUD_SET_REDUCE_MOTION,Reduce motion (menus)
+HUD_MENU_PLAY,PLAY
+HUD_NAV_HOME,HOME
+HUD_NAV_HEROES,HEROES
+HUD_NAV_PROFILE,PROFILE
+HUD_NAV_SETTINGS,SETTINGS
+HUD_MODE_TITLE,Choose a mode
+HUD_MODE_ONLINE,ONLINE
+HUD_MODE_ONLINE_DESC,"3v3 on the official server, with friends, players and bots."
+HUD_MODE_BOTS,VS BOTS
+HUD_MODE_BOTS_DESC,"Offline 3v3 against bots. No account needed."
+HUD_MODE_PRACTICE,PRACTICE RANGE
+HUD_MODE_PRACTICE_DESC,"Targets, dummies and every skill unlocked."
+HUD_MODE_TUTORIAL,TUTORIAL
+HUD_MODE_TUTORIAL_DESC,"Learn to move, shoot, use skills and take the objective."
+HUD_MODE_COURSE,MOVEMENT COURSE
+HUD_MODE_COURSE_DESC,"Parkour test map for slides, jumps and wall tech."
+HUD_MODE_CONFIRM,CONFIRM
+HUD_MODE_BACK,BACK
+HUD_QUICK_SETTINGS,Settings
+HUD_QUICK_QUIT,Quit
+HUD_SHOWCASE_PREV,Previous hero
+HUD_SHOWCASE_NEXT,Next hero
+HUD_SHOWCASE_ROLE,ROLE
+HUD_SHOWCASE_WEAPON,WEAPON
+HUD_ROLE_COMMANDER,Minionmancer / Commander
+HUD_ROLE_INFILTRATOR,Infiltrator
+HUD_ROLE_TRAPPER,Trapper
+HUD_ROLE_SOLDIER,Soldier
+HUD_ROLE_TANK,Tank
+HUD_ROLE_HEALER,Healer
+HUD_ROLE_HACKER,Hacker
+HUD_NEWS_TITLE,What's new in v%s
+HUD_NEWS_1,"New client: top bar, PLAY mode select and a 3D hero showcase."
+HUD_NEWS_2,"Friends sidebar grouped by status, collapsible to an icon strip."
+HUD_NEWS_3,"Settings > Video: Reduce motion stops menu animations."
+HUD_FRIENDS_GROUP_ONLINE,ONLINE
+HUD_FRIENDS_GROUP_LOBBY,IN LOBBY
+HUD_FRIENDS_GROUP_MATCH,IN MATCH
+HUD_FRIENDS_GROUP_OFFLINE,OFFLINE
+HUD_FRIENDS_COLLAPSE,Hide friends
+HUD_FRIENDS_EXPAND,Show friends
+HUD_HEROES_HINT,"Your pick for Vs Bots, Practice and the lobby."
+HUD_FRIENDS_GROUP_REQUESTS,REQUESTS
+HUD_FRIENDS_GROUP_OTHER,PENDING / BLOCKED
+HUD_QUIT_TITLE,Quit Cybergram?
+HUD_QUIT_BODY,"You can come back any time; your settings are saved."
+HUD_PROFILE_ACCOUNT,ACCOUNT AND DATA
