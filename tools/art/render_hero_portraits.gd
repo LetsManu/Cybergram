@@ -13,12 +13,19 @@ extends SceneTree
 ##   ~/godot/Godot_v4.7-stable_linux.x86_64 --headless --path . --import
 ##   bash launcher/tools/sync_shared.sh    # the launcher shows the same portraits
 ##
-## Optional: `-- --only=brannoc,hex` renders a subset. Heroes come from
+## It also writes assets/ui/portraits/portraits.json: per hero the head
+## centre and head size in image px ({"brannoc": {"head": [x, y], "size": s}}),
+## which UiPortrait uses to crop circles on the face. The head comes from a
+## Skeleton3D bone named like "head" (rigged models), else a "head" pivot /
+## node, else the top of the model bounds.
+## Optional: `-- --only=brannoc,hex` renders a subset (merged into the json). Heroes come from
 ## HeroCatalog (every hero_*.tres), so a new hero needs no change here.
 ## Adapted from design/ux/mockups/v0.9/render_heroes.gd.
 
 const OUT_DIR := "res://assets/ui/portraits"
 const SIZE := Vector2i(720, 1000)
+## Largest head size as a share of the model's projected height.
+const HEAD_SHARE := 0.16
 ## Settle frames before grabbing (shader compile, first light pass).
 const SETTLE_FRAMES := 6
 
@@ -67,6 +74,12 @@ func _run() -> void:
 	var turn := Node3D.new()
 	turn.rotation.y = deg_to_rad(205.0)
 	vp.add_child(turn)
+	var meta_path := OUT_DIR + "/portraits.json"
+	var meta: Dictionary = {}
+	if FileAccess.file_exists(meta_path):
+		var old: Variant = JSON.parse_string(FileAccess.get_file_as_string(meta_path))
+		if old is Dictionary:
+			meta = old
 	var done := 0
 	for h: Dictionary in HeroCatalog.entries():
 		var stem := String(h.stem)
@@ -79,8 +92,78 @@ func _run() -> void:
 		await RenderingServer.frame_post_draw
 		var path := "%s/hero_%s.png" % [OUT_DIR, stem]
 		var err := vp.get_texture().get_image().save_png(ProjectSettings.globalize_path(path))
-		print("rendered ", path, " err=", err)
+		meta[stem] = head_box(model, cam)
+		print("rendered ", path, " err=", err, " head=", meta[stem])
 		done += 1
 		model.free()
+	var f := FileAccess.open(ProjectSettings.globalize_path(meta_path), FileAccess.WRITE)
+	f.store_string(JSON.stringify(meta, "\t", true) + "\n")
+	f.close()
 	print("portraits rendered: ", done)
 	quit(0 if done > 0 else 1)
+
+
+## {"head": [x, y], "size": s} in image px: the head's projected box.
+static func head_box(model: Node3D, cam: Camera3D) -> Dictionary:
+	var whole := _bounds(model)
+	var box := AABB()
+	var found := false
+	var neck := Vector3(INF, INF, INF)  # head base (bone / pivot origin) when known
+	# 1. Rigged model: a skeleton bone named like "head".
+	for sk: Skeleton3D in model.find_children("*", "Skeleton3D", true, false):
+		for b in sk.get_bone_count():
+			if sk.get_bone_name(b).to_lower().contains("head"):
+				var c := sk.global_transform * sk.get_bone_global_pose(b).origin
+				neck = c
+				var r := whole.size.y * 0.075
+				box = AABB(c - Vector3(r, r * 0.4, r), Vector3(r, r, r) * 2.0)
+				found = true
+				break
+		if found:
+			break
+	# 2. A "head" pivot (HeroModel) or any node named head: its meshes' bounds.
+	if not found:
+		var head: Node3D = model.call("pivot", &"head") if model.has_method("pivot") else null
+		if head == null:
+			var hits := model.find_children("*head*", "Node3D", true, false)
+			head = hits[0] as Node3D if not hits.is_empty() else null
+		if head != null:
+			neck = head.global_position
+			box = _bounds(head)
+			found = box.size != Vector3.ZERO
+	# 3. Fallback: the top of the model bounds.
+	if not found:
+		var hh := whole.size.y * 0.15
+		box = AABB(Vector3(whole.get_center().x - hh * 0.5, whole.end.y - hh, whole.get_center().z - hh * 0.5),
+			Vector3(hh, hh, hh))
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for i in 8:
+		var p := cam.unproject_position(box.get_endpoint(i))
+		lo = lo.min(p)
+		hi = hi.max(p)
+	# Accessories on the head (halo, hood, antennae) inflate the box: cap the
+	# size at a head's share of the body and keep the bottom (the face end).
+	var body_px := absf(cam.unproject_position(Vector3(0, whole.position.y, 0)).y
+		- cam.unproject_position(Vector3(0, whole.end.y, 0)).y)
+	var size := minf(maxf(hi.x - lo.x, hi.y - lo.y), body_px * HEAD_SHARE)
+	# Bottom of the head: the bone / pivot origin (the neck) when known, so
+	# collars and capes hanging from the head do not pull the crop down.
+	var bottom := hi.y
+	if neck.x != INF:
+		bottom = minf(hi.y, cam.unproject_position(neck).y)
+	var c2 := Vector2((lo.x + hi.x) * 0.5, bottom - size * 0.5)
+	return {"head": [roundf(c2.x), roundf(c2.y)], "size": roundf(size)}
+
+
+## World-space bounds of every mesh under `n` (empty AABB when none).
+static func _bounds(n: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		var b := mi.global_transform * mi.get_aabb()
+		out = b if first else out.merge(b)
+		first = false
+	return out

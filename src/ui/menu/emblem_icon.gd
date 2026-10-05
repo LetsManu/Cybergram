@@ -12,6 +12,9 @@ var emblem: int = 0:
 	set(v):
 		emblem = v
 		texture = EmblemIcon.portrait_of(v)
+		var heroes := HeroCatalog.entries()
+		face = UiKit.portrait_face(String(heroes[posmod(v, heroes.size())].stem)) if not heroes.is_empty() \
+			else UiPortrait.FACE
 var accent: int = 0:
 	set(v):
 		accent = v

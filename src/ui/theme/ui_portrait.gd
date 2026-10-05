@@ -10,7 +10,8 @@ extends Control
 ##   var p := UiPortrait.create(UiKit.portrait_texture("sable"), 38.0, UiKit.tokens().accent)
 ##   p.status_dot = UiKit.tokens().ok
 
-## Face window of a 720x1000 portrait in UV (matches the mockup crops).
+## Default face window of a 720x1000 portrait in UV (the mockup crop); a
+## hero's own window comes from UiKit.portrait_face().
 const FACE := Rect2(0.3, 0.11, 0.4, 0.288)
 ## Circle tessellation.
 const SEGMENTS := 48
@@ -18,6 +19,11 @@ const SEGMENTS := 48
 var texture: Texture2D:
 	set(v):
 		texture = v
+		queue_redraw()
+## The UV window shown in the circle (UiKit.portrait_face(stem)).
+var face := FACE:
+	set(v):
+		face = v
 		queue_redraw()
 ## Outside ring colour (alpha 0 = none) and width in px.
 var ring := Color(0, 0, 0, 0):
@@ -51,9 +57,10 @@ var dim: bool = false:
 
 
 ## A portrait `side` px across showing `tex` with an outside `ring_`.
-static func create(tex: Texture2D, side: float, ring_ := Color(0, 0, 0, 0)) -> UiPortrait:
+static func create(tex: Texture2D, side: float, ring_ := Color(0, 0, 0, 0), face_ := FACE) -> UiPortrait:
 	var p := UiPortrait.new()
 	p.texture = tex
+	p.face = face_
 	p.ring = ring_
 	p.custom_minimum_size = Vector2(side, side)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -79,7 +86,7 @@ func _draw() -> void:
 		var uvs := PackedVector2Array()
 		for p in pts:
 			var n := (p - c) / (2.0 * r) + Vector2(0.5, 0.5)
-			uvs.append(FACE.position + n * FACE.size)
+			uvs.append(face.position + n * face.size)
 		var tint := Color(0.45, 0.45, 0.45, 0.8) if dim else Color.WHITE
 		draw_polygon(pts, PackedColorArray([tint]), uvs, texture)
 	if ring.a > 0.0 and ring_width > 0.0:

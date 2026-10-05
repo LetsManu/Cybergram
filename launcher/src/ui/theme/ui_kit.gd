@@ -44,6 +44,7 @@ static var _theme: Theme
 static var _fonts: Dictionary = {}
 static var _icons: Dictionary = {}
 static var _portraits: Dictionary = {}
+static var _faces: Dictionary = {}
 
 
 # --- tokens, motion ---------------------------------------------------------
@@ -65,6 +66,7 @@ static func clear_cache() -> void:
 	_fonts.clear()
 	_icons.clear()
 	_portraits.clear()
+	_faces.clear()
 
 
 ## True when animations must be skipped (accessibility setting).
@@ -465,6 +467,34 @@ static func portrait_texture(stem: String) -> Texture2D:
 	var tex := load(path) as Texture2D if ResourceLoader.exists(path) else null
 	_portraits[stem] = tex
 	return tex
+
+
+## The UV window that centres hero `stem`'s face in a portrait circle: the
+## head (portraits.json, written by the render tool) fills ~60 % of the
+## diameter, its centre slightly above the middle. UiPortrait.FACE when the
+## hero has no entry.
+static func portrait_face(stem: String) -> Rect2:
+	if _faces.is_empty():
+		var path := PORTRAIT_DIR + "/portraits.json"
+		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path)) \
+			if FileAccess.file_exists(path) else null
+		_faces["_"] = true  # loaded marker
+		if data is Dictionary:
+			for k in data:
+				_faces[k] = data[k]
+	var e: Variant = _faces.get(stem)
+	if not (e is Dictionary) or not e.has("head"):
+		return UiPortrait.FACE
+	return face_window(Vector2(e.head[0], e.head[1]), float(e.size))
+
+
+## Pure crop maths: UV window for a head at `centre` (px) of `size` px in a
+## `img` px portrait (head = `fill` of the diameter, centre at `anchor_y` of
+## the window height).
+static func face_window(centre: Vector2, size: float, img := Vector2(720, 1000), fill := 0.6,
+		anchor_y := 0.46) -> Rect2:
+	var d := maxf(size, 1.0) / fill
+	return Rect2((centre.x - d * 0.5) / img.x, (centre.y - d * anchor_y) / img.y, d / img.x, d / img.y)
 
 
 ## An avatar: `icon` (e.g. an EmblemIcon) centred inside a status ring of

@@ -27,3 +27,4 @@ assets/ui/portraits/hero_liora_vale.png
 assets/ui/portraits/hero_ryker_vance.png
 assets/ui/portraits/hero_sable.png
 assets/ui/portraits/hero_vesper_loom.png
+assets/ui/portraits/portraits.json

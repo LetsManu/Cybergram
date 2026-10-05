@@ -12,6 +12,7 @@ var hero_index: int = 0:
 		hero_index = v
 		var h := HeroCatalog.find_index(v)
 		texture = UiKit.portrait_texture(String(h.stem)) if not h.is_empty() else null
+		face = UiKit.portrait_face(String(h.stem)) if not h.is_empty() else UiPortrait.FACE
 
 
 static func make(hero_index_: int, size_px: float, ring_ := Color(0, 0, 0, 0)) -> HeroBadge:
