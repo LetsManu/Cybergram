@@ -564,13 +564,15 @@ HUD_MODE_TITLE,Choose a mode
 HUD_MODE_ONLINE,ONLINE
 HUD_MODE_ONLINE_DESC,"3v3 on the official server, with friends, players and bots."
 HUD_MODE_BOTS,VS BOTS
-HUD_MODE_BOTS_DESC,"Offline 3v3 against bots. No account needed."
+HUD_MODE_BOTS_DESC,"Offline 5v5 against bots on the 3-lane Shardline Front. No account needed."
 HUD_MODE_PRACTICE,PRACTICE RANGE
 HUD_MODE_PRACTICE_DESC,"Targets, dummies and every skill unlocked."
 HUD_MODE_TUTORIAL,TUTORIAL
 HUD_MODE_TUTORIAL_DESC,"Learn to move, shoot, use skills and take the objective."
 HUD_MODE_COURSE,MOVEMENT COURSE
 HUD_MODE_COURSE_DESC,"Parkour test map for slides, jumps and wall tech."
+HUD_MODE_QUICK,QUICK MATCH
+HUD_MODE_QUICK_DESC,"Offline 3v3 on the 1-lane Shardline Causeway. A shorter match."
 HUD_MODE_CONFIRM,CONFIRM
 HUD_MODE_BACK,BACK
 HUD_QUICK_SETTINGS,Settings
@@ -676,13 +678,16 @@ HUD_MODE_NAME_BOTS,Vs Bots
 HUD_MODE_NAME_PRACTICE,Practice Range
 HUD_MODE_NAME_TUTORIAL,Tutorial
 HUD_MODE_NAME_COURSE,Movement Course
+HUD_MODE_NAME_QUICK,Quick Match
 HUD_MODE_META_ONLINE,3v3 · official server · bots fill empty slots
-HUD_MODE_META_BOTS,3v3 offline · no account needed
+HUD_MODE_META_BOTS,5v5 offline · 3 lanes · no account needed
 HUD_MODE_META_PRACTICE,Dummies · unlimited Lumen · every skill
 HUD_MODE_META_TUTORIAL,10 short steps · about 5 minutes
 HUD_MODE_META_COURSE,"Parkour test map · slides, jumps, wall tech"
+HUD_MODE_META_QUICK,"3v3 offline · 1 lane · 12-22 min"
 HUD_MODE_LONG_ONLINE,"Join the lobby on the official server, pick your hero with your team and lock in. Friends can join your team directly."
 HUD_MODE_LONG_BOTS,A full match against bots on your own machine. Good for learning a hero before playing online.
+HUD_MODE_LONG_QUICK,"A short 3v3 against bots on Shardline Causeway, the single-lane map: one front, all three task types, both HQs."
 HUD_MODE_LONG_PRACTICE,"Try every skill and fork on static and moving dummies. Level up with F5, reset with F10."
 HUD_MODE_LONG_TUTORIAL,"Move, shoot, use skills, pick a fork and buy from the shop, step by step with your own key bindings."
 HUD_MODE_CTA_ONLINE,FIND MATCH

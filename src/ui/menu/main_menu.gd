@@ -87,7 +87,7 @@ const NAV_KEYS: Array[String] = ["HUD_NAV_HOME", "HUD_NAV_HEROES", "HUD_NAV_PROF
 ## Mode-select cards: [title key, description key]; index order = MODE_*.
 const MODES: Array = [["HUD_MODE_ONLINE", "HUD_MODE_ONLINE_DESC"], ["HUD_MODE_BOTS", "HUD_MODE_BOTS_DESC"],
 	["HUD_MODE_PRACTICE", "HUD_MODE_PRACTICE_DESC"], ["HUD_MODE_TUTORIAL", "HUD_MODE_TUTORIAL_DESC"],
-	["HUD_MODE_COURSE", "HUD_MODE_COURSE_DESC"]]
+	["HUD_MODE_COURSE", "HUD_MODE_COURSE_DESC"], ["HUD_MODE_QUICK", "HUD_MODE_QUICK_DESC"]]
 ## PLAY overlay rows (index = MODE_*): [name, meta line, detail, CTA, portrait stem].
 const MODE_INFO: Array = [
 	["HUD_MODE_NAME_ONLINE", "HUD_MODE_META_ONLINE", "HUD_MODE_LONG_ONLINE", "HUD_MODE_CTA_ONLINE", "vesper_loom"],
@@ -96,7 +96,8 @@ const MODE_INFO: Array = [
 		"ryker_vance"],
 	["HUD_MODE_NAME_TUTORIAL", "HUD_MODE_META_TUTORIAL", "HUD_MODE_LONG_TUTORIAL", "HUD_MODE_CTA_TUTORIAL",
 		"liora_vale"],
-	["HUD_MODE_NAME_COURSE", "HUD_MODE_META_COURSE", "HUD_MODE_COURSE_DESC", "HUD_MODE_CTA_START", "sable"]]
+	["HUD_MODE_NAME_COURSE", "HUD_MODE_META_COURSE", "HUD_MODE_COURSE_DESC", "HUD_MODE_CTA_START", "sable"],
+	["HUD_MODE_NAME_QUICK", "HUD_MODE_META_QUICK", "HUD_MODE_LONG_QUICK", "HUD_MODE_CTA_START", "brannoc"]]
 ## Top-bar tabs (index = Nav): CAREER opens the profile; settings is the gear.
 const NAV_TAB_KEYS: Array[String] = ["HUD_NAV_HOME", "HUD_NAV_HEROES", "HUD_NAV_CAREER"]
 ## Patch strip items: HUD_PATCH_<n>_TITLE / _SUB (built, so the key scanner
@@ -109,6 +110,8 @@ const MODE_BOTS := 1
 const MODE_PRACTICE := 2
 const MODE_TUTORIAL := 3
 const MODE_COURSE := 4
+## W14: the 1-lane slice map "Shardline Causeway" as a short 3v3 vs bots.
+const MODE_QUICK := 5
 ## Height of the tile row under the hero banner.
 
 
@@ -566,6 +569,8 @@ func _launch_mode(m: int) -> void:
 			_practice()
 		MODE_TUTORIAL:
 			_tutorial()
+		MODE_QUICK:
+			_play_quick()
 		_:
 			_course()
 
@@ -1031,6 +1036,11 @@ func _close_profile() -> void:
 
 func _play_bots() -> void:
 	_start(PackedStringArray(["--hero", _hero_id()]))
+
+
+## QUICK: 3v3 vs bots on the 1-lane slice map (its MapDef carries the 3v3 rules).
+func _play_quick() -> void:
+	_start(PackedStringArray(["--map", "slice", "--bots", "--hero", _hero_id()]))
 
 
 ## PLAY ONLINE: log in on the official server (AppConfig), then its lobby.

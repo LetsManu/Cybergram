@@ -10,6 +10,8 @@ extends Node
 const NET_SIM_PATH := "res://assets/data/net/net_sim_%s.tres"
 ## `--map <name>` selects a MapDef; its scene replaces map_scene.
 const MAP_DEF_PATH := "res://assets/data/match/map_%s_lane.tres"
+## Tried first: map_<name>.tres (W14 "front" = Shardline Front).
+const MAP_DEF_PATH_PLAIN := "res://assets/data/match/map_%s.tres"
 const HERO_PATH := "res://assets/data/heroes/hero_%s.tres"
 const DEFAULT_PLAYER_HERO := "res://assets/data/heroes/hero_vesper_loom.tres"
 const DEFAULT_DUMMY_HEROES: Array[String] = [
@@ -74,10 +76,12 @@ func _ready() -> void:
 		if launch_config.net_sim_name != "":
 			net_sim = load(NET_SIM_PATH % launch_config.net_sim_name) as NetSimProfile
 		if launch_config.map_name != "":
-			var md := load(MAP_DEF_PATH % launch_config.map_name) as MapDef
+			var md := load_map_def(launch_config.map_name)
 			if md != null and md.scene != null:
 				map_def = md
 				map_scene = md.scene
+				if md.match_rules != null and launch_config.match_rules_path == "":
+					match_rules = md.match_rules  # C1: the map's format (5v5 full / 3v3 slice)
 		if launch_config.match_rules_path != "":
 			match_rules = load(launch_config.match_rules_path) as MatchRulesDef
 			if match_rules == null:
@@ -103,6 +107,15 @@ func _ready() -> void:
 		_start_lobby()
 		return
 	_build_match()
+
+
+## MapDef for a `--map` name: map_<name>.tres, else map_<name>_lane.tres (null if neither).
+static func load_map_def(map_name: String) -> MapDef:
+	for pat in [MAP_DEF_PATH_PLAIN, MAP_DEF_PATH]:
+		var path: String = pat % map_name
+		if ResourceLoader.exists(path):
+			return load(path) as MapDef
+	return null
 
 
 ## Builds the server world (and the local client unless dedicated).
