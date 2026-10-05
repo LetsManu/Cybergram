@@ -164,6 +164,8 @@ func _init() -> void:
 	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old.1")) and not DirAccess.dir_exists_absolute(sb.path_join("live/L.x86_64.old")), "no .old* left")
 	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW3", "cleanup keeps the live exe")
 	LauncherCore.remove_tree(sb)
+	_check(SelfUpdater.is_leftover("a.exe.old") and SelfUpdater.is_leftover("a.exe.old.3"), "leftover: .old and .old.<n>")
+	_check(not SelfUpdater.is_leftover("my.old.notes.txt") and not SelfUpdater.is_leftover("a.old.bak") and not SelfUpdater.is_leftover("gold"), "leftover: strict pattern")
 	var now: int = 1000000
 	_check(SelfUpdater.may_attempt("1.5.0", "", 0, now), "attempt: no failure recorded")
 	_check(not SelfUpdater.may_attempt("1.5.0", "1.5.0", now - 60, now), "attempt: same version failed a minute ago")

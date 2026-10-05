@@ -21,11 +21,32 @@ extends RefCounted
 ## The link / login did not complete (or ended); `reason_key` is a HUD_ key.
 signal failed(reason_key: String)
 
-enum Phase { IDLE, CONNECTING, LOGIN, READY, FAILED }
-enum Reason { TIMEOUT_CONNECT, TIMEOUT_LOGIN, DNS, DTLS, VERSION, DISCONNECTED, ERROR }
+## Where a connection attempt stands. LINKED = the link is up and no sign-in
+## request is out (the player may be typing on the login form: no timer runs).
+enum Phase {
+	IDLE,  ## not watching
+	CONNECTING,  ## waiting for the UDP / DTLS link (connect timeout runs)
+	LINKED,  ## link up, nothing requested yet (no timeout)
+	LOGIN,  ## a sign-in request is out (login timeout runs)
+	READY,  ## a session was granted
+	FAILED,  ## gave up; `failed` was emitted
+}
+## Why an attempt failed; reason_key() gives the HUD_ translation key.
+enum Reason {
+	TIMEOUT_CONNECT,  ## no link in time (server down, wrong address, UDP blocked)
+	TIMEOUT_LOGIN,  ## link up but the sign-in request got no answer
+	DNS,  ## the host name could not be resolved
+	DTLS,  ## the encrypted handshake failed
+	VERSION,  ## the server runs another protocol version
+	DISCONNECTED,  ## the link dropped after it was up
+	ERROR,  ## anything else
+}
 
+## Timeouts (data: assets/data/net/connection_watch.tres).
 var config: ConnectionWatchConfig
+## Current phase (see Phase).
 var phase: Phase = Phase.IDLE
+## Reason of the last failure (valid in Phase.FAILED).
 var reason: Reason = Reason.ERROR
 ## Where log lines go (a Callable taking a String); tests inject a collector.
 var log_sink: Callable = func(line: String) -> void: print(line)
@@ -33,6 +54,7 @@ var log_sink: Callable = func(line: String) -> void: print(line)
 var _target: String = ""
 var _secure: bool = false
 var _elapsed: float = 0.0
+var _request_pending: bool = false  # a sign-in request was sent before the link came up
 
 
 func _init(config_: ConnectionWatchConfig = null) -> void:
@@ -44,6 +66,7 @@ func begin(target: String, secure: bool) -> void:
 	_target = target
 	_secure = secure
 	_elapsed = 0.0
+	_request_pending = false
 	phase = Phase.CONNECTING
 	_log("connect start %s (%s)" % [target, "dtls" if secure else "plain udp"])
 
@@ -53,12 +76,22 @@ func is_waiting() -> bool:
 	return phase == Phase.CONNECTING or phase == Phase.LOGIN
 
 
+## A sign-in request (login, register, guest, resume, redeem) was sent: the
+## login timeout starts now. Before the link is up it starts with the link.
+func on_request_sent() -> void:
+	if phase == Phase.CONNECTING:
+		_request_pending = true
+	elif phase == Phase.LINKED or phase == Phase.LOGIN:
+		phase = Phase.LOGIN
+		_elapsed = 0.0
+
+
 ## The transport reports the server link as up (DTLS handshake done when secure).
 func on_link_up() -> void:
 	if phase != Phase.CONNECTING:
 		return
 	_log("link up%s after %.1fs" % [" (dtls handshake ok)" if _secure else "", _elapsed])
-	phase = Phase.LOGIN
+	phase = Phase.LOGIN if _request_pending else Phase.LINKED
 	_elapsed = 0.0
 
 
@@ -75,6 +108,9 @@ func on_account_error(op: int, code: int) -> void:
 	_log("account op %d answered code %d" % [op, code])
 	if code == AccountCodec.E_VERSION:
 		_fail(Reason.VERSION)
+	elif phase == Phase.LOGIN:
+		phase = Phase.LINKED  # answered (e.g. wrong password): the player may try again
+		_elapsed = 0.0
 
 
 ## The server rejected the client (protocol / version mismatch).

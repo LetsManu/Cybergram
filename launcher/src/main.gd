@@ -241,6 +241,8 @@ func _on_manifest() -> void:
 		return
 	if LauncherCore.is_appimage(OS.get_environment("APPIMAGE")):
 		# --- W15-UPD ---
+		if not _upd.appimage_finished.is_connected(_on_self_update_result):
+			_upd.appimage_finished.connect(_on_self_update_result)
 		if _upd.start_appimage_update(entry, LauncherCore.base_url(_version_url)):
 			return
 		# --- end W15-UPD ---
@@ -264,15 +266,21 @@ func _on_manifest() -> void:
 	_self.start(entry)
 
 
+## Keeps the retry cooldown: a failure is remembered (one try per version per
+## day), a success clears it. Used by the zip and the AppImage path.
+func _on_self_update_result(ok: bool, version: String) -> void:
+	_settings.self_update_failed_version = "" if ok else version
+	_settings.self_update_failed_at = 0 if ok else int(Time.get_unix_time_from_system())
+	_settings.save_file()
+
+
 func _on_self_updated(ok: bool, message: String, _new_version: String, entry: Dictionary) -> void:
 	print("LAUNCHER: self-update: %s" % message)
 	if _headless_mode == "selfupdate":
 		get_tree().quit(0 if ok else 1)
 		return
+	_on_self_update_result(ok, String(entry["version"]))
 	if not ok:
-		_settings.self_update_failed_version = String(entry["version"])
-		_settings.self_update_failed_at = int(Time.get_unix_time_from_system())
-		_settings.save_file()
 		_self_busy = false
 		if _status != null:
 			_status.text = message

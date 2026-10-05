@@ -54,15 +54,19 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 		_join_wait_s = -1.0
 		queue_changed.emit(status_of(d)))
 	mm.lockout.connect(func(d: Dictionary) -> void:
+		_join_wait_s = -1.0
 		queue_changed.emit({"state": &"locked", "queue": &"", "waited_s": 0.0, "estimate_s": 0.0, "in_queue": 0,
 			"locked_s": float(d.get("seconds", 0)), "err": "HUD_MM_ERR_LOCKED"}))
-	mm.ready_check.connect(func(deadline: float) -> void: match_found.emit(found_of(mm.last_ready, deadline - _now())))
+	mm.ready_check.connect(func(deadline: float) -> void:
+		_join_wait_s = -1.0
+		match_found.emit(found_of(mm.last_ready, deadline - _now())))
 	mm.ready_result.connect(func(d: Dictionary) -> void:
 		ready_result.emit({"outcome": RR.get(int(d.get("outcome", 0)), &"requeued"), "locked_s": float(d.get("locked", 0)),
 			"reason": "HUD_MM_READY_DECLINED" if int(d.get("outcome", 0)) == MatchmakingCodec.RR_LOCKED else "HUD_MM_READY_OTHERS"}))
 	mm.draft_state.connect(func(d: Dictionary) -> void: pick_state.emit(draft_of(d, _queue(), rules)))
 	mm.aram_state.connect(func(d: Dictionary) -> void: pick_state.emit(aram_of(d, _outgoing)))
 	mm.match_assigned.connect(func(host: String, port: int, ticket: String) -> void:
+		_join_wait_s = -1.0
 		_outgoing.clear()
 		var a := mm.last_assigned
 		match_assigned.emit({"match_id": str(a.get("match", "")), "host": host, "port": port, "ticket": ticket,
@@ -75,7 +79,9 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 	mm.match_result.connect(func(d: Dictionary) -> void: post_match.emit(result_of(d, mm.last_ranked, rules)))
 	mm.rating_update.connect(func(d: Dictionary) -> void: profile_received.emit(profile_of(d, rules)))
 	mm.custom_state.connect(func(d: Dictionary) -> void: custom_changed.emit(custom_of(d)))
-	mm.request_failed.connect(func(_op: int, code: int) -> void: failed.emit(error_key(code)))
+	mm.request_failed.connect(func(_op: int, code: int) -> void:
+		_join_wait_s = -1.0  # an answer, even a refusal, ends the wait
+		failed.emit(error_key(code)))
 	if lobby != null and lobby.has_signal("account_result"):
 		lobby.connect("account_result", _on_account_result)
 

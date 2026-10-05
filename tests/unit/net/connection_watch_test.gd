@@ -33,6 +33,7 @@ func test_link_up_but_no_login_answer_times_out() -> void:
 	w.begin("host:7777", true)
 	w.tick(3.0)
 	w.on_link_up()
+	w.on_request_sent()
 	w.tick(9.0)
 	assert_array(_reasons).is_empty()
 	w.tick(2.0)
@@ -141,3 +142,56 @@ func test_error_card_shows_message_and_emits_retry_and_back() -> void:
 		(b as Button).pressed.emit()
 	assert_array(hits).contains_exactly_in_any_order(["retry", "back"])
 	p.queue_free()
+
+
+func test_login_form_wait_does_not_time_out_without_a_request() -> void:
+	var w := _watch()
+	w.begin("host:7777", true)
+	w.on_link_up()
+	w.tick(60.0)  # the player is typing
+	assert_array(_reasons).is_empty()
+	w.on_request_sent()
+	w.tick(9.0)
+	assert_array(_reasons).is_empty()
+	w.tick(2.0)
+	assert_array(_reasons).is_equal(["HUD_NET_ERR_LOGIN_TIMEOUT"])
+
+
+func test_request_sent_before_the_link_starts_the_login_timer_with_the_link() -> void:
+	var w := _watch()
+	w.begin("host:7777", true)
+	w.on_request_sent()
+	w.on_link_up()
+	w.tick(11.0)
+	assert_array(_reasons).is_equal(["HUD_NET_ERR_LOGIN_TIMEOUT"])
+
+
+func test_failed_login_stops_the_login_timer() -> void:
+	var w := _watch()
+	w.begin("host:7777", true)
+	w.on_link_up()
+	w.on_request_sent()
+	w.on_account_error(AccountCodec.OP_LOGIN, 3)  # wrong password
+	w.tick(60.0)
+	assert_array(_reasons).is_empty()
+	w.on_request_sent()  # tries again
+	w.tick(11.0)
+	assert_array(_reasons).is_equal(["HUD_NET_ERR_LOGIN_TIMEOUT"])
+
+
+func test_other_answers_clear_the_queue_join_wait() -> void:
+	var mm := MatchmakingClient.new(null)
+	var a := MmClientAdapter.new(mm)
+	var failed: Array[String] = []
+	a.failed.connect(func(k: String) -> void: failed.append(k))
+	for emit_answer: Callable in [
+			func() -> void: mm.lockout.emit({"seconds": 30, "until": 0.0}),
+			func() -> void: mm.request_failed.emit(MatchmakingCodec.OP_QUEUE_JOIN, MatchmakingCodec.E_GUEST),
+			func() -> void: mm.ready_check.emit(5.0),
+			func() -> void: mm.match_assigned.emit("h", 1, "t")]:
+		failed.clear()
+		a.join_queue(&"normal_5v5", [])
+		emit_answer.call()
+		failed.clear()
+		a.tick(100.0)
+		assert_array(failed).is_empty()

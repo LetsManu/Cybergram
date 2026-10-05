@@ -125,9 +125,12 @@ static func _remove_any(path: String) -> bool:
 	return not FileAccess.file_exists(path) and not DirAccess.dir_exists_absolute(path)
 
 
-## True for `x.old` and `x.old.<anything>` leftovers.
+static var _LEFTOVER_RX: RegEx = RegEx.create_from_string("\\.old(\\.\\d+)?$")
+
+
+## True for `x.old` and `x.old.<n>` leftovers (not e.g. `my.old.notes.txt`).
 static func is_leftover(file_name: String) -> bool:
-	return file_name.ends_with(".old") or file_name.contains(".old.")
+	return _LEFTOVER_RX.search(file_name) != null
 
 
 ## Deletes leftovers (*.old, *.old.<n>) from earlier self-updates, best effort:

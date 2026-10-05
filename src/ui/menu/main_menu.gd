@@ -818,6 +818,7 @@ func _resume_from_launcher() -> bool:
 		_show_login()
 		return true
 	_online.request(AccountCodec.OP_REDEEM, {"ver": MsgType.PROTOCOL_VERSION, "token": h.token, "id": h.account})
+	_watch.on_request_sent()
 	return true
 
 
@@ -849,12 +850,12 @@ func _fall_back_to_plain() -> void:
 	var addr := _server
 	var host := addr.rsplit(":", true, 1)[0]
 	push_warning("[net] encrypted connection to %s failed; retrying unencrypted (guest only)" % host)
+	if AuthConfig.plain_hosts.has(host):
+		# Plain UDP failed too: tell the player (card with Retry / Back).
+		_on_watch_failed(ConnectionWatch.reason_key(ConnectionWatch.Reason.DTLS))
+		return
 	_close_login()
 	_disconnect()
-	if AuthConfig.plain_hosts.has(host):
-		_status.text = tr("HUD_LOBBY_CONNECTION_LOST")
-		_refresh_chip()
-		return
 	AuthConfig.plain_hosts[host] = true
 	_auto_guest_sent = false
 	_with_session(_then, addr)
@@ -876,6 +877,7 @@ func _send_resume() -> bool:
 		push_warning("[net] not resuming the account session over an unencrypted link")
 		return false
 	_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": session_token})
+	_watch.on_request_sent()
 	return true
 
 
@@ -905,6 +907,8 @@ func _process(delta: float) -> void:
 		return
 	if _enet != null and _enet.error_text != "":
 		_watch.on_transport_error(_enet.error_text, _link_up)
+		if _watch.phase == ConnectionWatch.Phase.FAILED:
+			return  # _on_watch_failed already dropped the link and showed the card
 		_status.text = tr("HUD_LOBBY_CONNECTION_LOST")
 		_disconnect()
 		if _login != null:
@@ -916,6 +920,8 @@ func _process(delta: float) -> void:
 func _request(op: int, fields: Dictionary) -> void:
 	if _online != null:
 		_online.request(op, fields)
+		if op in [AccountCodec.OP_LOGIN, AccountCodec.OP_REGISTER, AccountCodec.OP_GUEST]:
+			_watch.on_request_sent()
 
 
 func _on_account(d: Dictionary) -> void:
@@ -993,6 +999,7 @@ func _auto_guest() -> void:
 	var p := PlayerProfile.generated()
 	_online.request(AccountCodec.OP_GUEST, {"ver": MsgType.PROTOCOL_VERSION, "display_name": p.name,
 		"emblem": p.emblem, "accent": p.accent, "flags": AccountCodec.FLAG_PRIVACY})
+	_watch.on_request_sent()
 
 
 func _show_login() -> void:
