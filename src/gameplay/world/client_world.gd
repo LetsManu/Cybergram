@@ -243,6 +243,8 @@ func tick() -> void:
 		var can := combat != null and combat.ammo > 0.0 and not combat.dead
 		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
 		_step_spread(kicked)
+		if kicked and rig != null:
+			rig.play_shot()  # W19-VM: FP fire clip on the same predicted shot as the kick
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -269,6 +271,10 @@ func render(delta: float) -> void:
 		player_input.camera_recoil_scale = cs.comfort_camera_recoil
 		hidden_kick = player_input.hidden_kick()
 	rig.bob_enabled = cs.comfort_weapon_bob
+	rig.reduce_motion = cs.reduce_motion
+	rig.set_grounded(body.state.grounded)
+	if InputMap.has_action(&"inspect") and Input.is_action_just_pressed(&"inspect"):
+		rig.play_inspect()  # W19-VM
 	var yaw := player_input.view_yaw() if player_input != null else _cmd.yaw
 	var pitch := player_input.view_pitch() if player_input != null else _cmd.pitch
 	rig.follow(feet, body.eye_height(), yaw, pitch, hidden_kick)
@@ -336,6 +342,8 @@ func _on_snapshot(s: SnapshotData) -> void:
 		server_tick_estimate = s.tick
 	if s.own_combat != null:
 		combat = s.own_combat
+		if rig != null:
+			rig.on_own_combat(combat)  # W19-VM: reload / cast gestures
 		spread.reconcile(combat.ammo, 1.0 / float(maxi(net.tick_rate_hz, 1)))
 	if s.own_state != null:
 		if body == null:
@@ -537,10 +545,9 @@ func _draw_tracer(e: GameEvent) -> void:
 		return
 	if e.source_net_id == session.own_net_id:
 		var from := rig.camera.global_position if rig != null and rig.camera != null else e.position
-		if rig != null and rig.weapon_model != null:
-			var m := rig.weapon_model.socket(&"fx_muzzle")
-			if m != null:
-				from = m.global_position
+		var muzzle: Variant = rig.muzzle_global() if rig != null else null
+		if muzzle != null:
+			from = muzzle
 		tracers.spawn(from, e.position, TRACER_OWN, true)
 		return
 	var v: HeroView = _views.get(e.source_net_id)

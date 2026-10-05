@@ -79,7 +79,9 @@ func test_first_person_rig_builds_viewmodel_and_mounts_on_sockets() -> void:
 	rig.setup(LookSettings.new())
 	add_child(auto_free(rig))
 	var hd := load(HEROES_DIR + "hero_vesper_loom.tres") as HeroDef
+	HeroModelLoader.set_box_forced(1)  # W19-VM: the box viewmodel path (Vesper has an FP glb)
 	rig.set_weapon(hd.weapon, ModelCatalog.hero_key(hd), ModelPalette.TEAM_CONCORD)
+	HeroModelLoader.set_box_forced(-1)
 	assert_object(rig.weapon_model).is_not_null()
 	assert_bool(rig.gun.visible).is_false()
 	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef

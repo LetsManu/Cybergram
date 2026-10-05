@@ -32,6 +32,21 @@ var comfort_rules: ComfortRulesDef = ComfortRulesDef.new()
 const GUN_POS := Vector3(0.16, -0.15, -0.38)
 var _fov_factor: float = 1.0
 var _vm_kick: Vector2 = Vector2.ZERO
+## W19-VM: the hero's FP viewmodel (gloved hands, own weapon, FP clips) when
+## assets/models/heroes/<key>/<key>_fp.glb exists; null = the box weapon above.
+var fp_model: FpViewmodel
+## Viewmodel pivot and scale at the reference FOV (the box gun or the FP glb grip).
+var _vm_base_pos: Vector3 = VIEWMODEL_POS
+var _vm_base_scale: float = VIEWMODEL_SCALE
+var _weapon_def: WeaponDef
+## Hero run speed (m/s) for the walk / sprint sway blend (HeroDef.move_speed).
+var run_speed: float = 6.0
+## W16-COMFORT reduce motion: freezes the FP loops and skips jump / land sway.
+var reduce_motion: bool = false
+var _grounded: bool = true
+var _prev_cd := PackedInt32Array()
+var _was_reloading: bool = false
+var _was_burnout: bool = false
 
 
 func setup(look: LookSettings) -> void:
@@ -73,6 +88,7 @@ func _weapon_from_parent() -> void:
 		return
 	var hd: Variant = p.get("hero_def")
 	if hd is HeroDef and (hd as HeroDef).weapon != null:
+		run_speed = (hd as HeroDef).move_speed
 		var team := int(p.call("own_team")) if p.has_method("own_team") else 0
 		set_weapon((hd as HeroDef).weapon, ModelCatalog.hero_key(hd as HeroDef), team)
 
@@ -84,21 +100,33 @@ func set_weapon(def: WeaponDef, hero_key: StringName = &"", team: int = 0) -> vo
 		return
 	if _vm != null:
 		_vm.queue_free()
+	_weapon_def = def
+	weapon_model = null
+	fp_model = null
 	_vm = Node3D.new()
 	_vm.name = "Viewmodel"
-	_vm.position = VIEWMODEL_POS
-	_vm.scale = Vector3.ONE * VIEWMODEL_SCALE * _fov_factor
 	camera.add_child(_vm)
-	weapon_model = WeaponModelBuilder.build(k, true, team)
-	weapon_model.rotation_degrees = Vector3(0.0, 4.0, 0.0)
-	_vm.add_child(weapon_model)
 	if hero_key == &"":
 		hero_key = ModelCatalog.hero_key_from_id(String(def.id))
 	if hero_key == &"":
 		for hk in ModelCatalog.HERO_WEAPON:
 			if ModelCatalog.HERO_WEAPON[hk] == k:
 				hero_key = hk
-	_add_arms(hero_key, team)
+	fp_model = FpViewmodel.build(hero_key, team, def.feed_kind == WeaponDef.FeedKind.MANA)
+	if fp_model != null:  # W19-VM: the hero's own FP set
+		_vm_base_pos = fp_model.fp_pos
+		_vm_base_scale = 1.0
+		_vm.add_child(fp_model)
+		fp_model.play_draw()
+	else:  # fallback: procedural box weapon + box forearms
+		_vm_base_pos = VIEWMODEL_POS
+		_vm_base_scale = VIEWMODEL_SCALE
+		weapon_model = WeaponModelBuilder.build(k, true, team)
+		weapon_model.rotation_degrees = Vector3(0.0, 4.0, 0.0)
+		_vm.add_child(weapon_model)
+		_add_arms(hero_key, team)
+	_vm.position = _vm_pos()
+	_vm.scale = Vector3.ONE * _vm_base_scale * _fov_factor
 	gun.visible = false
 	_mount_key = ""
 	if not _last_items.is_empty():
@@ -136,6 +164,9 @@ func set_mounts(items: Array, tiers: PackedInt32Array) -> void:
 	_mount_key = key
 	_last_items = items.duplicate()
 	_last_tiers = tiers.duplicate()
+	if fp_model != null:
+		fp_model.set_mounts(items, tiers)
+		return
 	if weapon_model != null:
 		weapon_model.set_mounts(items, tiers)
 		return
@@ -160,6 +191,8 @@ func set_mounts(items: Array, tiers: PackedInt32Array) -> void:
 
 ## Number of mount meshes on the gun (tests / diagnostics).
 func mount_mesh_count() -> int:
+	if fp_model != null:
+		return fp_model.mount_count()
 	if weapon_model != null:
 		return weapon_model.mount_count()
 	return _mounts.get_child_count() if _mounts != null else 0
@@ -230,7 +263,12 @@ func set_fov(deg: float) -> void:
 	if gun != null:
 		gun.scale = Vector3.ONE * _fov_factor
 	if _vm != null:
-		_vm.scale = Vector3.ONE * VIEWMODEL_SCALE * _fov_factor
+		_vm.scale = Vector3.ONE * _vm_base_scale * _fov_factor
+
+
+## Viewmodel pivot, FOV-compensated (x / y only; the depth stays).
+func _vm_pos() -> Vector3:
+	return Vector3(_vm_base_pos.x * _fov_factor, _vm_base_pos.y * _fov_factor, _vm_base_pos.z)
 
 
 ## Greybox gun position, FOV-compensated (x / y only).
@@ -267,7 +305,15 @@ func _viewmodel_bob(feet: Vector3) -> void:
 	if _last_feet != Vector3.INF and dt > 0.0:
 		speed = Vector2(feet.x - _last_feet.x, feet.z - _last_feet.z).length() / dt
 	_last_feet = feet
-	var base := Vector3(VIEWMODEL_POS.x * _fov_factor, VIEWMODEL_POS.y * _fov_factor, VIEWMODEL_POS.z)
+	var base := _vm_pos()
+	if fp_model != null:  # W19-VM: walk / sprint sway are clips; the hidden kick stays procedural
+		var sway := bob_enabled and not reduce_motion
+		var sprint := speed > run_speed * 1.15
+		_bob_amp = lerpf(_bob_amp, FpViewmodel.loco_point(speed, run_speed, sprint, sway), clampf(dt * 8.0, 0.0, 1.0))
+		fp_model.set_motion(_bob_amp, 0.0 if reduce_motion else clampf(speed / maxf(run_speed, 0.1), 0.8, 1.4))
+		_vm.position = base + _kick_offset()
+		_vm.rotation = Vector3(_vm_kick.y, _vm_kick.x, 0.0)
+		return
 	if not bob_enabled:  # W16-COMFORT: a still gun (the hidden kick still shows)
 		_bob_amp = 0.0
 		_vm.position = base + _kick_offset()
@@ -288,3 +334,55 @@ func _mat(c: Color, emissive: bool, energy: float = 1.0) -> StandardMaterial3D:
 		m.emission = c
 		m.emission_energy_multiplier = energy
 	return m
+
+
+## Muzzle position for tracers / muzzle FX (null without a viewmodel).
+func muzzle_global() -> Variant:
+	var m: Marker3D = null
+	if fp_model != null:
+		m = fp_model.socket(&"fx_muzzle")
+	elif weapon_model != null:
+		m = weapon_model.socket(&"fx_muzzle")
+	return m.global_position if m != null else null
+
+
+## W19-VM hooks (presentation only, never gameplay timing) ---------------------
+
+## A predicted own shot (ClientWorld.tick, the same moment RecoilKick kicks).
+func play_shot() -> void:
+	if fp_model != null and _weapon_def != null:
+		fp_model.play_fire(_weapon_def.fire_rate)
+
+
+## Own combat snapshot: reload / Burnout start plays the reload clip stretched to
+## the WeaponDef time; a restarted cooldown plays that slot's cast gesture.
+func on_own_combat(c: SnapshotData.OwnCombat) -> void:
+	if c == null:
+		return
+	var reloading := (c.ammo_flags & AmmoFeed.FLAG_RELOADING) != 0
+	var burnout := (c.ammo_flags & AmmoFeed.FLAG_BURNOUT) != 0
+	if fp_model != null and not c.dead:
+		if reloading and not _was_reloading:
+			fp_model.play_reload(FpViewmodel.reload_duration(_weapon_def, c.ammo <= 0.0))
+		elif burnout and not _was_burnout:
+			fp_model.play_reload(FpViewmodel.reload_duration(_weapon_def))
+		if _prev_cd.size() == c.skill_cd_left.size():
+			for i in c.skill_cd_left.size():
+				if c.skill_cd_left[i] > _prev_cd[i]:
+					fp_model.play_cast(i)
+	_was_reloading = reloading
+	_was_burnout = burnout
+	_prev_cd = c.skill_cd_left.duplicate()
+
+
+## Jump / land sway (skipped with weapon bob off or reduce motion).
+func set_grounded(grounded: bool) -> void:
+	if fp_model != null:
+		fp_model.set_grounded(grounded, bob_enabled and not reduce_motion)
+	_grounded = grounded
+
+
+## Weapon inspect (InputBindings action "inspect").
+func play_inspect() -> void:
+	if fp_model != null:
+		fp_model.play_inspect()

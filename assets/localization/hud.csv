@@ -734,3 +734,4 @@ HUD_COMFORT_HINT_DISMISS,Dismiss
 HUD_SET_XH_DYNAMIC,Dynamic crosshair (shows spread)
 HUD_RING_OUTSIDE,OUTSIDE THE RING
 HUD_RING_RETURN,Return to the plaza
+HUD_ACT_INSPECT,Inspect weapon
