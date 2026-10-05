@@ -5,6 +5,8 @@ extends RefCounted
 ##   --tls-cert <pem>   / env CYBERGRAM_TLS_CERT   certificate chain (PEM), e.g. Let's Encrypt fullchain.pem
 ##   --tls-key <pem>    / env CYBERGRAM_TLS_KEY    private key (PEM), e.g. privkey.pem
 ##   --data-dir <dir>   / env CYBERGRAM_DATA_DIR   account files (default user://accounts; Docker: /data/accounts)
+##   --crash-dir <dir>  / env CYBERGRAM_CRASH_DIR   opt-in crash reports (W15; default: crash_reports
+##                      next to the data dir, Docker: /data/crash_reports); only with DTLS
 ##   --allow-guests     / env CYBERGRAM_ALLOW_GUESTS=1|true|yes   let players join without an account
 ##                      (default off; forced on while there is no TLS certificate, so the game stays playable)
 ## Flags win over env. Without a readable cert + key the server runs
@@ -26,6 +28,8 @@ var ca_path: String = ""
 var insecure: bool = false
 var no_dtls: bool = false
 var allow_guests: bool = false
+## W15: folder for opt-in crash reports ("" = next to data_dir).
+var crash_dir: String = ""
 ## Loaded server TLS (null = guest-only) and why it is missing.
 var server_tls: TLSOptions
 var tls_error: String = ""
@@ -43,6 +47,7 @@ static func parse(args: PackedStringArray, env: Dictionary, debug_build: int = -
 	if dd != "":
 		c.data_dir = dd
 	c.allow_guests = str(env.get("CYBERGRAM_ALLOW_GUESTS", "")).to_lower() in ["1", "true", "yes", "on"]
+	c.crash_dir = str(env.get("CYBERGRAM_CRASH_DIR", ""))
 	var i := 0
 	while i < args.size():
 		var has_value := i + 1 < args.size()
@@ -59,6 +64,10 @@ static func parse(args: PackedStringArray, env: Dictionary, debug_build: int = -
 				if has_value:
 					i += 1
 					c.data_dir = args[i]
+			"--crash-dir":
+				if has_value:
+					i += 1
+					c.crash_dir = args[i]
 			"--dtls-ca":
 				if has_value:
 					i += 1
@@ -79,10 +88,16 @@ static func parse(args: PackedStringArray, env: Dictionary, debug_build: int = -
 ## This process's settings (OS args + env).
 static func from_os() -> AuthConfig:
 	var env := {}
-	for k in ["CYBERGRAM_TLS_CERT", "CYBERGRAM_TLS_KEY", "CYBERGRAM_DATA_DIR", "CYBERGRAM_ALLOW_GUESTS"]:
+	for k in ["CYBERGRAM_TLS_CERT", "CYBERGRAM_TLS_KEY", "CYBERGRAM_DATA_DIR", "CYBERGRAM_ALLOW_GUESTS",
+			"CYBERGRAM_CRASH_DIR"]:
 		if OS.has_environment(k):
 			env[k] = OS.get_environment(k)
 	return parse(OS.get_cmdline_user_args(), env)
+
+
+## Where crash reports are kept: crash_dir, or "crash_reports" next to data_dir.
+func crash_reports_dir() -> String:
+	return crash_dir if crash_dir != "" else data_dir.get_base_dir().path_join("crash_reports")
 
 
 ## Loads the server certificate + key. Returns the TLSOptions or null

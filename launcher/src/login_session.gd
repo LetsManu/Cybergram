@@ -9,15 +9,16 @@ extends Node
 ## - A password is only ever sent over an encrypted (DTLS) link. If the server
 ##   has no certificate the link falls back to plain UDP, `guest_only` becomes
 ##   true and login() refuses; the launcher then offers "Play" without login.
-## - Nothing is written to disk. The session token lives in this object until
-##   `hand_over_env` passes it to the game through environment variables
-##   (not the command line, which other users can read) and forgets it.
+## - Nothing is written to disk. The launcher's own session token never
+##   leaves this object. At Play, `request_launch` asks the server for a
+##   single-use launch token (60 s, bound to this account, only on DTLS) and
+##   `hand_over_env` passes that to the game through environment variables
+##   (LaunchHandoff; not the command line, which other users can read).
+## - The link also gives the server round-trip time (`rtt_ms`, ENet's own
+##   ping) for the status widget, and carries friends / party requests.
 
-const ENV_TOKEN: String = "CYBERGRAM_SESSION_TOKEN"
-const ENV_SERVER: String = "CYBERGRAM_SESSION_SERVER"
-## Milliseconds to wait after closing the link so the server detaches the
-## session before the game resumes it (the server keeps it for its grace).
-const DETACH_WAIT_MS: int = 400
+## Seconds to wait for the launch token before starting the game unsigned.
+const LAUNCH_TIMEOUT_S: float = 5.0
 
 ## The link to the server is ready. `secure` = DTLS (logins allowed).
 signal link_ready(secure: bool)
@@ -25,6 +26,10 @@ signal link_ready(secure: bool)
 signal link_failed(message: String)
 ## Result of login(): ok, player-facing message, display name when ok.
 signal login_result(ok: bool, message: String, display_name: String)
+## Every ACCOUNT_RESULT other than login ({op, code, ...}): friends, party.
+signal account_result(result: Dictionary)
+## Answer to request_launch(): the hand-over ({token, server, account}) or {}.
+signal launch_ready(handoff: Dictionary)
 
 var server: String = ""
 var secure: bool = false
@@ -36,6 +41,10 @@ var _enet: ENetTransport
 var _client: LobbyClient
 var _token: String = ""
 var _display_name: String = ""
+var _account_id: String = ""
+var _launch_wait: float = -1.0
+var _rtt: int = -1
+var _ping_sent_us: int = 0
 
 
 ## Connects to `address` ("host:port"). Hostnames try DTLS first and fall back
@@ -74,6 +83,62 @@ func display_name() -> String:
 	return _display_name
 
 
+## Player id of the signed-in account ("" when not logged in).
+func account_id() -> String:
+	return _account_id if is_logged_in() else ""
+
+
+## Sends any account request (friends, party) on the signed-in link. False
+## when not logged in on an encrypted link.
+func request(op: int, fields: Dictionary = {}) -> bool:
+	if not is_logged_in() or not secure:
+		return false
+	_client.request(op, fields)
+	return true
+
+
+## Round-trip time to the game server in ms: the last OP_PING probe answer
+## (falls back to ENet's running average before the first one), -1 while
+## there is no link.
+func rtt_ms() -> int:
+	if _enet == null or not link_up:
+		return -1
+	return _rtt if _rtt >= 0 else -1
+
+
+## Sends one RTT probe (OP_PING, no fields; the server answers at once). The
+## answer updates rtt_ms(). Works signed in or not, plain or encrypted.
+func ping() -> void:
+	if _client == null or not link_up or _ping_sent_us > 0:
+		return
+	_ping_sent_us = Time.get_ticks_usec()
+	_client.request(AccountCodec.OP_PING)
+
+
+## Sends a crash report (gzip bytes) in AccountCodec.CHUNK_MAX chunks. Only on
+## an encrypted link (signed in or not); the answer arrives as an
+## account_result with op OP_CRASH_CHUNK. False when nothing was sent.
+func send_crash_report(payload: PackedByteArray) -> bool:
+	if _client == null or not link_up or not secure or not _enet.is_secure or payload.is_empty():
+		return false
+	var n: int = ceili(float(payload.size()) / AccountCodec.CHUNK_MAX)
+	for i in n:
+		_client.request(AccountCodec.OP_CRASH_CHUNK, {"seq": i, "total": n,
+			"data": payload.slice(i * AccountCodec.CHUNK_MAX, (i + 1) * AccountCodec.CHUNK_MAX)})
+	return true
+
+
+## Asks the server for a single-use launch token; `launch_ready` answers with
+## the hand-over or {} (not logged in, not encrypted, refused, timed out).
+## Never asks over a plain link: a launch token is an account credential.
+func request_launch() -> void:
+	if not is_logged_in() or not secure or not _enet.is_secure:
+		launch_ready.emit.call_deferred({})
+		return
+	_launch_wait = LAUNCH_TIMEOUT_S
+	_client.request(AccountCodec.OP_LAUNCH_TOKEN)
+
+
 ## Sends the login. Refused on an unencrypted link. The caller should clear its
 ## password field right after this call; this object never keeps the password.
 func login(username: String, password: String) -> void:
@@ -93,9 +158,14 @@ func logout() -> void:
 		_client.request(AccountCodec.OP_LOGOUT)
 	_token = ""
 	_display_name = ""
+	_account_id = ""
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _launch_wait >= 0.0:
+		_launch_wait -= delta
+		if _launch_wait < 0.0:
+			launch_ready.emit({})
 	if _client == null:
 		return
 	_client.step()
@@ -124,10 +194,28 @@ static func _host_of(address: String) -> String:
 
 
 func _on_account(d: Dictionary) -> void:
-	if int(d.get("op", 0)) != AccountCodec.OP_LOGIN:
+	var op: int = int(d.get("op", 0))
+	if op == AccountCodec.OP_PING:
+		if _ping_sent_us > 0:
+			_rtt = int((Time.get_ticks_usec() - _ping_sent_us) / 1000)
+			_ping_sent_us = 0
+		return
+	if op == AccountCodec.OP_LAUNCH_TOKEN:
+		if _launch_wait < 0.0:
+			return  # timed out already
+		_launch_wait = -1.0
+		var h: Dictionary = {}
+		if int(d.code) == AccountCodec.OK:
+			h = {"token": str(d.token), "server": server, "account": _account_id}
+		launch_ready.emit(h if not LaunchHandoff.parse({LaunchHandoff.ENV_TOKEN: h.get("token", ""),
+			LaunchHandoff.ENV_SERVER: server, LaunchHandoff.ENV_ACCOUNT: _account_id}).is_empty() else {})
+		return
+	if op != AccountCodec.OP_LOGIN:
+		account_result.emit(d)
 		return
 	if int(d.code) == AccountCodec.OK and d.has("token"):
 		_token = str(d.token)
+		_account_id = str(d.get("id", ""))
 		_display_name = str(d.get("display_name", d.get("username", "")))
 		login_result.emit(true, "Signed in as %s" % _display_name, _display_name)
 	else:
@@ -152,35 +240,16 @@ static func error_text(code: int) -> String:
 	return "Login failed (code %d)." % code
 
 
-## Closes the link without logging out. The server keeps the session for its
-## grace period (60 s) so the game can resume it with the token.
-func detach() -> void:
-	if _enet != null:
-		_enet.close()
-		OS.delay_msec(DETACH_WAIT_MS)
-	_enet = null
-	_client = null
-	link_up = false
-
-
-## Passes the session to this process's environment (inherited by a child
-## started right after) and forgets it here. Returns false when not logged in.
-## Call `clear_env` after starting the child.
-func hand_over_env() -> bool:
-	if not is_logged_in():
-		return false
-	var token: String = _token
-	_token = ""
-	detach()
-	OS.set_environment(ENV_TOKEN, token)
-	OS.set_environment(ENV_SERVER, server)
-	return true
+## Passes the launch token `h` (from launch_ready) to this process's
+## environment so the game started right after inherits it. Call clear_env()
+## after starting the child. False when `h` is empty or malformed.
+static func hand_over_env(h: Dictionary) -> bool:
+	return LaunchHandoff.put_into_os(h)
 
 
 ## Removes the hand-over variables from the launcher's own environment.
 static func clear_env() -> void:
-	OS.unset_environment(ENV_TOKEN)
-	OS.unset_environment(ENV_SERVER)
+	LaunchHandoff.clear_os()
 
 
 ## Stops everything (no logout: the session just expires after the grace).
@@ -192,3 +261,6 @@ func close() -> void:
 	link_up = false
 	_token = ""
 	_display_name = ""
+	_account_id = ""
+	_rtt = -1
+	_ping_sent_us = 0

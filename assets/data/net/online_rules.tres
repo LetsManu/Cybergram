@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="OnlineRulesDef" format=3]
+
+[ext_resource type="Script" path="res://src/networking/online/online_rules_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+launch_token_ttl_s = 60.0
+launch_tokens_max = 4096
+motd_max_chars = 200
+crash_max_bytes = 65536
+crash_retention_days = 30
+crash_dir_cap_mb = 200
+crash_per_ip_per_hour = 3
+crash_per_account_per_day = 5
+crash_upload_timeout_s = 60.0
+party_max = 3
+party_invite_ttl_s = 120.0

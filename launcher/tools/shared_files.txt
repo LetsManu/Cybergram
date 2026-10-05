@@ -10,3 +10,4 @@ src/networking/transport/enet_transport.gd
 src/networking/auth/auth_config.gd
 src/networking/lobby/lobby_client.gd
 src/core/auth/auth_rules_def.gd
+src/networking/auth/launch_handoff.gd

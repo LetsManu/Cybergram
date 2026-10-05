@@ -52,6 +52,15 @@ var _now: float = 0.0
 var _since_sweep: float = 0.0
 var _since_purge: float = 0.0
 var _crypto := Crypto.new()
+## W15 tuning (launch tokens, crash reports, parties).
+var online: OnlineRulesDef
+## W15: single-use launcher -> game sign-in tokens (hashes only).
+var launch_tokens: LaunchTokenStore
+## W15: opt-in crash reports (null = not accepted on this server).
+var crash_store: CrashReportStore
+## W15: parties (memory only).
+var parties: PartyService
+var _crash_up: Dictionary = {}  # peer -> {total, next, buf: PackedByteArray, started}
 
 
 ## Process-wide service (guest-only until configure_shared()).
@@ -68,6 +77,12 @@ static func configure_shared(store_: AccountStore, rules_: AuthRulesDef, secure_
 		_shared = AccountService.new(store_, rules_, secure_)
 	else:
 		_shared.secure = secure_
+	if secure_ and _shared.crash_store == null:
+		# W15: crash reports only where they can arrive encrypted.
+		_shared.crash_store = CrashReportStore.new(AuthConfig.from_os().crash_reports_dir(), _shared.online)
+		var n := _shared.crash_store.sweep(int(Time.get_unix_time_from_system()))
+		if n > 0:
+			print("[crash] retention: deleted %d old report(s)" % n)
 	_shared.allow_guests = allow_guests_ or not secure_
 	return _shared
 
@@ -80,6 +95,9 @@ func _init(store_: AccountStore, rules_: AuthRulesDef, secure_: bool, registry_:
 	registry = registry_ if registry_ != null else PresenceRegistry.shared()
 	rl_account = LoginRateLimiter.new(rules.max_failures_per_account, rules.failure_window_s, rules.lockout_s)
 	rl_peer = LoginRateLimiter.new(rules.max_failures_per_peer, rules.failure_window_s, rules.lockout_s)
+	online = OnlineRulesDef.load_default()
+	launch_tokens = LaunchTokenStore.new(online.launch_token_ttl_s, online.launch_tokens_max)
+	parties = PartyService.new(online.party_max, online.party_invite_ttl_s)
 	if store != null:
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
@@ -121,6 +139,7 @@ func adopt(account_id: String, peer: int) -> void:
 func on_disconnect(peer: int) -> void:
 	peers.erase(peer)
 	_req_budget.erase(peer)
+	_crash_up.erase(peer)
 	for tok in sessions:
 		var s: Dictionary = sessions[tok]
 		if s.peer == peer:
@@ -143,17 +162,31 @@ func step(delta: float) -> void:
 		_since_purge = 0.0
 		rl_account.purge(_now)
 		rl_peer.purge(_now)
+		launch_tokens.purge(_now)
+		parties.purge(_now)
+		for id in parties.members() + parties.invites.keys():
+			if not _has_session(str(id)):
+				parties.forget(str(id))  # no connection left (after the grace): out of the party
 	_since_sweep += delta
 	if _since_sweep >= SWEEP_EVERY_S and store != null:
 		_since_sweep = 0.0
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
 			print("[accounts] retention: deleted %d inactive account(s)" % swept.size())
+		if crash_store != null:
+			var n := crash_store.sweep(int(Time.get_unix_time_from_system()))
+			if n > 0:
+				print("[crash] retention: deleted %d old report(s)" % n)
+	for p in _crash_up.keys():
+		if _now - float(_crash_up[p].started) > online.crash_upload_timeout_s:
+			_crash_up.erase(p)
 
 
 ## Handles one ACCOUNT_REQ packet from `peer`, replying on `t`.
 func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
-	if not _budget(peer):
+	# Crash report chunks have their own limits (CrashReportStore), not the request budget.
+	var is_chunk := data.size() > 1 and data.decode_u8(1) == AccountCodec.OP_CRASH_CHUNK
+	if not is_chunk and not _budget(peer):
 		return
 	var r := AccountCodec.decode_request(data)
 	if r.is_empty():
@@ -169,6 +202,12 @@ func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
 			_resume(t, peer, r)
 		AccountCodec.OP_GUEST:
 			_guest(t, peer, r)
+		AccountCodec.OP_REDEEM:
+			_redeem(t, peer, r)
+		AccountCodec.OP_CRASH_CHUNK:
+			_crash_chunk(t, peer, r)
+		AccountCodec.OP_PING:
+			_reply(t, peer, op, AccountCodec.OK)  # W15 RTT probe: answered at once
 		AccountCodec.OP_LOGOUT:
 			_logout(peer)
 			_reply(t, peer, op, AccountCodec.OK)
@@ -245,6 +284,93 @@ func _resume(t: Transport, peer: int, r: Dictionary) -> void:
 	s.peer = peer
 	peers[peer] = s.identity
 	_reply(t, peer, op, AccountCodec.OK, _session_fields(s.identity))
+
+
+## W15: the game trades the launcher's single-use launch token for its own
+## session. DTLS only (an account credential), bound to the account in `id`.
+## Every failure looks the same to the client (E_SESSION) and counts as a
+## failed login for the source address.
+func _redeem(t: Transport, peer: int, r: Dictionary) -> void:
+	var op := AccountCodec.OP_REDEEM
+	var code := _session_preconditions(r)
+	if code != AccountCodec.OK:
+		_reply(t, peer, op, code)
+		return
+	var pk := source_key(t, peer)
+	if rl_peer.is_locked(pk, _now):
+		_reply(t, peer, op, AccountCodec.E_LOCKED)
+		return
+	var res := launch_tokens.redeem(str(r.token), str(r.id), _now)
+	var a := store.get_by_id(str(r.id)) if res == LaunchTokenStore.Result.OK else {}
+	if a.is_empty():
+		rl_peer.fail(pk, _now)
+		print("[accounts] launch token refused on peer %d (%s)" % [peer,
+			LaunchTokenStore.Result.keys()[res].to_lower() if res != LaunchTokenStore.Result.OK else "no account"])
+		_reply(t, peer, op, AccountCodec.E_SESSION)
+		return
+	a.last_login_at = int(Time.get_unix_time_from_system())
+	store.put(a)
+	print("[accounts] launch token redeemed: account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
+	_logout(peer)
+	_start_session(t, peer, op, _identity_of(a))
+
+
+## W15: one chunk of an opt-in crash report. DTLS only; chunks arrive in
+## order (reliable channel); the first one checks the rate limits, the last
+## one stores the report. Answers only on the last chunk or on an error.
+func _crash_chunk(t: Transport, peer: int, r: Dictionary) -> void:
+	var op := AccountCodec.OP_CRASH_CHUNK
+	var seq := int(r.seq)
+	var total := int(r.total)
+	var max_chunks := ceili(float(online.crash_max_bytes) / AccountCodec.CHUNK_MAX)
+	if not secure or crash_store == null:
+		if seq == 0:
+			_reply(t, peer, op, AccountCodec.E_NOT_SECURE)
+		return
+	var who: Dictionary = peers.get(peer, {})
+	var account := "" if who.is_empty() or who.guest else str(who.id)
+	if seq == 0:
+		if total < 1 or total > max_chunks:
+			_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+			return
+		if not crash_store.allowed(source_key(t, peer), account, int(Time.get_unix_time_from_system())):
+			_reply(t, peer, op, AccountCodec.E_RATE)
+			return
+		_crash_up[peer] = {"total": total, "next": 0, "buf": PackedByteArray(), "started": _now}
+	var up: Dictionary = _crash_up.get(peer, {})
+	if up.is_empty():
+		return  # chunks of a refused / dropped upload
+	if seq != int(up.next) or total != int(up.total):
+		_crash_up.erase(peer)
+		_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+		return
+	var buf: PackedByteArray = up.buf  # a value type: append, then store back
+	buf.append_array(r.data)
+	up.buf = buf
+	up.next = seq + 1
+	if buf.size() > online.crash_max_bytes:
+		_crash_up.erase(peer)
+		_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+		return
+	if int(up.next) < total:
+		return
+	_crash_up.erase(peer)
+	var res := crash_store.accept(up.buf, source_key(t, peer), account, int(Time.get_unix_time_from_system()))
+	var codes := {CrashReportStore.Result.OK: AccountCodec.OK, CrashReportStore.Result.RATE_LIMITED: AccountCodec.E_RATE,
+		CrashReportStore.Result.STORE_FAILED: AccountCodec.E_STORE}
+	var code: int = codes.get(res, AccountCodec.E_BAD_REQUEST)
+	print("[crash] report from peer %d: %s (%d bytes)" % [peer, CrashReportStore.Result.keys()[res].to_lower(),
+		(up.buf as PackedByteArray).size()])
+	_reply(t, peer, op, code, {"seq": seq})
+
+
+## W15: a launch token for the logged-in account on `peer` (DTLS only; the
+## caller already checked: logged in, not a guest, secure service).
+func _issue_launch_token(t: Transport, peer: int, me: Dictionary) -> void:
+	var tok := launch_tokens.issue(str(me.id), _now)
+	print("[accounts] launch token issued: account #%s (peer %d)" % [PlayerProfile.tag_of(me.id), peer])
+	_reply(t, peer, AccountCodec.OP_LAUNCH_TOKEN, AccountCodec.OK,
+		{"token": tok, "ttl": int(online.launch_token_ttl_s)})
 
 
 func _guest(t: Transport, peer: int, r: Dictionary) -> void:
@@ -396,6 +522,7 @@ func _finish(job: PasswordHasher.Job) -> void:
 				_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.E_STORE)
 				return
 			end_other_sessions(a.id, peer)
+			launch_tokens.revoke_account(a.id)
 			_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OK)
 
 
@@ -410,6 +537,8 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 		return
 	if op == AccountCodec.OP_DELETE_ACCOUNT:
 		store.delete_cascade(a.id)
+		launch_tokens.revoke_account(a.id)
+		parties.forget(a.id)
 		for tok in sessions.keys():
 			if sessions[tok].identity.id == a.id:
 				sessions.erase(tok)
@@ -455,6 +584,27 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 				"uname": uname, "pk": pk})
 		AccountCodec.OP_EXPORT:
 			_reply(t, peer, op, AccountCodec.OK, {"json": export_json(me)})
+		AccountCodec.OP_LAUNCH_TOKEN:
+			_issue_launch_token(t, peer, me)
+		AccountCodec.OP_PARTY:
+			_reply(t, peer, op, AccountCodec.OK, party_fields(me))
+		AccountCodec.OP_PARTY_INVITE:
+			var to := str(r.id)
+			if not (me.friends as Array).has(to) or (me.blocks as Array).has(to):
+				_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+				return
+			var o := store.get_by_id(to)
+			if o.is_empty() or (o.blocks as Array).has(me.id):
+				_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+				return
+			_reply(t, peer, op, _party_code(parties.invite(me.id, to, _now)))
+		AccountCodec.OP_PARTY_ACCEPT:
+			_reply(t, peer, op, _party_code(parties.accept(me.id, str(r.id), _now)))
+		AccountCodec.OP_PARTY_DECLINE:
+			_reply(t, peer, op, _party_code(parties.decline(me.id, str(r.id))))
+		AccountCodec.OP_PARTY_LEAVE:
+			parties.leave(me.id)
+			_reply(t, peer, op, AccountCodec.OK)
 		AccountCodec.OP_FRIENDS:
 			_reply(t, peer, op, AccountCodec.OK, {"friends": friends_list(me)})
 		AccountCodec.OP_FRIEND_REQUEST:
@@ -625,6 +775,49 @@ func block(me: Dictionary, id: String) -> int:
 func unblock(me: Dictionary, id: String) -> int:
 	me.blocks.erase(id)
 	return AccountCodec.OK if store.put(me) else AccountCodec.E_STORE
+
+
+# --- party (W15) --------------------------------------------------------------
+
+## OP_PARTY result: party id, leader, then one "P" entry per member, incoming
+## invite and outgoing invite (display name, emblem, accent, presence).
+func party_fields(me: Dictionary) -> Dictionary:
+	var st := parties.state_of(me.id, _now)
+	var list: Array = []
+	for m in st.members:
+		list.append(_party_entry(str(m), AccountCodec.PARTY_LEADER if m == st.leader else AccountCodec.PARTY_MEMBER))
+	for m in st.invites_in:
+		list.append(_party_entry(str(m), AccountCodec.PARTY_INVITE_IN))
+	for m in st.invites_out:
+		list.append(_party_entry(str(m), AccountCodec.PARTY_INVITE_OUT))
+	return {"party": st.party, "leader": st.leader, "members": list.filter(func(e: Dictionary) -> bool: return not e.is_empty())}
+
+
+func _party_entry(id: String, kind: int) -> Dictionary:
+	var o := store.get_by_id(id) if store != null else {}
+	if o.is_empty():
+		return {}
+	var p: Dictionary = o.profile
+	return {"id": id, "kind": kind, "status": status_of(id), "display_name": str(p.get("display_name", o.username)),
+		"emblem": int(p.get("emblem", 0)), "accent": int(p.get("accent", 0))}
+
+
+static func _party_code(c: int) -> int:
+	match c:
+		PartyService.OK:
+			return AccountCodec.OK
+		PartyService.E_FULL:
+			return AccountCodec.E_LIMIT
+		PartyService.E_NO_INVITE:
+			return AccountCodec.E_NOT_FOUND
+	return AccountCodec.E_BAD_REQUEST
+
+
+func _has_session(account_id: String) -> bool:
+	for tok in sessions:
+		if sessions[tok].identity.id == account_id:
+			return true
+	return false
 
 
 # --- helpers ----------------------------------------------------------------

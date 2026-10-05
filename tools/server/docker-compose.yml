@@ -24,6 +24,12 @@ services:
       # container user (uid shown by `docker exec cybergram id -u`).
       # Without it the server runs guest-only.
       - /srv/cybergram/tls:/data/tls:ro   # change to a folder on your NAS
+    # Message of the day in the launcher (W15): plain text, max 200 characters,
+    # re-read every few seconds. Put motd.txt into the data volume, e.g.
+    #   docker cp motd.txt cybergram:/data/motd.txt
+    # An absent file shows no message.
+    environment:
+      CYBERGRAM_MOTD_FILE: /data/motd.txt
     # Server logs: rotated, never kept long (privacy: they can name players).
     logging:
       driver: json-file

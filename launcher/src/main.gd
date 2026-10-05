@@ -97,6 +97,15 @@ var _args: Dictionary = {}
 # --- W15-UPD ---
 var _upd: UpdCli
 # --- end W15-UPD ---
+# --- W15-ONLINE ---
+var _launch_pending: bool = false
+var _rail: OnlineRail
+var _online_settings_row: HBoxContainer
+var _support: SupportCard
+var _privacy: PrivacyCard
+var _prefs: OnlinePrefs
+var _crash: CrashReporter
+# --- end W15-ONLINE ---
 
 
 func _ready() -> void:
@@ -117,6 +126,10 @@ func _ready() -> void:
 	add_child(_ux)
 	_ux.setup(_settings, String(args.get("game-userdir", "")))
 	# --- end W15-UX ---
+	# --- W15-ONLINE ---
+	_prefs = OnlinePrefs.new(String(args.get("settings", "user://launcher_settings.cfg")).get_base_dir()
+		.path_join("launcher_privacy.cfg")).load_file()
+	# --- end W15-ONLINE ---
 	var root: String = OS.get_executable_path().get_base_dir()
 	if _settings.install_root != "":
 		root = _settings.install_root
@@ -178,6 +191,21 @@ func _ready() -> void:
 		_login.login_result.connect(_on_login_result)
 		_user_edit.text = _settings.username
 		_login.open(_game_server)
+		# --- W15-ONLINE ---
+		_rail = OnlineRail.new()
+		add_child(_rail)
+		move_child(_rail, _login_modal.get_index())  # under the dialogs
+		_rail.setup(_probe, url, _login)
+		_crash = CrashReporter.new()
+		_crash.prefs = _prefs
+		_crash.login = _login
+		_crash.server = _game_server
+		_crash.launcher_version = _own_version
+		_crash.game_version = func() -> String: return _updater.installed_version()
+		_crash.ui_parent = self
+		_crash.game_exited.connect(_on_game_exited)
+		add_child(_crash)
+		# --- end W15-ONLINE ---
 		if args.has("show-login"):
 			_open_login()
 		# --- W15-UPD ---
@@ -458,16 +486,47 @@ func _play() -> void:
 	if _no_launch:
 		_status.text = "(--no-launch) would start the game now"
 		return
-	var signed_in: bool = _login != null and _login.hand_over_env()
+	# --- W15-ONLINE ---
+	# Sign in once: ask for a single-use launch token, then start the game with it.
+	if _login != null and _login.is_logged_in():
+		if _launch_pending:
+			return
+		_launch_pending = true
+		_status.text = "Signing the game in..."
+		_login.launch_ready.connect(func(h: Dictionary) -> void:
+			_launch_pending = false
+			_play_with(h), CONNECT_ONE_SHOT)
+		_login.request_launch()
+		return
+	_play_with({})
+
+
+## Starts the game; `handoff` = the launch token hand-over ({} = not signed in).
+func _play_with(handoff: Dictionary) -> void:
+	var signed_in: bool = LauncherLogin.hand_over_env(handoff)
+	OS.set_environment(LaunchHandoff.ENV_PRESENCE, "1" if _prefs.discord_presence else "0")
+	# --- end W15-ONLINE ---
 	# --- W15-UX --- (LauncherUx starts the process so it can watch it and apply the launch behaviour)
 	var started: bool = _ux.launch(_updater.game_exe_path())
 	# --- end W15-UX ---
+	# --- W15-ONLINE ---
+	if started:
+		_crash.watch(int(_ux.get("_pid")))  # exit code -> crash prompt (not in "close" mode: the launcher is gone)
 	if signed_in:
 		LauncherLogin.clear_env()
 	if not started:
 		_status.text = "Could not start the game. Try reinstalling (delete the game folder)."
 		return
 	# W15-UX: close / minimise / stay is now handled in LauncherUx.launch (Settings).
+
+
+# --- W15-ONLINE ---
+func _on_game_exited(code: int) -> void:
+	if not CrashReporter.is_crash(code):
+		return
+	_ux.restore()
+	_status.text = "The game closed unexpectedly (code %d)." % code
+# --- end W15-ONLINE ---
 
 
 ## Player picked a folder: offer to move an existing install into it.
@@ -693,6 +752,10 @@ func _show_page(key: String) -> void:
 		(_pages[k] as Control).visible = k == key
 	if _art != null:
 		_art.visible = key == "home"
+	# --- W15-ONLINE ---
+	if _rail != null:
+		_rail.visible = key == "home"  # the rail sits over the key art, not over other pages
+	# --- end W15-ONLINE ---
 	if _nav.has(key):
 		(_nav[key] as Button).button_pressed = true
 	UiKit.transition_in(_pages[key], Vector2.ZERO)
@@ -858,7 +921,23 @@ func _build_settings() -> Control:
 	# --- W15-UX --- Game, launch behaviour, system check, pinned hero
 	for ux_card in _ux.build_settings_cards():
 		col.add_child(ux_card)
+	# --- end W15-UX ---
+	# --- W15-ONLINE ---
+	_online_settings_row = HBoxContainer.new()
+	_online_settings_row.add_theme_constant_override("separation", 12)
+	col.add_child(_online_settings_row)
+	_support = SupportCard.new()
+	_support.launcher_version = _own_version
+	_support.game_version = func() -> String: return _updater.installed_version()
+	_support.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_online_settings_row.add_child(_support)
+	_privacy = PrivacyCard.new()
+	_privacy.prefs = _prefs
+	_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_online_settings_row.add_child(_privacy)
+	# --- end W15-ONLINE ---
 	col.move_child(about, col.get_child_count() - 1)  # About stays last
+	# --- W15-UX ---
 	var ux_scroll: ScrollContainer = ScrollContainer.new()
 	ux_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
