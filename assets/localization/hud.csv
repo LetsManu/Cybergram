@@ -696,3 +696,6 @@ HUD_PATCH_2_TITLE,Hero select
 HUD_PATCH_2_SUB,Lock in with your team
 HUD_PATCH_3_TITLE,Launcher
 HUD_PATCH_3_SUB,One-click update and play
+HUD_FRIENDS_SEARCH_HINT,Search or add by name
+HUD_FRIENDS_N_ONLINE,%d online
+HUD_FRIENDS_OFFLINE_N,Offline · %d
