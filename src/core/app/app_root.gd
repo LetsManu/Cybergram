@@ -17,6 +17,7 @@ static var auto_ready: bool = false
 
 
 func _ready() -> void:
+	ContentPacks.mount_once()  # W15-UPD: optional .pck packs before anything loads
 	var headless := DisplayServer.get_name() == "headless"
 	var cfg := load(APP_CONFIG_PATH) as AppConfig
 	var args := PracticeRange.boot_args(OS.get_cmdline_user_args())
