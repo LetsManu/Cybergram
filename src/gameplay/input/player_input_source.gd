@@ -48,6 +48,13 @@ var has_pause_menu: bool = false
 ## hitbox centres relative to the eye (ClientWorld sets it; empty = no assist).
 ## W11-C1 view punch (client-side only; see RecoilKick).
 var recoil := RecoilKick.new()
+## W16-COMFORT camera recoil (GameSettings.comfort_camera_recoil, set by ClientWorld).
+## Scales the kick that moves the camera AND the aim sent in the InputCommand, so
+## the aim always equals the view (no hidden offset between what you see and
+## what you shoot). The server's own spread is separate and untouched. Fair
+## because it is WYSIWYG: at 0% you simply do not have to pull the view back
+## down after a burst; hits still land where the (unmoving) crosshair points.
+var camera_recoil_scale: float = 1.0
 ## Weapon whose recovery values apply while no shot is kicking (ClientWorld sets it).
 var recoil_def: WeaponDef
 var pad_active: bool = false
@@ -104,13 +111,19 @@ func request_action(action: int, arg: int = 0) -> void:
 	_actions.append([action, arg])
 
 
-## Aim yaw / pitch = player look + recoil kick (camera and InputCommand agree).
+## Aim yaw / pitch = player look + recoil kick scaled by the comfort option
+## (camera and InputCommand agree).
 func view_yaw() -> float:
-	return fposmod(live_yaw + recoil.kick.x, TAU)
+	return fposmod(live_yaw + recoil.kick.x * camera_recoil_scale, TAU)
 
 
 func view_pitch() -> float:
-	return clampf(live_pitch + recoil.kick.y, -max_pitch_rad, max_pitch_rad)
+	return clampf(live_pitch + recoil.kick.y * camera_recoil_scale, -max_pitch_rad, max_pitch_rad)
+
+
+## The kick the camera does not show (full - scaled), for the viewmodel.
+func hidden_kick() -> Vector2:
+	return ComfortMath.hidden_kick(recoil.kick, camera_recoil_scale)
 
 
 func _process(delta: float) -> void:
