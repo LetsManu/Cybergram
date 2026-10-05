@@ -1,0 +1,85 @@
+[gd_resource type="Resource" script_class="MatchmakingRulesDef" format=3]
+
+[ext_resource type="Script" path="res://src/networking/matchmaking/match_queue_def.gd" id="1_yi3nh"]
+[ext_resource type="Script" path="res://src/networking/matchmaking/matchmaking_rules_def.gd" id="2_74uq3"]
+
+[sub_resource type="Resource" id="Resource_crn72"]
+script = ExtResource("1_yi3nh")
+id = &"normal_5v5"
+display_name = "Normal 5v5"
+map_id = &"shardline_front"
+rating_track = &"normal"
+bots_allowed = true
+lane_slots = Array[StringName]([&"north", &"center", &"south", &"flex", &"flex"])
+
+[sub_resource type="Resource" id="Resource_afvtn"]
+script = ExtResource("1_yi3nh")
+id = &"ranked_5v5"
+display_name = "Ranked 5v5"
+map_id = &"shardline_front"
+rating_track = &"ranked"
+ranked = true
+lane_slots = Array[StringName]([&"north", &"center", &"south", &"flex", &"flex"])
+
+[sub_resource type="Resource" id="Resource_7v8jr"]
+script = ExtResource("1_yi3nh")
+id = &"all_random_3v3"
+display_name = "3v3 All Random"
+map_id = &"slice"
+team_size = 3
+pick_mode = 1
+rating_track = &"all_random"
+bots_allowed = true
+
+[sub_resource type="Resource" id="Resource_6sdm6"]
+script = ExtResource("1_yi3nh")
+id = &"custom"
+display_name = "Custom game"
+pick_mode = 2
+bots_allowed = true
+matchmade = false
+lane_slots = Array[StringName]([&"north", &"center", &"south", &"flex", &"flex"])
+
+[resource]
+script = ExtResource("2_74uq3")
+queues = Array[ExtResource("1_yi3nh")]([SubResource("Resource_crn72"), SubResource("Resource_afvtn"), SubResource("Resource_7v8jr"), SubResource("Resource_6sdm6")])
+party_max = 5
+ready_check_s = 10.0
+search_window_base = 100.0
+search_window_growth_per_s = 5.0
+search_window_max = 800.0
+premade_mismatch_weight = 60.0
+lane_mismatch_weight = 15.0
+default_wait_estimate_s = 60.0
+wait_estimate_samples = 20
+ranked_party_gap_max = 500.0
+bot_fill_delay_s = 75.0
+bot_rating = 1300.0
+rate_bot_matches = false
+decline_lockout_steps_s = PackedFloat32Array(30, 120, 300, 900, 1800)
+leaver_lockout_steps_s = PackedFloat32Array(600, 3600, 14400, 86400)
+decline_strike_decay_s = 21600.0
+leaver_strike_decay_s = 604800.0
+rating_initial = 1500.0
+deviation_initial = 350.0
+deviation_min = 50.0
+volatility_initial = 0.06
+tau = 0.5
+calibration_games = 10
+leaver_penalty = 15.0
+leaver_teammate_loss_scale = 0.5
+dodge_rating_penalty = 5.0
+medal_bands = Array[Dictionary]([{"name": "Iron", "min": 0.0, "divisions": 5}, {"name": "Bronze", "min": 1100.0, "divisions": 5}, {"name": "Silver", "min": 1300.0, "divisions": 5}, {"name": "Gold", "min": 1500.0, "divisions": 5}, {"name": "Platinum", "min": 1700.0, "divisions": 5}, {"name": "Diamond", "min": 1900.0, "divisions": 5}, {"name": "Master", "min": 2100.0, "divisions": 1}])
+medal_division_span = 40.0
+pick_turn_s = 30.0
+draft_order = PackedInt32Array(1, 2, 2, 2, 2, 1)
+all_random_s = 45.0
+rerolls_per_player = 1
+swap_request_ttl_s = 10.0
+remake_window_s = 180.0
+remake_vote_s = 30.0
+report_categories = Array[StringName]([&"cheating", &"griefing", &"abusive_chat", &"afk", &"offensive_name"])
+report_retention_days = 30
+match_port_first = 7800
+match_port_last = 7809
+max_concurrent_matches = 8

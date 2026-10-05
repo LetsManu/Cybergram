@@ -42,6 +42,9 @@ var _humans: Dictionary = {}  # peer id -> HeroBody
 ## Online lobby: token -> {team, hero_index} for players who start the match
 ## from the lobby (bots leave these slots free). Consumed on join.
 var reserved_slots: Dictionary = {}
+## W17B: slot token -> the hero it played (a reconnect with the same token
+## takes its hero back from the bot that covered it).
+var token_heroes: Dictionary = {}
 var _peer_of: Dictionary = {}  # hero net id -> peer id
 var _dummies: Array = []      # [HeroBody, ScriptedInputSource]
 var _map: Node3D
@@ -316,6 +319,7 @@ func step() -> void:
 	_tracer.record(tick, _hero_bodies())  # lag compensation: pose history per tick
 	_send_snapshots()
 	_flush_events()
+	session.log_stats(tick)  # W16-NET: [net] line per client every 10 s (dedicated only)
 	tick += 1
 	tick_usec.append(Time.get_ticks_usec() - t0)
 
@@ -762,7 +766,11 @@ func _on_client_joined(peer_id: int) -> void:
 	var def := _hero_for_peer(peer_id)
 	var h: HeroBody = null
 	var token: int = session.hello_token.get(peer_id, 0)
-	if token != 0 and reserved_slots.has(token):
+	var back: HeroBody = token_heroes.get(token) if token != 0 else null
+	if back != null and is_instance_valid(back) and not _humans.values().has(back):
+		h = back
+		controller_taken.emit(h.net_id)
+	elif token != 0 and reserved_slots.has(token):
 		var slot: Dictionary = reserved_slots[token]
 		reserved_slots.erase(token)
 		h = _spawn_hero(team_spawn(slot.team, spawn_point(PLAYER_SPAWN)), def, slot.team)
@@ -774,6 +782,8 @@ func _on_client_joined(peer_id: int) -> void:
 		h = _spawn_hero(at, def, TEAM_PLAYERS)
 	_humans[peer_id] = h
 	_peer_of[h.net_id] = peer_id
+	if token != 0:
+		token_heroes[token] = h
 	session.accept(peer_id, h.net_id, tick)
 
 
@@ -905,6 +915,15 @@ func _send_snapshots() -> void:
 			e.hero_index = content.index_of(ContentDB.HERO, h.combat.def.id)  # M1 remote hero models
 		e.fork_bits = _fork_bits(h)  # W11-V1 Pillar 4: everyone sees Fork / Mastery
 		entities.append(e)
+	# W16-NET: blocks every client gets alike are built once per tick (shared
+	# objects also let the session encode each record once).
+	var shared := SnapshotData.new()
+	_fill_objectives(shared)
+	_fill_match(shared)
+	abilities.write_snapshot(shared)  # E10 skill FX
+	if wardlings != null:
+		wardlings.write_snapshot(shared)
+	shared.bolts.append_array(bolts.launched)  # hero bolts reuse the Wardling bolt block
 	for peer in session.clients:
 		var c: ServerSession.ClientConnection = session.clients[peer]
 		var s := SnapshotData.new()
@@ -919,12 +938,12 @@ func _send_snapshots() -> void:
 		s.entities = _entities_for(entities, c, own)
 		if own != null and progression != null:
 			progression.fill_own(s, own)  # E13/E15 own progress + learnable slots
-		_fill_objectives(s)
-		_fill_match(s)
-		abilities.write_snapshot(s)  # E10 skill FX
-		if wardlings != null:
-			wardlings.write_snapshot(s)
-		s.bolts.append_array(bolts.launched)  # hero bolts reuse the Wardling bolt block
+		s.hardpoints = shared.hardpoints
+		s.fronts = shared.fronts
+		s.match_state = shared.match_state
+		s.fx = shared.fx
+		s.wardlings = shared.wardlings
+		s.bolts = shared.bolts
 		session.send_snapshot(peer, s)
 
 
@@ -940,7 +959,7 @@ func _entities_for(entities: Array[SnapshotData.EntityState], c: ServerSession.C
 	for e in entities:
 		if ids.has(e.net_id) and e.team != own.combat.team:
 			var n := SnapshotData.EntityState.new()
-			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index"]:
+			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index", "fork_bits"]:
 				n.set(p, e.get(p))
 			n.status = e.status | SkillStatusBits.REVEALED
 			out.append(n)

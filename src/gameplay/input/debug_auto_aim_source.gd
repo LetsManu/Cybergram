@@ -40,7 +40,7 @@ func sample(seq: int, out: InputCommand) -> void:
 			var lead := Vector3.ZERO
 			if _last_pos.has(best_id):
 				var vel: Vector3 = best.position - _last_pos[best_id]
-				lead = Vector3(vel.x, 0.0, vel.z) * (client.net.interp_delay_ticks + 1)
+				lead = Vector3(vel.x, 0.0, vel.z) * (client.interp_delay_ticks() + 1.0)
 			var to := best.position + lead + Vector3(0.0, CHEST_HEIGHT, 0.0) - eye
 			out.yaw = fposmod(atan2(-to.x, -to.z), TAU)
 			out.pitch = atan2(to.y, Vector2(to.x, to.z).length())

@@ -69,6 +69,11 @@ docker logs -f cybergram          # "[lobby] open on UDP 7777 ..."
 
 Or with compose: `docker compose -f tools/server/docker-compose.yml up -d`.
 
+From v0.13 the container starts in **front mode** (one process per match; publish
+UDP 7800-7809 as well, and see `tools/server/.env.example`). Upgrade steps,
+rollback to `CYBERGRAM_MODE=single` and automatic updates are in
+[HOSTING.md](HOSTING.md).
+
 **Synology:**
 1. Open **Container Manager → Registry → Add**, and add
    `ghcr.io/letsmanu/cybergram-server`.
@@ -135,8 +140,9 @@ clear. Without a certificate the server runs **guest-only**, and the log shows
    - **certbot:** `certbot certonly --standalone -d cyber.djboeck.at`.
      This needs TCP 80 open briefly.
 2. **Copy the files into the TLS folder** as `fullchain.pem` (certificate plus
-   chain) and `privkey.pem`. The folder is `/srv/cybergram/tls` in the compose
-   file; change the left side of that mount to a folder on your NAS.
+   chain) and `privkey.pem`. The host folder is `./tls` next to the compose
+   file, or the folder named by `CYBERGRAM_TLS_DIR` (e.g. a line
+   `CYBERGRAM_TLS_DIR=/srv/cybergram/tls` in a `.env` file next to it).
 3. **Make the files readable by the container user:**
    `chmod 644 fullchain.pem privkey.pem`, or `chown` them to the uid that
    `docker exec cybergram id -u` prints.

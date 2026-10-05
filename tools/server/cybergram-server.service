@@ -12,6 +12,10 @@ Wants=network-online.target
 [Service]
 User=cybergram
 WorkingDirectory=/opt/cybergram
+# Hosting (W17, docs/HOSTING.md); same variables as the container:
+# Environment=CYBERGRAM_PUBLIC_HOST=play.example.net
+# Environment=CYBERGRAM_MATCH_PORTS=7800-7809
+# Environment=CYBERGRAM_MAX_MATCHES=0
 ExecStart=/opt/cybergram/Cybergram.x86_64 --headless -- --server --port 7777
 Restart=on-failure
 RestartSec=5

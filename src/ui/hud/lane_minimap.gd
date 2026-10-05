@@ -42,6 +42,10 @@ func _draw() -> void:
 			draw_line(to_px.call(hq.sanctum), to_px.call(g), line_col, 2.0)
 			draw_line(to_px.call(g), to_px.call(near.position), line_col, 2.0)
 		draw_circle(to_px.call(hq.uplink), 5.0, ctx.team_color(hq.team))
+	# W18-GEO: the between-lane jungle, drawn faintly under the lanes.
+	for path in md.jungle_paths:
+		for k in path.size() - 1:
+			draw_line(to_px.call(path[k]), to_px.call(path[k + 1]), Color(1.0, 0.35, 0.75, 0.22), 1.0)
 	for lane in md.lanes:
 		for k in lane.hardpoints.size() - 1:
 			draw_line(to_px.call(lane.hardpoints[k].position), to_px.call(lane.hardpoints[k + 1].position), line_col, 2.0)
