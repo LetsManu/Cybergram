@@ -464,7 +464,7 @@ HEROES = {
         "sable", 1.70,
         {"asian-female-young": 0.5, "caucasian-female-young": 0.5, "universal-female-young-maxmuscle-minweight": 0.8,
          "female-young-maxmuscle-minweight-idealproportions": 1.0},
-        {"charcoal": "#333A46", "jade": "#3FD69C", "chrome": "#C9D4E2", "mask": "#4A5260"},
+        {"charcoal": "#48536A", "jade": "#3FD69C", "chrome": "#C9D4E2", "mask": "#8A94A8"},
         {"paint": {"head": "charcoal", "torso": "charcoal", "sleeves": "charcoal", "gloves": "charcoal",
                    "legs": "charcoal", "boots": "charcoal", "belt": "jade", "forearm": "charcoal"},
          "boot_t": 0.3, "boot_shell": (0.01, "charcoal", "jade")},
