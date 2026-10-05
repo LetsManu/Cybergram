@@ -134,6 +134,37 @@ jobs:
             cp README.md "$d/README.md"
           done
 
+      - name: Build installers
+        env:
+          RELEASE_TAG: ${{ inputs.release_version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
+        run: |
+          # Release builds use the tag; other builds use the project version + "-dev".
+          if [[ -n "$RELEASE_TAG" ]]; then VER="${RELEASE_TAG#v}"
+          else VER="$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)-dev"; fi
+          echo "INSTALLER_VERSION=$VER" >> "$GITHUB_ENV"
+          sudo apt-get update -qq && sudo apt-get install -y -qq nsis
+          # appimagetool is pinned (URL + sha256) in installer/fetch_appimagetool.sh
+          mkdir -p build/installers
+          installer/build_windows.sh "$VER" build/launcher-windows build/windows build/installers
+          installer/build_linux_tar.sh "$VER" build/launcher-linux build/linux build/installers
+          installer/build_appimage.sh "$VER" build/launcher-linux build/linux build/installers
+          ls -la build/installers
+
+      - name: Installer smoke tests
+        run: |
+          VER="$INSTALLER_VERSION"
+          # Windows: the NSIS script compiled and the exe exists (not run: no Windows runner).
+          test -s "build/installers/CybergramSetup-$VER.exe"
+          # Linux tar: install into a temp HOME, check files + .desktop, uninstall.
+          installer/smoke_linux_tar.sh "build/installers/CybergramInstaller-$VER-linux-x86_64.tar.gz"
+          # AppImage: extract, run the launcher --check-only against a local feed, check the first-run copy.
+          installer/smoke_appimage.sh "build/installers/Cybergram-$VER-x86_64.AppImage" "$VER"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cybergram-Installers
+          path: build/installers/
+
       - uses: actions/upload-artifact@v4
         with:
           name: Cybergram-Windows
@@ -178,13 +209,24 @@ jobs:
           chmod +x CybergramLauncher-Linux/CybergramLauncher.x86_64
           (cd CybergramLauncher-Windows && zip -q -r "../CybergramLauncher-windows.zip" .)
           tar -czf "CybergramLauncher-linux.tar.gz" -C CybergramLauncher-Linux .
-          sha256sum Cybergram-*.zip Cybergram-*.tar.gz CybergramLauncher-windows.zip CybergramLauncher-linux.tar.gz > SHA256SUMS.txt
+          # Installers (main download) sit next to the portable zips/tarballs.
+          mv Cybergram-Installers/* .
+          chmod +x Cybergram-*-x86_64.AppImage
+          sha256sum CybergramSetup-*.exe Cybergram-*-x86_64.AppImage CybergramInstaller-*.tar.gz \
+            Cybergram-*.zip Cybergram-*.tar.gz CybergramLauncher-windows.zip CybergramLauncher-linux.tar.gz > SHA256SUMS.txt
           ls -la
 
       - name: Release notes
         run: |
           notes="production/releases/$VERSION.md"
           if [[ -f "$notes" ]]; then cp "$notes" notes.md; else echo "Cybergram $VERSION" > notes.md; fi
+          cat >> notes.md <<EOF
+
+          ## Downloads
+          **Recommended: the installer.** Windows: \`CybergramSetup-${VERSION#v}.exe\` (per-user, no admin). Linux: \`Cybergram-${VERSION#v}-x86_64.AppImage\` (make it executable and run it) or \`CybergramInstaller-${VERSION#v}-linux-x86_64.tar.gz\` (run \`install.sh\`). The installer includes the launcher, which keeps the game up to date. See docs/INSTALL.md.
+          The installers are not code-signed yet: Windows SmartScreen may warn (More info, Run anyway).
+          **Portable builds** (advanced users): the \`Cybergram-*-windows-x86_64.zip\` / \`-linux-x86_64.tar.gz\` files and the bare launcher packages. All files are listed with checksums in \`SHA256SUMS.txt\`.
+          EOF
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -195,6 +237,9 @@ jobs:
           prerelease: ${{ startsWith(github.ref, 'refs/tags/') && contains(github.ref_name, '-') || inputs.prerelease }}
           fail_on_unmatched_files: true
           files: |
+            dist/CybergramSetup-*.exe
+            dist/Cybergram-*-x86_64.AppImage
+            dist/CybergramInstaller-*.tar.gz
             dist/Cybergram-*.zip
             dist/Cybergram-*.tar.gz
             dist/CybergramLauncher-windows.zip
