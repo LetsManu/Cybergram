@@ -51,7 +51,7 @@ DEFAULT_PAINT = {
     "crease_ink": 0.7,             # ink in the deepest creases
     "grit": 0.05,                  # painterly value noise
     "normal_bump": 0.3,            # detail normal strength
-    "uv_margin": 0.002,            # pack margin (fraction of the atlas; 2 texels at 1024)
+    "uv_margin": 0.0017,           # pack margin (SCALED; measured >= 1-2 texels between islands at 1024)
 }
 
 

@@ -8,3 +8,6 @@ metadata/clip_speed = {
 "run_back": 1.211,
 "walk": 1.211
 }
+metadata/shader = {
+"hatch_strength": 0.1
+}
