@@ -519,6 +519,7 @@ func _setup_remote_client() -> void:
 			net_sim.one_way_latency_ms, net_sim.jitter_ms, net_sim.loss * 100.0])
 	client = ClientWorld.new()
 	client.hello_token = lc.token
+	client.hello_ticket = lc.ticket
 	add_child(client)
 	var input := PlayerInputSource.new()
 	input.setup(look, movement)
