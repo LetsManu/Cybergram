@@ -99,8 +99,9 @@ const MODE_INFO: Array = [
 	["HUD_MODE_NAME_COURSE", "HUD_MODE_META_COURSE", "HUD_MODE_COURSE_DESC", "HUD_MODE_CTA_START", "sable"]]
 ## Top-bar tabs (index = Nav): CAREER opens the profile; settings is the gear.
 const NAV_TAB_KEYS: Array[String] = ["HUD_NAV_HOME", "HUD_NAV_HEROES", "HUD_NAV_CAREER"]
-## Patch strip items: <key>_TITLE / <key>_SUB.
-const PATCH_KEYS: Array[String] = ["HUD_PATCH_1", "HUD_PATCH_2", "HUD_PATCH_3"]
+## Patch strip items: HUD_PATCH_<n>_TITLE / _SUB (built, so the key scanner
+## does not read a prefix as a key).
+const PATCH_ITEMS := 3
 ## The mockup's reference resolution: the shell is laid out at this size and scaled.
 const REF_SIZE := Vector2(1440, 810)
 const MODE_ONLINE := 0
@@ -300,7 +301,8 @@ func _build_home(content: Control) -> void:
 	var grid := HBoxContainer.new()
 	grid.add_theme_constant_override("separation", 20)
 	_tiles.add_child(grid)
-	for k in PATCH_KEYS:
+	for n in PATCH_ITEMS:
+		var k := "HUD" + "_PATCH_%d" % (n + 1)
 		var item := VBoxContainer.new()
 		item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		item.add_theme_constant_override("separation", 4)

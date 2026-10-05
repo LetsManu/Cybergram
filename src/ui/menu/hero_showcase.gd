@@ -111,6 +111,18 @@ func _ready() -> void:
 	_skills.custom_minimum_size.x = 440
 	_skills.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_info.add_child(_skills)
+	for k in 4:  # built once; select() only swaps the names
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		row.add_child(UiKit.key_chip(skill_key(k)))
+		var nm := Label.new()
+		nm.add_theme_font_override("font", UiKit.body_font(400))
+		nm.add_theme_font_size_override("font_size", 14)
+		nm.add_theme_color_override("font_color", t.text)
+		nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		nm.custom_minimum_size.x = 168
+		row.add_child(nm)
+		_skills.add_child(row)
 	_info.add_child(UiKit.spacer(36))
 	var strip := HBoxContainer.new()
 	strip.add_theme_constant_override("separation", 14)
@@ -210,23 +222,11 @@ func select(i: int, notify := true) -> void:
 	_name.text = str(h.name)
 	_eyebrow.text = eyebrow_text(stem, def)
 	_line.text = hero_line(stem)
-	for c in _skills.get_children():
-		_skills.remove_child(c)
-		c.queue_free()
-	if def != null:
-		for k in mini(def.skills.size(), 4):
-			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 12)
-			row.add_child(UiKit.key_chip(skill_key(k)))
-			var nm := Label.new()
-			nm.text = def.skills[k].display_name
-			nm.add_theme_font_override("font", UiKit.body_font(400))
-			nm.add_theme_font_size_override("font_size", 14)
-			nm.add_theme_color_override("font_color", UiKit.tokens().text)
-			nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			nm.custom_minimum_size.x = 168
-			row.add_child(nm)
-			_skills.add_child(row)
+	for k in _skills.get_child_count():
+		var row := _skills.get_child(k) as HBoxContainer
+		var has := def != null and k < def.skills.size()
+		row.modulate.a = 1.0 if has else 0.0
+		(row.get_child(1) as Label).text = def.skills[k].display_name if has else ""
 	for k in _badges.size():
 		_badges[k].set_pressed_no_signal(k == selected)
 		_badges[k].queue_redraw()
