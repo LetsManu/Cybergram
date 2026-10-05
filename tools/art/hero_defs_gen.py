@@ -249,10 +249,14 @@ HEROES = {
                  "calf_r": 0.064, "ankle_r": 0.042, "hand": 1.25, "foot": 1.25, "boot_r": 1.3,
                  "deltoid": 0.85, "pecs": 0.0, "bust": 0.3, "glutes": 0.6, "calves": 0.5, "traps": 0.3,
                  "chest_lift": 0.012, "arm_angle": 50.0},
-        "paint": {},
+        # Painted hatching is sparse; the runtime shader hatch is turned down so it
+        # does not double up (per-hero shader overrides -> <id>_anim.tres metadata).
+        "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05,
+                  "shader": {"hatch_strength": 0.1}},
         "palette": {"plum": "#8E3FB4", "gold": "#F5B83A", "ink": "#3D2C5F", "chrome": "#C9D4E2",
                     "violet": "#B57DFF", "hair": "#30234A", "glove": "#5A4483", "trim": "#4A2260",
-                    "team": TEAM, "white": "#F4EEE2", "eye": "#1A1220"},
+                    "team": TEAM, "white": "#F4EEE2", "eye": "#1A1220",
+                    "braid": "#F4B63B"},  # cloth gold for garment trims (not metal: no glint band)
         "cuts": vesper_cuts,
         "regions": vesper_regions,
         "shells": [
@@ -265,9 +269,9 @@ HEROES = {
                    "clear": 0.03, "open_front": 52, "slits": [(150, 0.55), (210, 0.55)],
                    "chains": [("FR", 60), ("BR", 120), ("B", 180), ("BL", 240), ("FL", 300)], "bones": 3,
                    "rows": 10, "col_deg": 10, "thick": 0.014,
-                   "colors": {"outer": "plum", "inner": "ink", "hem": "gold", "trim": "gold"}}],
+                   "colors": {"outer": "plum", "inner": "ink", "hem": "braid", "trim": "braid"}}],
         # One-handed: carbine at chest height, the off hand free and open (conductor).
-        "stance": {"grip_r": (0.17, 0.25, 1.16), "pivot": (0.14, 0.02, 1.40), "twist": -12, "clav_l": -4,
+        "stance": {"grip_r": (0.15, 0.32, 1.28), "pivot": (0.14, 0.02, 1.42), "twist": -14, "clav_l": -4,
                    "pole_r": (1, -0.6, -1), "pole_l": (-1, -0.3, -0.6), "two_handed": False,
                    "left_free": ((-0.30, 0.24, 1.22), (-0.15, 0.8, 0.45), (0.25, 0.3, 1)),
                    "grip_l": (0, 0.28, 0.0), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),

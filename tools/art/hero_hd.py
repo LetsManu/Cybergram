@@ -32,7 +32,7 @@ from mathutils.kdtree import KDTree
 # Palette names -> metalness (spec/glint mask). Unlisted: hard parts 0.55, cloth 0.
 METAL = {"chrome": 1.0, "iron": 0.85, "brass": 0.95, "gold": 1.0, "hd_metal": 0.9, "hd_gun": 0.75,
          "hd_buckle": 1.0, "trim": 0.6, "screen": 0.7, "mask": 0.5}
-CLOTH = {"hoodie", "legs", "trousers", "suit", "tape", "sneaker", "hair", "hd_strap", "hd_cloth"}
+CLOTH = {"hoodie", "legs", "trousers", "suit", "tape", "sneaker", "hair", "hd_strap", "hd_cloth", "braid"}
 NONMETAL = {"rubber", "bone", "ivory", "wood", "sneaker", "skin", "lip", "brow", "eye", "hair", "hd_strap", "soot", "ink"}
 KIND_BODY, KIND_SHELL, KIND_PART, KIND_WEAPON, KIND_SOFT = 0, 1, 2, 3, 4
 

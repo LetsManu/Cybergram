@@ -37,9 +37,12 @@ DEFAULT_PAINT = {
     "warm": (1.04, 1.0, 0.93), "cool": (0.88, 0.9, 1.06),
     "top": 0.12,                   # top-to-bottom value falloff
     "ao": 0.5, "ao_dist": 0.025,   # painted crease AO (short reach: creases only, not garment gaps)
-    "hatch": 0.55,                 # hatching darkness (0 = off)
-    "hatch_spacing": 0.014,        # metres between hatch lines (scaled by height)
-    "hatch_width": 0.22,           # line width as a fraction of the spacing
+    "hatch": 0.5,                  # hatching darkness (0 = off)
+    "hatch_threshold": -0.05,      # N.L below which hatching starts (lit side never: < terminator - soft)
+    "hatch_fade": 0.3,             # N.L range over which it fades in toward the dark side
+    "hatch_density": 0.5,          # share of the shadow zone covered by stroke clusters (0..1)
+    "hatch_spacing": 0.024,        # metres between hatch lines (scaled by height)
+    "hatch_width": 0.3,            # line width as a fraction of the spacing
     "cross": 0.35,                 # crease depth where the cross-hatch starts
     "edge": 0.5,                   # convex edge highlight strength
     "ink": (0.06, 0.05, 0.09),     # ink colour (lines, hatching)
@@ -471,10 +474,16 @@ def composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov):
     aa = 0.05 * 2048.0 / S  # ~1 texel of the 2048 bake in line periods at the default spacing
     u1 = (p3[..., 0] * 0.55 + p3[..., 1] * 0.35 + p3[..., 2] * 0.76) / sp
     u2 = (-p3[..., 0] * 0.6 + p3[..., 1] * 0.5 + p3[..., 2] * 0.62) / sp
-    shade = (1.0 - lit) * (1.0 - skin)
-    h1 = _lines(u1, cfg["hatch_width"], aa) * np.clip(shade * 1.4 - 0.1, 0, 1)
-    deep = np.clip((crease + (1 - lit) * 0.3 - cfg["cross"]) * 3.0, 0, 1)
-    h2 = _lines(u2, cfg["hatch_width"] * 0.9, aa) * deep * shade
+    # Sparse, Borderlands-style: only below hatch_threshold, fading in toward the dark
+    # side, in stroke clusters (a noise mask covering hatch_density of the zone).
+    zone = np.clip((cfg["hatch_threshold"] - lam) / max(cfg["hatch_fade"], 1e-3), 0, 1) * (1.0 - skin)
+    zone = zone * zone * (3 - 2 * zone) * (1.0 - lit)
+    dens = float(np.clip(cfg["hatch_density"], 0.0, 1.0))
+    cl = _fbm(p3 * 5.0 + 11.0, 2)
+    cluster = np.clip((cl - (1.0 - dens) * 0.9 - 0.05) / 0.12, 0, 1)
+    h1 = _lines(u1, cfg["hatch_width"], aa) * zone * cluster
+    deep = np.clip((crease - cfg["cross"]) * 3.0, 0, 1)
+    h2 = _lines(u2, cfg["hatch_width"] * 0.9, aa) * deep * zone
     hatch = np.clip(h1 + h2, 0, 1) * cfg["hatch"] * (1 - emit)
     ink = np.array(cfg["ink"], dtype=np.float32)[None, None]
     alb = alb * (1 - hatch[..., None]) + (alb * 0.35 + ink * 0.5) * hatch[..., None]

@@ -308,6 +308,7 @@ static func material(team_: int, enemy_outline: bool = false, far: bool = false,
 	m.shader = load(TOON_SHADER)
 	m.set_shader_parameter("team_color", tc)
 	_bind_maps(m, model_key)
+	apply_shader_overrides(m, shader_overrides(model_key))
 	var o := ShaderMaterial.new()
 	o.shader = load(OUTLINE_SHADER)
 	o.set_shader_parameter("outline_color", tc if enemy_outline else Color("#090A0E"))
@@ -316,6 +317,25 @@ static func material(team_: int, enemy_outline: bool = false, far: bool = false,
 		m.next_pass = o
 	_materials[k] = m
 	return m
+
+
+## W16: per-hero toon shader overrides ({uniform: value}) from the hero's
+## `<key>_anim.tres` metadata "shader", written by tools/art/build_hero.py from the
+## hero def's paint.shader. Empty for heroes without overrides.
+static func shader_overrides(model_key: StringName) -> Dictionary:
+	if model_key == &"":
+		return {}
+	var p := "res://assets/models/heroes/%s/%s_anim.tres" % [model_key, model_key]
+	if not ResourceLoader.exists(p):
+		return {}
+	var r := load(p)
+	return r.get_meta(&"shader", {}) if r != null else {}
+
+
+## Applies `overrides` ({uniform name: value}) to a toon material. Pure apart from `m`.
+static func apply_shader_overrides(m: ShaderMaterial, overrides: Dictionary) -> void:
+	for k in overrides:
+		m.set_shader_parameter(StringName(k), overrides[k])
 
 
 ## Outline-only material (the hull pass on its own) for the W14 LOD mesh.

@@ -55,8 +55,9 @@ func _run() -> void:
 	_root3d.add_child(old)
 	old.position.x = 0.75
 	m.position.x = -0.75
-	old.rotation_degrees.y = 180.0 + 25.0
-	m.rotation_degrees.y = 180.0 + 25.0
+	var vs_yaw := float(_arg("--vs-yaw", "25"))  # W16: e.g. 60 shows a one-hand weapon in profile
+	old.rotation_degrees.y = 180.0 + vs_yaw
+	m.rotation_degrees.y = 180.0 + vs_yaw
 	_frame_cam(h, 5.4, h * 0.5, 30.0)
 	await _frames(6)
 	await _save("%s/%s_vs_old.png" % [out, key])

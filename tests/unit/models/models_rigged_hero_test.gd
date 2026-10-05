@@ -251,3 +251,14 @@ func test_gen_pipeline_vesper_has_baked_cloth_bones() -> void:
 		if String(run.track_get_path(t)).ends_with(":Cloth_coat_B_3") and run.track_get_key_count(t) > 2:
 			keyed = true
 	assert_bool(keyed).override_failure_message("the run clip carries the baked coat").is_true()
+
+
+func test_per_hero_shader_overrides() -> void:
+	var o := RiggedHeroModel.shader_overrides(&"vesper")
+	assert_bool(o.has("hatch_strength")).is_true()
+	assert_dict(RiggedHeroModel.shader_overrides(&"ryker")).is_empty()
+	assert_dict(RiggedHeroModel.shader_overrides(&"")).is_empty()
+	var v := RiggedHeroModel.material(ModelPalette.TEAM_CONCORD, false, false, &"vesper")
+	assert_float(float(v.get_shader_parameter("hatch_strength"))).is_equal_approx(float(o["hatch_strength"]), 0.001)
+	var r := RiggedHeroModel.material(ModelPalette.TEAM_CONCORD, false, false, &"ryker")
+	assert_object(r.get_shader_parameter("hatch_strength")).is_null()  # shader default kept

@@ -235,11 +235,13 @@ def _emit(h, g, k):
     tc = sp.get("trim_cols", 1)
     all_faces = g.faces
     layers = [(all_faces, 0.0, th, col["outer"], col["inner"], col["hem"])]
-    layers.append(([f for f in all_faces if f[1] >= g.R - hb], th * 0.5 + 0.0015 * k, 0.004 * k, col["hem"], col["hem"],
-                   col["hem"]))
+    lt = 0.005 * k  # layer thickness; layers sit clearly outside the shell (no intersection)
+    lo = th * 0.5 + lt * 0.5 + 0.0015 * k
+    layers.append(([f for f in all_faces if f[1] >= g.R - hb], lo, lt, col["hem"], col["hem"], col["hem"]))
     if not g.closed and tc > 0:
-        layers.append(([f for f in all_faces if f[2] < tc or f[2] >= g.nc - 1 - tc], th * 0.5 + 0.0015 * k, 0.004 * k,
+        layers.append(([f for f in all_faces if f[2] < tc or f[2] >= g.nc - 1 - tc], lo + lt * 0.2, lt,
                        col["trim"], col["trim"], col["trim"]))
+    drop = sp.get("hem_drop", 0.005) * k  # the hem band hangs a little below the shell: a solid trim edge
     bm, dl = h.pbm, h.pdl
     for faces, off, t, c_out, c_in, c_rim in layers:
         used = sorted({i for f in faces for i in f[0]})
@@ -247,6 +249,8 @@ def _emit(h, g, k):
         for i in used:
             for store, sgn in ((outer, 1.0), (inner, -1.0)):
                 p = g.pos[i] + N[i] * (off + sgn * t / 2)
+                if off > 0 and g.meta[i][1] == g.R:
+                    p = p - np.array([0.0, 0.0, drop])
                 v = bm.verts.new(Vector(p))
                 for b, w in g.W[i].items():
                     v[dl][h.bone_names.index(b)] = w

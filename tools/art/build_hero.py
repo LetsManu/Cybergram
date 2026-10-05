@@ -717,6 +717,11 @@ def export(h, rig, body, lod, mocap_info, tex_sizes, out_dir=None):
         fh.write('[gd_resource type="Resource" format=3]\n\n[resource]\nmetadata/clip_speed = {\n')
         fh.write(",\n".join('"%s": %.3f' % (k, speeds[k]) for k in sorted(speeds)))
         fh.write("\n}\n")
+        shader = h.d.get("paint", {}).get("shader", {})  # W16: per-hero toon shader overrides
+        if shader:
+            fh.write("metadata/shader = {\n")
+            fh.write(",\n".join('"%s": %s' % (k, repr(float(v))) for k, v in sorted(shader.items())))
+            fh.write("\n}\n")
     print("built %s: %d tris, %d bones, %d clips, %.2f MB glb, textures %s" % (
         out, tris, len(rig.data.bones), len(bpy.data.actions), os.path.getsize(out) / 1e6,
         {k: round(v / 1e6, 2) for k, v in tex_sizes.items()}))
