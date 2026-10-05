@@ -28,6 +28,15 @@ const TEAM_SYNDICATE: int = 1
 ## Wading zones (W16-SDWATER): dock water slows 15%. Read by the shared hero
 ## motor (server + prediction) and Wardling movement.
 @export var water_zones: Array[WaterZoneDef] = []
+## W18-GEO: background-life mount points and routes (null = none).
+@export var ambient_anchors: AmbientAnchorsDef
+## W18-GEO: between-lane jungle. Centrelines of its walkable routes (minimap,
+## overview, tests) and its pockets (future neutral camp sites).
+@export var jungle_paths: Array[PackedVector3Array] = []
+@export var jungle_pockets: Array[JunglePocketDef] = []
+## Navigation layer bit of the jungle region. Wardlings query layer 1 only, so
+## they never path through it; heroes / bots query every layer.
+const JUNGLE_NAV_LAYER: int = 2
 ## Match rules this map plays under (format, clock, Uplink). Null = the
 ## session default. Canon C1: the full map is 5v5, the 1-lane slice 3v3.
 @export var match_rules: MatchRulesDef
