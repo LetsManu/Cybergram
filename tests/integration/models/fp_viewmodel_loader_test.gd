@@ -112,7 +112,22 @@ func test_fov_refit_scales_fp_viewmodel() -> void:
 	rig.set_fov(120.0)
 	var f := ComfortMath.viewmodel_fov_factor(120.0, rig.comfort_rules.viewmodel_ref_fov_deg)
 	var vm := rig.fp_model.get_parent() as Node3D
-	assert_float(vm.scale.x).is_equal_approx(f, 1e-5)
+	assert_float(vm.scale.x).is_equal_approx(f * rig.fp_model.fp_scale, 1e-5)
 	rig.follow(Vector3.ZERO, 1.6, 0.0, 0.0)
 	assert_float(vm.position.x).is_equal_approx(rig.fp_model.fp_pos.x * f, 1e-4)
 	assert_float(vm.position.z).is_equal_approx(rig.fp_model.fp_pos.z, 1e-4)
+
+
+func test_death_holsters_and_respawn_draws() -> void:
+	var rig := _rig()
+	rig.set_weapon(_hero("hero_vesper_loom").weapon, &"vesper", ModelPalette.TEAM_CONCORD)
+	var bt := rig.fp_model.tree.tree_root as AnimationNodeBlendTree
+	var dead := SnapshotData.OwnCombat.new()
+	dead.dead = true
+	rig.on_own_combat(dead)
+	assert_str(String((bt.get_node(&"draw_clip") as AnimationNodeAnimation).animation)).is_equal("holster")
+	rig.fp_model._process(rig.fp_model.clip_length(&"holster") + 0.01)
+	assert_bool(rig.fp_model.is_holstered()).is_true()
+	rig.on_own_combat(SnapshotData.OwnCombat.new())
+	assert_str(String((bt.get_node(&"draw_clip") as AnimationNodeAnimation).animation)).is_equal("draw")
+	assert_bool(rig.fp_model.is_holstered()).is_false()

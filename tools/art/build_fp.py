@@ -90,6 +90,7 @@ def build(key, out_root=None):
             '"%s": Vector3(%.4f, %.4f, %.4f)' % ((k,) + gd(v)) for k, v in sorted(sockets.items())))
         fh.write("metadata/clip_length = {\n%s\n}\n" % ",\n".join(
             '"%s": %.4f' % (k, v["length"]) for k, v in sorted(info.items())))
+        fh.write("metadata/fp_scale = %.3f\n" % fd.get("view_scale", 1.0))
         fh.write("metadata/tris = %d\n" % tris)
         fh.write('metadata/weapon = "%s"\n' % wkey)
         fh.write("metadata/fallback = %s\n" % ("true" if fd.get("fallback") else "false"))

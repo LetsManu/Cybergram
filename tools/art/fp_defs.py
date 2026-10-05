@@ -123,7 +123,7 @@ def Rx(deg):
     return Matrix.Rotation(math.radians(deg), 3, "X")
 
 
-def _two(hero, weapon, pal, right, left, sockets, mag, arm, grip=(0.15, 0.21, -0.2), rot=(3.0, -3.0, 4.0),
+def _two(hero, weapon, pal, right, left, sockets, mag, arm, grip=(0.15, 0.2, -0.165), rot=(-1.0, -20.0, 8.0),
          scale=1.12, reload="mag"):
     hr, rs = right
     hl, ls = left
@@ -131,6 +131,8 @@ def _two(hero, weapon, pal, right, left, sockets, mag, arm, grip=(0.15, 0.21, -0
             "grip_shapes": rs + [((0, 0.03, -0.014), (0.008, 0.012, 0.02), 0, 0.002)], "hand_r": hr,
             "two_handed": True, "hand_l": hl, "grip_l_shapes": ls, "mag": mag, "reload": reload,
             "sockets": sockets, "arm": arm, "paint": {},
+            # authored at real size; drawn smaller about the grip so a rifle does not fill the view
+            "view_scale": 0.74,
             # the support arm reaches forward: the shoulder leans into the gun
             "shoulder_L": (-0.15, 0.04, -0.25)}
 
@@ -169,7 +171,7 @@ HEROES.update({
                     {"glove": "iron", "plate": "gold", "arm_scale": 1.2,
                      "bands": [(0.0, 0.07, "iron", 0.006, 0.014, "gold"), (0.07, 0.24, "teal", 0.012, 0.0, "iron"),
                                (0.24, 0.40, "soot", 0.008, 0.0, None)]},
-                    grip=(0.14, 0.2, -0.205), scale=1.3),
+                    grip=(0.14, 0.18, -0.225), scale=1.3),
     "hex": _two("hex", "glitchcaster_w16", _w.HEX_PAL,
                 _right((0, -0.01, -0.045), (0.032, 0.042, 0.095), -15),
                 _left_vertical((0, 0.05, -0.06), (0.03, 0.05, 0.08), 10),
@@ -179,7 +181,7 @@ HEROES.update({
                  "region": _box_region((0, -0.06, 0.02), (0.042, 0.032, 0.032))},
                 {"glove": "hoodie", "plate": None,
                  "bands": [(0.0, 0.04, "hoodie", 0.004, 0.004, "lime"), (0.04, 0.40, "hoodie", 0.014, 0.01, "lime")]},
-                grip=(0.14, 0.3, -0.2)),
+                grip=(0.14, 0.27, -0.21)),
     "liora": _two("liora", "mender_w16", _w.LIORA_PAL,
                   _right((0, -0.01, -0.05), (0.032, 0.045, 0.11), -16),
                   _left_vertical((0, 0.26, -0.03), (0.03, 0.04, 0.07), 8),

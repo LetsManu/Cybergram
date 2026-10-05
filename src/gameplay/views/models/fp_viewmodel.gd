@@ -32,6 +32,9 @@ var team: int = 0
 var mana: bool = true
 ## Grip position in eye space (the rig's viewmodel pivot at FOV 90).
 var fp_pos: Vector3 = Vector3(0.155, -0.205, -0.34)
+## Draw scale about the grip (sidecar `fp_scale`): rifles are authored at real size
+## and drawn smaller so they do not fill the view; 1.0 for pistols.
+var fp_scale: float = 1.0
 var skeleton: Skeleton3D
 var anim_player: AnimationPlayer
 var tree: AnimationTree
@@ -42,6 +45,7 @@ var _mount_nodes: Array[Node3D] = []
 var _spinners: Array = []
 var _grounded: bool = true
 var _tris: int = -1
+var _holster_left: float = -1.0
 
 
 ## res:// path of `model_key`'s FP glb.
@@ -127,6 +131,7 @@ func build_from_scene(model_key: StringName, scene: PackedScene, sidecar: Resour
 		_meshes.append(mi)
 	if sidecar != null:
 		fp_pos = sidecar.get_meta(&"fp_pos", fp_pos)
+		fp_scale = float(sidecar.get_meta(&"fp_scale", 1.0))
 		_sockets = sidecar.get_meta(&"sockets", {})
 	_make_markers()
 	_setup_loops()
@@ -249,11 +254,20 @@ func play_inspect() -> void:
 
 
 func play_draw() -> void:
+	_holster_left = -1.0
+	visible = true
 	_fire(&"draw", 1.0, &"draw")
 
 
+## Lowers the weapon out of view, then hides the viewmodel until play_draw().
 func play_holster() -> void:
 	_fire(&"draw", 1.0, &"holster")
+	_holster_left = clip_length(&"holster")
+
+
+## True once a holster has finished (the viewmodel is hidden).
+func is_holstered() -> bool:
+	return not visible
 
 
 ## True while one-shot `os` is playing (tests / diagnostics).
@@ -361,6 +375,10 @@ func mesh_instance_count() -> int:
 
 
 func _process(delta: float) -> void:
+	if _holster_left >= 0.0:
+		_holster_left -= delta
+		if _holster_left < 0.0:
+			visible = false
 	for sp in _spinners:
 		var n: Node3D = sp[0]
 		if is_instance_valid(n):

@@ -181,14 +181,16 @@ def _reload_mag(c, t):
     side = ej.normalized()
     a = env(t, 0.0, 0.15) - env(t, 0.85, 1.0)
     slap = kf(t, [(0, 0), (0.62, 0), (0.66, 1), (0.74, 0), (1, 0)])
-    tilt = (-0.04 * a, 0.02 * a, 0.03 * a, 10 * a, -30 * a, 10 * a)
+    # raise the gun into view and roll it onto its right flank: the mag well faces
+    # the eye and the off hand works it from the left, on screen
+    tilt = (-0.08 * a, 0.03 * a, 0.09 * a, 12 * a, 78 * a, 12 * a)
     W = c.W(tilt[0], tilt[1], tilt[2] + 0.01 * slap, tilt[3] + 3 * slap, tilt[4], tilt[5])
     out = env(t, 0.15, 0.3) * (1 - env(t, 0.42, 0.62))
     mag = Matrix.Translation(ej * out)
     dorsal = (side * 0.8 + Vector((-0.6, 0.0, 0.0))).normalized()
     fingers = (-side + Vector((0.0, 0.35, 0.0))).normalized()
-    at = mat(rig.mag_c + side * 0.11 + Vector((-0.02, -0.03, 0.0)), fingers, dorsal)
-    away = Matrix.Translation(ej * 1.1) @ at
+    at = mat(rig.mag_c + side * 0.08 + Vector((-0.05, -0.03, 0.0)), fingers, dorsal)
+    away = Matrix.Translation(ej * 0.55) @ at  # stays in view: the swap reads on screen
     Lw = blend(away, Matrix.Translation(ej * out) @ at, env(t, 0.3, 0.6))
     wL = env(t, 0.12, 0.3) - env(t, 0.72, 0.9)
     base = c.W(*tilt) @ rig.G["L"] if c.two else c.L_eye()

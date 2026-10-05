@@ -48,6 +48,7 @@ var _prev_cd := PackedInt32Array()
 var _was_reloading: bool = false
 var _was_burnout: bool = false
 var _prev_ammo: float = 0.0
+var _was_dead: bool = false
 
 
 func setup(look: LookSettings) -> void:
@@ -116,7 +117,7 @@ func set_weapon(def: WeaponDef, hero_key: StringName = &"", team: int = 0) -> vo
 	fp_model = FpViewmodel.build(hero_key, team, def.feed_kind == WeaponDef.FeedKind.MANA)
 	if fp_model != null:  # W19-VM: the hero's own FP set
 		_vm_base_pos = fp_model.fp_pos
-		_vm_base_scale = 1.0
+		_vm_base_scale = fp_model.fp_scale
 		_vm.add_child(fp_model)
 		fp_model.play_draw()
 	else:  # fallback: procedural box weapon + box forearms
@@ -355,11 +356,18 @@ func play_shot() -> void:
 		fp_model.play_fire(_weapon_def.fire_rate)
 
 
-## Own combat snapshot: reload / Burnout start plays the reload clip stretched to
-## the WeaponDef time; a restarted cooldown plays that slot's cast gesture.
+## Own combat snapshot: death holsters and respawn draws the weapon; reload /
+## Burnout start plays the reload clip stretched to the WeaponDef time; a
+## restarted cooldown plays that slot's cast gesture.
 func on_own_combat(c: SnapshotData.OwnCombat) -> void:
 	if c == null:
 		return
+	if fp_model != null and c.dead != _was_dead:  # no weapon swap exists: holster on death, draw on respawn
+		if c.dead:
+			fp_model.play_holster()
+		else:
+			fp_model.play_draw()
+	_was_dead = c.dead
 	var reloading := (c.ammo_flags & AmmoFeed.FLAG_RELOADING) != 0
 	var burnout := (c.ammo_flags & AmmoFeed.FLAG_BURNOUT) != 0
 	if fp_model != null and not c.dead:

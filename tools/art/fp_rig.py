@@ -242,14 +242,14 @@ class MeshAdder:
             verts.append(c)
             wts.append(weights[0])
             ci = len(verts) - 1
-            faces += [(ci, k, (k + 1) % n) for k in range(n)]
+            faces += [(ci, (k + 1) % n, k) if flip else (ci, k, (k + 1) % n) for k in range(n)]
         if tip is not None or cap1:
             c = tip if tip is not None else sum(rings[-1], Vector()) / n
             verts.append(c)
             wts.append(weights[-1])
             ci = len(verts) - 1
             o = (len(rings) - 1) * n
-            faces += [(o + (k + 1) % n, o + k, ci) for k in range(n)]
+            faces += [(o + k, o + (k + 1) % n, ci) if flip else (o + (k + 1) % n, o + k, ci) for k in range(n)]
         if M is not None:
             verts = [M @ v for v in verts]
         self.add(verts, faces, wts, color, ch, kind)
@@ -365,6 +365,7 @@ class ArmBuilder:
 
         def w(dd):
             return {fore: 0.5, hand: 0.5} if dd < 0.01 else {fore: 1.0}
+        last = max(b[1] for b in self.arm["bands"])
         for band in self.arm["bands"]:
             d0, d1, col, off, flare, rim = band[:6]
             bch = band[6] if len(band) > 6 else "flat"
@@ -377,7 +378,8 @@ class ArmBuilder:
                 rings.append(ring(Vector((0, -dd, 0)), X, Z, rx + off + fl, rz + off + fl * 0.8, 16, 2.4))
             inner = [ring(Vector((0, -dd, 0)), X, Z, rad(dd)[0] + off * 0.3, rad(dd)[1] + off * 0.3, 16, 2.4)
                      for dd in (d0,)]
-            self.a.loft(inner + rings, [w(d0)] + [w(dd) for dd in ds], col, bch, M=self.H, flip=True)
+            # the outermost band is capped at its elbow end: seen from the eye it is never an open tube
+            self.a.loft(inner + rings, [w(d0)] + [w(dd) for dd in ds], col, bch, M=self.H, flip=True, cap1=d1 >= last)
             if rim:
                 rx, rz = rad(d0)
                 r0 = [ring(Vector((0, -d0 + dy, 0)), X, Z, rx + off + flare + dr, rz + off + flare * 0.8 + dr, 16, 2.4)
