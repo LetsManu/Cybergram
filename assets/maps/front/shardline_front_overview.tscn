@@ -63,26 +63,26 @@ adjustment_enabled = true
 adjustment_contrast = 1.08
 adjustment_saturation = 1.18
 
-[node name="ShardlineFrontOverview" type="Node3D" unique_id=1711034952]
+[node name="ShardlineFrontOverview" type="Node3D" unique_id=427389173]
 
-[node name="ShardlineFront" type="Node3D" parent="." unique_id=287831069 instance=ExtResource("1_hg87s")]
+[node name="ShardlineFront" type="Node3D" parent="." unique_id=31748809 instance=ExtResource("1_hg87s")]
 
-[node name="NavmeshOverlay" type="MeshInstance3D" parent="." unique_id=659916996]
+[node name="NavmeshOverlay" type="MeshInstance3D" parent="." unique_id=976582684]
 material_override = SubResource("StandardMaterial3D_cbwn8")
 mesh = SubResource("ArrayMesh_86lab")
 
-[node name="Labels" type="Node3D" parent="." unique_id=1191988373]
+[node name="Labels" type="Node3D" parent="." unique_id=964209715]
 
-[node name="@Label3D@2" type="Label3D" parent="Labels" unique_id=7127510]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -102, 20, -120)
-pixel_size = 0.12
+[node name="@Label3D@2" type="Label3D" parent="Labels" unique_id=583114822]
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -110, 20, -115)
+pixel_size = 0.1
 no_depth_test = true
 outline_modulate = Color(0, 0, 0, 0.9)
 text = "NORTH LANE"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@3" type="Label3D" parent="Labels" unique_id=254329638]
+[node name="@Label3D@3" type="Label3D" parent="Labels" unique_id=576950713]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -98, 20, -85)
 pixel_size = 0.07
 no_depth_test = true
@@ -93,7 +93,7 @@ BREACH"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@4" type="Label3D" parent="Labels" unique_id=402458542]
+[node name="@Label3D@4" type="Label3D" parent="Labels" unique_id=1615432883]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -98, 20, -145)
 pixel_size = 0.07
 no_depth_test = true
@@ -104,7 +104,7 @@ HOLD"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@5" type="Label3D" parent="Labels" unique_id=298391314]
+[node name="@Label3D@5" type="Label3D" parent="Labels" unique_id=1167921971]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -96, 20, -210)
 pixel_size = 0.07
 no_depth_test = true
@@ -115,7 +115,7 @@ PLANT"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@6" type="Label3D" parent="Labels" unique_id=1120762337]
+[node name="@Label3D@6" type="Label3D" parent="Labels" unique_id=71681608]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -98, 20, -275)
 pixel_size = 0.07
 no_depth_test = true
@@ -126,7 +126,7 @@ HOLD"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@7" type="Label3D" parent="Labels" unique_id=2117688990]
+[node name="@Label3D@7" type="Label3D" parent="Labels" unique_id=563158478]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -98, 20, -335)
 pixel_size = 0.07
 no_depth_test = true
@@ -137,16 +137,16 @@ BREACH"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@8" type="Label3D" parent="Labels" unique_id=391285115]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -22, 20, -120)
-pixel_size = 0.12
+[node name="@Label3D@8" type="Label3D" parent="Labels" unique_id=975075491]
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 16, 20, -115)
+pixel_size = 0.1
 no_depth_test = true
 outline_modulate = Color(0, 0, 0, 0.9)
 text = "CENTER LANE"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@9" type="Label3D" parent="Labels" unique_id=2104257994]
+[node name="@Label3D@9" type="Label3D" parent="Labels" unique_id=1061359627]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -18, 20, -85)
 pixel_size = 0.07
 no_depth_test = true
@@ -157,7 +157,7 @@ HOLD"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@10" type="Label3D" parent="Labels" unique_id=1235942624]
+[node name="@Label3D@10" type="Label3D" parent="Labels" unique_id=1203885791]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -16, 20, -145)
 pixel_size = 0.07
 no_depth_test = true
@@ -168,7 +168,7 @@ PLANT"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@11" type="Label3D" parent="Labels" unique_id=2079039559]
+[node name="@Label3D@11" type="Label3D" parent="Labels" unique_id=666104712]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -18, 20, -210)
 pixel_size = 0.07
 no_depth_test = true
@@ -179,7 +179,7 @@ HOLD"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@12" type="Label3D" parent="Labels" unique_id=600063804]
+[node name="@Label3D@12" type="Label3D" parent="Labels" unique_id=1194555455]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -16, 20, -275)
 pixel_size = 0.07
 no_depth_test = true
@@ -190,7 +190,7 @@ PLANT"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@13" type="Label3D" parent="Labels" unique_id=537725222]
+[node name="@Label3D@13" type="Label3D" parent="Labels" unique_id=464679194]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -18, 20, -335)
 pixel_size = 0.07
 no_depth_test = true
@@ -201,16 +201,16 @@ HOLD"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@14" type="Label3D" parent="Labels" unique_id=1507775878]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 102, 20, -120)
-pixel_size = 0.12
+[node name="@Label3D@14" type="Label3D" parent="Labels" unique_id=1422966275]
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 110, 20, -115)
+pixel_size = 0.1
 no_depth_test = true
 outline_modulate = Color(0, 0, 0, 0.9)
 text = "SOUTH LANE"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@15" type="Label3D" parent="Labels" unique_id=1227047402]
+[node name="@Label3D@15" type="Label3D" parent="Labels" unique_id=2065822683]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 64, 20, -85)
 pixel_size = 0.07
 no_depth_test = true
@@ -221,7 +221,7 @@ PLANT"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@16" type="Label3D" parent="Labels" unique_id=1553735035]
+[node name="@Label3D@16" type="Label3D" parent="Labels" unique_id=453317681]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 62, 20, -145)
 pixel_size = 0.07
 no_depth_test = true
@@ -232,7 +232,7 @@ BREACH"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@17" type="Label3D" parent="Labels" unique_id=692712647]
+[node name="@Label3D@17" type="Label3D" parent="Labels" unique_id=678244288]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 62, 20, -210)
 pixel_size = 0.07
 no_depth_test = true
@@ -243,7 +243,7 @@ BREACH"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@18" type="Label3D" parent="Labels" unique_id=2023788354]
+[node name="@Label3D@18" type="Label3D" parent="Labels" unique_id=1593991248]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 62, 20, -275)
 pixel_size = 0.07
 no_depth_test = true
@@ -254,7 +254,7 @@ BREACH"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@19" type="Label3D" parent="Labels" unique_id=525466062]
+[node name="@Label3D@19" type="Label3D" parent="Labels" unique_id=1281628026]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 64, 20, -335)
 pixel_size = 0.07
 no_depth_test = true
@@ -265,7 +265,7 @@ PLANT"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@20" type="Label3D" parent="Labels" unique_id=119610977]
+[node name="@Label3D@20" type="Label3D" parent="Labels" unique_id=1871783034]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 14, 20, -210)
 pixel_size = 0.08
 no_depth_test = true
@@ -275,7 +275,7 @@ text = "MID PLAZA"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@21" type="Label3D" parent="Labels" unique_id=181437129]
+[node name="@Label3D@21" type="Label3D" parent="Labels" unique_id=2023369308]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -40, 20, -16)
 pixel_size = 0.09
 no_depth_test = true
@@ -285,7 +285,7 @@ text = "CONCORD HQ"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@22" type="Label3D" parent="Labels" unique_id=799498806]
+[node name="@Label3D@22" type="Label3D" parent="Labels" unique_id=1022412447]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -40, 20, -404)
 pixel_size = 0.09
 no_depth_test = true
@@ -295,7 +295,7 @@ text = "SYNDICATE HQ"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@23" type="Label3D" parent="Labels" unique_id=1337558641]
+[node name="@Label3D@23" type="Label3D" parent="Labels" unique_id=1521682600]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -42.264465, 20, -175.0109)
 pixel_size = 0.045
 no_depth_test = true
@@ -305,7 +305,7 @@ text = "FX_AN_N"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@24" type="Label3D" parent="Labels" unique_id=1850876060]
+[node name="@Label3D@24" type="Label3D" parent="Labels" unique_id=1592619721]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -37.67923, 20, -175.05441)
 pixel_size = 0.045
 no_depth_test = true
@@ -315,7 +315,7 @@ text = "FX_AN_C"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@25" type="Label3D" parent="Labels" unique_id=689953242]
+[node name="@Label3D@25" type="Label3D" parent="Labels" unique_id=40548344]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 42.264465, 20, -175.0109)
 pixel_size = 0.045
 no_depth_test = true
@@ -325,7 +325,7 @@ text = "FX_AS_S"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@26" type="Label3D" parent="Labels" unique_id=1019870276]
+[node name="@Label3D@26" type="Label3D" parent="Labels" unique_id=166326274]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 37.67923, 20, -175.05441)
 pixel_size = 0.045
 no_depth_test = true
@@ -335,7 +335,7 @@ text = "FX_AS_C"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@27" type="Label3D" parent="Labels" unique_id=700463997]
+[node name="@Label3D@27" type="Label3D" parent="Labels" unique_id=444623113]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -42.264465, 20, -244.9891)
 pixel_size = 0.045
 no_depth_test = true
@@ -345,7 +345,7 @@ text = "FX_BN_N"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@28" type="Label3D" parent="Labels" unique_id=1388808655]
+[node name="@Label3D@28" type="Label3D" parent="Labels" unique_id=1916497525]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -37.67923, 20, -244.94559)
 pixel_size = 0.045
 no_depth_test = true
@@ -355,7 +355,7 @@ text = "FX_BN_C"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@29" type="Label3D" parent="Labels" unique_id=863382874]
+[node name="@Label3D@29" type="Label3D" parent="Labels" unique_id=733380975]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 42.264465, 20, -244.9891)
 pixel_size = 0.045
 no_depth_test = true
@@ -365,7 +365,7 @@ text = "FX_BS_S"
 font_size = 64
 outline_size = 18
 
-[node name="@Label3D@30" type="Label3D" parent="Labels" unique_id=1280977285]
+[node name="@Label3D@30" type="Label3D" parent="Labels" unique_id=729107501]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 37.67923, 20, -244.94559)
 pixel_size = 0.045
 no_depth_test = true
@@ -375,7 +375,7 @@ text = "FX_BS_C"
 font_size = 64
 outline_size = 18
 
-[node name="OverviewCamera" type="Camera3D" parent="." unique_id=397392990]
+[node name="OverviewCamera" type="Camera3D" parent="." unique_id=934166081]
 transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 0, 300, -210)
 keep_aspect = 0
 environment = SubResource("Environment_nxw15")
