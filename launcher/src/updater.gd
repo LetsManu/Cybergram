@@ -3,7 +3,7 @@ extends Node
 ## Checks the update host, downloads and installs the game, starts it.
 ##
 ## Install layout (all next to the launcher, or below --install-root):
-##   game/                    the installed game (+ installed_version.txt, .manifest.json)
+##   game/                    the installed game (+ installed_version.txt, installed_manifest.json)
 ##   content.cfg              optional content packs the player switched off
 ##   downloads/<file>.part    a full zip while downloading (fallback / first install)
 ##   downloads/blobs/<sha256> single files of a delta update (.part while downloading)
@@ -318,12 +318,15 @@ func _remove_group(group: String) -> String:
 # --- update entry points ------------------------------------------------------
 
 ## Downloads, verifies and installs the latest build (needs a loaded manifest).
-## Per file when the feed lists files and something is installed (or packs are
-## skipped); a full zip otherwise.
+## Per file when the feed lists files and the install records its own file
+## list (game/installed_manifest.json, the baseline for removing old files), or for a
+## Lite first install; a full zip otherwise (first install, older installs).
 func start_update() -> void:
 	if _entry.is_empty() or is_busy():
 		return
-	if not _files.is_empty() and (installed_version() != "" or not skip_groups().is_empty()):
+	var baseline: bool = FileAccess.file_exists(game_dir().path_join(ContentManifest.INSTALLED_MANIFEST))
+	if not _files.is_empty() and ((installed_version() != "" and baseline)
+			or (installed_version() == "" and not skip_groups().is_empty())):
 		_start_delta(_files, latest_version, "update")
 	else:
 		_start_zip()

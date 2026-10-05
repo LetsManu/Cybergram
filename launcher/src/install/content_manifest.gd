@@ -18,7 +18,7 @@ const REQUIRED_GROUPS: PackedStringArray = ["core", "maps"]
 ## (written by the launcher and by the installers' "Lite install").
 const CONTENT_CFG: String = "content.cfg"
 ## File inside game/ with the per-file list of the installed version.
-const INSTALLED_MANIFEST: String = ".manifest.json"
+const INSTALLED_MANIFEST: String = "installed_manifest.json"
 const DEFAULT_BLOBS: String = "blobs/"
 
 
