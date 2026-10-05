@@ -395,15 +395,15 @@ def brannoc_parts(h):
     # ---------------------------------------------------------------- heavy closed helm
     W, D, Hh = hr.x * 2.75, hr.y * 2.6, hr.z * 2.45
     hb = Vector((0, hc.y - 0.006, hc.z + 0.016))
-    h.box("Head", hb, (W, D, Hh), "teal", bevel=0.3, taper=(0.88, 0.9))                    # bucket
+    h.box("Head", hb, (W, D, Hh), "teal", bevel=0.35, taper=(0.8, 0.84))                   # bucket
     h.box("Head", hb + Vector((0, 0, Hh * 0.5)), (W * 0.84, D * 0.86, Hh * 0.2), "teal", bevel=0.6,
           taper=(0.72, 0.76))                                                               # crown cap
     fy = hb.y + D / 2                                                                       # front face plane
     # sculpted faceplate: two angled halves meeting in a prow ridge
     for sx in (-1, 1):
         c = Vector((sx * W * 0.24, fy + 0.006 - W * 0.06, hb.z - Hh * 0.08))
-        h.box("Head", c, (W * 0.52, 0.03 * k, Hh * 0.8), "iron", rot=(0, 0, sx * 18), bevel=0.4,
-              taper=(0.9, 1.0))
+        h.box("Head", c, (W * 0.52, 0.03 * k, Hh * 0.8), "iron", rot=(0, 0, sx * 18), bevel=0.7,
+              taper=(0.84, 1.0))
     h.box("Head", (0, fy + 0.016, hb.z - Hh * 0.1), (0.022 * k, 0.03 * k, Hh * 0.82), "gun", bevel=0.4,
           taper=(1.4, 1.0))                                                                 # prow ridge
     # T-visor: dark slit frame + team glow
@@ -580,10 +580,12 @@ def brannoc_post(c):
     H, k = c["H"], c["k"]
     z0 = H * 0.86
     helm = D.region(c, ["#2F9A90", "#9AA3AD", "#565E69"], zmin=z0)
-    D.wear(c, helm, "#D6DCE2", 0.95, scale=55.0)
-    D.scratches(c, helm, "#DCE1E6", density=0.55, strength=0.6)
     iron = D.region(c, ["#9AA3AD"], zmin=z0)
     teal = D.region(c, ["#2F9A90"], zmin=z0)
+    D.flatten(c, iron, 0.55)  # even out the painted light on the faceplate (no blotches)
+    D.wear(c, helm, "#D6DCE2", 0.7, scale=55.0)
+    D.scratches(c, teal, "#DCE1E6", density=0.18, strength=0.3)
+    D.scratches(c, iron, "#E4E8EC", density=0.3, strength=0.4, seed=13.0)
     D.gloss(c, iron, 0.45)
     D.gloss(c, teal, 0.1)
     lo, hi = D.bounds(c, D.region(c, ["#2F9A90"], zmin=z0))

@@ -100,6 +100,14 @@ def decal(c, img, centre, axis, up, size, m, colour, emit=False, depth=0.05, fac
     return s
 
 
+def flatten(c, m, amount=0.5):
+    """Blends the painted albedo on `m` toward a clean two-band version of the flat colour
+    (lit / shadow from the painted key only), removing AO and hatch blotches."""
+    clean = c["base"] * (0.78 + 0.26 * c["lit"][..., None])
+    a = (m * amount)[..., None]
+    c["alb"] = c["alb"] * (1 - a) + clean * a
+
+
 def gloss(c, m, value):
     """Sets mask G (spec / glint band) on `m`: glossy visors and lenses versus matte paint."""
     c["spec"] = c["spec"] * (1 - m) + value * m

@@ -89,7 +89,13 @@ func _strip(glb: String, clip: String, out: String, tag: String) -> void:
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat
 	inst.rotation_degrees.y = 90.0
-	_frame_cam(1.9, 4.0, 0.95, 32.0)
+	# Frame by the hero's actual height (Brannoc is 2.2 m): skinned mesh AABBs in rest pose.
+	var top := 1.9
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var bb := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		top = maxf(top, bb.end.y)
+	top = minf(top, 2.6)
+	_frame_cam(top, 4.0 * top / 1.9, top * 0.5, 32.0)
 	var n := 6
 	var tiles: Array[Image] = []
 	var length := ap.get_animation(clip).length
