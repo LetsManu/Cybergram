@@ -979,3 +979,6 @@ HUD_NET_ERR_VERSION,"Version mismatch: your game and the server run different ve
 HUD_NET_ERR_DISCONNECTED,Connection to the server lost.
 HUD_NET_ERR_GENERIC,Could not connect to the server.
 HUD_NET_ERR_QUEUE_TIMEOUT,"The server did not answer the queue request. Please try again."
+HUD_ARMORY_SIGN,ARMORY
+HUD_ARMORY_WAYPOINT,ARMORY
+HUD_SHOP_OFF_PAD_DIR,Return to your Armory pad to buy - %s
