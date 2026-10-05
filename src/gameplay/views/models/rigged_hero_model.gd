@@ -25,7 +25,7 @@ const SKILL_SLOTS: int = 4
 ## Seconds the death clip plays before HeroView hides the body.
 const DEATH_HOLD_S: float = 2.0
 ## Outline widths per team (match ModelMaterials: Concord thin, Syndicate thick).
-const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 1.6, ModelPalette.TEAM_SYNDICATE: 2.2}
+const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 2.0, ModelPalette.TEAM_SYNDICATE: 2.4}
 
 ## Beyond this camera distance (m) the inverted hull is dropped (outline LOD):
 ## the hull pass is the largest per-hero cost (pilot perf note in the art bible).
@@ -242,8 +242,8 @@ static func material(team_: int, enemy_outline: bool = false, far: bool = false)
 	m.set_shader_parameter("team_color", tc)
 	var o := ShaderMaterial.new()
 	o.shader = load(OUTLINE_SHADER)
-	o.set_shader_parameter("outline_color", tc if enemy_outline else Color("#14161C"))
-	o.set_shader_parameter("width_px", OUTLINE_PX.get(team_, 1.6))
+	o.set_shader_parameter("outline_color", tc if enemy_outline else Color("#090A0E"))
+	o.set_shader_parameter("width_px", OUTLINE_PX.get(team_, 2.0))
 	if not far:
 		m.next_pass = o
 	_materials[k] = m

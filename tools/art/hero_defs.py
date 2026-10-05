@@ -31,6 +31,37 @@ def _wz(h, z, bands):
     return {bands[-1][1]: 1.0}
 
 
+def closed_boots(h, col, trim, k):
+    """Closed boot shell over each foot (hides the base mesh toes)."""
+    for s in ("L", "R"):
+        lo, hi = h.bbox("Foot_" + s, 0.4)
+        c = (lo + hi) / 2
+        size = hi - lo
+        h.box("Foot_" + s, (c.x, c.y + 0.008, lo.z + size.z * 0.5 + 0.004), (size.x + 0.03, size.y + 0.035,
+              size.z + 0.02), col, bevel=0.55, taper=(0.92, 0.75))
+        h.box("Foot_" + s, (c.x, c.y + 0.004, lo.z + 0.008), (size.x + 0.036, size.y + 0.042, 0.018), trim, bevel=0.4)
+
+
+def toon_face(h, k, brow_col, lip_col, white=None):
+    """Simple toon face on the base head: dark almond eyes (+ catch light), brows, mouth line."""
+    for s in ("L", "R"):
+        e = h.eye(s)
+        p, n = h.surface(e.x, e.z, 1)
+        sg = -1 if s == "L" else 1
+        rot = (0, 0, -math.degrees(math.atan2(n.x, n.y)))
+        if white:
+            h.sphere("Head", p + n * 0.002, Vector((0.016, 0.004, 0.009)) * k, white, seg=(10, 6), rot=rot)
+        h.sphere("Head", p + n * 0.005, Vector((0.009, 0.004, 0.009)) * k, "eye", seg=(8, 6), rot=rot)
+        h.sphere("Head", p + n * 0.0075 + Vector((0.003 * sg, 0, 0.003)) * k, Vector((0.0025, 0.002, 0.0025)) * k,
+                 white or "tape", "emit", seg=(6, 4))
+        pb, nb = h.surface(e.x * 1.05, e.z + 0.022 * k, 1)
+        h.box("Head", pb + nb * 0.004, Vector((0.03, 0.005, 0.006)) * k, brow_col, rot=(0, 8 * sg, rot[2]),
+              bevel=0.3)
+    mz = (h.eye("L").z + h.eye("R").z) / 2 - 0.068 * k
+    pm, nm = h.surface(0, mz, 1)
+    h.box("Head", pm + nm * 0.003, Vector((0.022, 0.004, 0.005)) * k, lip_col, bevel=0.3)
+
+
 # ======================================================================== Ryker
 def ryker_cuts(h):
     cuts = []
@@ -147,6 +178,7 @@ def ryker_parts(h):
         p, n = h.surface(x * k, zc, 1)
         h.box("UpperChest", p + n * 0.03 * k, Vector((0.055, 0.012, 0.03)) * k, "team", "team",
               rot=(0, 0, -math.degrees(math.atan2(n.x, n.y))), bevel=0.3)
+    closed_boots(h, "rubber", "suit", k)
     # Belt pouches, knee pads, stim port, small back pack.
     for x in (-0.13, -0.06, 0.08):
         p, n = h.surface(x * k, h.belt_z - 0.01, 1)
@@ -250,6 +282,8 @@ def vesper_parts(h):
     hc = (lo + hi) / 2
     hr = (hi - lo) / 2
     eye_z = (h.eye("L").z + h.eye("R").z) / 2
+    toon_face(h, k, "brow", "lip", "white")
+    closed_boots(h, "plum", "gold", k)
     # Sharp A-line bob: skull cap cut open at the face, bottom slanted (longer at the front).
     bc = Vector((0, hc.y - 0.006, hc.z + 0.01))
     h.sphere("Head", bc, Vector((hr.x * 1.18, hr.y * 1.12, hr.z * 1.1)), "hair", seg=(18, 12),
@@ -357,9 +391,9 @@ HEROES = {
         "targets": {"caucasian-male-young": 0.5, "african-male-young": 0.25, "asian-male-young": 0.25,
                     "universal-male-young-maxmuscle-averageweight": 0.75,
                     "male-young-maxmuscle-averageweight-idealproportions": 0.8},
-        "palette": {"olive": "#4E5A45", "bone": "#E3DCC8", "suit": "#2F333B", "rubber": "#232428",
+        "palette": {"olive": "#6A7A5C", "bone": "#CFC4A6", "suit": "#4C5361", "rubber": "#383B44",
                     "chrome": "#C9D4E2", "skin": "#C98F6B", "eye": "#15151A", "tape": "#F2EFE6",
-                    "trim": "#3A4236", "team": TEAM},
+                    "trim": "#4A5640", "team": TEAM, "brow": "#2A2220", "lip": "#8E4A3E"},
         "cuts": ryker_cuts,
         "regions": ryker_regions,
         "shells": [
@@ -369,9 +403,9 @@ HEROES = {
         ],
         "parts": ryker_parts,
         "weapon": "breakline",
-        "stance": {"grip_r": (0.16, 0.27, 1.22), "pivot": (0.16, 0.04, 1.42), "twist": -20, "clav_l": -6,
+        "stance": {"grip_r": (0.10, 0.20, 1.24), "pivot": (0.14, 0.02, 1.42), "twist": -28, "clav_l": -10,
                    "pole_r": (1, -0.4, -1), "pole_l": (-0.6, -0.2, -1), "two_handed": True,
-                   "grip_l": (0, 0.34, 0.0), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),
+                   "grip_l": (0, 0.27, -0.005), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),
                    "hand_l_y": (1, 0.25, 0.1), "hand_l_n": (0, 0, 1), "mag": (0, 0.12, -0.12)},
         "gait": {"run_amp": 40, "lean": 9},
         "casts": [("throw", [("z", 12)]), ("inject", []), ("thrust", [("x", -6)]), ("raise", [("x", 8)])],
@@ -385,9 +419,9 @@ HEROES = {
                     "universal-female-young-averagemuscle-minweight": 0.8,
                     "universal-female-young-maxmuscle-minweight": 0.2,
                     "female-young-averagemuscle-minweight-idealproportions": 1.0},
-        "palette": {"plum": "#5B2A6E", "gold": "#D9A441", "ink": "#2A1E33", "chrome": "#C9D4E2",
-                    "violet": "#B07CFF", "skin": "#E9B994", "eye": "#1A1220", "hair": "#231A2B",
-                    "trim": "#3E1D4B", "team": TEAM},
+        "palette": {"plum": "#7A3A92", "gold": "#E0AC48", "ink": "#3E2E4C", "chrome": "#C9D4E2",
+                    "violet": "#B07CFF", "skin": "#E9B994", "eye": "#1A1220", "hair": "#2E2238",
+                    "trim": "#3E1D4B", "team": TEAM, "brow": "#2E2238", "lip": "#A24A5E", "white": "#F4EFE6"},
         "cuts": vesper_cuts,
         "regions": vesper_regions,
         "shells": [

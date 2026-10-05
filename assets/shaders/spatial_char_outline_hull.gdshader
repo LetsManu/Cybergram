@@ -5,9 +5,9 @@
 shader_type spatial;
 render_mode unshaded, cull_front, shadows_disabled, depth_draw_opaque, fog_disabled;
 
-uniform vec3 outline_color : source_color = vec3(0.078, 0.086, 0.11);
-uniform float width_px = 1.8;
-uniform float full_width_until_m = 20.0;
+uniform vec3 outline_color : source_color = vec3(0.035, 0.04, 0.055);
+uniform float width_px = 2.2;
+uniform float full_width_until_m = 25.0;
 instance uniform float flash = 0.0;
 instance uniform float fade = 1.0;
 
