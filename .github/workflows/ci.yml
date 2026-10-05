@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: the jobs only read the repository (artifact uploads need no
+# extra token scope).
+permissions:
+  contents: read
+
 env:
   GODOT_VERSION: 4.7-stable
 
