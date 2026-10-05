@@ -9,7 +9,7 @@ extends HudWidget
 ## votes with F1 (yes) / F2 (no), or D-pad up / down on a pad.
 ## Display only: the match process decides eligibility and the outcome.
 
-const W: float = 380.0
+const W: float = 470.0
 const H: float = 92.0
 ## Seconds the outcome stays on screen.
 const OUTCOME_S: float = 4.0
