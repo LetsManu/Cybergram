@@ -463,3 +463,8 @@ import hero_defs_gen  # noqa: E402  (W16: heroes on the bespoke pipeline overrid
 
 HEROES.update(hero_defs_gen.HEROES)
 WEAPONS.update(hero_defs_gen.WEAPONS)
+
+import hero_defs_gen_b  # noqa: E402  (W16-HERO-B: Liora, Sable, Juniper on the bespoke pipeline)
+
+HEROES.update(hero_defs_gen_b.HEROES)
+WEAPONS.update(hero_defs_gen_b.WEAPONS)

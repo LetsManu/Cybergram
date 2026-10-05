@@ -52,6 +52,8 @@ DEFAULT_PAINT = {
     "grit": 0.05,                  # painterly value noise
     "normal_bump": 0.3,            # detail normal strength
     "uv_margin": 0.0017,           # pack margin (SCALED; measured >= 1-2 texels between islands at 1024)
+    "uv_head": 1.0,                # linear UV scale of the head islands (mask/helmet texel density, W16-B)
+    "detail": None,                # optional fn(ctx): painted markings / wear / sheen (see composite)
 }
 
 
@@ -242,7 +244,31 @@ def _bm_usage(bm, uvl):
     return a
 
 
-def unwrap_pack(ob, margin, tries=10, target=0.75, max_tries=30):
+def _boost_head(ob, bm, uvl, scale):
+    """Scales the UV islands that sit on the Head bone by `scale` (linear) before the
+    pack, so the mask or helmet gets more texels than the body. Returns the island count."""
+    if scale == 1.0 or "Head" not in ob.vertex_groups:
+        return 0
+    gi = ob.vertex_groups["Head"].index
+    dl = bm.verts.layers.deform.active
+    if dl is None:
+        return 0
+    n = 0
+    for isl in _uv_islands(bm, list(bm.faces), uvl):
+        vs = {v for f in isl for v in f.verts}
+        w = sum(v[dl].get(gi, 0.0) for v in vs) / max(len(vs), 1)
+        if w < 0.5:
+            continue
+        lps = [lp for f in isl for lp in f.loops]
+        cu = sum(lp[uvl].uv.x for lp in lps) / len(lps)
+        cv = sum(lp[uvl].uv.y for lp in lps) / len(lps)
+        for lp in lps:
+            lp[uvl].uv = ((lp[uvl].uv.x - cu) * scale + cu, (lp[uvl].uv.y - cv) * scale + cv)
+        n += 1
+    return n
+
+
+def unwrap_pack(ob, margin, tries=10, target=0.75, max_tries=30, head=1.0):
     """Body + shells (hd_kind 0/1): angle-based unwrap along the body_gen cage seams.
     Parts, garments, weapon: generated seams (_part_seams) + angle-based unwrap, so
     every island is a flat disk (no annuli, few shards). Then one pack of everything."""
@@ -272,6 +298,10 @@ def unwrap_pack(ob, margin, tries=10, target=0.75, max_tries=30):
             break
         select(lambda k: True)
         bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0.0, correct_aspect=True)
+    if head != 1.0:
+        bm = bmesh.from_edit_mesh(me)
+        print("paint: head UV x%.2f on %d islands" % (head, _boost_head(ob, bm, bm.loops.layers.uv.active, head)))
+        bmesh.update_edit_mesh(me)
     bpy.ops.uv.select_all(action="SELECT")
     # SCALED margin: measured >= 2 texels between islands at 1024 for margin 0.002.
     # Blender's packer is not deterministic: keep the best of `tries` packs, and keep
@@ -375,7 +405,7 @@ def bake_textures(h, ob, out_dir, size=1024):
     cfg = paint_cfg(h)
     me = ob.data
     _classify(h, ob)
-    unwrap_pack(ob, cfg["uv_margin"])  # on quads: triangles give worse islands (58 % vs 76 %)
+    unwrap_pack(ob, cfg["uv_margin"], head=cfg.get("uv_head", 1.0))  # on quads: triangles give worse islands (58 % vs 76 %)
     bm = bmesh.new()
     bm.from_mesh(me)
     bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method="BEAUTY", ngon_method="BEAUTY")
@@ -453,6 +483,17 @@ def composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov):
     n3 = N[..., :3]
     n3 = n3 / np.maximum(np.linalg.norm(n3, axis=-1, keepdims=True), 1e-6)
     p3 = P[..., :3]
+    # Per-hero painted detail (W16-B: mask markings, kintsugi, edge wear, sheen). The hook
+    # edits ctx in place: "base" (flat colour, before the painted light), "emit" (0..1),
+    # "spec" (added to the mask G), "noink" (suppresses the colour-border ink there).
+    spec_add = np.zeros(emit.shape, dtype=np.float32)
+    noink = np.zeros(emit.shape, dtype=np.float32)
+    base_blocks = base  # colour-block ink follows the modelled blocks, never the painted detail
+    if cfg.get("detail") is not None:
+        ctx = {"h": h, "cfg": cfg, "P": p3, "N": n3, "base": base.copy(), "emit": emit.copy(), "spec": spec_add,
+               "noink": noink, "aoe": aoe, "cov": cov, "metal": metal, "hard": hard, "k": k, "S": S}
+        cfg["detail"](ctx)
+        base, emit, spec_add, noink = ctx["base"], ctx["emit"], ctx["spec"], ctx["noink"]
     L = np.array(cfg["key_dir"], dtype=np.float32)
     L /= np.linalg.norm(L)
     lam = n3 @ L
@@ -491,7 +532,7 @@ def composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov):
     hl = edge * convex * (cfg["edge"] * (0.5 + 0.5 * hard) + 0.1 * cloth) * (0.6 + 0.4 * lit)
     alb = alb + (1.0 - alb) * hl[..., None]
     # Ink: colour-block borders (inside the islands only) + the deepest creases.
-    q = np.round(base * 24).astype(np.int32)
+    q = np.round(base_blocks * 24).astype(np.int32)
     idm = q[..., 0] * 10000 + q[..., 1] * 100 + q[..., 2]
     inside = cov > 0.5
     bd = np.zeros((S, S), dtype=np.float32)
@@ -499,13 +540,13 @@ def composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov):
         a, b = idm, np.roll(np.roll(idm, -dy, 0), -dx, 1)
         ia, ib = inside, np.roll(np.roll(inside, -dy, 0), -dx, 1)
         bd = np.maximum(bd, ((a != b) & ia & ib).astype(np.float32))
-    border = _dilate(bd, int(cfg["ink_px"])) * cfg["ink_border"] * (1 - emit)
+    border = _dilate(bd, int(cfg["ink_px"])) * cfg["ink_border"] * (1 - emit) * (1 - noink)
     cink = np.clip((crease - 0.55) * 4.0, 0, 1) * (1 - convex) * cfg["crease_ink"] * (1 - emit)
     inkm = np.clip(np.maximum(border, cink), 0, 1)
     alb = alb * (1 - inkm[..., None]) + ink * inkm[..., None]
     alb = np.where(emit[..., None] > 0.5, base, alb)
     alb = np.clip(alb, 0, 1)
-    spec = np.clip(metal * (0.55 + 0.45 * edge), 0, 1)
+    spec = np.clip(metal * (0.55 + 0.45 * edge) + spec_add, 0, 1)
     mask = np.stack([np.clip(0.4 + 0.6 * ao, 0, 1), spec, emit, team], axis=-1)
 
     def save(a, path, sz, mode):

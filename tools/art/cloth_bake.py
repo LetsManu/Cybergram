@@ -30,6 +30,8 @@ Garment spec ("cloth" list in the hero def), angles in degrees with 0 = front
   colors      {"outer", "inner", "hem", "trim"} palette names
   hem_rows    rows of the layered hem band (default 2); trim_cols: front edge trim
   sim         overrides of SIM (Blender cloth settings)
+  parent      bone the chain roots hang from (default Hips); around: body bones the
+              clearance rays hit (default hips + legs; capes and scarves add the chest)
 """
 import math
 import time
@@ -96,7 +98,8 @@ def _skirt(h, spec):
     yc = hips.y
     z_top = hips.z + spec.get("top", 0.03) * k
     z_hem = spec.get("hem", 0.45) * k
-    bvh = hero_hd.body_bvh(h, ("Hips", "Spine", "Chest", "UpperLeg_L", "UpperLeg_R", "LowerLeg_L", "LowerLeg_R"))
+    bvh = hero_hd.body_bvh(h, tuple(spec.get("around", ("Hips", "Spine", "Chest", "UpperLeg_L", "UpperLeg_R",
+                                                         "LowerLeg_L", "LowerLeg_R"))))
 
     def body_r(z, a):
         d = Vector((math.sin(a), math.cos(a), 0.0))
