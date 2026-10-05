@@ -58,7 +58,7 @@ DEFAULT_BODY = {
     "shoulder_raise": 0.0,  # m
     "stance": 0.0,          # extra foot spread (m, both feet)
     "head_fwd": 0.0,        # m
-    "subdiv": 2,
+    "subdiv": 1,            # Catmull-Clark levels (2 = smoother, about +13k body tris)
 }
 
 
@@ -146,6 +146,17 @@ class Cage:
         self.bm = bmesh.new()
         self.e = boxy
         self.part = self.bm.verts.layers.int.new("part")  # 0 body, 1 hand, 2 foot, 3 head
+        self.seams = set()  # UV seams on the cage (frozenset vertex pairs); subdivision keeps them
+
+    def seam_line(self, verts, closed=False):
+        vs = [v for v in verts if v is not None]
+        for a, b in zip(vs, vs[1:] + (vs[:1] if closed else [])):
+            self.seams.add(frozenset((a, b)))
+
+    def mark_seams(self):
+        for e in self.bm.edges:
+            if frozenset(e.verts) in self.seams:
+                e.seam = True
 
     def vert(self, co, part=0):
         v = self.bm.verts.new(co)
@@ -183,9 +194,10 @@ class Cage:
         if n == 4:
             self.bm.faces.new(ring)
             self.bm.verts.remove(m)
-            return
+            return None
         for j in range(0, n, 2):
             self.bm.faces.new((ring[j], ring[(j + 1) % n], ring[(j + 2) % n], m))
+        return m
 
     @staticmethod
     def angles(loop, c, u, v):
@@ -205,17 +217,19 @@ class Cage:
 
     def tube(self, loop, rings, part=0, close=None):
         """Lofts from an existing vertex loop through rings [(c, u, v, rx, ry)];
-        ring verts sit at the loop's angles (no twist). Returns the last ring."""
+        ring verts sit at the loop's angles (no twist). Returns the new rings."""
         c0, u0, v0 = rings[0][0], rings[0][1], rings[0][2]
         ang = self.angles(loop, c0, u0, v0)
         prev = loop
+        made = []
         for c, u, v, rx, ry in rings:
             cur = self.ring_at(ang, c, u, v, rx, ry, part)
             self.bridge(prev, cur)
             prev = cur
+            made.append(cur)
         if close is not None:
             self.cap(prev, close, part)
-        return prev
+        return made
 
 
 def _frame(axis, front):
@@ -271,6 +285,9 @@ def build_cage(J, lm, p):
         if (a, b) in (("S0", "S1"), ("S1", "S2")):
             sk = (1, 2, 5, 6)  # arm sockets: 2x2 quads cut on each side
         cg.bridge(ring[a], ring[b], skip=sk)
+    # UV seams: front / back halves split at the sides (k = 2, 6) below the arm sockets.
+    for kk in (2, 6):
+        cg.seam_line([ring[n][kk] for n in ("B", "P", "W", "C0", "S0")])
     # Neck and head.
     nh, nt = J["Neck"]
     nu, nv = _frame(nt - nh, Y)
@@ -278,17 +295,23 @@ def build_cage(J, lm, p):
     cg.bridge(ring["S2"], n0)
     n1 = cg.ring(nt, nu, nv, L["neck_r"], L["neck_r"] * 0.95)
     cg.bridge(n0, n1)
+    for kk in (2, 6):
+        cg.seam_line([ring["S2"][kk], n0[kk], n1[kk]])
+    cg.seam_line(n1, closed=True)
     hh, ht = J["Head"]
     hu, hv = _frame(ht - hh, Y)
     hw, hd, hH = L["head_w"], L["head_d"], L["head_h"]
     up = (ht - hh).normalized()
     prev = n1
+    head_rings = [n1]
     for f, wx, dy, yo in ((0.12, 0.40, 0.42, 0.025), (0.38, 0.5, 0.5, 0.012), (0.66, 0.52, 0.52, 0.0),
                           (0.88, 0.40, 0.42, -0.005)):
         r = cg.ring(hh + up * (hH * f) + hv * (yo * k), hu, hv, hw * wx, hd * dy, part=3)
         cg.bridge(prev, r)
         prev = r
-    cg.cap(prev, hh + up * hH + hv * (-0.005 * k), part=3)
+        head_rings.append(r)
+    top_v = cg.cap(prev, hh + up * hH + hv * (-0.005 * k), part=3)
+    cg.seam_line([r[4] for r in head_rings] + [top_v])  # back of the head
     # Arms through the sockets.
     for s, sx in (("R", 1.0), ("L", -1.0)):
         if sx > 0:
@@ -297,6 +320,7 @@ def build_cage(J, lm, p):
         else:
             loop = [ring["S0"][5], ring["S0"][6], ring["S0"][7], ring["S1"][7], ring["S2"][7], ring["S2"][6],
                     ring["S2"][5], ring["S1"][5]]
+        cg.seam_line(loop, closed=True)
         _arm(cg, loop, J, lm, p, s, sx)
     # Legs through the crotch loops.
     cz = hipz - 0.075 * k
@@ -307,7 +331,10 @@ def build_cage(J, lm, p):
     B = ring["B"]
     legs = {"R": [B[0], B[1], B[2], B[3], B[4], cb, cm, cf], "L": [B[0], cf, cm, cb, B[4], B[5], B[6], B[7]]}
     for s, sx in (("R", 1.0), ("L", -1.0)):
-        _leg(cg, legs[s] if sx > 0 else legs[s][::-1], J, lm, p, s, sx)
+        loop = legs[s] if sx > 0 else legs[s][::-1]
+        cg.seam_line(loop, closed=True)
+        _leg(cg, loop, J, lm, p, s, sx, loop.index(cm))
+    cg.mark_seams()
     bm = cg.bm
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     return bm
@@ -330,17 +357,21 @@ def _arm(cg, loop, J, lm, p, s, sx):
         (sh + d * (ua * 0.62), u, v, ar * 1.0, ar * 1.02),
         (sh + d * (ua * 0.88), u, v, ar * 0.9, ar * 0.92),
     ]
-    last = cg.tube(loop, rings)
+    up_rings = cg.tube(loop, rings)
+    last = up_rings[-1]
     ue, ve = _frame((d + d2).normalized(), Vector((0, 1, 0)))
     ring_e = cg.ring_at(Cage.angles(last, el, ue, ve), el, ue, ve, fr * 0.92, fr * 0.95)
     cg.bridge(last, ring_e)
     uf, vf = _frame(d2, Vector((0, 1, 0)))
-    last = cg.tube(ring_e, [
+    fore = cg.tube(ring_e, [
         (el + d2 * (fa * 0.12), uf, vf, fr * 1.0, fr * 1.02),
         (el + d2 * (fa * 0.35), uf, vf, fr * 1.12, fr * 1.05),
         (el + d2 * (fa * 0.72), uf, vf, fr * 0.86, fr * 0.84),
         (wr - d2 * (0.01 * k), uf, vf, L["wrist_r"], L["wrist_r"] * 0.9),
     ])
+    last = fore[-1]
+    cg.seam_line([r[1] for r in [loop] + up_rings + [ring_e] + fore])  # under the arm
+    cg.seam_line(last, closed=True)  # wrist
     _hand(cg, last, J, lm, p, s, sx, d2, n)
 
 
@@ -360,10 +391,12 @@ def _hand(cg, wrist_ring, J, lm, p, s, sx, d, n):
         rings.append((wr + d * (f * k * hs), rw * w, rt * t))
     prev = wrist_ring
     made = []
+    hand_rings = [wrist_ring]
     for c, rx, ry in rings:
         r = cg.ring_at(ang, c, hu, hv, rx, ry, part=1)
         cg.bridge(prev, r)
         made.append(r)
+        hand_rings.append(r)
         prev = r
     # Fingers: curl toward the palm; the ring frame turns with the curl (no twist).
     kn = rings[-1][0]
@@ -380,7 +413,9 @@ def _hand(cg, wrist_ring, J, lm, p, s, sx, d, n):
         r = cg.ring_at(ang, pos, side, vcur, w * sc, t * 1.1, part=1)
         cg.bridge(prev, r)
         prev = r
-    cg.cap(prev, pos + dirc * (0.012 * k * hs), part=1)
+        hand_rings.append(r)
+    tipv = cg.cap(prev, pos + dirc * (0.012 * k * hs), part=1)
+    cg.seam_line([r[1] for r in hand_rings] + [tipv])
     # Thumb: from the quad between the first two palm rings that faces most along +Y.
     r0, r1 = made[0], made[1]
     best, bj = -9, 0
@@ -399,6 +434,7 @@ def _hand(cg, wrist_ring, J, lm, p, s, sx, d, n):
     loop = [r0[bj], r0[j2], r1[j2], r1[bj]]
     cc = sum((vv.co for vv in loop), Vector()) / 4
     bmesh.ops.delete(cg.bm, geom=[face], context="FACES_ONLY")
+    cg.seam_line(loop, closed=True)
     out = (cc - (rings[0][0] + rings[1][0]) / 2).normalized()
     tdir = (out * 0.8 + d * 0.5 + n * 0.5).normalized()
     tu, tv = _frame(tdir, d)
@@ -408,7 +444,7 @@ def _hand(cg, wrist_ring, J, lm, p, s, sx, d, n):
             part=1, close=cc + tdir * (0.055 * k * hs) + n * (0.016 * k * hs))
 
 
-def _leg(cg, loop, J, lm, p, s, sx):
+def _leg(cg, loop, J, lm, p, s, sx, inner):
     k, L = lm["k"], lm["L"]
     hip, kn = J["UpperLeg_" + s]
     an = J["LowerLeg_" + s][1]
@@ -426,21 +462,26 @@ def _leg(cg, loop, J, lm, p, s, sx):
         (hip + d * (th * 0.45), u, v, tr * 0.98, tr * 1.0),
         (hip + d * (th * 0.82), u, v, tr * 0.78, tr * 0.8),
     ]
-    last = cg.tube(loop, rings)
+    leg_rings = [loop] + cg.tube(loop, rings)
+    last = leg_rings[-1]
     uk, vk = _frame((d + d2).normalized(), Y)
     if uk.x * sx < 0:
         uk = -uk
-    last = cg.tube(last, [(kn + Vector((0, 0.006 * k, 0)), uk, vk, kr * 1.05, kr * 1.12)])
+    leg_rings += cg.tube(last, [(kn + Vector((0, 0.006 * k, 0)), uk, vk, kr * 1.05, kr * 1.12)])
+    last = leg_rings[-1]
     us, vs = _frame(d2, Y)
     if us.x * sx < 0:
         us = -us
     br = p["boot_r"]
-    last = cg.tube(last, [
+    leg_rings += cg.tube(last, [
         (kn + d2 * (sh * 0.12), us, vs, kr * 1.0, kr * 1.05),
         (kn + d2 * (sh * 0.36) + Vector((0, -0.012 * k, 0)), us, vs, cr * 1.0 * br, cr * 1.05 * br),
         (kn + d2 * (sh * 0.70), us, vs, ar * 1.35 * br, ar * 1.4 * br),
         (an + Vector((0, 0, 0.012 * k)), us, vs, ar * 1.25 * br, ar * 1.35 * br),
     ])
+    last = leg_rings[-1]
+    cg.seam_line([r[inner] for r in leg_rings])  # inner leg
+    cg.seam_line(last, closed=True)  # ankle (boot island)
     _foot(cg, last, J, lm, p, s, sx)
 
 
@@ -463,6 +504,9 @@ def _foot(cg, ankle_ring, J, lm, p, s, sx):
     jm, jp = (j0 - 1) % 8, (j0 + 1) % 8
     cg.bridge(h1, s0, skip=(jm, j0))
     cg.cap(s0[::-1], Vector((heel.x, heel.y, 0.0)), part=2)
+    cg.seam_line(s0, closed=True)  # sole
+    jb = min(range(8), key=lambda j: (h1[j].co - heel).normalized().dot(Y))
+    cg.seam_line([ankle_ring[jb], h1[jb], s0[jb]])  # back of the heel
     loop = [h1[jm], h1[j0], h1[jp], s0[jp], s0[j0], s0[jm]]
     c0 = sum((vv.co for vv in loop), Vector()) / 6
     prev = loop

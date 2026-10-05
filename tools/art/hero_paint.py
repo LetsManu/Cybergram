@@ -48,7 +48,7 @@ DEFAULT_PAINT = {
     "crease_ink": 0.7,             # ink in the deepest creases
     "grit": 0.05,                  # painterly value noise
     "normal_bump": 0.3,            # detail normal strength
-    "uv_margin": 0.004,            # pack margin (fraction of the atlas)
+    "uv_margin": 0.002,            # pack margin (fraction of the atlas; 2 texels at 1024)
 }
 
 
@@ -58,13 +58,132 @@ def paint_cfg(h):
     return c
 
 
+def _part_seams(bm, faces, sharp_deg=50.0):
+    """Seams that turn every part island into a disk: sharp edges (> sharp_deg),
+    kind borders, then one shortest-path cut on each island that is still a ring,
+    a tube or a closed shell (Euler characteristic != 1)."""
+    from collections import deque
+    fs = set(faces)
+    lim = math.radians(sharp_deg)
+    for f in faces:
+        for e in f.edges:
+            lf = e.link_faces
+            if len(lf) != 2 or not (lf[0] in fs and lf[1] in fs) or e.calc_face_angle(0.0) > lim:
+                e.seam = True
+    seen = set()
+    for f0 in faces:
+        if f0 in seen:
+            continue
+        isl, q = [], deque([f0])
+        seen.add(f0)
+        while q:
+            f = q.popleft()
+            isl.append(f)
+            for e in f.edges:
+                if e.seam:
+                    continue
+                for g in e.link_faces:
+                    if g in fs and g not in seen:
+                        seen.add(g)
+                        q.append(g)
+        iset = set(isl)
+        V = {v for f in isl for v in f.verts}
+        E = {e for f in isl for e in f.edges}
+        inner = {e for e in E if not e.seam and all(g in iset for g in e.link_faces)}
+        # Euler characteristic of the island cut along its seams (boundary edges count once).
+        chi = len(V) - len(E) + len(isl)
+        if chi == 1 or len(isl) < 2:
+            continue
+        bverts = {v for e in E if e not in inner for v in e.verts}
+        loops = _boundary_groups(bverts, E - inner)
+        if len(loops) >= 2:
+            src, dst = loops[0], set().union(*loops[1:])
+        else:
+            start = next(iter(V))
+            far = _bfs_far(start, inner)
+            src, dst = {far}, {_bfs_far(far, inner)}
+        path = _bfs_path(src, dst, inner)
+        for e in path:
+            e.seam = True
+
+
+def _adj(v, edges):
+    for e in v.link_edges:
+        if e in edges:
+            yield e, e.other_vert(v)
+
+
+def _boundary_groups(bverts, bedges):
+    groups, seen = [], set()
+    for v0 in bverts:
+        if v0 in seen:
+            continue
+        g, st = set(), [v0]
+        seen.add(v0)
+        while st:
+            v = st.pop()
+            g.add(v)
+            for _e, o in _adj(v, bedges):
+                if o not in seen:
+                    seen.add(o)
+                    st.append(o)
+        groups.append(g)
+    return groups
+
+
+def _bfs_far(start, edges):
+    from collections import deque
+    dist, q, last = {start: 0}, deque([start]), start
+    while q:
+        v = q.popleft()
+        last = v
+        for _e, o in _adj(v, edges):
+            if o not in dist:
+                dist[o] = dist[v] + 1
+                q.append(o)
+    return last
+
+
+def _bfs_path(src, dst, edges):
+    from collections import deque
+    prev = {v: None for v in src}
+    q = deque(src)
+    while q:
+        v = q.popleft()
+        if v in dst and v not in src:
+            out = []
+            while prev[v] is not None:
+                e, v = prev[v]
+                out.append(e)
+            return out
+        for e, o in _adj(v, edges):
+            if o not in prev:
+                prev[o] = (e, v)
+                q.append(o)
+    return []
+
+
 def unwrap_pack(ob, margin):
+    """Body + shells (hd_kind 0/1): angle-based unwrap along the body_gen cage seams.
+    Parts, garments, weapon: generated seams (_part_seams) + angle-based unwrap, so
+    every island is a flat disk (no annuli, few shards). Then one pack of everything."""
     from build_hero import _activate
     _activate(ob)
+    me = ob.data
     bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0, area_weight=0.0,
-                             correct_aspect=True, scale_to_bounds=False)
+
+    def select(pred):
+        bm = bmesh.from_edit_mesh(me)
+        kl = bm.faces.layers.int.get("hd_kind")
+        for f in bm.faces:
+            f.select_set(pred(f[kl] if kl is not None else 0))
+        bmesh.update_edit_mesh(me)
+        return bm, kl
+    bm, kl = select(lambda k: True)
+    _part_seams(bm, [f for f in bm.faces if kl is not None and f[kl] not in (0, 1)])
+    bmesh.update_edit_mesh(me)
+    select(lambda k: True)
+    bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0.0, correct_aspect=True)
     bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.pack_islands(rotate=True, rotate_method="ANY", scale=True, margin_method="FRACTION", margin=margin,
                             shape_method="CONCAVE")
