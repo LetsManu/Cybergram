@@ -232,7 +232,7 @@ func _build_home(content: Control) -> void:
 	_showcase = HeroShowcase.new()
 	_showcase.heroes = _heroes
 	_showcase.selected = _hero_index
-	_showcase.with_model = not OS.get_cmdline_user_args().has("--no-menu-model")
+	_showcase.with_model = DisplayServer.get_name() != "headless"  # no 3D stage in headless runs
 	_showcase.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_showcase.hero_changed.connect(func(i: int) -> void:
 		_hero_index = i

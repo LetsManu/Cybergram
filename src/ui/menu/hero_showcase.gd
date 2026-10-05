@@ -193,7 +193,7 @@ func _build_stage() -> void:
 	_vp = SubViewport.new()
 	_vp.own_world_3d = true
 	_vp.transparent_bg = true
-	_vp.msaa_3d = Viewport.MSAA_2X
+	_vp.msaa_3d = Viewport.MSAA_DISABLED
 	_vp.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	_vpc.add_child(_vp)
 	var env := Environment.new()
