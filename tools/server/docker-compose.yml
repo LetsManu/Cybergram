@@ -7,6 +7,12 @@ services:
     image: ghcr.io/letsmanu/cybergram-server:latest
     container_name: cybergram
     restart: unless-stopped
+    # Hardening (W11-Q1): the server needs no Linux capabilities (ports > 1024)
+    # and must never gain privileges.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "7777:7777/udp"
       - "8080:8080/tcp"   # launcher updates (version.json + client zips)

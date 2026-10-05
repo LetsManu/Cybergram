@@ -6,6 +6,9 @@ extends RefCounted
 
 ## Default location of the update manifest (overridable in launcher.cfg).
 const DEFAULT_VERSION_URL: String = "http://cyber.djboeck.at:8080/version.json"
+## Detached signature of the feed, next to version.json (base64 of an ECDSA
+## P-256 / SHA-256 DER signature over the exact bytes of version.json).
+const SIG_SUFFIX: String = ".sig"
 ## Name of the folder (next to the launcher) that holds the installed game.
 const GAME_DIR: String = "game"
 ## File inside game/ that records the installed version.
@@ -97,6 +100,8 @@ static func parse_manifest(text: String) -> Dictionary:
 		var file_name: String = entry["file"]
 		if file_name.contains("/") or file_name.contains("\\") or file_name.contains(".."):
 			return {"ok": false, "error": "platform %s has an unsafe file name" % key}
+		if not is_safe_entry(String(entry["exe"])):
+			return {"ok": false, "error": "platform %s has an unsafe exe path" % key}
 	return {
 		"ok": true, "error": "",
 		"version": String(d["version"]).trim_prefix("v"),
@@ -104,6 +109,31 @@ static func parse_manifest(text: String) -> Dictionary:
 		"platforms": plat_dict,
 		"launcher": d.get("launcher", {}) if typeof(d.get("launcher", {})) == TYPE_DICTIONARY else {},
 	}
+
+
+## Checks the feed signature. `body`: the exact bytes of version.json;
+## `sig_text`: the content of version.json.sig ("" = none was served);
+## `pem`: the pinned public key ("" = built without one).
+## Policy (fail closed once a key is pinned):
+##   key pinned  -> ok only with a valid signature; missing or bad = refused.
+##   no key      -> ok with a warning (cannot verify; legacy / dev builds).
+## Returns {"ok": bool, "signed": bool, "message": String}.
+static func verify_feed(body: PackedByteArray, sig_text: String, pem: String) -> Dictionary:
+	if pem.strip_edges() == "":
+		return {"ok": true, "signed": false,
+			"message": "Update feed not verified: this launcher was built without a signing key."}
+	var key := CryptoKey.new()
+	if key.load_from_string(pem, true) != OK:
+		return {"ok": false, "signed": false, "message": "The launcher's update key is unreadable. Reinstall the launcher."}
+	var sig := Marshalls.base64_to_raw(sig_text.strip_edges()) if sig_text.strip_edges() != "" else PackedByteArray()
+	if sig.is_empty():
+		return {"ok": false, "signed": false, "message": "The update feed is not signed, so it was not trusted."}
+	var h := HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(body)
+	if not Crypto.new().verify(HashingContext.HASH_SHA256, h.finish(), sig, key):
+		return {"ok": false, "signed": false, "message": "The update feed signature is invalid, so it was not trusted."}
+	return {"ok": true, "signed": true, "message": ""}
 
 
 ## Parses status.json text into {"has_counts": true, "online", "in_lobby",

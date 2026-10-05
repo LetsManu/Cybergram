@@ -45,6 +45,12 @@ func send(_to_peer: int, _channel: int, _data: PackedByteArray) -> void:
 
 
 ## Moves packets that have arrived into the receive queue.
+## Remote IP address of `peer` ("" when unknown or not IP based). Server
+## side, used only in memory for login rate limits (never logged or stored).
+func peer_address(_peer: int) -> String:
+	return ""
+
+
 func poll() -> void:
 	push_error("Transport.poll is abstract")
 

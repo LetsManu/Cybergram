@@ -11,7 +11,8 @@ extends RefCounted
 ## guest-only (no DTLS; login / register are refused, never sent in plain).
 ## Client side:
 ##   --dtls-ca <pem>     pin this certificate / CA (self-hosted servers, tests)
-##   --dtls-insecure     DEBUG ONLY: accept any server certificate (client_unsafe)
+##   --dtls-insecure     DEBUG ONLY: accept any server certificate (client_unsafe);
+##                       ignored (with a warning) in release exports (W11-Q1 SEC-005)
 ##   --no-dtls           connect in plain UDP (guest-only servers)
 ## Parsed here (not in LaunchConfig, a lead-owned file; see the L1 report).
 
@@ -31,7 +32,10 @@ var tls_error: String = ""
 
 
 ## Parses `args` (user args) and `env` (name -> value; missing = unset).
-static func parse(args: PackedStringArray, env: Dictionary) -> AuthConfig:
+## `debug_build`: 1 / 0 force debug / release (tests), -1 = OS.is_debug_build().
+## --dtls-insecure only takes effect in a debug build.
+static func parse(args: PackedStringArray, env: Dictionary, debug_build: int = -1) -> AuthConfig:
+	var debug := OS.is_debug_build() if debug_build < 0 else debug_build == 1
 	var c := AuthConfig.new()
 	c.cert_path = str(env.get("CYBERGRAM_TLS_CERT", ""))
 	c.key_path = str(env.get("CYBERGRAM_TLS_KEY", ""))
@@ -60,7 +64,10 @@ static func parse(args: PackedStringArray, env: Dictionary) -> AuthConfig:
 					i += 1
 					c.ca_path = args[i]
 			"--dtls-insecure":
-				c.insecure = true
+				if debug:
+					c.insecure = true
+				else:
+					push_warning("[net] --dtls-insecure is ignored in release builds")
 			"--no-dtls":
 				c.no_dtls = true
 			"--allow-guests":
