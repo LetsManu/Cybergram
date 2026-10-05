@@ -9,7 +9,10 @@
 # ../../archive/. A plain bind mount would be unreadable for the unprivileged
 # game server, and the symlinks would not resolve inside the container.
 #
-# Usage (as root, e.g. daily from cron or a systemd timer):
+# Schedule it daily as root. On TerraMaster TOS use a systemd timer: TOS rebuilds
+# the crontabs on every boot, and big TOS updates can wipe /etc/systemd/system,
+# so check `systemctl list-timers` after an update. On Synology use Task Scheduler.
+# Usage:
 #   NPM_LE_DIR=/volume1/docker/npm/letsencrypt NPM_CERT_ID=5 \
 #   TLS_DIR=/srv/cybergram/tls COMPOSE_DIR=/srv/cybergram \
 #   tools/server/sync_npm_cert.sh
@@ -21,6 +24,8 @@
 #   COMPOSE_DIR  folder with docker-compose.yml (for the restart)
 #   CONTAINER    container name (default: cybergram)
 set -euo pipefail
+# NAS shells (TerraMaster TOS, some Synology tasks) often lack docker in PATH.
+export PATH="$PATH:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 
 : "${NPM_LE_DIR:?set NPM_LE_DIR (the NPM letsencrypt folder on the host)}"
 : "${NPM_CERT_ID:?set NPM_CERT_ID (the N in live/npm-N)}"
@@ -40,7 +45,11 @@ changed=0
 for f in fullchain.pem privkey.pem; do
   # readlink -f follows NPM's live/ -> archive/ symlinks.
   if ! cmp -s "$(readlink -f "$src/$f")" "$TLS_DIR/$f" 2>/dev/null; then
-    install -m 0640 -o "$uid" -g "$gid" "$(readlink -f "$src/$f")" "$TLS_DIR/$f.new"
+    # cp + chown + chmod instead of `install -m -o -g`: TerraMaster TOS ships a
+    # non-GNU /usr/sbin/install without those options.
+    cp -f "$(readlink -f "$src/$f")" "$TLS_DIR/$f.new"
+    chown "$uid:$gid" "$TLS_DIR/$f.new"
+    chmod 0640 "$TLS_DIR/$f.new"
     mv -f "$TLS_DIR/$f.new" "$TLS_DIR/$f"
     changed=1
   fi
