@@ -396,8 +396,8 @@ def brannoc_parts(h):
     W, D, Hh = hr.x * 2.75, hr.y * 2.6, hr.z * 2.45
     hb = Vector((0, hc.y - 0.006, hc.z + 0.016))
     h.box("Head", hb, (W, D, Hh), "teal", bevel=0.3, taper=(0.88, 0.9))                    # bucket
-    h.sphere("Head", hb + Vector((0, 0, Hh * 0.42)), Vector((W * 0.47, D * 0.47, Hh * 0.2)), "teal", seg=(20, 8),
-             clip=[((0, 0, 0), (0, 0, -1))])                                                # domed crown
+    h.box("Head", hb + Vector((0, 0, Hh * 0.5)), (W * 0.84, D * 0.86, Hh * 0.2), "teal", bevel=0.6,
+          taper=(0.72, 0.76))                                                               # crown cap
     fy = hb.y + D / 2                                                                       # front face plane
     # sculpted faceplate: two angled halves meeting in a prow ridge
     for sx in (-1, 1):
