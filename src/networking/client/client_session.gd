@@ -26,6 +26,12 @@ var malformed_packets: int = 0
 var hero_index: int = 0
 ## Lobby slot token (0 = none); sent in Hello.
 var token: int = 0
+## v17: join ticket for a matchmade match process ("" = none); sent in Hello.
+var ticket: String = ""
+## v17: the match mood seed from Welcome (client ambience; 0 before Welcome).
+var mood_seed: int = 0
+## v17: in-match matchmaking messages (remake vote) on this connection.
+var matchmaking: MatchmakingClient
 ## v11: net id -> {name, accent, id} of the human players (PLAYER_NAMES); bots are absent.
 var player_names: Dictionary = {}
 var _recent: Array[InputCommand] = []
@@ -42,12 +48,13 @@ func _init(t: Transport, net_config: NetConfig) -> void:
 	net = net_config
 	stats = ClientNetStats.new(net.tick_rate_hz, net.jitter_window_samples)
 	decoder = SnapshotDecoder.new(net.client_baseline_ticks)
+	matchmaking = MatchmakingClient.new(t)
 	if t is LoopbackTransport:
 		clock_usec = (t as LoopbackTransport).now_usec  # simulated time: deterministic jitter
 
 
 func connect_to_server() -> void:
-	transport.send(SERVER_PEER, Transport.CH_CONTROL, ControlCodec.encode_hello(MsgType.PROTOCOL_VERSION, hero_index, token))
+	transport.send(SERVER_PEER, Transport.CH_CONTROL, ControlCodec.encode_hello(MsgType.PROTOCOL_VERSION, hero_index, token, ticket))
 
 
 func poll() -> void:
@@ -80,6 +87,7 @@ func _handle(pkt: Transport.Packet) -> void:
 				malformed_packets += 1
 				return
 			own_net_id = w.own_net_id
+			mood_seed = w.mood_seed
 			is_welcomed = true
 			welcomed.emit(own_net_id, w.server_tick)
 		MsgType.REJECT:
@@ -118,5 +126,7 @@ func _handle(pkt: Transport.Packet) -> void:
 				return
 			player_names = names
 			player_names_changed.emit(player_names)
+		MsgType.MM_EVENT:
+			matchmaking.handle(pkt.data)
 		_:
 			malformed_packets += 1

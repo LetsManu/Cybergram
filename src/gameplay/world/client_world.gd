@@ -83,6 +83,8 @@ var tracers: TracerFx
 var view_render_tick: float = 0.0
 ## Online lobby slot token sent in Hello (set before setup; 0 = none).
 var hello_token: int = 0
+## W17B: join ticket for a matchmade match process ("" = none), sent in Hello.
+var hello_ticket: String = ""
 var sfx: ClientSfx
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 ## W16-NET: interpolation delay from measured jitter / loss.
@@ -117,6 +119,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	session = ClientSession.new(transport, net)
 	interp = InterpDelayController.from_config(net)
 	session.token = hello_token
+	session.ticket = hello_ticket
 	if hero != null and hero.resource_path != "":
 		session.hero_index = ContentDB.shared().index_of(ContentDB.HERO,
 			StringName(hero.resource_path.get_file().get_basename()))
