@@ -219,7 +219,7 @@ def liora_parts(h):
         h.sphere("UpperChest", d + Vector((0, -0.03, 0)) * k, Vector((0.022, 0.02, 0.022)) * k, "team", "team_emit",
                  seg=(8, 4))
     h.box("UpperChest", p + Vector((0, -0.05, 0.02)) * k, Vector((0.05, 0.1, 0.05)) * k, "chrome", "chrome", bevel=0.3)
-    closed_boots(h, "ivory", "sage", k)
+    closed_boots(h, "warm", "sage", k)
 
 
 def halo_repeater(h, W):
@@ -453,11 +453,11 @@ HEROES = {
         "liora", 1.78,
         {"caucasian-female-young": 0.5, "african-female-young": 0.5, "universal-female-young-averagemuscle-minweight": 0.5,
          "female-young-averagemuscle-averageweight-idealproportions": 1.0},
-        {"ivory": "#F4EEE2", "sage": "#86C79A", "warm": "#5E5A66", "chrome": "#C9D4E2", "hair": "#3A2A24"},
+        {"ivory": "#DCCFB4", "sage": "#6FBF8A", "warm": "#56606E", "chrome": "#C9D4E2", "hair": "#8A5A3C"},
         {"paint": {"head": "warm", "torso": "warm", "sleeves": "ivory", "gloves": "warm", "legs": "warm",
-                   "boots": "ivory", "belt": "sage", "forearm": "ivory"}, "sleeve_t": 0.5, "boot_t": 0.3,
+                   "boots": "warm", "belt": "sage", "forearm": "sage"}, "sleeve_t": 0.5, "boot_t": 0.3,
          "torso_shell": {"offset": 0.018, "color": "ivory", "rim": "sage", "arms": True},
-         "boot_shell": (0.012, "ivory", "sage")},
+         "boot_shell": (0.012, "warm", "sage")},
         liora_parts, "halo_repeater", _stance(),
         [("thrust", []), ("raise", [("x", 6)]), ("plant", [("x", -10)]), ("raise", [("x", 12)])]),
     "sable": _hero(
