@@ -255,7 +255,8 @@ func _build_centre(t: UiKitTokens) -> Control:
 		var tag := UiKit.label("", &"caption", t.gold)
 		head.add_child(tag)
 		var nm := UiKit.label("", &"small", t.text)
-		nm.clip_text = true
+		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nm.custom_minimum_size.x = 30
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(nm)
 		var ds := UiKit.label("", &"caption", t.text_dim)
