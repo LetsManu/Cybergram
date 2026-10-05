@@ -603,6 +603,185 @@ def brannoc_post(c):
     return c["alb"], c["spec"], c["emit"]
 
 
+# =========================================================================== Hex
+HEX_PAL = {"hoodie": "#5A5686", "lime": "#B6F23A", "shell": "#DCDFEA", "bezel": "#2C2F3D", "screen": "#12262A",
+           "chrome": "#C9D4E2", "legs": "#6C6C88", "sneaker": "#E9E9F0", "team": TEAM, "eye": "#101014"}
+HEX_SPEC = {"paint": {"head": "hoodie", "torso": "hoodie", "sleeves": "hoodie", "gloves": "hoodie", "legs": "hoodie",
+                      "shins": "legs", "boots": "legs", "belt": "lime", "forearm": "hoodie"},
+            "shorts_t": 0.55, "boot_t": 0.6, "glove_t": 0.95,
+            "torso_shell": {"offset": 0.028, "color": "hoodie", "rim": "lime", "arms": True, "hips": True}}
+HEX_FACE = ["..........",
+            ".##....##.",
+            "#..#..#..#",
+            "..........",
+            "...#..#...",
+            "....##....",
+            ".........."]
+
+
+def hex_parts(h):
+    import hero_hd
+    k = _k(h)
+    lo, hi, hc, hr, eye_z = _head(h)
+    skin = hero_hd.BodySkin(h)
+    lx = 1.0 if h.jh("UpperLeg_L").x > 0 else -1.0
+    # ---------------------------------------------------------------- helmet with a screen face
+    C = Vector((0, hc.y + 0.004, hc.z + 0.004))
+    R = Vector((hr.x * 1.2, hr.y * 1.14, hr.z * 1.12))
+    h.sphere("Head", C, R, "shell", seg=(24, 14), clip=[((0, 0, -0.62), (0, 0, -1))])
+    _band(h, "Head", C, R * 1.035, "bezel", seg=(28, 16), x=(-0.74, 0.74), y=(0.25, None), z=(-0.66, 0.52))
+    _band(h, "Head", C, R * 1.06, "screen", seg=(28, 16), x=(-0.62, 0.62), y=(0.3, None), z=(-0.55, 0.42))
+    for sx in (-1, 1):
+        # bezel screws and side vents
+        for z in (0.42, -0.5):
+            p, n = _on(C, R * 1.035, sx * R.x * 0.68, C.z + R.z * z, 0.001)
+            _bolt(h, "Head", p, n, 0.0045 * k, "chrome", "chrome")
+        for i in range(3):
+            p, n = _side(C, R, sx, C.y + R.y * (0.2 - i * 0.16), C.z - R.z * 0.4, 0.002)
+            h.box("Head", p, Vector((0.006, 0.012, 0.045)) * k, "bezel", rot=(0, 0, _yaw(n)), bevel=0.3)
+    # ---------------------------------------------------------------- cat-ear headset
+    for sx in (-1, 1):
+        ep, en = _side(C, R, sx, C.y - R.y * 0.05, C.z + R.z * 0.05)
+        h.cyl("Head", ep - en * 0.01, ep + en * 0.03 * k, 0.045 * k, 0.04 * k, "bezel", seg=14)
+        h.torus("Head", ep + en * 0.03 * k, en, 0.035 * k, 0.005 * k, "lime", "emit", seg=(14, 4))
+        h.cyl("Head", ep + en * 0.03 * k, ep + en * 0.036 * k, 0.026 * k, 0.02 * k, "shell", seg=10)
+        base = Vector((sx * R.x * 0.62, C.y - R.y * 0.1, C.z + R.z * 0.8))
+        up = Vector((sx * 0.35, 0.05, 1)).normalized()
+        h.cyl("Head", base - up * 0.03 * k, base + up * 0.11 * k, 0.05 * k, 0.004, "hoodie", seg=4)      # ear
+        h.cyl("Head", base + Vector((0, 0.022, 0)) * k - up * 0.01 * k, base + Vector((0, 0.022, 0)) * k
+              + up * 0.08 * k, 0.03 * k, 0.003, "lime", seg=4)                                           # inner
+        # antenna on a Sec_ spring, from the ear pod up and out
+        a0 = ep + en * 0.02 * k + Vector((0, -0.02, 0.03)) * k
+        a1 = a0 + Vector((sx * 0.07, -0.05, 0.22)) * k
+        h.cyl("Head", a0, a1, 0.005 * k, 0.003 * k, "chrome", "chrome", seg=6)
+        h.sphere("Head", a1, Vector((0.012, 0.012, 0.012)) * k, "team", "team_emit", seg=(8, 5))
+    # ---------------------------------------------------------------- hood over the helmet
+    HC = C + Vector((0, -0.016, 0.006))
+    HR = Vector((R.x * 1.22, R.y * 1.2, R.z * 1.15))
+    cut = ((0, 0.42, 0), (0, 1, -0.28))
+    h.sphere("Head", HC, HR, "hoodie", seg=(22, 14), clip=[cut, ((0, 0, -0.8), (0, 0, -1))])
+    h.sphere("Head", HC, HR * 1.025, "lime", seg=(22, 14),
+             clip=[cut, ((0, 0, -0.8), (0, 0, -1)), ((0, 0.33, 0), (0, -1, 0.28))])          # hood rim trim
+    # drawstrings, chest patch
+    nk = h.jh("Neck")
+    for sx in (-1, 1):
+        p, n = h.surface(sx * 0.04 * k, nk.z - 0.06 * k, 1)
+        h.cyl("UpperChest", p + n * 0.03, p + n * 0.03 - Vector((0, 0, 0.15)) * k, 0.006, 0.006, "lime", seg=4)
+        h.sphere("UpperChest", p + n * 0.03 - Vector((0, 0, 0.16)) * k, Vector((0.01, 0.01, 0.014)) * k, "chrome",
+                 "chrome", seg=(6, 4))
+    p, n = h.surface(-lx * 0.09 * k, h.jh("Chest").z, 1)
+    h.box("Chest", p + n * 0.03, (0.07 * k, 0.01, 0.06 * k), "team", "team", bevel=0.2)
+    # ---------------------------------------------------------------- wrist decks + holo panels
+    for s in ("L", "R"):
+        sg = 1.0 if h.jh("UpperArm_" + s).x > 0 else -1.0
+        w = h.jl("LowerArm_" + s, 0.75)
+        h.box("LowerArm_" + s, w + Vector((0, 0, 0.04)) * k, Vector((0.075, 0.09, 0.028)) * k, "shell", bevel=0.35)
+        h.box("LowerArm_" + s, w + Vector((0, 0, 0.056)) * k, Vector((0.05, 0.06, 0.006)) * k, "lime", "emit",
+              bevel=0.2)
+        h.box("LowerArm_" + s, w + Vector((sg * 0.09, 0.02, 0.1)) * k, Vector((0.004, 0.11, 0.08)) * k, "team",
+              "team_emit", bevel=0.0)
+    # ---------------------------------------------------------------- belt with a battery cell, sneakers
+    pts = hero_hd.ring(h, Vector((0, h.jh("Hips").y, h.belt_z)), (0, 0, 1), ("Hips", "Spine"), n=32, off=0.01)
+    hero_hd.strap(h, pts, (0, 0, 1), 0.04 * k, 0.012, "lime", skin)
+    q, d = min(pts, key=lambda pd: pd[1].y)
+    h.cyl("Hips", q + d * 0.02 + Vector((-0.06 * k, 0, 0)), q + d * 0.02 + Vector((0.06 * k, 0, 0)), 0.03 * k,
+          0.03 * k, "shell", seg=10)
+    h.box("Hips", q + d * 0.052, Vector((0.08, 0.006, 0.02)) * k, "lime", "emit", bevel=0.2)
+    for s in ("L", "R"):
+        lo_, hi_ = h.bbox("Foot_" + s, 0.4)
+        c = (lo_ + hi_) / 2
+        sz = hi_ - lo_
+        h.box("Foot_" + s, (c.x, c.y + 0.02, lo_.z + sz.z * 0.55), (sz.x + 0.05, sz.y + 0.07, sz.z + 0.04), "sneaker",
+              bevel=0.6, taper=(0.9, 0.75))
+        h.box("Foot_" + s, (c.x, c.y + 0.02, lo_.z + 0.01), (sz.x + 0.056, sz.y + 0.076, 0.03), "lime", bevel=0.4)
+    _springs(h, [("Sec_antenna_%s" % s, "Head", 2, "bottom",
+                  _sel({"chrome", "team"}, {"Head"}, lambda co, sx=sx: co.z > C.z + R.z * 0.35 and co.x * sx > R.x * 0.5
+                       and co.y < C.y + 0.01))
+                 for s, sx in (("L", lx), ("R", -lx))])
+
+
+def glitchcaster_w16(h, W):
+    """Hex's own Glitchcaster (W16): a compact hacker caster. A shell-white receiver
+    with a little screen on its flank, three lime coil rings, a prong emitter, a holo
+    sight panel, a battery cell and a cable loop to the grip. Weapon space: origin =
+    right grip, +Y barrel, +Z up."""
+    def wb(c, s, col, ch="flat", **kw):
+        h.box("Weapon", None, s, col, ch, mat=W @ Matrix.Translation(Vector(c)) @ _rx(kw.pop("rx", 0)), **kw)
+
+    def cyl(a, b, r0, r1, col, ch="flat", seg=10):
+        h.cyl("Weapon", W @ Vector(a), W @ Vector(b), r0, r1, col, ch, seg=seg)
+    wb((0, -0.01, -0.045), (0.032, 0.042, 0.095), "bezel", rx=-15, bevel=0.35)            # grip
+    wb((0, 0.05, 0.03), (0.062, 0.19, 0.085), "shell", bevel=0.4)                         # receiver
+    wb((0.032, 0.05, 0.035), (0.004, 0.11, 0.05), "screen", bevel=0.2)                    # flank screen
+    wb((0.0345, 0.05, 0.035), (0.002, 0.08, 0.008), "lime", "emit", bevel=0.0)            # waveform line
+    cyl((0, 0.14, 0.035), (0, 0.32, 0.035), 0.016, 0.014, "bezel", seg=8)                 # core rod
+    for i in range(3):                                                                    # coil rings
+        h.torus("Weapon", W @ Vector((0, 0.17 + i * 0.05, 0.035)), W.to_3x3() @ Vector((0, 1, 0)), 0.03, 0.008,
+                "lime", "emit", seg=(14, 5))
+    for a in range(3):                                                                    # prong emitter
+        ang = math.radians(90 + a * 120)
+        o = Vector((math.cos(ang) * 0.022, 0, math.sin(ang) * 0.022 + 0.035))
+        cyl(tuple(o + Vector((0, 0.31, 0))), tuple(o * 1.4 + Vector((0, 0.39, -0.014))), 0.007, 0.003, "chrome",
+            "chrome", seg=5)
+    h.sphere("Weapon", W @ Vector((0, 0.36, 0.035)), (0.014, 0.014, 0.014), "team", "team_emit", seg=(8, 5))
+    wb((0, 0.04, 0.1), (0.05, 0.004, 0.04), "team", "team_emit", bevel=0.0)              # holo sight
+    wb((0, 0.04, 0.078), (0.012, 0.012, 0.012), "bezel", bevel=0.3)
+    cyl((-0.035, -0.06, 0.02), (0.035, -0.06, 0.02), 0.03, 0.03, "lime", seg=10)          # battery cell
+    wb((0, -0.06, 0.02), (0.075, 0.018, 0.04), "bezel", bevel=0.3)
+    wb((0, 0.05, -0.06), (0.03, 0.05, 0.08), "bezel", rx=10, bevel=0.3)                    # fore stub
+    wb((-0.032, 0.07, 0.04), (0.004, 0.05, 0.03), "team", "team", bevel=0.0)
+
+
+def hex_idle(p, ph, f):
+    """Personal idle: restless. Hip popped onto the left leg, right knee loose, a toe
+    tap on the right foot and a small head-bob bounce in the hips."""
+    from hero_anims import legs
+    w = math.sin(ph)
+    tap = max(0.0, math.sin(4 * ph))
+    legs(p, 0, 0, 0)
+    p.rot("UpperLeg_L", [("x", 2), ("z", -4), ("y", 3)])
+    p.rot("UpperLeg_R", [("x", 12), ("z", 10), ("y", -12)])
+    p.rot("LowerLeg_L", [("x", -4)])
+    p.rot("LowerLeg_R", [("x", -20)])
+    p.rot("Foot_R", [("x", -6 + 10 * tap), ("z", 10)])
+    p.rot("Hips", [("y", -6 + 1.0 * w), ("z", 8)])
+    p.hips((-0.035 * p.k, 0, -0.012 * p.k - 0.006 * abs(math.sin(2 * ph)) * p.k))
+    p.rot("Spine", [("y", 5 - 0.8 * w), ("x", 4), ("z", -5)])
+    p.rot("Chest", [("x", 3), ("y", 2)])
+
+
+def hex_post(c):
+    """Painted head detail: the emissive pixel face and scanlines on the screen, glossy
+    screen and plastic shell, matte hood; light wear, a sticker and a hazard tab."""
+    import hero_decals as D
+    H, k = c["H"], c["k"]
+    z0 = H * 0.82
+    scr = D.region(c, ["#12262A"], zmin=z0)
+    lo, hi = D.bounds(c, scr)
+    mid = (lo + hi) / 2
+    sz = hi - lo
+    D.decal(c, D.pixel_face(HEX_FACE), (0, hi[1], mid[2] - sz[2] * 0.02), (0, 1, 0), (0, 0, 1),
+            (sz[0] * 0.86, sz[2] * 0.78), scr, "#B6F23A", emit=True, depth=0.08, face=0.2)
+    lines = D.canvas(4, 64)
+    lines[::4, :] = 0.35
+    D.decal(c, lines, (0, hi[1], mid[2]), (0, 1, 0), (0, 0, 1), (sz[0] * 1.1, sz[2] * 1.1), scr, "#1F3A38",
+            depth=0.08, face=0.2)
+    D.gloss(c, scr, 0.9)
+    shell = D.region(c, ["#DCDFEA"], zmin=z0)
+    D.gloss(c, shell, 0.35)
+    D.wear(c, shell, "#8A8FA0", 0.5, scale=60.0)
+    D.scratches(c, shell, "#9AA0B2", density=0.35, strength=0.45)
+    bez = D.region(c, ["#2C2F3D"], zmin=z0)
+    D.gloss(c, bez, 0.3)
+    D.decal(c, D.stripes(3), (0, mid[1], lo[2] - 0.01 * k), (0, 1, 0), (0, 0, 1), (0.04 * k, 0.012 * k), bez,
+            "#B6F23A", depth=0.08, face=0.2)
+    slo, shi = D.bounds(c, shell)
+    D.decal(c, D.chevron(n=1), (0, slo[1] + 0.005, (slo[2] + shi[2]) / 2), (0, -1, 0), (0, 0, 1), (0.04 * k, 0.03 * k),
+            shell, "#B6F23A", depth=0.2)
+    D.gloss(c, D.region(c, ["#5A5686"], zmin=z0), 0.0)
+    return c["alb"], c["spec"], c["emit"]
+
+
 HEROES = {
     "ryker": {
         "key": "ryker",
@@ -664,6 +843,35 @@ HEROES = {
         "gait": {"run_amp": 34, "lean": 5},
         "casts": [("thrust", [("x", -8)]), ("raise", []), ("sweep", [("z", 10)]), ("raise", [("x", 10)])],
     },
+    "hex": {
+        "key": "hex",
+        "pipeline": "gen",
+        "legacy": hero_defs.HEROES["hex"],
+        "height": 1.72,
+        "body": {"leg": 0.97, "torso": 0.54, "shoulder_w": 0.4, "chest_w": 0.32, "chest_d": 0.21,
+                 "waist_w": 0.25, "waist_d": 0.18, "hip_w": 0.31, "hip_d": 0.2, "hip_joint_w": 0.18,
+                 "neck": 0.07, "neck_r": 0.05, "head_w": 0.17, "head_d": 0.2, "head_h": 0.24,
+                 "arm_r": 0.05, "forearm_r": 0.046, "wrist_r": 0.034, "thigh_r": 0.08, "knee_r": 0.055,
+                 "calf_r": 0.062, "ankle_r": 0.04, "hand": 1.35, "foot": 1.45, "boot_r": 1.2,
+                 "deltoid": 0.6, "pecs": 0.2, "glutes": 0.4, "calves": 0.4, "forearms": 0.3, "traps": 0.3,
+                 "chest_lean": 4.0, "head_fwd": 0.015, "arm_angle": 52.0},
+        "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05, "post": hex_post, "uv_margin": 0.0012,
+                  "uv_max_tries": 40, "shader": {"hatch_strength": 0.1}},
+        "palette": HEX_PAL,
+        "cuts": _generic(HEX_SPEC)[0],
+        "regions": _generic(HEX_SPEC)[1],
+        "shells": _generic(HEX_SPEC)[2],
+        "parts": hex_parts,
+        "weapon": "glitchcaster_w16",
+        "cloth": [],
+        "stance": {"grip_r": (0.1, 0.27, 1.12), "pivot": (0.12, 0.04, 1.32), "twist": -16, "clav_l": -8,
+                   "pole_r": (1, -0.4, -1), "pole_l": (-0.6, -0.2, -1), "two_handed": True,
+                   "grip_l": (0, 0.06, -0.06), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),
+                   "hand_l_y": (0.3, 0.3, -1), "hand_l_n": (1, 0, 0), "mag": (0, 0.05, -0.08)},
+        "idle": hex_idle,
+        "gait": {"run_amp": 40, "lean": 10},
+        "casts": [("thrust", []), ("sweep", [("z", 12)]), ("throw", [("z", 8)]), ("raise", [("x", 10)])],
+    },
 }
 
-WEAPONS = {"breakline_ar7": breakline_ar7, "ironmaw_w16": ironmaw_w16}
+WEAPONS = {"breakline_ar7": breakline_ar7, "ironmaw_w16": ironmaw_w16, "glitchcaster_w16": glitchcaster_w16}
