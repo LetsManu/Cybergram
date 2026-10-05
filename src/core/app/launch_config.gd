@@ -109,7 +109,7 @@ var connect_address: String = ""
 var max_clients: int = 12  # W14: a full 5v5 lobby (10 seats) + spare
 ## Debug: open the pause menu on start (UI evidence captures).
 var debug_pause_menu: bool = false
-## Debug: with --debug-settings <video|audio|controls|gameplay|0-3> the pause menu
+## Debug: with --debug-settings <video|audio|controls|gameplay|comfort|0-4> the pause menu
 ## opens on that settings tab (-1 = off). Implies --debug-pause-menu.
 var debug_settings_tab: int = -1
 ## CLIENT: lobby slot token for the match (from LOBBY_START).
@@ -160,9 +160,9 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 				c.debug_settings_tab = 0
 				if i + 1 < args.size():
 					i += 1
-					var tabs := ["video", "audio", "controls", "gameplay"]
+					var tabs := ["video", "audio", "controls", "gameplay", "comfort"]
 					var t := tabs.find(args[i].to_lower())
-					c.debug_settings_tab = t if t >= 0 else clampi(args[i].to_int(), 0, 3)
+					c.debug_settings_tab = t if t >= 0 else clampi(args[i].to_int(), 0, 4)
 			"--max-clients":
 				if i + 1 < args.size():
 					i += 1

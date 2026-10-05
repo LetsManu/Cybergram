@@ -25,11 +25,19 @@ var _last_tiers := PackedInt32Array()
 var _last_feet := Vector3.INF
 var _bob_t: float = 0.0
 var _bob_amp: float = 0.0
+## W16-COMFORT: weapon bob on/off (GameSettings.comfort_weapon_bob).
+var bob_enabled: bool = true
+## Tuning (viewmodel FOV compensation, kick gain); ComfortRulesDef defaults.
+var comfort_rules: ComfortRulesDef = ComfortRulesDef.new()
+const GUN_POS := Vector3(0.16, -0.15, -0.38)
+var _fov_factor: float = 1.0
+var _vm_kick: Vector2 = Vector2.ZERO
 
 
 func setup(look: LookSettings) -> void:
 	camera = Camera3D.new()
 	camera.fov = look.fov_deg
+	_fov_factor = ComfortMath.viewmodel_fov_factor(look.fov_deg, comfort_rules.viewmodel_ref_fov_deg)
 	camera.near = 0.05
 	camera.current = true
 	add_child(camera)
@@ -37,7 +45,8 @@ func setup(look: LookSettings) -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(0.05, 0.07, 0.32)
 	gun.mesh = box
-	gun.position = Vector3(0.16, -0.15, -0.38)
+	gun.position = _gun_pos()
+	gun.scale = Vector3.ONE * _fov_factor
 	gun.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	gun.material_override = _mat(_GUN_COLOR, false)
 	camera.add_child(gun)
@@ -78,7 +87,7 @@ func set_weapon(def: WeaponDef, hero_key: StringName = &"", team: int = 0) -> vo
 	_vm = Node3D.new()
 	_vm.name = "Viewmodel"
 	_vm.position = VIEWMODEL_POS
-	_vm.scale = Vector3.ONE * VIEWMODEL_SCALE
+	_vm.scale = Vector3.ONE * VIEWMODEL_SCALE * _fov_factor
 	camera.add_child(_vm)
 	weapon_model = WeaponModelBuilder.build(k, true, team)
 	weapon_model.rotation_degrees = Vector3(0.0, 4.0, 0.0)
@@ -211,13 +220,44 @@ func _frame_mount(item: ArmoryItemDef, tier: int) -> void:
 		_mounts.add_child(m)
 
 
+## Sets the camera FOV and re-fits the viewmodel to it (a gun at a fixed camera
+## offset drifts to the centre and shrinks at wide FOV; see ComfortMath).
+func set_fov(deg: float) -> void:
+	if camera == null:
+		return
+	camera.fov = deg
+	_fov_factor = ComfortMath.viewmodel_fov_factor(deg, comfort_rules.viewmodel_ref_fov_deg)
+	if gun != null:
+		gun.scale = Vector3.ONE * _fov_factor
+	if _vm != null:
+		_vm.scale = Vector3.ONE * VIEWMODEL_SCALE * _fov_factor
+
+
+## Greybox gun position, FOV-compensated (x / y only).
+func _gun_pos() -> Vector3:
+	return Vector3(GUN_POS.x * _fov_factor, GUN_POS.y * _fov_factor, GUN_POS.z)
+
+
 ## Places the camera at `feet` + eye height with the given look angles.
-func follow(feet: Vector3, eye_height: float, yaw: float, pitch: float) -> void:
+## `hidden_kick` (x yaw, y pitch, radians) is the view punch the camera does not
+## show at a reduced camera-recoil setting; the viewmodel spends it, so the gun
+## still kicks (W16-COMFORT).
+func follow(feet: Vector3, eye_height: float, yaw: float, pitch: float, hidden_kick: Vector2 = Vector2.ZERO) -> void:
 	position = feet + Vector3(0.0, eye_height, 0.0)
 	rotation = Vector3(0.0, yaw, 0.0)
 	camera.rotation = Vector3(pitch, 0.0, 0.0)
+	_vm_kick = hidden_kick * comfort_rules.viewmodel_kick_gain
+	if gun != null:
+		gun.position = _gun_pos() + _kick_offset()
+		gun.rotation = Vector3(_vm_kick.y, _vm_kick.x, 0.0)
 	if _vm != null:
 		_viewmodel_bob(feet)
+
+
+## Viewmodel displacement for the hidden kick (up / sideways on the view arc).
+func _kick_offset() -> Vector3:
+	var arm := comfort_rules.viewmodel_kick_arm_m
+	return Vector3(-_vm_kick.x * arm, _vm_kick.y * arm, 0.0)
 
 
 ## Viewmodel walk bob / settle from the camera's ground speed (presentation).
@@ -227,10 +267,17 @@ func _viewmodel_bob(feet: Vector3) -> void:
 	if _last_feet != Vector3.INF and dt > 0.0:
 		speed = Vector2(feet.x - _last_feet.x, feet.z - _last_feet.z).length() / dt
 	_last_feet = feet
+	var base := Vector3(VIEWMODEL_POS.x * _fov_factor, VIEWMODEL_POS.y * _fov_factor, VIEWMODEL_POS.z)
+	if not bob_enabled:  # W16-COMFORT: a still gun (the hidden kick still shows)
+		_bob_amp = 0.0
+		_vm.position = base + _kick_offset()
+		_vm.rotation = Vector3(_vm_kick.y, _vm_kick.x, 0.0)
+		return
 	_bob_amp = lerpf(_bob_amp, clampf(speed / 6.0, 0.0, 1.0), clampf(dt * 8.0, 0.0, 1.0))
 	_bob_t += dt * (4.0 + 6.0 * _bob_amp)
-	_vm.position = VIEWMODEL_POS + Vector3(sin(_bob_t) * 0.008, -absf(cos(_bob_t)) * 0.01, 0.0) * _bob_amp \
-		+ Vector3(0.0, sin(_bob_t * 0.35) * 0.002, 0.0)
+	_vm.position = base + Vector3(sin(_bob_t) * 0.008, -absf(cos(_bob_t)) * 0.01, 0.0) * _bob_amp \
+		+ Vector3(0.0, sin(_bob_t * 0.35) * 0.002, 0.0) + _kick_offset()
+	_vm.rotation = Vector3(_vm_kick.y, _vm_kick.x, 0.0)
 
 
 func _mat(c: Color, emissive: bool, energy: float = 1.0) -> StandardMaterial3D:

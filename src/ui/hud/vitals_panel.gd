@@ -62,7 +62,7 @@ func _draw() -> void:
 	draw_arc(rc, RING_R - 3.0, 0.0, TAU, 48, Color(0.22, 0.22, 0.32), 5.0, true)
 	draw_arc(rc, RING_R - 3.0, -PI / 2.0, -PI / 2.0 + TAU * frac, 48, HudPalette.RESONANCE, 5.0, true)
 	if _flash > 0.0:
-		draw_arc(rc, RING_R + 2.0 + (1.2 - _flash) * 12.0, 0.0, TAU, 48, Color(1, 1, 1, _flash / 1.2), 2.5, true)
+		draw_arc(rc, RING_R + 2.0 + (1.2 - _flash) * 12.0, 0.0, TAU, 48, Color(1, 1, 1, _flash / 1.2 * GameSettings.shared().comfort_fx_intensity), 2.5, true)
 		text(tr("HUD_LEVEL_UP"), Vector2(0.0, top + 19.0), 14, Color(HudPalette.SP.lightened(0.3), minf(1.0, _flash * 2.0)),
 			ctx.font_display, HORIZONTAL_ALIGNMENT_RIGHT, W - 12.0)
 	text_c(str(level), rc + Vector2(0.0, -2.0), 28, HudPalette.TEXT, ctx.font_numbers)
