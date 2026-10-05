@@ -13,6 +13,13 @@ const SCALE_MIN: float = 0.8
 const SCALE_MAX: float = 1.2
 const SCALE_STEP: float = 0.1
 const DAMAGE_IDS: Array[String] = ["off", "compact", "full"]
+## v0.12 idle fade (hud-v0.12.md §4.3): ids and delays in seconds (0 = never fades).
+const IDLE_FADE_IDS: Array[String] = ["off", "4", "8"]
+const IDLE_FADE_SECONDS: Array[float] = [0.0, 4.0, 8.0]
+## v0.12 HUD text scale (hud-v0.12.md §3, hud.md §16): multiplies every HUD text
+## size; glyphs, bars and layout keep their size.
+const TEXT_SCALE_MIN: float = 0.9
+const TEXT_SCALE_MAX: float = 1.3
 
 ## HUD scale 80-120% (hud.md §16).
 var ui_scale: float = 1.0
@@ -26,6 +33,10 @@ var plate_numbers: bool = false
 var net_graph: bool = false
 ## Clamp the HUD to a 16:9 centre region on ultrawide (hud.md §3.2).
 var clamp_16_9: bool = true
+## Index into IDLE_FADE_IDS (default 4 s).
+var idle_fade: int = 1
+## HUD text size factor, TEXT_SCALE_MIN..TEXT_SCALE_MAX.
+var text_scale: float = 1.0
 ## Debug (evidence captures): keep the scoreboard open.
 var debug_scoreboard: bool = false
 ## Debug (evidence captures): [seconds, png path] pairs; each frame is saved
@@ -36,6 +47,15 @@ var debug_screenshots: Array = []
 
 func set_ui_scale(v: float) -> void:
 	ui_scale = clampf(snappedf(v, 0.01), SCALE_MIN, SCALE_MAX)
+
+
+func set_text_scale(v: float) -> void:
+	text_scale = clampf(snappedf(v, 0.01), TEXT_SCALE_MIN, TEXT_SCALE_MAX)
+
+
+## Seconds without a combat event before the HUD fades (0 = never).
+func idle_fade_seconds() -> float:
+	return IDLE_FADE_SECONDS[clampi(idle_fade, 0, IDLE_FADE_SECONDS.size() - 1)]
 
 
 func cycle_colorblind() -> void:
@@ -55,6 +75,9 @@ func read_config(cfg: ConfigFile) -> void:
 	plate_numbers = bool(cfg.get_value(SECTION, "plate_numbers", plate_numbers))
 	net_graph = bool(cfg.get_value(SECTION, "net_graph", net_graph))
 	clamp_16_9 = str(cfg.get_value(SECTION, "hud_aspect", "16:9")) != "native"
+	var fi := IDLE_FADE_IDS.find(str(cfg.get_value(SECTION, "idle_fade", IDLE_FADE_IDS[idle_fade])))
+	idle_fade = fi if fi >= 0 else 1
+	set_text_scale(float(cfg.get_value(SECTION, "text_scale", text_scale)))
 
 
 func write_config(cfg: ConfigFile) -> void:
@@ -64,12 +87,15 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value(SECTION, "plate_numbers", plate_numbers)
 	cfg.set_value(SECTION, "net_graph", net_graph)
 	cfg.set_value(SECTION, "hud_aspect", "16:9" if clamp_16_9 else "native")
+	cfg.set_value(SECTION, "idle_fade", IDLE_FADE_IDS[clampi(idle_fade, 0, IDLE_FADE_IDS.size() - 1)])
+	cfg.set_value(SECTION, "text_scale", text_scale)
 
 
 ## Launch-arg overrides (user args after "--"; unknown args are ignored):
 ##   --ui-scale 1.1   --colorblind deuteranopia|protanopia|tritanopia|default
 ##   --damage-numbers off|compact|full   --plate-numbers   --net-graph
 ##   --hud-aspect native|16:9   --hud-scoreboard (debug: scoreboard held open)
+##   --idle-fade off|4|8   --text-scale 0.9-1.3
 ##   --hud-screenshot <seconds> <png path>  (debug: save one frame, then quit)
 func apply_args(args: PackedStringArray) -> void:
 	var i := 0
@@ -99,6 +125,16 @@ func apply_args(args: PackedStringArray) -> void:
 				if has_next:
 					i += 1
 					clamp_16_9 = args[i] != "native"
+			"--idle-fade":
+				if has_next:
+					i += 1
+					var fi := IDLE_FADE_IDS.find(args[i].to_lower())
+					if fi >= 0:
+						idle_fade = fi
+			"--text-scale":
+				if has_next:
+					i += 1
+					set_text_scale(args[i].to_float())
 			"--hud-scoreboard":
 				debug_scoreboard = true
 			"--hud-screenshot":

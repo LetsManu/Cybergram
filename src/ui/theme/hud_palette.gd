@@ -24,6 +24,7 @@ const TEAM_COLORS: Array = [
 const NEUTRAL := Color("#8E5CFF")
 
 ## Panels: ≤ 65% opaque night ink with a 1 px light keyline (art bible §9).
+## Retired from the in-match HUD in v0.12 (no boxes); kept for menus / tools.
 const PANEL := Color(0.043, 0.055, 0.094, 0.65)
 const PANEL_STRONG := Color(0.043, 0.055, 0.094, 0.85)
 const KEYLINE := Color(0.79, 0.83, 0.89, 0.35)
@@ -47,6 +48,25 @@ const SHIELD := Color("#FFFFFF")
 const MANA := Color("#A98BFF")
 const MAG := Color("#E6F7FF")
 const BURNOUT := Color(0.45, 0.45, 0.5)
+
+
+## v0.12 premium-dark HUD (design/ux/hud-v0.12.md §1): mirrors of the UI kit
+## tokens (assets/ui/ui_kit_tokens.tres) as constants so per-frame _draw code
+## needs no resource lookups. Brass is the only accent / action colour, teal is
+## status only, and none of these is a team cue (presets do not change them).
+const INK := Color("#0B1015")
+const INK_DEEP := Color("#080C10")
+const IVORY := Color("#ECE6D6")
+const MUTED := Color("#9AA3A8")
+const DIM := Color("#6C757A")
+const BRASS := Color("#C2A267")
+const BRASS_HI := Color("#EAD7A8")
+const BRASS_DIM := Color("#6B5A38")
+const TEAL := Color("#4FB8B0")
+## UI warn (debuffs, Overtime, respawn timers).
+const WARN_UI := Color("#D0904E")
+const HAIR := Color("#1E272D")
+const HAIR_STRONG := Color("#2A3238")
 
 
 ## Colour of damage warnings (direction arc, damage vignette) under `preset`:

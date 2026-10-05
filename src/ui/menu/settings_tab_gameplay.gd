@@ -41,6 +41,12 @@ func build() -> void:
 	option(tr("HUD_SET_COLORBLIND"), cb, _hud.colorblind, func(i: int) -> void: _hud.colorblind = i; _save_hud())
 	slider(tr("HUD_SET_UI_SCALE"), HudSettings.SCALE_MIN * 100.0, HudSettings.SCALE_MAX * 100.0, 10.0,
 		_hud.ui_scale * 100.0, "%.0f%%", func(v: float) -> void: _hud.set_ui_scale(v / 100.0); _save_hud())
+	# --- W19-HUD: v0.12 text scale and idle fade (hud-v0.12.md §3, §4.3) ---
+	slider(tr("HUD_SET_TEXT_SCALE"), HudSettings.TEXT_SCALE_MIN * 100.0, HudSettings.TEXT_SCALE_MAX * 100.0, 10.0,
+		_hud.text_scale * 100.0, "%.0f%%", func(v: float) -> void: _hud.set_text_scale(v / 100.0); _save_hud())
+	option(tr("HUD_SET_IDLE_FADE"), [tr("HUD_IDLE_FADE_OFF"), tr("HUD_IDLE_FADE_4"), tr("HUD_IDLE_FADE_8")],
+		_hud.idle_fade, func(i: int) -> void: _hud.idle_fade = i; _save_hud())
+	# --- end W19-HUD ---
 
 
 func _swatch(c: Color) -> Texture2D:
