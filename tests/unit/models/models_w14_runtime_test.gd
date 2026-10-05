@@ -84,3 +84,23 @@ func test_foot_ik_ignores_swinging_foot_and_clamps_step() -> void:
 	var p := FootIK.plan(-0.3, 0.0, 0.5, 0.0)  # left foot well off the ground in the clip
 	assert_float(p.lift[0]).is_equal(0.0)
 	assert_float(FootIK.plan(-2.0, 0.0, 0.0, 0.0).pelvis).is_equal_approx(-FootIK.MAX_STEP_M, 0.001)
+
+
+func test_post_tier_gates_and_low_has_no_extra_cost() -> void:
+	assert_bool(GfxQuality.rim_light_enabled(GfxQuality.MEDIUM)).is_false()
+	assert_bool(GfxQuality.ink_edges_enabled(GfxQuality.MEDIUM)).is_false()
+	assert_bool(GfxQuality.ink_edges_enabled(GfxQuality.HIGH)).is_true()
+	var env := GfxQuality.make_environment()
+	GfxQuality.apply(GfxQuality.LOW, env, null, null)
+	assert_object(env.adjustment_color_correction).is_null()
+	assert_bool(env.glow_enabled).is_false()
+	GfxQuality.apply(GfxQuality.HIGH, env, null, null)
+	assert_object(env.adjustment_color_correction).is_not_null()
+	assert_float(env.glow_intensity).is_equal(GfxQuality.GLOW_INTENSITY[GfxQuality.HIGH])
+
+
+func test_grade_lut_is_identity_at_zero_and_stays_near_identity() -> void:
+	var t := GfxQuality.make_grade_lut(0.0)
+	assert_int(t.get_width()).is_equal(GfxQuality.LUT_SIZE)
+	var img: Image = t.get_data()[0]
+	assert_float(img.get_pixel(0, 0).r).is_equal_approx(0.0, 0.01)

@@ -68,6 +68,7 @@ func build_from_scene(model_key: StringName, scene: PackedScene, team_: int) -> 
 	anim_player = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	for n in inst.find_children("*", "MeshInstance3D", true, false):
 		_meshes.append(n as MeshInstance3D)
+		(n as MeshInstance3D).layers = 1 | (1 << (GfxQuality.HERO_VISUAL_LAYER - 1))  # + the rim-light layer
 	_measure_height()
 	_make_markers()
 	_setup_loops()

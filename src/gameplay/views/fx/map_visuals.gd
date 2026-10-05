@@ -29,6 +29,9 @@ const LEYFALL := Color("#8E5CFF")
 
 var _spin: Array[Node3D] = []
 var _rng := RandomNumberGenerator.new()
+## W14-P2 post layers (null below High).
+var _rim: DirectionalLight3D
+var _ink: MeshInstance3D
 
 
 func _ready() -> void:
@@ -42,6 +45,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	for n in _spin:
 		n.rotate_y(delta * 0.6)
+	if _rim != null:
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:  # back light: travels towards the camera, slightly downward
+			var dir := (cam.global_transform.basis.z - Vector3(0.0, 0.35, 0.0)).normalized()
+			_rim.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), cam.global_position)
 
 
 ## Re-applies the current graphics tier to the map's environment, sun and the
@@ -50,7 +58,19 @@ func apply_quality() -> void:
 	var root := get_parent()
 	var we := root.get_node_or_null("Env") as WorldEnvironment
 	var sun := root.get_node_or_null("Sun") as DirectionalLight3D
-	GfxQuality.apply(GfxQuality.level(), we.environment if we != null else null, sun, get_viewport())
+	var lvl := GfxQuality.level()
+	GfxQuality.apply(lvl, we.environment if we != null else null, sun, get_viewport())
+	for n in [_rim, _ink]:
+		if n != null:
+			n.queue_free()
+	_rim = null
+	_ink = null
+	if GfxQuality.rim_light_enabled(lvl):
+		_rim = GfxQuality.make_rim_light()
+		add_child(_rim)
+	if GfxQuality.ink_edges_enabled(lvl):
+		_ink = GfxQuality.make_ink_edges(lvl)
+		add_child(_ink)
 
 
 func _strip_for_server() -> void:
