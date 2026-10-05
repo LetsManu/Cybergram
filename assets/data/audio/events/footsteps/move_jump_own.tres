@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AudioEventDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/audio_event_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"move_jump_own"
+folder = "footsteps"
+file_stem = "footsteps_body_jump"
+bus = &"Footsteps"
+volume_db = -6
+vol_jitter_db = 1
+pitch = 1
+pitch_jitter = 0.03
+priority = 2
+max_voices = 1
+cooldown_ms = 150
+owner_filter = 1

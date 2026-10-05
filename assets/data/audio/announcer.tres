@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="AnnouncerDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/announcer_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+lines = {
+&"victory": {"priority": 100, "text": "HUD_ANN_VICTORY", "stinger": &"announce_triumph", "voice": &"voice_victory"},
+&"defeat": {"priority": 100, "text": "HUD_ANN_DEFEAT", "stinger": &"announce_neutral", "voice": &"voice_defeat"},
+&"sudden_death": {"priority": 90, "text": "HUD_ANN_SUDDEN_DEATH", "stinger": &"announce_alert", "voice": &"voice_sudden_death"},
+&"uplink_under_attack": {"priority": 80, "repeat_s": 15.0, "text": "HUD_ANN_UPLINK_ATTACK", "stinger": &"announce_alert", "voice": &"voice_uplink_under_attack"},
+&"hardpoint_lost": {"priority": 70, "text": "HUD_ANN_HARDPOINT_LOST", "stinger": &"announce_alert", "voice": &"voice_hardpoint_lost"},
+&"hardpoint_captured": {"priority": 65, "text": "HUD_ANN_HARDPOINT_CAPTURED", "stinger": &"announce_triumph", "voice": &"voice_hardpoint_captured"},
+&"shutdown": {"priority": 60, "text": "HUD_ANN_SHUTDOWN", "stinger": &"announce_streak", "voice": &"voice_shutdown"},
+&"triple_kill": {"priority": 55, "text": "HUD_ANN_TRIPLE_KILL", "stinger": &"announce_streak", "voice": &"voice_triple_kill"},
+&"double_kill": {"priority": 50, "text": "HUD_ANN_DOUBLE_KILL", "stinger": &"announce_streak", "voice": &"voice_double_kill"},
+&"first_blood": {"priority": 45, "text": "HUD_ANN_FIRST_BLOOD", "stinger": &"announce_streak", "voice": &"voice_first_blood"},
+&"thirty_seconds": {"priority": 40, "text": "HUD_ANN_THIRTY_SECONDS", "stinger": &"announce_neutral", "voice": &"voice_thirty_seconds"}
+}
+upgrades = {
+&"double_kill": &"triple_kill"
+}
+queue_max = 3
+max_wait_s = 4.0
+gap_s = 0.4
+default_repeat_s = 8.0
+interrupt_priority = 90
+toast_s = 2.2
+line_s = 1.2
+multikill_window_s = 10.0
+shutdown_streak = 3
+countdown_line_s = 30.0
+uplink_drop_frac = 0.005

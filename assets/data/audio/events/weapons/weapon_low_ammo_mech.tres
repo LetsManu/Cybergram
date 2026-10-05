@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AudioEventDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/audio_event_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"weapon_low_ammo_mech"
+folder = "weapons"
+file_stem = "weapons_mech_lowammo"
+bus = &"Weapons"
+volume_db = 0
+vol_jitter_db = 0
+pitch = 1
+pitch_jitter = 0
+priority = 2
+max_voices = 1
+owner_filter = 1

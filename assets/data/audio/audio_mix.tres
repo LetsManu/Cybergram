@@ -1,0 +1,52 @@
+[gd_resource type="Resource" script_class="AudioMixDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/audio_mix_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+ambient_weapon_duck_db = -3.0
+weapon_duck_radius_m = 15.0
+weapon_duck_hold_s = 0.6
+music_big_moment_db = -4.0
+big_moment_hold_s = 2.5
+duck_attack_s = 0.05
+duck_release_s = 0.4
+heartbeat_hp_frac = 0.3
+heartbeat_rate_min_hz = 1.1
+heartbeat_rate_max_hz = 2.0
+low_ammo_frac = 0.2
+damage_center_deg = 20.0
+damage_shot_radius_m = 3.0
+damage_shot_window_ms = 400
+assist_window_s = 6.0
+land_light_mps = 4.0
+land_heavy_mps = 9.0
+remote_stride_m = 2.3
+remote_min_speed = 1.5
+grate_min_y = 2.5
+fx_events = {
+1: {"start": &"skill_brannoc_aegis_wall_impact"},
+2: {"start": &"skill_vesper_rally_beacon_impact"},
+3: {"start": &"skill_brannoc_fortify_impact", "loop": &"skill_brannoc_fortify_loop"},
+4: {"start": &"skill_vesper_marionette_thread_impact", "loop": &"skill_vesper_marionette_thread_loop"},
+6: {"start": &"skill_vesper_threadstep_impact"},
+7: {"start": &"skill_brannoc_earthbreaker_impact"},
+8: {"start": &"skill_brannoc_ram_charge_impact"},
+9: {"start": &"skill_brannoc_aegis_wall_impact"},
+20: {"end": &"ability_explosion"},
+21: {"start": &"skill_liora_med_pack_drone_impact"},
+22: {"start": &"skill_liora_aurora_impact", "loop": &"skill_liora_aurora_loop"},
+23: {"loop": &"ability_heal_beam_loop"},
+24: {"start": &"skill_sable_sabotage_charge_impact", "end": &"ability_explosion"},
+25: {"start": &"skill_sable_eclipse_step_impact"},
+40: {"start": &"skill_juniper_snare_coil_impact"},
+41: {"start": &"skill_juniper_tripwire_lattice_impact"},
+42: {"start": &"skill_juniper_pressure_mine_impact", "end": &"ability_explosion"},
+43: {"start": &"skill_juniper_killbox_impact", "loop": &"skill_juniper_killbox_loop"},
+44: {"start": &"skill_hex_static_field_impact", "loop": &"skill_hex_static_field_loop"},
+45: {"start": &"skill_hex_breach_spike_impact"},
+46: {"start": &"skill_hex_zero_day_impact"}
+}
+mag_out_delay_s = 0.35
+big_moment_line_priority = 80
+countdown_ticks_s = 5

@@ -1,98 +1,76 @@
 class_name AmbientAudio
 extends Node
-## W18-LIFE: distant city hum (client presentation only). Two procedurally
-## synthesized seamless loops (no audio files) on the Effects bus, at low
-## volume so they sit under gameplay sound:
-##  * hum: low mains-like drone with a slow swell (all levels);
-##  * wash: band-limited noise with slow swells, far traffic (Medium and up).
-## Streams are synthesized once per process and cached.
+## W18-LIFE / W21-A1: ambient beds (client presentation only). One looping
+## stereo bed per zone (base, lane, jungle, water; AmbientBedsDef) on the
+## Ambient bus, cross-faded by the camera position over crossfade_m at zone
+## edges (AmbientZoneMixer). Zones come from the ClientWorld's MapDef when this
+## node sits under one; otherwise (menu backdrops, demos) only the lane bed.
+## The beds replace the W18 hum / wash that played on the Effects bus.
 
-const RATE := 22050
-const LOOP_S := 4.0
-const HUM_DB := -26.0
-const WASH_DB := -31.0
-
-static var _hum: AudioStreamWAV
-static var _wash: AudioStreamWAV
+const DEF_PATH := "res://assets/data/audio/ambient_beds.tres"
+const SILENT_DB := -80.0
 
 var level: int = AmbientComfort.HIGH
-var _hum_p: AudioStreamPlayer
-var _wash_p: AudioStreamPlayer
+var def: AmbientBedsDef
+var mixer: AmbientZoneMixer
+var _players: Dictionary = {}  # zone -> AudioStreamPlayer
+var _gain: Dictionary = {}  # zone -> current linear gain
+var _map_checked: bool = false
+var _poll: float = 0.0
 
 
 func _ready() -> void:
-	GameSettings.shared().apply_audio()  # creates the Effects bus when missing
-	if _hum == null:
-		_hum = make_loop(false)
-		_wash = make_loop(true)
-	_hum_p = _player(_hum, HUM_DB)
-	_wash_p = _player(_wash, WASH_DB)
-	set_level(level)
+	GameSettings.shared().apply_audio()
+	def = load(DEF_PATH) as AmbientBedsDef
+	mixer = AmbientZoneMixer.from_map(null, def.base_radius_m, def.crossfade_m)
+	var bank := AudioEventBank.shared()
+	for zone in AmbientZoneMixer.ZONES:
+		var streams := bank.streams_for(def.beds.get(zone, &""))
+		if streams.is_empty():
+			continue
+		var p := AudioStreamPlayer.new()
+		p.stream = streams[0]
+		p.bus = GameSettings.BUS_AMBIENT
+		p.volume_db = SILENT_DB
+		add_child(p)
+		p.play()
+		_players[zone] = p
+		_gain[zone] = 1.0 if zone == &"lane" else 0.0
 
 
-## Wash layer only from Medium up; the hum always plays.
+## AmbientComfort level 0..2: bed gain from AmbientBedsDef.level_db.
 func set_level(lvl: int) -> void:
 	level = lvl
-	if _wash_p != null:
-		_wash_p.volume_db = WASH_DB if lvl >= AmbientComfort.MEDIUM else -80.0
 
 
-func _player(stream: AudioStream, db: float) -> AudioStreamPlayer:
-	var p := AudioStreamPlayer.new()
-	p.stream = stream
-	p.bus = GameSettings.BUS_EFFECTS
-	p.volume_db = db
-	p.autoplay = true
-	add_child(p)
-	return p
+func _process(delta: float) -> void:
+	_poll += delta
+	if not _map_checked and _poll > 0.5:
+		_poll = 0.0
+		var md := _find_map_def()
+		if md != null:
+			mixer = AmbientZoneMixer.from_map(md, def.base_radius_m, def.crossfade_m)
+			_map_checked = true
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var w: Dictionary = mixer.weights(cam.global_position if cam != null else Vector3.ZERO)
+	var lvl_db: float = def.level_db[clampi(level, 0, def.level_db.size() - 1)] if def.level_db.size() > 0 else 0.0
+	var k := delta / maxf(def.glide_s, 0.01)
+	for zone in _players:
+		_gain[zone] = move_toward(float(_gain[zone]), float(w.get(zone, 0.0)), k)
+		var g: float = _gain[zone]
+		(_players[zone] as AudioStreamPlayer).volume_db = linear_to_db(g) + lvl_db if g > 0.001 else SILENT_DB
 
 
-## Synthesizes one seamless mono 16-bit loop of LOOP_S seconds (`seconds`
-## override for tests). Deterministic (fixed seeds). Every periodic part has a
-## whole number of cycles in the loop, and the noise is cross-faded across the
-## seam, so the loop point is inaudible.
-static func make_loop(wash: bool, seconds: float = LOOP_S) -> AudioStreamWAV:
-	var n := int(RATE * seconds)
-	var fade := int(RATE * 0.5)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7331 if wash else 1337
-	var noise := PackedFloat32Array()
-	noise.resize(n + fade)
-	var lp := 0.0
-	var lp2 := 0.0
-	for i in n + fade:
-		var w := rng.randf_range(-1.0, 1.0)
-		lp += (w - lp) * (0.08 if wash else 0.02)
-		lp2 += (lp - lp2) * (0.3 if wash else 0.05)
-		noise[i] = (lp - lp2 * 0.6) if wash else lp2 * 6.0
-	var data := PackedByteArray()
-	data.resize(n * 2)
-	var peak := 0.0
-	var buf := PackedFloat32Array()
-	buf.resize(n)
-	for i in n:
-		var nz := noise[i]
-		if i < fade:
-			var k := i / float(fade)
-			nz = noise[n + i] * (1.0 - k) + noise[i] * k
-		var t := i / float(RATE)
-		var swell := 0.75 + 0.25 * sin(TAU * t / seconds)
-		var v := 0.0
-		if wash:
-			v = nz * (0.6 + 0.4 * sin(TAU * t * 2.0 / seconds + 1.0)) * swell
-		else:
-			v = (sin(TAU * 55.0 * t) * 0.5 + sin(TAU * 110.0 * t) * 0.22 + sin(TAU * 165.0 * t) * 0.08) * swell + nz * 0.4
-		buf[i] = v
-		peak = maxf(peak, absf(v))
-	var g := 0.6 / maxf(peak, 0.0001)
-	for i in n:
-		data.encode_s16(i * 2, int(clampf(buf[i] * g, -1.0, 1.0) * 32767.0))
-	var s := AudioStreamWAV.new()
-	s.format = AudioStreamWAV.FORMAT_16_BITS
-	s.mix_rate = RATE
-	s.stereo = false
-	s.data = data
-	s.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	s.loop_begin = 0
-	s.loop_end = n
-	return s
+## Zone weights at `pos` (tests / debug).
+func weights_at(pos: Vector3) -> Dictionary:
+	return mixer.weights(pos)
+
+
+func _find_map_def() -> MapDef:
+	var n := get_parent()
+	while n != null:
+		var md: Variant = n.get("map_def")
+		if md is MapDef:
+			return md
+		n = n.get_parent()
+	return null
