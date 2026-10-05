@@ -39,17 +39,18 @@ KIND_BODY, KIND_SHELL, KIND_PART, KIND_WEAPON, KIND_SOFT = 0, 1, 2, 3, 4
 # Per-hero detail kit (all optional; defaults in DEFAULT). Angles: 0 = front, +90 = hero's left.
 DEFAULT = {"belt": {"z": 0.0, "off": 0.006, "width": 0.045, "pouches": (60, 115, -115), "buckle": True},
            "bandolier": False, "holster": "R", "bracers": True, "arm_bands": True, "collar": False,
-           "thigh_straps": True, "cables": True, "cell": False, "ear_vents": False, "weapon": {"energy": True}}
+           "thigh_straps": True, "cables": True, "cell": False, "ear_vents": False,
+           "weapon": {"energy": True, "rail": True, "muzzle": True}}
 HD = {
     "ryker": {"bandolier": True, "ear_vents": True, "cell": True},
-    "vesper": {"belt": {"off": 0.03, "pouches": (70, -70)}, "holster": None, "collar": True, "cables": False,
+    "vesper": {"belt": {"off": 0.03, "pouches": (70, -70)}, "holster": None, "weapon": {"rail": False, "muzzle": False}, "collar": True, "cables": False,
                "cloth_names": ("violet", "plum", "suit")},
     "brannoc": {"belt": {"off": 0.012, "width": 0.06, "pouches": (55, -55, 120, -120)}, "bandolier": True,
                 "holster": None, "cell": True, "weapon": {"energy": True}},
-    "liora": {"belt": {"off": 0.012, "pouches": (95, -95)}, "holster": None, "collar": True, "thigh_straps": False},
+    "liora": {"belt": {"off": 0.012, "pouches": (95, -95)}, "holster": None, "weapon": {"rail": False, "muzzle": False}, "collar": True, "thigh_straps": False},
     "sable": {"belt": {"pouches": (75, -110)}, "holster": "L", "ear_vents": True},
     "juniper": {"belt": {"pouches": (60, 110, -60, -110)}, "bandolier": True, "holster": None},
-    "hex": {"belt": {"pouches": (80, -80)}, "holster": "R", "ear_vents": True, "cell": True},
+    "hex": {"belt": {"pouches": (80, -80)}, "holster": "R", "weapon": {"muzzle": False}, "ear_vents": True, "cell": True},
 }
 
 
@@ -333,6 +334,14 @@ def weapon_detail(h, W):
     top = float(sel[:, 2].max()) if len(sel) else float(hi[2])
     xm = float(np.median(sel[:, 0])) if len(sel) else 0.0
     y0, y1 = lo[1] + 0.3 * L, lo[1] + 0.68 * L
+    if c.get("rail", True):
+        _rail(wb, h, W, xm, y0, y1, top)
+    if c.get("muzzle", True):
+        _muzzle(wb, h, W, P, hi)
+    _lower(wb, h, W, P, lo, L, sel, top, c)
+
+
+def _rail(wb, h, W, xm, y0, y1, top):
     wb((xm, (y0 + y1) / 2, top + 0.004), (0.022, y1 - y0, 0.008), "hd_gun", bevel=0.3)
     y = y0 + 0.008
     while y < y1 - 0.006:
@@ -342,7 +351,9 @@ def weapon_detail(h, W):
         wb((xm + sx * 0.009, y0 + 0.006, top + 0.022), (0.006, 0.01, 0.022), "hd_metal", bevel=0.3)
     wb((xm, y1 - 0.01, top + 0.02), (0.006, 0.012, 0.024), "hd_metal", bevel=0.3, taper=(0.6, 0.6))
     wb((xm, y1 - 0.01, top + 0.034), (0.004, 0.004, 0.004), "team", "team_emit", bevel=0.0)
-    # Muzzle device.
+
+
+def _muzzle(wb, h, W, P, hi):
     front = P[P[:, 1] > hi[1] - 0.03]
     mc = front.mean(axis=0)
     r = max(0.012, float(np.max(np.hypot(front[:, 0] - mc[0], front[:, 2] - mc[2]))) * 0.9)
@@ -353,6 +364,9 @@ def weapon_detail(h, W):
     for sx in (-1, 1):
         for i in range(2):
             wb((mc[0] + sx * r * 0.9, hi[1] + 0.012 + i * 0.02, mc[2]), (0.006, 0.01, r * 0.9), "hd_ink", bevel=0.2)
+
+
+def _lower(wb, h, W, P, lo, L, sel, top, c):
     # Trigger guard under the receiver, ahead of the grip (origin).
     gz = float(P[(np.abs(P[:, 1] - 0.05) < 0.03)][:, 2].min()) if np.any(np.abs(P[:, 1] - 0.05) < 0.03) else -0.03
     wb((0, 0.055, gz - 0.028), (0.012, 0.075, 0.006), "hd_gun", bevel=0.4)
@@ -804,9 +818,9 @@ def _sec_specs(h):
                                                            lambda co: co.z > neck + 0.2 * k and co.x * _lx(h) < -0.04))],
         "juniper": [("Sec_pack_1", "UpperChest", 1, "top", sel({"mustard", "olive", "team", "chrome", "lime"}, None,
                                                               lambda co: back(co) and co.z > hips))],
-        "sable": [("Sec_strap_L", "UpperChest", 3, "top", sel(None, None, lambda co: back(co) and co.x * _lx(h) > 0
+        "sable": [("Sec_strap_L", "UpperChest", 4, "top", sel(None, None, lambda co: back(co) and co.x * _lx(h) > 0
                                                               and hips - 0.3 * k < co.z < neck)),
-                  ("Sec_strap_R", "UpperChest", 3, "top", sel(None, None, lambda co: back(co) and co.x * _lx(h) <= 0
+                  ("Sec_strap_R", "UpperChest", 4, "top", sel(None, None, lambda co: back(co) and co.x * _lx(h) <= 0
                                                               and hips - 0.3 * k < co.z < neck))],
         "ryker": [("Sec_antenna_1", "Clavicle_L", 2, "bottom", sel({"olive", "team"}, {"Clavicle_L"}, _ryker_fin(h, k)))],
         "brannoc": [],

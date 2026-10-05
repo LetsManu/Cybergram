@@ -145,3 +145,41 @@ zone painter), `hero_anims.py` (scripted clips + IK), `mocap.py` (CMU retarget).
 ### Pilot perf note
 On the xvfb llvmpipe software renderer the inverted hull is the dominant per-hero cost
 (see the W13 report); it is LOD-ed out beyond 30 m. Re-measure on real GPU hardware.
+
+## 8. W14 HD layer (detail, texture set, secondary bones)
+
+`tools/art/hero_hd.py`, called by `build_hero.py` (`--lowpoly` = the W13 build without it):
+
+- **Budget:** body decimation x1.5 of the W13 ratio; ~26-33k tris per hero in view. Godot's
+  importer LODs (`meshes/generate_lods`) supply the distance LOD (measured in §8 perf note).
+- **Detail kit** (per-hero switches in `HD`): surface-fitted belt with buckle + team light,
+  pouches with flaps and snaps, bandolier with clips, thigh holster or straps, metal bracers
+  with rivets and a team plate, arm bands, collar, back power cell with vents and cables, ear
+  vents (helmet). Pieces are skinned from the 3 nearest body vertices.
+- **Weapons:** receiver rail with teeth, iron sights, side plates with rivets and team
+  energy strips, trigger guard/trigger, bolt handle, muzzle device with ports. Energy weapons
+  (Vesper, Liora, Hex) keep their emitter tips (`rail`/`muzzle` off).
+- **Hard-surface pass:** Bevel (1.8 mm chamfer, angle 40) + Weighted Normal on the parts;
+  armour shells relaxed with a volume-preserving Laplacian smooth so the cel bands stay clean.
+- **Texture set** (Smart UV, Cycles bakes at 2x then filtered):
+  `<key>_albedo.png` 1024 RGB: flat palette x top-to-bottom gradient x painterly value noise x
+  baked AO, curvature edge highlights (Bevel-node normal vs geometric normal, convex only via
+  Pointiness), edge wear + scratches on metal, cloth weave. Team faces stay neutral-valued.
+  `<key>_normal.png` 1024 OpenGL tangent: selected-to-active from a high-poly copy (Bevel 3
+  segments on hard parts, Simple subdivision, cloud Displace folds on cloth) carrying a
+  panel-line / rivet / seam / weave bump. `<key>_mask.png` 512 RGBA: R AO, G spec/glint
+  (metal), B emissive, A team. The channel id moves from UV0.x to `COLOR.a`.
+- **Shader** (`spatial_char_toon_rigged`): `use_maps` + `albedo_map`/`normal_map`/`mask_map`,
+  a hard isotropic spec band on metal (`spec_threshold`, `spec_strength`), `ao_strength`,
+  `team_value_boost`, `map_emission`. All W13 uniforms are unchanged; without maps the W13
+  flat path runs. `RiggedHeroModel.material(team, enemy, far, key)` binds the maps per hero.
+- **Import:** run `tools/art/tex_import.sh` after the first import (VRAM compressed, mipmaps,
+  normal-map flag, no alpha-border fix on the mask), then import again.
+- **Secondary bones:** `Sec_<part>_<n>` chains per `design/art/secondary-motion.md`, fitted to
+  whole part islands and re-skinned along the chain with a soft root; never keyed.
+- **Clips added:** `death_back` (second death; mocap `death` falls forward), `showcase` (menu
+  idle, per-hero `SHOWCASE` pose), casts with anticipation / snap / overshoot / settle,
+  `shoot` with a weapon kick (runtime filter is Chest only, see report).
+- **Look-dev loop:** `HERO_DEBUG=<dir> build_hero.py <key>` saves the Cycles passes;
+  `tools/art/recompose.py <dir>/<key>_passes.npz <key>` re-runs only the albedo composite.
+- Size rule: glb + textures <= 6 MB per hero. Build time ~2 min per hero (4-core CPU).
