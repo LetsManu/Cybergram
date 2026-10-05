@@ -9,6 +9,7 @@ export HOME="$tmp/home"; unset XDG_DATA_HOME
 mkdir -p "$HOME" "$tmp/x"
 tar -xzf "$tgz" -C "$tmp/x"
 "$tmp"/x/cybergram-*/install.sh
+x="$(ls -d "$tmp"/x/cybergram-*)"
 d="$HOME/.local/share/cybergram"
 for f in "$d/CybergramLauncher.x86_64" "$d/launcher.cfg" "$d/game/Cybergram.x86_64" "$d/game/installed_version.txt" \
          "$d/uninstall.sh" "$HOME/.local/share/icons/hicolor/256x256/apps/cybergram.png" \
@@ -16,6 +17,12 @@ for f in "$d/CybergramLauncher.x86_64" "$d/launcher.cfg" "$d/game/Cybergram.x86_
   [[ -f "$f" ]] || { echo "FAIL: missing $f"; exit 1; }
 done
 [[ -x "$d/CybergramLauncher.x86_64" && -x "$d/game/Cybergram.x86_64" ]] || { echo "FAIL: not executable"; exit 1; }
+# W15-UPD: content packs and the delta baseline travel with the game.
+[[ -f "$d/game/installed_manifest.json" ]] || { echo "FAIL: no installed_manifest.json"; exit 1; }
+for p in $(cd "$x/game" && find . -name '*.pck' -printf '%P\n'); do
+  [[ -f "$d/game/$p" ]] || { echo "FAIL: pack $p not installed"; exit 1; }
+done
+[[ ! -e "$d/content.cfg" ]] || { echo "FAIL: full install wrote content.cfg"; exit 1; }
 grep -qx "Exec=$d/CybergramLauncher.x86_64" "$HOME/.local/share/applications/cybergram.desktop" || { echo "FAIL: desktop Exec"; exit 1; }
 if command -v desktop-file-validate >/dev/null 2>&1; then
   desktop-file-validate "$HOME/.local/share/applications/cybergram.desktop"
@@ -25,7 +32,8 @@ mkdir -p "$settings"
 "$d/uninstall.sh" --keep-settings > /dev/null
 [[ ! -e "$d" && ! -e "$HOME/.local/share/applications/cybergram.desktop" ]] || { echo "FAIL: uninstall left files"; exit 1; }
 [[ -d "$settings" ]] || { echo "FAIL: settings were deleted despite --keep-settings"; exit 1; }
-"$tmp"/x/cybergram-*/install.sh > /dev/null
+"$tmp"/x/cybergram-*/install.sh --lite > /dev/null
+[[ ! -e "$d/game/packs/heroes_hd.pck" ]] && grep -q heroes_hd "$d/content.cfg" || { echo "FAIL: --lite kept HD textures"; exit 1; }
 "$d/uninstall.sh" --remove-settings > /dev/null
 [[ ! -e "$settings" ]] || { echo "FAIL: settings kept despite --remove-settings"; exit 1; }
 echo "linux tar installer smoke: ok"

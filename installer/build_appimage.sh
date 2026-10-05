@@ -15,6 +15,7 @@ chmod +x "$app/usr/bin/CybergramLauncher.x86_64"
 cp -r "$game"/. "$app/usr/share/cybergram/game/"
 chmod +x "$app/usr/share/cybergram/game/Cybergram.x86_64"
 printf '%s\n' "$ver" > "$app/usr/share/cybergram/game/installed_version.txt"
+"$here/../launcher/tools/write_manifest.sh" "$app/usr/share/cybergram/game"   # delta-update baseline (W15-UPD)
 cp "$here/cybergram.png" "$app/cybergram.png"
 cp "$here/linux/cybergram.desktop" "$app/cybergram.desktop"
 sed -i 's|^Exec=.*|Exec=AppRun|' "$app/cybergram.desktop"
@@ -26,6 +27,15 @@ export APPDIR="${APPDIR:-$HERE}"
 exec "$HERE/usr/bin/CybergramLauncher.x86_64" "$@"
 RUN
 chmod +x "$app/AppRun"
-ARCH=x86_64 "$tool" --appimage-extract-and-run --no-appstream "$app" "$out/Cybergram-$ver-x86_64.AppImage"
-chmod +x "$out/Cybergram-$ver-x86_64.AppImage"
-ls -la "$out/Cybergram-$ver-x86_64.AppImage"
+# Update information (W15-UPD): AppImageUpdate / zsync tools find newer releases on
+# GitHub. The launcher itself updates the AppImage from the signed feed.
+upd="${APPIMAGE_UPDATE_INFO-gh-releases-zsync|LetsManu|Cybergram|latest|Cybergram-*-x86_64.AppImage.zsync}"
+uflag=(); [[ -n "$upd" ]] && uflag=(-u "$upd")
+img="$out/Cybergram-$ver-x86_64.AppImage"
+(cd "$out" && ARCH=x86_64 "$tool" --appimage-extract-and-run --no-appstream "${uflag[@]}" "$app" "$img")
+chmod +x "$img"
+# appimagetool writes <img>.zsync itself when zsyncmake is installed; make sure it exists.
+if [[ -n "$upd" && ! -f "$img.zsync" ]] && command -v zsyncmake >/dev/null; then
+  (cd "$out" && zsyncmake -u "$(basename "$img")" -o "$(basename "$img").zsync" "$(basename "$img")")
+fi
+ls -la "$img" "$img.zsync" 2>/dev/null || true

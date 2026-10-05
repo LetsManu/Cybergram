@@ -94,6 +94,9 @@ var _pending_root: String = ""
 var _ux: LauncherUx
 var _args: Dictionary = {}
 # --- end W15-UX ---
+# --- W15-UPD ---
+var _upd: UpdCli
+# --- end W15-UPD ---
 # --- W15-ONLINE ---
 var _launch_pending: bool = false
 var _rail: OnlineRail
@@ -158,6 +161,12 @@ func _ready() -> void:
 	_updater = Updater.new()
 	add_child(_updater)
 	_updater.setup(root, url)
+	# --- W15-UPD ---
+	_upd = UpdCli.attach(self, _updater, OS.get_cmdline_user_args() + OS.get_cmdline_args(),
+		String(args.get("settings", "user://launcher_settings.cfg")), _headless_mode != "")
+	if _upd.mode != "":
+		_headless_mode = "upd"
+	# --- end W15-UPD ---
 	if args.has("move-install-to"):
 		var merr: String = _updater.move_install(String(args["move-install-to"]))
 		print("LAUNCHER: move %s" % ("ok" if merr == "" else "failed: " + merr))
@@ -199,6 +208,9 @@ func _ready() -> void:
 		# --- end W15-ONLINE ---
 		if args.has("show-login"):
 			_open_login()
+		# --- W15-UPD ---
+		_upd.after_ui(_show_page)
+		# --- end W15-UPD ---
 
 
 ## Manifest arrived: replace the launcher first if the feed has a newer one.
@@ -213,6 +225,10 @@ func _on_manifest() -> void:
 		return
 	_self_done = true
 	if LauncherCore.is_appimage(OS.get_environment("APPIMAGE")):
+		# --- W15-UPD ---
+		if _upd.start_appimage_update(entry, LauncherCore.base_url(_version_url)):
+			return
+		# --- end W15-UPD ---
 		# The AppImage is a single read-only file and the feed only carries the bare
 		# launcher, so it cannot be swapped in place: tell the player instead.
 		print("LAUNCHER: self-update: launcher %s is available (AppImage: download the new AppImage)" % entry["version"])
@@ -388,10 +404,18 @@ func _on_state(s: Updater.State, msg: String) -> void:
 		Updater.State.ERROR:
 			_button.show_idle("RETRY")
 			_skip.visible = _updater.installed_version() != ""
+	# --- W15-UPD ---
+	_repair.disabled = _repair.disabled or s == Updater.State.PAUSED
+	_verify_link.disabled = _repair.disabled
+	# --- end W15-UPD ---
 	_refresh_news()
 
 
 func _headless_state(s: Updater.State, msg: String) -> void:
+	# --- W15-UPD ---
+	if _upd.handles(s):
+		return
+	# --- end W15-UPD ---
 	print("LAUNCHER: [%s] %s" % [Updater.State.keys()[s], msg])
 	if _headless_mode == "selfupdate":
 		if s in [Updater.State.OFFLINE_READY, Updater.State.OFFLINE_NONE, Updater.State.ERROR]:
@@ -444,6 +468,10 @@ func _refresh_busy() -> void:
 
 
 func _on_button() -> void:
+	# --- W15-UPD ---
+	if _upd.on_button():
+		return
+	# --- end W15-UPD ---
 	match _updater.state:
 		Updater.State.UP_TO_DATE, Updater.State.OFFLINE_READY:
 			_play()
@@ -887,6 +915,9 @@ func _build_settings() -> Control:
 	_version_label = UiKit.label("", &"small", t.text_dim)
 	about.body.add_child(_version_label)
 	about.body.add_child(UiKit.label("Launcher %s" % _own_version, &"small", t.text_off))
+	# --- W15-UPD ---
+	col.add_child(UpdPanels.create(self, _updater, _upd))
+	# --- end W15-UPD ---
 	# --- W15-UX --- Game, launch behaviour, system check, pinned hero
 	for ux_card in _ux.build_settings_cards():
 		col.add_child(ux_card)
@@ -905,6 +936,7 @@ func _build_settings() -> Control:
 	_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_online_settings_row.add_child(_privacy)
 	# --- end W15-ONLINE ---
+	col.move_child(about, col.get_child_count() - 1)  # About stays last
 	# --- W15-UX ---
 	var ux_scroll: ScrollContainer = ScrollContainer.new()
 	ux_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -980,6 +1012,9 @@ func _build_play_panel() -> Control:
 			_updater.verify_and_repair())
 	_verify_link.add_theme_font_size_override("font_size", 12)
 	links.add_child(_verify_link)
+	# --- W15-UPD ---
+	_upd.add_play_links(links, _link, _button, _detail, _status)
+	# --- end W15-UPD ---
 	return strip
 
 
