@@ -11,6 +11,9 @@ extends RefCounted
 
 var executable: String = ""
 var engine_args: PackedStringArray = PackedStringArray(["--headless"])
+## Pids this launcher killed: OS.kill() already reaped them, so asking the OS
+## again would log "not a child" errors.
+var _killed: Dictionary = {}
 
 
 ## `executable_` "" = this very binary (the front runs the same build).
@@ -29,12 +32,15 @@ func spawn(user_args: PackedStringArray) -> int:
 
 ## False once the process has ended (this also reaps it).
 func is_running(pid: int) -> bool:
-	return pid > 0 and OS.is_process_running(pid)
+	if pid <= 0 or _killed.has(pid):
+		return false
+	return OS.is_process_running(pid)
 
 
 ## Hard stop (SIGKILL on Linux). Graceful stops go over the channel.
 func kill(pid: int) -> void:
-	if pid > 0:
+	if pid > 0 and not _killed.has(pid):
+		_killed[pid] = true
 		OS.kill(pid)
 
 
