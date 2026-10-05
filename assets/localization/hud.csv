@@ -702,12 +702,12 @@ HUD_MODE_CTA_START,START
 HUD_MODE_CTA_PRACTICE,ENTER RANGE
 HUD_MODE_CTA_TUTORIAL,START TUTORIAL
 HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
-HUD_PATCH_1_TITLE,Matchmaking
-HUD_PATCH_1_SUB,"Normal, Ranked and 3v3 All Random queues with a hero draft"
-HUD_PATCH_2_TITLE,Ranks from Iron to Master
-HUD_PATCH_2_SUB,"Ready check, reconnect, remake vote and honour"
-HUD_PATCH_3_TITLE,A living Shardline Front
-HUD_PATCH_3_SUB,"Hills, buildings, jungle paths and a busy city around it"
+HUD_PATCH_1_TITLE,A new HUD
+HUD_PATCH_1_SUB,"Redesigned in the menu style, with an icon for every skill"
+HUD_PATCH_2_TITLE,Your keys on screen
+HUD_PATCH_2_SUB,"Skill keys show your own bindings or gamepad buttons"
+HUD_PATCH_3_TITLE,Calmer screen
+HUD_PATCH_3_SUB,"The HUD fades when idle; HUD text size 90-130%"
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
