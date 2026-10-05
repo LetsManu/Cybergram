@@ -64,6 +64,7 @@ func _ready() -> void:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.theme = UiKit.theme()  # a CanvasLayer does not inherit the menu's theme
 	add_child(root)
 	var dim := ColorRect.new()
 	dim.color = Color(t.bg_deep, 0.85)

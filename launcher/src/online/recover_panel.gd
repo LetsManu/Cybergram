@@ -67,7 +67,7 @@ func _ready() -> void:
 func open() -> void:
 	_hidden.clear()
 	for c in _box.get_children():
-		if c != self and c is Control and (c as Control).visible and not (c is Label and c.get_index() == 0):
+		if c != self and c is Control and (c as Control).visible:
 			_hidden.append(c)
 			(c as Control).visible = false
 	var u := _login_user_edit()
