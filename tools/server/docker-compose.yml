@@ -4,7 +4,7 @@
 #   ghcr.io/letsmanu/cybergram-server:latest  (or a fixed :v0.4.0)
 services:
   cybergram:
-    image: ghcr.io/letsmanu/cybergram-server:latest
+    image: ${CYBERGRAM_IMAGE:-ghcr.io/letsmanu/cybergram-server}:${CYBERGRAM_IMAGE_TAG:-latest}
     container_name: cybergram
     restart: unless-stopped
     # Graceful stop (W17): in front mode SIGTERM drains (running matches

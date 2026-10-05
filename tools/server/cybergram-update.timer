@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for a new Cybergram server image every 12 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=12min
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
