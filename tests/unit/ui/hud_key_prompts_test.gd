@@ -72,3 +72,18 @@ func test_armory_toggles_on_the_interact_action_not_a_fixed_f() -> void:
 	assert_bool(first).is_true()
 	assert_bool(held).is_false()
 	assert_bool(released).is_false()
+
+
+func test_fork_keys_on_a_pad_name_the_buttons_that_pick_the_fork() -> void:
+	# Repro: fork_a / fork_b have no pad binding, so key_label fell back to "1"/"2"
+	# while the pad actually picks with the skill 1 / skill 2 buttons.
+	var ctx := _ctx()
+	ctx.pad_active = true
+	var b := GameSettings.shared().bindings
+	assert_str(ctx.key_label(&"fork_a", "1")).is_equal("1")  # the old label
+	var s1 := HudContext.short_pad(InputBindings.joy_spec_text(b.get_pad_spec("skill_1")))
+	var s2 := HudContext.short_pad(InputBindings.joy_spec_text(b.get_pad_spec("skill_2")))
+	assert_str(ctx.fork_key(false)).is_equal(s1.substr(0, 5))
+	assert_str(ctx.fork_key(true)).is_equal(s2.substr(0, 5))
+	ctx.pad_active = false
+	assert_str(ctx.fork_key(false)).is_equal(InputBindings.spec_text(b.get_spec("fork_a")))

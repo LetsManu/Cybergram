@@ -264,9 +264,9 @@ func _draw_fork(r: Rect2, def: SkillDef, flags: int) -> void:
 	cut_fill(p, 10.0, Color(HudPalette.INK, 0.86))
 	cut_line(p, 10.0, HudPalette.BRASS, 1.0)
 	caps_c(tr("HUD_FORK_CHOOSE"), p.position + Vector2(w * 0.5, 18.0), 15, HudPalette.BRASS_HI, 0.18)
-	text_c("[%s] %s" % [ctx.key_label(&"fork_a", "1"), tr("HUD_FORK_%s_A" % stem)], p.position + Vector2(w * 0.5, 46.0), 17,
+	text_c("[%s] %s" % [ctx.fork_key(false), tr("HUD_FORK_%s_A" % stem)], p.position + Vector2(w * 0.5, 46.0), 17,
 		FORK_A_TINT)
-	text_c("[%s] %s" % [ctx.key_label(&"fork_b", "2"), tr("HUD_FORK_%s_B" % stem)], p.position + Vector2(w * 0.5, 72.0), 17,
+	text_c("[%s] %s" % [ctx.fork_key(true), tr("HUD_FORK_%s_B" % stem)], p.position + Vector2(w * 0.5, 72.0), 17,
 		FORK_B_TINT)
 
 
