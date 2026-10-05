@@ -341,6 +341,10 @@ func _debug_hud_state() -> void:
 				for u in m.uplinks:
 					u.set_exposed(false)
 				m.sudden_death_started.emit()
+		"end":
+			if not _hud_state_done and server.match_flow != null:
+				_hud_state_done = true
+				server.match_flow._end(ServerWorld.TEAM_PLAYERS, MatchRules.EndReason.UPLINK_DESTROYED)
 # --- end W19-HUD ---
 
 

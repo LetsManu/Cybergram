@@ -64,6 +64,7 @@ var _last_hp: int = -1
 var _last_ammo: float = 0.0
 var _last_cd: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
 var _keys_t: float = 0.0
+var _end_shot_t: float = 0.0
 
 
 func _ready() -> void:
@@ -268,7 +269,13 @@ func _debug_screenshot(delta: float) -> void:
 	if shots.is_empty():
 		return
 	_shot_t += delta
-	if _shot_t < float(shots[0][0]):
+	if ctx.settings.debug_shot_at_end:
+		var c := ctx.client
+		var ended := c != null and c.match_state != null and c.match_state.phase == MatchRules.Phase.END
+		_end_shot_t = _end_shot_t + delta if ended else 0.0
+		if _end_shot_t < 1.0:
+			return
+	elif _shot_t < float(shots[0][0]):
 		return
 	var shot: Array = shots.pop_front()
 	var img := get_viewport().get_texture().get_image()

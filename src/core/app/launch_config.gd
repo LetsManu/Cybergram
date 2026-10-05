@@ -111,7 +111,8 @@ var connect_address: String = ""
 var max_clients: int = 12  # W14: a full 5v5 lobby (10 seats) + spare
 # --- W19-HUD ---
 ## Debug (HUD evidence): "low" keeps the own hero at 15% HP, "dead" kills it
-## (by an enemy hero) whenever it is alive, "sd" starts Sudden Death. "" = off.
+## (by an enemy hero) whenever it is alive, "sd" starts Sudden Death, "end"
+## ends the match (player team wins). "" = off.
 var debug_hud_state: String = ""
 # --- end W19-HUD ---
 ## Debug: open the pause menu on start (UI evidence captures).

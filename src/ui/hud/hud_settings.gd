@@ -37,6 +37,9 @@ var clamp_16_9: bool = true
 var idle_fade: int = 1
 ## HUD text size factor, TEXT_SCALE_MIN..TEXT_SCALE_MAX.
 var text_scale: float = 1.0
+## Debug (evidence captures): take the --hud-screenshot 1 s into the End phase
+## (the end banner shows only until the final stats open).
+var debug_shot_at_end: bool = false
 ## Debug (evidence captures): Screen effects 0% for this run (in memory only).
 var debug_fx_zero: bool = false
 ## Debug (evidence captures): keep the scoreboard open.
@@ -137,6 +140,8 @@ func apply_args(args: PackedStringArray) -> void:
 				if has_next:
 					i += 1
 					set_text_scale(args[i].to_float())
+			"--hud-shot-at-end":
+				debug_shot_at_end = true
 			"--debug-fx-zero":
 				debug_fx_zero = true
 			"--hud-scoreboard":
