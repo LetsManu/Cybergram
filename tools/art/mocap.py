@@ -23,7 +23,6 @@ CMU = os.path.join(HERE, ".cache", "cmu")
 
 # clip -> (trial, kind, notes). kind: cycle | segment | reverse_cycle
 CLIPS = {
-    "idle": ("40_10", "segment", "wait for bus: 3 s calm stretch, drift-corrected loop"),
     "walk": ("16_15", "cycle", "walk"),
     "run": ("16_35", "cycle", "run/jog"),
     "run_back": ("16_15", "reverse_cycle", "walk cycle played in reverse"),

@@ -142,9 +142,9 @@ def ryker_parts(h):
     # Oversized LEFT pauldron (the hook) with an antenna fin and kill-tally tape.
     sh = h.jh("UpperArm_L")
     pc = sh + Vector((-0.02, -0.005, 0.045)) * k
-    h.sphere("Clavicle_L", pc, Vector((0.15, 0.155, 0.12)) * k, "bone", seg=(14, 8), rot=(0, -22, 0),
+    h.sphere("Clavicle_L", pc, Vector((0.15, 0.155, 0.12)) * k, "olive", seg=(14, 8), rot=(0, -22, 0),
              clip=[((0, 0, -0.18), (0, 0, -1))])
-    h.sphere("Clavicle_L", pc + Vector((-0.012, 0, -0.03)) * k, Vector((0.16, 0.165, 0.10)) * k, "olive", seg=(14, 8),
+    h.sphere("Clavicle_L", pc + Vector((-0.012, 0, -0.03)) * k, Vector((0.16, 0.165, 0.10)) * k, "suit", seg=(14, 8),
              rot=(0, -22, 0), clip=[((0, 0, -0.2), (0, 0, -1)), ((0, 0, 0.25), (0, 0, 1))])
     h.box("Clavicle_L", pc + Vector((-0.04, 0.0, 0.11)) * k, Vector((0.016, 0.07, 0.24)) * k, "olive",
           rot=(-12, -22, 0), taper=(0.5, 0.35), bevel=0.3)
@@ -152,8 +152,6 @@ def ryker_parts(h):
           rot=(-12, -22, 0), bevel=0.3)
     h.box("Clavicle_L", pc + Vector((-0.02, 0.105, 0.06)) * k, Vector((0.17, 0.03, 0.035)) * k, "team", "team",
           rot=(-30, -22, 0), bevel=0.2)
-    h.box("Clavicle_L", pc + Vector((-0.11, 0.0, 0.04)) * k, Vector((0.012, 0.12, 0.03)) * k, "tape", rot=(0, -60, 0),
-          bevel=0.2)
     # Grenade bandolier across the chest (left shoulder -> right hip), on the vest surface.
     a = (-0.11 * k, h.jh("Clavicle_L").z + 0.02)
     b = (0.14 * k, h.belt_z + 0.03)
@@ -187,7 +185,7 @@ def ryker_parts(h):
         h.box("Hips", p + n * 0.03 * k, Vector((0.055, 0.035, 0.065)) * k, "olive", bevel=0.35)
     for s in ("L", "R"):
         kn = h.jh("LowerLeg_" + s)
-        h.box("LowerLeg_" + s, kn + Vector((0, 0.065, -0.02)) * k, Vector((0.09, 0.04, 0.11)) * k, "bone", bevel=0.45,
+        h.box("LowerLeg_" + s, kn + Vector((0, 0.065, -0.02)) * k, Vector((0.09, 0.04, 0.11)) * k, "olive", bevel=0.45,
               taper=(0.8, 0.8))
     ep = h.jl("LowerArm_R", 0.45)
     h.torus("LowerArm_R", ep, h.jt("LowerArm_R") - h.jh("LowerArm_R"), 0.042 * k, 0.009 * k, "team", "team_emit")
@@ -285,20 +283,19 @@ def vesper_parts(h):
     hr = (hi - lo) / 2
     eye_z = (h.eye("L").z + h.eye("R").z) / 2
     closed_boots(h, "plum", "gold", k)
-    # Ornate commander mask, marionette motif: porcelain face shell, hinge lines
-    # from the mouth corners, gold crest, violet eye slits.
+    # Commander mask (marionette motif, no human features): smooth porcelain oval,
+    # a gold centre seam, a painted diamond glyph, sharp emissive eye slits.
     mc = Vector((0, hc.y + hr.y * 0.15, hc.z - 0.012))
     h.sphere("Head", mc, Vector((hr.x * 1.06, hr.y * 0.98, hr.z * 1.04)), "white", seg=(18, 12),
              clip=[((0, -0.05, 0), (0, -1, 0))])
-    fz = hi.y + 0.004
+    fz = hi.y + 0.017
     for sx in (-1, 1):
-        h.box("Head", (sx * 0.034 * k, fz, eye_z + 0.002), (0.034 * k, 0.012, 0.009 * k), "violet", "emit",
-              rot=(0, sx * 12, 0), bevel=0.3)
-        h.box("Head", (sx * 0.024 * k, fz - 0.006, eye_z - 0.075 * k), (0.006, 0.01, 0.05 * k), "gold", bevel=0.2)
-        h.box("Head", (sx * 0.052 * k, fz - 0.016, eye_z + 0.03 * k), (0.03 * k, 0.012, 0.006), "gold",
-              rot=(0, -sx * 20, 0), bevel=0.2)
-    h.box("Head", (0, fz - 0.004, eye_z + 0.045 * k), (0.014 * k, 0.014, 0.05 * k), "gold", taper=(0.3, 1.0), bevel=0.3)
-    h.box("Head", (0, fz, eye_z - 0.055 * k), (0.03 * k, 0.01, 0.005), "plum", bevel=0.3)
+        h.box("Head", (sx * 0.036 * k, fz, eye_z + 0.004), (0.042 * k, 0.012, 0.007 * k), "violet", "emit",
+              rot=(0, -sx * 14, 0), bevel=0.3)
+    p, n = h.surface(0, eye_z - 0.03 * k, 1)
+    h.box("Head", Vector((0, fz - 0.004, eye_z - 0.035 * k)), (0.006 * k, 0.012, 0.11 * k), "gold", bevel=0.2)
+    h.box("Head", (0, fz - 0.008, eye_z + 0.055 * k), (0.024 * k, 0.012, 0.024 * k), "gold", rot=(0, 45, 0),
+          bevel=0.2)
     # Sharp A-line bob: skull cap cut open at the face, bottom slanted (longer at the front).
     bc = Vector((0, hc.y - 0.006, hc.z + 0.01))
     h.sphere("Head", bc, Vector((hr.x * 1.18, hr.y * 1.12, hr.z * 1.1)), "hair", seg=(18, 12),
@@ -445,10 +442,10 @@ HEROES = {
         ],
         "parts": vesper_parts,
         "weapon": "threadcaster",
-        "stance": {"grip_r": (0.21, 0.22, 1.08), "pivot": (0.2, 0.0, 1.38), "twist": 8, "clav_l": 0,
-                   "pole_r": (1, -0.6, -1), "pole_l": (-1, -0.4, -0.6), "two_handed": False,
+        "stance": {"grip_r": (0.12, 0.22, 1.12), "pivot": (0.14, 0.02, 1.40), "twist": -24, "clav_l": -8,
+                   "pole_r": (1, -0.4, -1), "pole_l": (-0.6, -0.2, -1), "two_handed": True,
                    "left_free": ((-0.2, 0.30, 1.30), (0.1, 0.3, 1), (0.2, 1, 0)),
-                   "grip_l": (0, 0.3, 0.0), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),
+                   "grip_l": (0, 0.28, 0.0), "hand_r_y": (0, 0.55, -1), "hand_r_n": (-1, 0, 0),
                    "hand_l_y": (1, 0.25, 0.1), "hand_l_n": (0, 0, 1), "mag": (0, 0.06, 0.12)},
         "gait": {"run_amp": 36, "lean": 6},
         "casts": [("thrust", []), ("plant", [("x", -10)]), ("sweep", [("z", 15)]), ("raise", [("x", 10)])],

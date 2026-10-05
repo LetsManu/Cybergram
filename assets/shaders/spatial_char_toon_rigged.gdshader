@@ -24,8 +24,8 @@ uniform float chrome_glint = 0.5;
 uniform float saturation = 1.08;
 uniform float inner_line = 0.24;
 uniform vec3 ink_color : source_color = vec3(0.035, 0.04, 0.055);
-uniform float hatch_density = 70.0;
-uniform float hatch_strength = 0.55;
+uniform float hatch_density = 42.0;
+uniform float hatch_strength = 0.32;
 uniform float hatch_fade_m = 14.0;
 // 0..1 white hit flash, 1..0 stealth / visibility fade (screen-door dither).
 instance uniform float flash = 0.0;
@@ -78,7 +78,7 @@ void fragment() {
 	float hz = abs(fract(q.x + q.y) - 0.5);
 	float h = (hx * w.x + hy * w.y + hz * w.z) / max(w.x + w.y + w.z, 1e-4);
 	float dist = length(VERTEX);
-	v_hatch = (1.0 - smoothstep(0.12, 0.2, h)) * (1.0 - smoothstep(hatch_fade_m * 0.6, hatch_fade_m, dist));
+	v_hatch = (1.0 - smoothstep(0.07, 0.11, h)) * (1.0 - smoothstep(hatch_fade_m * 0.6, hatch_fade_m, dist));
 	ALBEDO = min(alb, vec3(0.88));
 	// Chrome: hard sky band from the view normal.
 	if (ch == 5) {

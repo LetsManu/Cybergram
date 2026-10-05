@@ -308,11 +308,18 @@ def author_all(h, use_mocap=True):
     lean = sty.get("lean", 8)
 
     def idle(p, ph, f):
+        # Upright, relaxed: slow weight shift between the legs + breathing.
+        w = math.sin(ph)
         legs(p, 0, 0, 0)
-        p.rot("UpperLeg_L", [("y", 4), ("z", -6)])
-        p.rot("UpperLeg_R", [("y", -4), ("z", 8)])
-        torso(p, lean=2, bob=math.sin(ph) * 0.006 * p.k, breathe=math.sin(ph) * 1.2)
-    loco_clip_m(h, "idle", 60, idle)
+        p.rot("UpperLeg_L", [("y", 4 + 2 * w), ("z", -6), ("x", 1.5)])
+        p.rot("UpperLeg_R", [("y", -4 + 2 * w), ("z", 8)])
+        p.rot("LowerLeg_L", [("x", -3 - 3 * max(0.0, -w))])
+        p.rot("LowerLeg_R", [("x", -3 - 3 * max(0.0, w))])
+        p.rot("Hips", [("y", -2.5 * w)])
+        p.hips((0.012 * w * p.k, 0, -0.004 * abs(w) * p.k))
+        p.rot("Spine", [("y", 2 * w), ("x", math.sin(2 * ph) * 0.8)])
+        p.rot("Chest", [("x", math.sin(2 * ph) * 0.6)])
+    loco_clip_m(h, "idle", 120, idle)
     loco_clip_m(h, "walk", 32, lambda p, ph, f: (legs(p, ph, 24, 30),
                                                torso(p, lean=3, twist=math.sin(ph) * 5, bob=-abs(math.cos(ph)) * 0.02 * p.k)))
     loco_clip_m(h, "run", 20, lambda p, ph, f: (legs(p, ph, run_amp, 70),

@@ -3,7 +3,6 @@
 [resource]
 metadata/clip_speed = {
 "death": 0.000,
-"idle": 0.006,
 "jump": 0.000,
 "run": 3.041,
 "run_back": 1.219,
