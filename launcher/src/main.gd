@@ -161,7 +161,10 @@ func _ready() -> void:
 	_own_version = String(args.get("launcher-version", ProjectSettings.get_setting("application/config/version", "0.0.0")))
 	_self_done = args.has("self-updated") or (OS.has_feature("editor") and not args.has("launcher-dir"))
 	_restart_args = OS.get_cmdline_user_args()
-	SelfUpdater.cleanup_old(_launcher_dir)
+	# After a self-update restart the previous process may still be exiting and
+	# hold its .old file: clean again a few seconds later (best effort).
+	if SelfUpdater.cleanup_old(_launcher_dir) > 0:
+		get_tree().create_timer(5.0).timeout.connect(func() -> void: SelfUpdater.cleanup_old(_launcher_dir))
 	_updater = Updater.new()
 	add_child(_updater)
 	_updater.setup(root, url)
@@ -231,8 +234,15 @@ func _on_manifest() -> void:
 			get_tree().quit(11)
 		return
 	_self_done = true
+	# W21-U2: never loop on a failing self-update: one attempt per version per day.
+	if _headless_mode != "selfupdate" and not SelfUpdater.may_attempt(String(entry["version"]),
+			_settings.self_update_failed_version, _settings.self_update_failed_at, int(Time.get_unix_time_from_system())):
+		print("LAUNCHER: self-update to %s skipped: it failed recently, next try within a day" % entry["version"])
+		return
 	if LauncherCore.is_appimage(OS.get_environment("APPIMAGE")):
 		# --- W15-UPD ---
+		if not _upd.appimage_finished.is_connected(_on_self_update_result):
+			_upd.appimage_finished.connect(_on_self_update_result)
 		if _upd.start_appimage_update(entry, LauncherCore.base_url(_version_url)):
 			return
 		# --- end W15-UPD ---
@@ -256,11 +266,20 @@ func _on_manifest() -> void:
 	_self.start(entry)
 
 
+## Keeps the retry cooldown: a failure is remembered (one try per version per
+## day), a success clears it. Used by the zip and the AppImage path.
+func _on_self_update_result(ok: bool, version: String) -> void:
+	_settings.self_update_failed_version = "" if ok else version
+	_settings.self_update_failed_at = 0 if ok else int(Time.get_unix_time_from_system())
+	_settings.save_file()
+
+
 func _on_self_updated(ok: bool, message: String, _new_version: String, entry: Dictionary) -> void:
 	print("LAUNCHER: self-update: %s" % message)
 	if _headless_mode == "selfupdate":
 		get_tree().quit(0 if ok else 1)
 		return
+	_on_self_update_result(ok, String(entry["version"]))
 	if not ok:
 		_self_busy = false
 		if _status != null:
@@ -1228,3 +1247,4 @@ func _build_login_modal() -> void:
 	_guest_btn = UiKit.button("PLAY AS GUEST", _on_guest_pressed, &"secondary", 42)
 	_guest_btn.visible = false
 	_login_box.add_child(_guest_btn)
+	LauncherRecoverPanel.attach(_login_box, func() -> LauncherLogin: return _login)  # W21-N1 forgot password

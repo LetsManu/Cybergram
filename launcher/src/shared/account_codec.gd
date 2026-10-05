@@ -47,6 +47,17 @@ const OP_LEADERBOARD: int = 26
 const LB_OFF: int = 0
 const LB_ON: int = 1
 const LB_QUERY: int = 2
+## v19 (W21-N1): password recovery without e-mail (PRIVACY.md). The server
+## issues a one-time recovery code at REGISTER (result field
+## `recovery_code`, shown once). RECOVER (no session, DTLS only, rate-limited
+## like LOGIN, the same E_CREDENTIALS for an unknown user or a wrong code):
+## username + code + new password; on success the code is used up, a new
+## one comes back with a fresh session and every other session ends.
+## RECOVERY_CODE (logged in): the current password; returns a new code (the
+## old one stops working). RECOVERY_INFO (logged in): whether a code exists.
+const OP_RECOVER: int = 27
+const OP_RECOVERY_CODE: int = 28
+const OP_RECOVERY_INFO: int = 29
 
 ## Request fields per op.
 const REQ_SCHEMA := {
@@ -77,12 +88,18 @@ const REQ_SCHEMA := {
 	OP_PARTY_LEAVE: [],
 	OP_PING: [],
 	OP_LEADERBOARD: [["set", "b"]],
+	OP_RECOVER: [["ver", "u"], ["username", "s"], ["code", "s"], ["new_password", "p"]],
+	OP_RECOVERY_CODE: [["password", "p"]],
+	OP_RECOVERY_INFO: [],
 }
 const SESSION_FIELDS := [["token", "t"], ["id", "i"], ["username", "s"], ["display_name", "s"], ["emblem", "b"],
 	["accent", "b"], ["favourite_hero", "s"], ["guest", "b"]]
+## v19: a session that also hands out a new recovery code (shown once).
+const SESSION_CODE_FIELDS := [["token", "t"], ["id", "i"], ["username", "s"], ["display_name", "s"],
+	["emblem", "b"], ["accent", "b"], ["favourite_hero", "s"], ["guest", "b"], ["recovery_code", "s"]]
 ## OK-result fields per op (ops not listed carry none).
 const RES_SCHEMA := {
-	OP_REGISTER: SESSION_FIELDS,
+	OP_REGISTER: SESSION_CODE_FIELDS,
 	OP_LOGIN: SESSION_FIELDS,
 	OP_RESUME: SESSION_FIELDS,
 	OP_GUEST: SESSION_FIELDS,
@@ -94,6 +111,9 @@ const RES_SCHEMA := {
 	OP_CRASH_CHUNK: [["seq", "u"]],
 	OP_PARTY: [["party", "i"], ["leader", "i"], ["members", "P"]],
 	OP_LEADERBOARD: [["public", "b"]],
+	OP_RECOVER: SESSION_CODE_FIELDS,
+	OP_RECOVERY_CODE: [["recovery_code", "s"]],
+	OP_RECOVERY_INFO: [["has_code", "b"]],
 }
 
 ## REGISTER / GUEST flags.

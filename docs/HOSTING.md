@@ -213,6 +213,32 @@ Front mode only. In single mode a stop ends the running match immediately.
 - **Rotating the ticket key:** put the new key first in `CYBERGRAM_TICKET_KEYS`
   and keep the old one until every match started under it has ended.
 
+## Resetting a player's password
+
+Accounts have no e-mail. A player who forgot the password uses the recovery
+code shown at sign-up ("Forgot password?" in the game or the launcher). If
+they lost that code too, the host issues a new one from the server console,
+**while the server runs**:
+
+```sh
+docker exec cybergram /opt/cybergram/Cybergram.x86_64 --headless \
+  --script res://src/networking/auth/account_admin_cli.gd -- --admin-reset-password <username>
+```
+
+- The tool prints a **new recovery code once**. Give it to the player (in
+  person or a private message). The player then chooses "Forgot password?"
+  and enters the username, the code and a new password.
+- The old password stops working at once, and every session of that account
+  ends. Nothing else about the account changes.
+- The running server applies the reset itself (within a few seconds): the
+  tool leaves a request in `/data/admin`, it never edits account files.
+  If the server is not running, the request waits and is applied at the next
+  start (the tool says so). Only the code's hash is written to disk.
+- The tool prints only the account's 4-character tag, never password hashes
+  or other account data. Exit codes: 0 done (or queued), 2 no such username,
+  3 refused by the server, 1 usage or write error.
+- Check who is asking: whoever gets the code owns the account.
+
 ## Health
 
 The Docker `HEALTHCHECK` (`tools/server/healthcheck.sh`) checks that UDP 7777 is

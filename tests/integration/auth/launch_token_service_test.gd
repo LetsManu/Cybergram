@@ -53,7 +53,8 @@ func _service(secure: bool = true) -> AccountService:
 
 func _send(s: AccountService, t: FakeTransport, peer: int, op: int, f: Dictionary = {}) -> Dictionary:
 	s.handle(t, peer, AccountCodec.encode_request(op, f))
-	s.step(DT)
+	for i in 3:  # W21-N1: REGISTER / RECOVER chain more than one hash job
+		s.step(DT)
 	return t.last(peer, op)
 
 

@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="MusicDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/music_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+states = {
+&"menu": {"mix": "res://assets/audio/music/music_menu_mix_01.ogg", "bpm": 88.0, "beats_per_bar": 4},
+&"pick": {"mix": "res://assets/audio/music/music_pick_mix_01.ogg", "bpm": 96.0, "beats_per_bar": 4},
+&"match_early": {"stems": PackedStringArray("res://assets/audio/music/music_match_early_pad_01.ogg", "res://assets/audio/music/music_match_early_bass_01.ogg", "res://assets/audio/music/music_match_early_drums_01.ogg", "res://assets/audio/music/music_match_early_lead_01.ogg"), "bpm": 100.0, "beats_per_bar": 4},
+&"match_late": {"stems": PackedStringArray("res://assets/audio/music/music_match_late_pad_01.ogg", "res://assets/audio/music/music_match_late_bass_01.ogg", "res://assets/audio/music/music_match_late_drums_01.ogg", "res://assets/audio/music/music_match_late_lead_01.ogg"), "bpm": 112.0, "beats_per_bar": 4},
+&"sudden_death": {"stems": PackedStringArray("res://assets/audio/music/music_sudden_death_pad_01.ogg", "res://assets/audio/music/music_sudden_death_bass_01.ogg", "res://assets/audio/music/music_sudden_death_drums_01.ogg", "res://assets/audio/music/music_sudden_death_lead_01.ogg"), "bpm": 124.0, "beats_per_bar": 4}
+}
+stingers = {
+&"victory": "res://assets/audio/music/music_stinger_victory_01.ogg",
+&"defeat": "res://assets/audio/music/music_stinger_defeat_01.ogg",
+&"phase": "res://assets/audio/music/music_stinger_phase_01.ogg",
+&"final": "res://assets/audio/music/music_stinger_final_01.ogg",
+&"sudden_death": "res://assets/audio/music/music_stinger_sudden_death_01.ogg"
+}
+phase_intensity = {
+0: 0.2,
+1: 0.25,
+2: 0.35,
+3: 0.55,
+4: 0.65,
+5: 0.3,
+6: 0.6,
+8: 0.85
+}
+heat_radius_m = 25.0
+heat_per_shot = 0.08
+heat_decay_s = 6.0
+heat_weight = 0.45
+drums_threshold = 0.5
+lead_threshold = 0.8
+stem_fade_s = 1.5
+crossfade_min_s = 2.0
+crossfade_max_s = 4.0
+menu_db = 0.0
+match_db = -6.0
+stinger_db = -3.0
+final_stinger_s = 120.0

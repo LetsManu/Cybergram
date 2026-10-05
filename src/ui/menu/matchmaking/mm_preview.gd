@@ -68,6 +68,9 @@ func _build(st: String) -> void:
 		"remake", "remake_open":
 			_remake(st == "remake_open")
 			return
+		"career":
+			_career()
+			return
 	_flow()
 	match st:
 		"play_ranked":
@@ -132,6 +135,26 @@ func _build(st: String) -> void:
 		"custom":
 			flow.play.select_queue(MmView.Q_CUSTOM)
 			flow.play.find_match()
+
+
+## W21-U2: the CAREER page as the main menu builds it (profile + ranks in a
+## CareerLayout, content right of the 300 px friends dock, 64 px top bar).
+func _career() -> void:
+	_root.add_child(UiKit.background())
+	var content := Control.new()
+	content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content.offset_top = 64
+	content.offset_right = -300
+	_root.add_child(content)
+	var page := CareerLayout.new()
+	content.add_child(page)
+	var prof := ProfileScreen.new()
+	prof.session = {"token": "x", "id": "0", "username": "neo", "display_name": "Neo", "emblem": 0, "accent": 0,
+		"favourite_hero": 0, "guest": 0}
+	page.add_panel(prof)
+	var ranks := MmProfilePanel.new()
+	ranks.client = fake
+	page.add_panel(ranks)
 
 
 func _remake(open: bool) -> void:

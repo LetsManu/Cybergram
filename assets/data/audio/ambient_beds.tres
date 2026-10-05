@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AmbientBedsDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/ambient_beds_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+beds = {
+&"base": &"ambient_base_bed",
+&"lane": &"ambient_lane_bed",
+&"jungle": &"ambient_jungle_bed",
+&"water": &"ambient_water_bed"
+}
+crossfade_m = 6.0
+base_radius_m = 24.0
+glide_s = 0.6
+level_db = PackedFloat32Array(-6, -2, 0)
