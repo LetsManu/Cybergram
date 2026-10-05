@@ -36,8 +36,6 @@ const SYS_KEYS := ["", "HUD_LOBBY_SYS_JOINED", "HUD_LOBBY_SYS_LEFT", "HUD_LOBBY_
 	"HUD_LOBBY_SYS_RECONNECTED", "HUD_LOBBY_SYS_SWITCHED", "HUD_LOBBY_SYS_LOCKED_IN", "HUD_LOBBY_SYS_SLOW_DOWN",
 	"HUD_LOBBY_SYS_TEAM_FULL"]
 ## Side column : centre column width ratio (the bottom row uses the same).
-const SIDE_RATIO := 1.0
-const CENTRE_RATIO := 1.9
 const HERO_TILE := 56
 const SLOT_MIN_H := 60
 
@@ -570,12 +568,12 @@ func _on_state(s: Dictionary) -> void:
 		var sl: Dictionary = slots[i]
 		var c := 0 if clampi(int(sl.team), 0, 1) == _col_team[0] else 1
 		counts[c] += 1
-		var card := _slot_card(sl, i == you)
+		var card := _slot_card(sl, i == you, c == 1)
 		_cards[str(sl.id)] = card
 		_col_rows[c].add_child(card)
 	for c in 2:
 		for k in range(counts[c], team_size):
-			_col_rows[c].add_child(_open_card())
+			_col_rows[c].add_child(_open_card(c == 1))
 		var team: int = _col_team[c]
 		_col_count[c].text = ("%s  ·  %s" % [tr("HUD_LOBBY_YOUR_TEAM" if c == 0 else "HUD_LOBBY_ENEMY_TEAM"),
 			tr("HUD_TEAM_%d" % team)]).to_upper()
@@ -699,76 +697,93 @@ func _apply_filter() -> void:
 
 # --- slot cards -------------------------------------------------------------
 
-func _slot_card(sl: Dictionary, is_you: bool) -> Control:
+func _slot_card(sl: Dictionary, is_you: bool, right := false) -> Control:
 	var t := UiKit.tokens()
 	var connected: bool = sl.connected
 	var ready: bool = sl.ready
 	var card := PanelContainer.new()
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size.y = SLOT_MIN_H
-	var team_col: Color = HudPalette.TEAM_COLORS[0][clampi(int(sl.team), 0, 1)]
-	var bg := Color(t.panel_raised, 0.98) if is_you else Color(t.panel_sunken, 0.9)
-	var border: Color = t.gold if ready else (t.accent_hi if is_you else t.line)
-	var sb := UiKit.panel_box(bg, 8, border)
-	sb.border_width_left = 4
-	sb.border_color = border
-	if ready or is_you:
-		sb.set_border_width_all(2)
-		sb.border_width_left = 4
-	card.add_theme_stylebox_override("panel", sb)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	card.add_child(col)
+	card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", t.space_s)
-	col.add_child(row)
-	var badge := HeroBadge.make(int(sl.hero_index), 46.0)
-	badge.dim = not ready
+	row.add_theme_constant_override("separation", 16)
+	if right:
+		row.layout_direction = Control.LAYOUT_DIRECTION_RTL
+	card.add_child(row)
+	var ring := t.accent if ready else t.cyan
+	if not connected:
+		ring = t.warn
+	var badge := HeroBadge.make(int(sl.hero_index), 60.0, ring)
+	badge.ring_width = 2.0
+	badge.dim = not connected
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(badge)
 	var names := VBoxContainer.new()
+	names.layout_direction = Control.LAYOUT_DIRECTION_LTR
 	names.add_theme_constant_override("separation", 0)
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
-	var name_row := HBoxContainer.new()
-	name_row.add_theme_constant_override("separation", 4)
-	var em := EmblemIcon.make(int(sl.emblem), int(sl.accent), 18.0)
-	em.dim = not connected
-	name_row.add_child(em)
-	var nm := UiKit.label(str(sl.name), &"body", t.text if connected else t.text_off)
+	var align := HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT
+	var nm := Label.new()
+	nm.text = str(sl.name) + ("  (%s)" % tr("HUD_LOBBY_YOU").to_lower() if is_you else "")
+	nm.horizontal_alignment = align
+	nm.add_theme_font_override("font", UiKit.body_font(600))
+	nm.add_theme_font_size_override("font_size", 16)
+	nm.add_theme_color_override("font_color", t.text if connected else t.text_off)
 	nm.clip_text = true
-	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_row.add_child(nm)
-	names.add_child(name_row)
-	var sub := "#" + PlayerProfile.tag_of(str(sl.id))
-	if is_you:
-		sub += "  ·  " + tr("HUD_LOBBY_YOU")
-	var tag_l := UiKit.label(sub, &"caption", t.text_off)
-	tag_l.clip_text = true
-	names.add_child(tag_l)
+	nm.tooltip_text = "#" + PlayerProfile.tag_of(str(sl.id))
+	nm.mouse_filter = Control.MOUSE_FILTER_PASS
+	names.add_child(nm)
 	var hero := HeroCatalog.find_index(int(sl.hero_index))
-	var hero_row := HBoxContainer.new()
-	hero_row.add_theme_constant_override("separation", 6)
-	var hl := UiKit.label(str(hero.get("name", tr("HUD_LOBBY_NO_HERO"))), &"small",
-		t.text if ready else t.text_dim)
+	var hl := Label.new()
+	hl.text = str(hero.get("name", tr("HUD_LOBBY_NO_HERO")))
+	hl.horizontal_alignment = align
+	hl.add_theme_font_size_override("font_size", 13)
+	hl.add_theme_color_override("font_color", t.text_dim)
 	hl.clip_text = true
-	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hero_row.add_child(hl)
-	names.add_child(hero_row)
+	names.add_child(hl)
 	var state_key := "HUD_LOBBY_STATE_LOCKED" if ready else "HUD_LOBBY_STATE_PICKING"
-	var state_col: Color = t.gold if ready else t.text_off
+	var state_col: Color = t.accent if ready else t.cyan
 	if not connected:
 		state_key = "HUD_LOBBY_STATE_RECONNECTING"
 		state_col = t.warn
-	names.add_child(UiKit.label("● " + tr(state_key), &"caption", state_col))
+	var state_row := HBoxContainer.new()
+	state_row.add_theme_constant_override("separation", 10)
+	state_row.alignment = BoxContainer.ALIGNMENT_END if right else BoxContainer.ALIGNMENT_BEGIN
+	var stl := Label.new()
+	stl.text = tr(state_key).to_upper()
+	stl.add_theme_font_override("font", _caps(11, 0.18))
+	stl.add_theme_font_size_override("font_size", 11)
+	stl.add_theme_color_override("font_color", state_col)
+	names.add_child(state_row)
 	row.add_child(names)
-	if not is_you:
-		var acts := VBoxContainer.new()
-		acts.add_theme_constant_override("separation", 0)
-		acts.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		_add_actions(acts, sl)
-		row.add_child(acts)
+	if is_you:
+		state_row.add_child(stl)
+		return card
+	# Mute / block / + : quiet links that show on hover or keyboard focus.
+	var acts := HBoxContainer.new()
+	acts.add_theme_constant_override("separation", 2)
+	_add_actions(acts, sl)
+	if right:
+		state_row.add_child(acts)
+		state_row.add_child(stl)
+	else:
+		state_row.add_child(stl)
+		state_row.add_child(acts)
+	acts.modulate.a = 0.0
+	var sync := func() -> void:
+		if not card.is_inside_tree():
+			return
+		var on := Rect2(Vector2.ZERO, card.size).has_point(card.get_local_mouse_position())
+		for b in acts.get_children():
+			on = on or (b as Control).has_focus()
+		acts.modulate.a = 1.0 if on else 0.0
+	card.mouse_entered.connect(sync)
+	card.mouse_exited.connect(sync)
+	for b in acts.get_children():
+		(b as Control).mouse_entered.connect(sync)
+		(b as Control).mouse_exited.connect(sync)
+		(b as Control).focus_entered.connect(sync)
+		(b as Control).focus_exited.connect(sync)
 	return card
 
 
@@ -788,16 +803,17 @@ func _link_button(text: String, tip: String, cb: Callable) -> Button:
 	idle.content_margin_top = 2
 	idle.content_margin_bottom = 2
 	var hov := idle.duplicate() as StyleBoxFlat
-	hov.bg_color = Color(t.accent, 0.25)
 	for st in ["normal", "disabled"]:
 		b.add_theme_stylebox_override(st, idle)
 	for st in ["hover", "pressed", "hover_pressed"]:
 		b.add_theme_stylebox_override(st, hov)
 	b.add_theme_stylebox_override("focus", UiKit.focus_box())
+	b.add_theme_font_override("font", _caps(11, 0.12))
 	b.add_theme_font_size_override("font_size", 11)
 	b.add_theme_color_override("font_color", t.text_dim)
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
-	b.add_theme_color_override("font_focus_color", Color.WHITE)
+	b.add_theme_color_override("font_hover_color", t.accent_hi)
+	b.add_theme_color_override("font_focus_color", t.accent_hi)
+	b.add_theme_color_override("font_disabled_color", t.text_off)
 	UiSfx.attach(b)
 	b.pressed.connect(cb)
 	return b
@@ -832,16 +848,30 @@ func _add_actions(row: Container, sl: Dictionary) -> void:
 			_refresh_state()))
 
 
-func _open_card() -> Control:
+func _open_card(right := false) -> Control:
 	var t := UiKit.tokens()
-	var card := PanelContainer.new()
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size.y = SLOT_MIN_H
-	card.add_theme_stylebox_override("panel", UiKit.panel_box(Color(t.panel_sunken, 0.45), 8, Color(t.line, 0.1)))
-	var l := UiKit.label(tr("HUD_LOBBY_BOT_FILL"), &"small", t.text_off, HORIZONTAL_ALIGNMENT_CENTER)
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	card.add_child(l)
-	return card
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	row.modulate.a = 0.35
+	if right:
+		row.layout_direction = Control.LAYOUT_DIRECTION_RTL
+	var well := UiPortrait.create(null, 60.0, t.line_strong)
+	well.ring_width = 1.0
+	row.add_child(well)
+	var v := VBoxContainer.new()
+	v.layout_direction = Control.LAYOUT_DIRECTION_LTR
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 0)
+	var a := UiKit.label(tr("HUD_LOBBY_OPEN_SLOT"), &"body", t.text,
+		HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT)
+	a.add_theme_font_override("font", UiKit.body_font(600))
+	v.add_child(a)
+	var b := UiKit.label(tr("HUD_LOBBY_BOT_FILL"), &"small", t.text_dim,
+		HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT)
+	v.add_child(b)
+	row.add_child(v)
+	return row
 
 
 ## Lock-in flash on a player's card (glow + scale pop; instant under reduce motion).
@@ -854,8 +884,8 @@ func _flash(id: String) -> void:
 		return
 	var t := UiKit.tokens()
 	card.pivot_offset = card.size * 0.5
-	card.modulate = Color(2.4, 1.9, 1.2)
-	card.scale = Vector2(1.06, 1.06)
+	card.modulate = Color(1.6, 1.4, 1.0)
+	card.scale = Vector2(1.04, 1.04)
 	UiKit.animate(self, card, "modulate", Color.WHITE, t.motion_slow * 2)
 	UiKit.animate(self, card, "scale", Vector2.ONE, t.motion_base)
 
@@ -878,15 +908,21 @@ func _show_final(slots: Array) -> void:
 		r.add_theme_constant_override("separation", t.space_m)
 		if c == 1:
 			r.layout_direction = Control.LAYOUT_DIRECTION_RTL
-		r.add_child(HeroBadge.make(int(sl.hero_index), 64.0))
+		r.add_child(HeroBadge.make(int(sl.hero_index), 72.0, t.accent))
 		var v := VBoxContainer.new()
 		v.layout_direction = Control.LAYOUT_DIRECTION_LTR
-		v.add_child(UiKit.label(str(HeroCatalog.find_index(int(sl.hero_index)).get("name", "?")).to_upper(), &"heading"))
+		var hn := UiKit.label(str(HeroCatalog.find_index(int(sl.hero_index)).get("name", "?")).to_upper(), &"heading")
+		hn.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(20, 0.06)))
+		hn.add_theme_font_size_override("font_size", 20)
+		v.add_child(hn)
 		v.add_child(UiKit.label(str(sl.name), &"small", t.text_dim))
 		r.add_child(v)
 		cols[c].add_child(r)
 	_final_row.add_child(cols[0])
-	_final_row.add_child(UiKit.label(tr("HUD_LOBBY_VS"), &"display", t.gold))
+	var vs := UiKit.label(tr("HUD_LOBBY_VS"), &"display", t.accent)
+	vs.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(40, 0.22)))
+	vs.add_theme_font_size_override("font_size", 40)
+	_final_row.add_child(vs)
 	_final_row.add_child(cols[1])
 	_final.visible = true
 	_final.modulate.a = 0.0
@@ -906,7 +942,7 @@ func _local_line(text: String) -> void:
 	if _chat_lines > 0:
 		_chat_log.newline()
 	_chat_lines += 1
-	_chat_log.push_color(HudPalette.TEXT_OFF)
+	_chat_log.push_color(UiKit.tokens().text_off)
 	_chat_log.add_text(text)
 	_chat_log.pop()
 
@@ -923,18 +959,16 @@ func _on_chat(c: Dictionary) -> void:
 		_chat_log.newline()
 	_chat_lines += 1
 	if int(c.kind) == LobbyCodec.CHAT_SYSTEM:
-		_chat_log.push_color(HudPalette.TEXT_DIM)
+		_chat_log.push_color(UiKit.tokens().text_off)
 		_chat_log.add_text(system_text(c))
 		_chat_log.pop()
 		return
 	var team := int(c.team)
-	_chat_log.push_color(HudPalette.team_color(team) if team <= 1 else HudPalette.TEXT_DIM)
-	_chat_log.add_text("■ ")
-	_chat_log.pop()
-	_chat_log.push_color(PlayerProfile.accent_of(int(c.accent)).lerp(HudPalette.TEXT, 0.3))
+	var own := _col_team[0]
+	_chat_log.push_color(UiKit.tokens().cyan if team == own else UiKit.tokens().accent_hi)
 	_chat_log.add_text(str(c.name))
 	_chat_log.pop()
-	_chat_log.add_text(": " + str(c.text))
+	_chat_log.add_text("  " + str(c.text))
 
 
 ## Localised text of a system chat line.

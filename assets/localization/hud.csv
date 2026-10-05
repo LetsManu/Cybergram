@@ -615,7 +615,7 @@ HUD_LOBBY_LOCKED_CANCEL_TIP,Click to cancel your lock-in
 HUD_LOBBY_PICK_TO_LOCK,Pick a hero to lock in
 HUD_LOBBY_YOUR_TEAM,Your team
 HUD_LOBBY_ENEMY_TEAM,Enemy team
-HUD_LOBBY_BOT_FILL,Bot will fill
+HUD_LOBBY_BOT_FILL,A bot will fill it
 HUD_LOBBY_STATE_LOCKED,Locked
 HUD_LOBBY_SEARCH,Search heroes
 HUD_LOBBY_ROLE_ALL,All
@@ -699,3 +699,6 @@ HUD_PATCH_3_SUB,One-click update and play
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
+HUD_LOBBY_ABILITIES,ABILITIES
+HUD_LOBBY_OPEN_SLOT,Open slot
+HUD_LOBBY_MODE_LINE,Online 3v3

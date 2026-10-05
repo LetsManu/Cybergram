@@ -630,14 +630,17 @@ func _sync_shell() -> void:
 	_play.disabled = busy
 	for b: Button in _nav.get_children():
 		b.disabled = busy
+	# Covered by the full-screen lobby: keep focus from wandering under it.
+	_root.get_node("TopBar").visible = not busy
+	_friends.visible = not busy
+	_content.visible = not busy
 
 
 func _sync_lobby_margins() -> void:
 	var t := UiKit.tokens()
-	_lobby_box.add_theme_constant_override("margin_left", 0)
-	_lobby_box.add_theme_constant_override("margin_top", t.top_bar_height)
-	_lobby_box.add_theme_constant_override("margin_right", _friends.dock_width())
-	_lobby_box.add_theme_constant_override("margin_bottom", 0)
+	# The lobby owns the whole screen (design/ux/mockups/v0.9 Lobby.dc.html).
+	for side in ["left", "top", "right", "bottom"]:
+		_lobby_box.add_theme_constant_override("margin_" + side, 0)
 	_content.offset_right = -_friends.dock_width()
 	_friends.offset_left = -_friends.dock_width()
 
