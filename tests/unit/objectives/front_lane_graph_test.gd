@@ -17,8 +17,8 @@ var _m: MatchRules
 func before_test() -> void:
 	_def = load(DEF_PATH) as MapDef
 	_sys = ObjectiveSystem.new(_def, _def.match_rules)
-	_sys.mid_locked = false
 	_m = MatchRules.new(_def.match_rules, _sys)
+	_sys.mid_locked = false  # past Deploy (MatchRules locks the Mids at construction)
 	for u in _m.build_uplinks(_def):
 		auto_free(u)
 
