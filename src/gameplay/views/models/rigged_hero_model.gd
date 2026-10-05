@@ -27,6 +27,10 @@ const DEATH_HOLD_S: float = 2.0
 ## Outline widths per team (match ModelMaterials: Concord thin, Syndicate thick).
 const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 1.6, ModelPalette.TEAM_SYNDICATE: 2.2}
 
+## Beyond this camera distance (m) the inverted hull is dropped (outline LOD):
+## the hull pass is the largest per-hero cost (pilot perf note in the art bible).
+const OUTLINE_LOD_M: float = 30.0
+
 static var _materials: Dictionary = {}
 static var _tris: Dictionary = {}
 
@@ -39,6 +43,8 @@ var _dead: bool = false
 var _flash: float = 0.0
 var _fade: float = 1.0
 var _state: Dictionary = {}
+var _enemy_outline: bool = false
+var _far: bool = false
 
 
 ## Builds from an imported glb scene (instantiated here). `hero_height` = HeroDef
@@ -218,15 +224,16 @@ static func cast_clip(slot: int) -> StringName:
 
 func set_team(team_: int, enemy_outline: bool = false) -> void:
 	team = team_
-	var m := material(team_, enemy_outline)
+	_enemy_outline = enemy_outline
+	var m := material(team_, enemy_outline, _far)
 	for mi in _meshes:
 		mi.material_override = m
 	set_meta(&"team_tint", ModelPalette.team_color(team))
 
 
-## One shared toon + hull material per (team, enemy_outline).
-static func material(team_: int, enemy_outline: bool = false) -> ShaderMaterial:
-	var k := "%d|%s" % [team_, enemy_outline]
+## One shared toon + hull material per (team, enemy_outline); `far` = no hull.
+static func material(team_: int, enemy_outline: bool = false, far: bool = false) -> ShaderMaterial:
+	var k := "%d|%s|%s" % [team_, enemy_outline, far]
 	if _materials.has(k):
 		return _materials[k]
 	var tc := ModelPalette.team_color(team_)
@@ -237,7 +244,8 @@ static func material(team_: int, enemy_outline: bool = false) -> ShaderMaterial:
 	o.shader = load(OUTLINE_SHADER)
 	o.set_shader_parameter("outline_color", tc if enemy_outline else Color("#14161C"))
 	o.set_shader_parameter("width_px", OUTLINE_PX.get(team_, 1.6))
-	m.next_pass = o
+	if not far:
+		m.next_pass = o
 	_materials[k] = m
 	return m
 
@@ -295,6 +303,17 @@ func _fire(shot: StringName) -> void:
 		tree.set("parameters/%s/request" % shot, AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 
 
+func _update_outline_lod() -> void:
+	var vp := get_viewport() if is_inside_tree() else null
+	var cam := vp.get_camera_3d() if vp != null else null
+	if cam == null:
+		return
+	var far := cam.global_position.distance_to(global_position) > OUTLINE_LOD_M
+	if far != _far:
+		_far = far
+		set_team(team, _enemy_outline)
+
+
 ## Last parameters written to the tree (tests / debugging).
 func state() -> Dictionary:
 	return _state
@@ -325,6 +344,7 @@ func _apply_pose(delta: float) -> void:
 		_flash = maxf(0.0, _flash - delta * 5.0)
 		for mi in _meshes:
 			mi.set_instance_shader_parameter(&"flash", _flash)
+	_update_outline_lod()
 	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead)
 	if tree == null:
 		return

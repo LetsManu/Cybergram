@@ -8,6 +8,7 @@ render_mode unshaded, cull_front, shadows_disabled, depth_draw_opaque, fog_disab
 uniform vec3 outline_color : source_color = vec3(0.078, 0.086, 0.11);
 uniform float width_px = 1.8;
 uniform float full_width_until_m = 20.0;
+instance uniform float flash = 0.0;
 instance uniform float fade = 1.0;
 
 void vertex() {
