@@ -167,6 +167,15 @@ static func thumb_button(hero_index: int, side: int) -> Button:
 	return b
 
 
+# --- W17B-UI --- draft grid: a thumb_button() a team may not pick (greyed,
+# still focusable so the hero can be previewed; the screen refuses the pick).
+## Greys out (`off`) or restores a thumb_button(); sets meta "unavailable".
+static func set_thumb_unavailable(b: Button, off: bool) -> void:
+	b.set_meta(&"unavailable", off)
+	b.modulate = Color(0.45, 0.45, 0.45, 0.55) if off else Color.WHITE
+# --- end W17B-UI ---
+
+
 ## A warm elliptical floor spotlight (brass, 0.32 at the centre), sized by
 ## the caller.
 static func floor_glow() -> TextureRect:

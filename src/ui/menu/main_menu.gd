@@ -576,6 +576,11 @@ func _open_modes() -> void:
 
 
 func _launch_mode(m: int) -> void:
+	# --- W17B-UI --- PLAY ONLINE opens the matchmaking flow when enabled.
+	if m == MODE_ONLINE and _mm_mode() != "":
+		_open_matchmaking()
+		return
+	# --- end W17B-UI ---
 	match m:
 		MODE_ONLINE:
 			_join()
@@ -642,6 +647,11 @@ func _sync_roster() -> void:
 
 
 func _close_profile_only() -> void:
+	# --- W17B-UI ---
+	if _mm_profile != null:
+		_mm_profile.queue_free()
+		_mm_profile = null
+	# --- end W17B-UI ---
 	if _profile_screen != null:
 		_profile_screen.queue_free()
 		_profile_screen = null
@@ -1050,6 +1060,17 @@ func _show_profile() -> void:
 	_profile_screen.closed.connect(_close_profile)
 	_center.add_child(_profile_screen)
 	UiKit.transition_in(_profile_screen)
+	# --- W17B-UI --- ranked medal, calibration and recent matches beside the profile.
+	if _mm_mode() != "" and _mm_client() != null:
+		_mm_profile = MmProfilePanel.new()
+		_mm_profile.client = _mm_client()
+		_mm_profile.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		_mm_profile.offset_left = -470
+		_mm_profile.offset_right = -24
+		_mm_profile.offset_top = 24
+		_mm_profile.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		_content.add_child(_mm_profile)
+	# --- end W17B-UI ---
 
 
 func _close_profile() -> void:
@@ -1175,6 +1196,70 @@ func _save_settings() -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value("menu", "hero_id", _hero_id())
 	cfg.save(SETTINGS_PATH)
+
+
+# --- W17B-UI --- matchmaking flow (design/gdd/matchmaking.md) ----------------
+## CYBERGRAM_MATCHMAKING: "" = off (PLAY ONLINE opens the classic lobby),
+## "1" = the server's matchmaking, "fake" = the offline MatchmakingFakeClient.
+const MM_ENV := "CYBERGRAM_MATCHMAKING"
+var _mm_flow: MatchmakingFlow
+var _mm_profile: MmProfilePanel
+var _mm_fake: MatchmakingFakeClient
+var _mm_adapter: MmClientAdapter
+
+
+func _mm_mode() -> String:
+	return OS.get_environment(MM_ENV).strip_edges().to_lower()
+
+
+## The screen-facing matchmaking client (null = not logged in yet).
+func _mm_client() -> Object:
+	if _mm_mode() == "fake":
+		if _mm_fake == null:
+			_mm_fake = MatchmakingFakeClient.new()
+		return _mm_fake
+	if _online == null or _online.matchmaking == null:
+		return null
+	if _mm_adapter == null or _mm_adapter.mm != _online.matchmaking:
+		_mm_adapter = MmClientAdapter.new(_online.matchmaking, _online)
+	return _mm_adapter
+
+
+func _open_matchmaking() -> void:
+	if _mm_mode() == "fake":
+		_show_matchmaking()
+	else:
+		_with_session(_show_matchmaking)
+
+
+func _show_matchmaking() -> void:
+	if _mm_flow != null or _mm_client() == null:
+		return
+	_save_settings()
+	_close_profile_only()
+	_hide_pages()
+	_mm_flow = MatchmakingFlow.new()
+	_mm_flow.client = _mm_client()
+	_mm_flow.drive_client = _mm_mode() == "fake"  # the menu's _process steps the online client
+	for e: Dictionary in _friends.entries:
+		_mm_flow.friends.append({"id": str(e.id), "name": str(e.get("display_name", e.get("username", "")))})
+	_mm_flow.start_requested.connect(func(args: PackedStringArray) -> void:
+		_disconnect()
+		GamePresence.show_state(GamePresence.State.IN_MATCH, "Online")
+		start_requested.emit(args))
+	_mm_flow.closed.connect(func() -> void:
+		_mm_flow.queue_free()
+		_mm_flow = null
+		_root.get_node("TopBar").visible = true
+		_friends.visible = true
+		_content.visible = true
+		_go(Nav.HOME))
+	_root.get_node("TopBar").visible = false
+	_friends.visible = false
+	_content.visible = false
+	_lobby_box.add_child(_mm_flow)
+	GamePresence.show_state(GamePresence.State.IN_LOBBY)
+# --- end W17B-UI ---
 
 
 func _version() -> String:
