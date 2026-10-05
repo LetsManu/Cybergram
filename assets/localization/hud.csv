@@ -714,3 +714,21 @@ HUD_FRIENDS_OFFLINE_N,Offline · %d
 HUD_LOBBY_ABILITIES,ABILITIES
 HUD_LOBBY_OPEN_SLOT,Open slot
 HUD_LOBBY_MODE_LINE,Online 3v3
+HUD_SET_TAB_COMFORT,Comfort
+HUD_SET_SEC_COMFORT_VIEW,Camera and weapon
+HUD_SET_SEC_COMFORT_FX,Screen effects
+HUD_SET_SEC_COMFORT_DOT,Fixed centre dot
+HUD_SET_SEC_COMFORT_MOVE,Movement
+HUD_SET_COMFORT_RECOIL,Camera recoil
+HUD_SET_COMFORT_BOB,Weapon bob
+HUD_SET_COMFORT_FX,Screen effects intensity
+HUD_SET_COMFORT_DOT,Centre dot
+HUD_SET_COMFORT_DOT_SIZE,Dot size
+HUD_SET_COMFORT_DOT_OPACITY,Dot opacity
+HUD_SET_COMFORT_SMOOTH,Smooth corrections
+HUD_SET_COMFORT_VIGNETTE,Comfort vignette
+HUD_SET_COMFORT_PRESET,Apply motion comfort preset
+HUD_SET_COMFORT_PRESET_DONE,Preset applied
+HUD_SET_COMFORT_NOTE,"Camera recoil also scales the aim you send, so what you see is what you shoot."
+HUD_COMFORT_HINT,Prone to motion sickness? See Settings > Comfort.
+HUD_COMFORT_HINT_DISMISS,Dismiss

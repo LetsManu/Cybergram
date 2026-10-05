@@ -295,6 +295,19 @@ func _build_home(content: Control) -> void:
 	_status.offset_top = t.space_l
 	_status.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	page.add_child(_status)
+	# --- W16-COMFORT --- first-launch hint to Settings > Comfort (shown once)
+	var comfort_hint := ComfortHint.new()
+	comfort_hint.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	comfort_hint.offset_left = -520
+	comfort_hint.offset_right = -t.space_xl
+	comfort_hint.offset_top = t.space_l + 44
+	comfort_hint.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	comfort_hint.open_requested.connect(func() -> void:
+		_settings.start_tab = 4
+		_go(Nav.SETTINGS)
+		_settings.show_tab(4))
+	page.add_child(comfort_hint)
+	# --- end W16-COMFORT ---
 	# Patch strip: three hairline-topped links.
 	_tiles = VBoxContainer.new()
 	_tiles.position = Vector2(64, 568)
