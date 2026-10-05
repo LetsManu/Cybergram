@@ -27,6 +27,10 @@ func _run() -> void:
 	var head := float(_arg("--head", "0.91"))  # head centre as a share of the height
 	var dist := float(_arg("--dist", "1.15"))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + out))
+	if _arg("--lane", "") != "":
+		await _lane(key, _arg("--lane", ""), out)
+		quit()
+		return
 	_stage()
 	var m := HeroModelLoader.build(key, int(_arg("--team", "0")))
 	_root3d.add_child(m)
@@ -50,6 +54,40 @@ func _run() -> void:
 	sheet.save_png(ProjectSettings.globalize_path("res://" + path))
 	print("saved ", path)
 	quit()
+
+
+## Lane shot: the hero next to Vesper (both teams) on a map at --at x,z, seen from
+## a player's eye height; writes <hero>_lane_vs_vesper.png.
+func _lane(key: StringName, map_path: String, out: String) -> void:
+	_root3d = Node3D.new()
+	root.add_child(_root3d)
+	_root3d.add_child((load(map_path) as PackedScene).instantiate())
+	_cam = Camera3D.new()
+	_root3d.add_child(_cam)
+	_cam.current = true
+	await _frames(5)
+	var at := _arg("--at", "0,-118").split(",")
+	var c := Vector3(float(at[0]), 0.0, float(at[1]))
+	var space := _root3d.get_world_3d().direct_space_state
+	var lineup := [[key, 0, Vector3(-0.9, 0, 0), 25.0], [&"vesper", 0, Vector3(0.5, 0, 0.3), 10.0],
+		[key, 1, Vector3(-1.2, 0, -6.0), 160.0], [&"vesper", 1, Vector3(1.4, 0, -5.0), 200.0]]
+	var gy := 0.0
+	for e in lineup:
+		var p: Vector3 = c + e[2]
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0, 40, 0), p - Vector3(0, 40, 0)))
+		var m := HeroModelLoader.build(e[0], e[1])
+		_root3d.add_child(m)
+		m.position = hit.position if not hit.is_empty() else p
+		m.rotation_degrees.y = 180.0 + e[3]
+		gy = m.position.y
+	_cam.fov = 75.0
+	_cam.position = c + Vector3(0.3, gy + 1.7, 4.2)
+	_cam.look_at(c + Vector3(0, gy + 1.1, -1.0))
+	await _frames(20)
+	await RenderingServer.frame_post_draw
+	var path := "%s/%s_lane_vs_vesper.png" % [out, key]
+	root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://" + path))
+	print("saved ", path)
 
 
 func _stage() -> void:
