@@ -1,7 +1,8 @@
 class_name SnapshotData
 extends RefCounted
-## Decoded server snapshot (architecture.md §8.2). Full state for now; delta
-## compression against acked baselines is a later epic but uses this same path.
+## Decoded server snapshot (architecture.md §8.2). Always the full state the
+## client holds at `tick`: since v16 (W16-NET) the wire is a delta against an
+## acknowledged baseline, which SnapshotDecoder resolves before this is built.
 
 ## Replicated state of one entity.
 class EntityState:
@@ -78,6 +79,10 @@ class WardlingState:
 	var state: int = 0
 	## M1: Surge tier I-III the Wardling was minted at (WardlingSim.tier).
 	var tier: int = 1
+	## W16-NET (client side): not refreshed in this snapshot (deferred by the
+	## server's priority / budget); the values are from an older tick, so the
+	## interpolation buffer must not take them as a sample at this tick.
+	var stale: bool = false
 
 ## Replicated skill FX / deployable (E10, AbilityWorld.FX_*): walls, beacons,
 ## zones, thread projectiles, telegraphs. Everyone sees them (enemy telegraphs).
@@ -171,6 +176,10 @@ class ProgressState:
 	const MOUNT_SOCKETS: Array[int] = [1, 3, 4]
 
 var tick: int = 0
+## W16-NET (client side): the acknowledged snapshot this one was delta-encoded
+## against (valid when is_delta).
+var base_tick: int = 0
+var is_delta: bool = false
 ## Highest InputCommand.seq the server applied for the receiving client.
 var last_processed_seq: int = 0
 ## Receiving client's hero (0 = none).

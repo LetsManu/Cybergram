@@ -33,12 +33,15 @@ var _recent: Array[InputCommand] = []
 var stats: ClientNetStats
 ## Monotonic clock in usec for the statistics (tests inject a fake).
 var clock_usec: Callable = Callable(Time, "get_ticks_usec")
+## W16-NET: resolves delta snapshots against the baselines this client holds.
+var decoder: SnapshotDecoder
 
 
 func _init(t: Transport, net_config: NetConfig) -> void:
 	transport = t
 	net = net_config
 	stats = ClientNetStats.new(net.tick_rate_hz, net.jitter_window_samples)
+	decoder = SnapshotDecoder.new(net.client_baseline_ticks)
 
 
 func connect_to_server() -> void:
@@ -81,12 +84,19 @@ func _handle(pkt: Transport.Packet) -> void:
 			var r := ControlCodec.decode_reject(pkt.data)
 			rejected.emit(r.get("reason", 0))
 		MsgType.SNAPSHOT:
-			var s := SnapshotCodec.decode(pkt.data)
-			if s == null:
+			var head := SnapshotCodec.peek_header(pkt.data)
+			if head.is_empty():
 				malformed_packets += 1
 				return
-			if s.tick <= latest_snapshot_tick:
+			if head[0] <= latest_snapshot_tick:
 				return  # stale or duplicate (unreliable channel may reorder)
+			var s := decoder.decode(pkt.data)
+			if s == null:
+				if decoder.last_error == ERR_DOES_NOT_EXIST:
+					stats.baseline_misses += 1  # the next ack moves the server to a held baseline
+				else:
+					malformed_packets += 1
+				return
 			latest_snapshot_tick = s.tick
 			last_acked_seq = s.last_processed_seq
 			stats.on_snapshot(s.tick, pkt.data.size(), clock_usec.call())

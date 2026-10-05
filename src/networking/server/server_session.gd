@@ -16,6 +16,8 @@ class ClientConnection:
 	var violations: int = 0
 	## W16-NET: what the server sent this peer (bytes, snapshot sizes).
 	var stats := SnapshotStats.new()
+	## W16-NET: delta baselines and byte budget for this peer.
+	var encoder: SnapshotEncoder
 
 var transport: Transport
 var net: NetConfig
@@ -61,6 +63,7 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	c.peer_id = peer_id
 	c.own_net_id = own_net_id
 	c.inputs = InputBuffer.new(net.max_buffered_inputs)
+	c.encoder = SnapshotEncoder.new(net.delta_baseline_ticks, net.snapshot_budget_bytes)
 	clients[peer_id] = c
 	_send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
 	var who: Dictionary = token_names.get(hello_token.get(peer_id, 0), {})
@@ -100,12 +103,15 @@ func reject(peer_id: int, reason: int) -> void:
 	transport.send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_reject(reason))
 
 
+## Encodes `snap` for the peer (delta against its ack, within the budget) and sends it.
 func send_snapshot(peer_id: int, snap: SnapshotData) -> void:
-	var b := SnapshotCodec.encode(snap)
-	_send(peer_id, Transport.CH_SNAPSHOT, b)
 	var c: ClientConnection = clients.get(peer_id)
-	if c != null:
-		c.stats.on_snapshot(b.size(), net.snapshot_budget_bytes)
+	if c == null:
+		transport.send(peer_id, Transport.CH_SNAPSHOT, SnapshotCodec.encode(snap))
+		return
+	var b := c.encoder.encode(snap, c.ack_snapshot_tick)
+	_send(peer_id, Transport.CH_SNAPSHOT, b)
+	c.stats.on_snapshot(b.size(), net.snapshot_budget_bytes, c.encoder.last.is_delta, c.encoder.last.deferred)
 
 
 ## Sends a reliable batch of gameplay events (no-op when empty).

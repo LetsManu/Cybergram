@@ -34,6 +34,11 @@ extends Resource
 ## Per-client snapshot byte budget (W16-NET: enforced by SnapshotEncoder; keeps
 ## a snapshot inside one ENet fragment of 1364 B with room for DTLS).
 @export_range(256, 65535) var snapshot_budget_bytes: int = 1100
+## W16-NET: snapshots the server keeps per client as delta baselines; an ack
+## older than this (or unknown) gets a full snapshot (32 = ~1 s).
+@export_range(2, 255) var delta_baseline_ticks: int = 32
+## W16-NET: decoded snapshots the client keeps as baselines (> delta_baseline_ticks).
+@export_range(4, 512) var client_baseline_ticks: int = 64
 ## W16-NET: seconds between the server's per-client [net] log lines.
 @export_range(1.0, 600.0, 0.5) var stats_log_interval_s: float = 10.0
 ## W16-NET: max [net] lines per interval (the rest are summarised in one line).

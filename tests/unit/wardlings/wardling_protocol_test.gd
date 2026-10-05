@@ -68,8 +68,8 @@ func test_wardling_and_bolt_blocks_round_trip() -> void:
 	assert_bool(d.wardlings[1].vanguard).is_false()
 	assert_int(d.bolts.size()).is_equal(1)
 	assert_vector(d.bolts[0][1]).is_equal_approx(Vector3(4, 1.5, -20), Vector3.ONE * 0.02)
-	# Compact: 15 B per Wardling (v8: + u8 tier), 12 B per bolt.
+	# v16: a new Wardling is u16 key + u8 mask + 13 B record; 12 B per bolt.
 	var empty := SnapshotCodec.encode(SnapshotData.new())
-	assert_int(bytes.size() - empty.size()).is_equal(2 * 15 + 12)
+	assert_int(bytes.size() - empty.size()).is_equal(2 * 16 + 12)
 	bytes.resize(bytes.size() - 1)
 	assert_object(SnapshotCodec.decode(bytes)).is_null()

@@ -22,3 +22,5 @@ snapshot_budget_bytes = 1100
 stats_log_interval_s = 10.0
 stats_log_max_lines = 12
 jitter_window_samples = 90
+delta_baseline_ticks = 32
+client_baseline_ticks = 64

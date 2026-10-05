@@ -937,7 +937,7 @@ func _entities_for(entities: Array[SnapshotData.EntityState], c: ServerSession.C
 	for e in entities:
 		if ids.has(e.net_id) and e.team != own.combat.team:
 			var n := SnapshotData.EntityState.new()
-			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index"]:
+			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index", "fork_bits"]:
 				n.set(p, e.get(p))
 			n.status = e.status | SkillStatusBits.REVEALED
 			out.append(n)
