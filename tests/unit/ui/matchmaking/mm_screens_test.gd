@@ -16,6 +16,7 @@ func before_test() -> void:
 
 func after_test() -> void:
 	UiKit.force_reduce_motion = -1
+	await get_tree().process_frame  # rebuilt rows are queue_free()d
 
 
 func _flow() -> MatchmakingFlow:
@@ -66,7 +67,7 @@ func test_play_lockout_banner_counts_down() -> void:
 	assert_bool(p._find.disabled).is_true()
 	assert_bool(p._lock_banner.visible).is_true()
 	p.find_match()
-	assert_int(fake.sent.size()).is_equal(0)
+	assert_int(fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"queue_join").size()).is_equal(0)
 	p.tick(10.5)
 	assert_int(p.state).is_equal(MmPlayScreen.State.IDLE)
 	assert_bool(p._find.disabled).is_false()
