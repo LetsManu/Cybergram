@@ -2,7 +2,7 @@ extends Node
 ## Evidence capture for chunk L1 (tools/ci/capture_scene.sh): the main menu
 ## with the friends panel, the create-account screen, the full lobby with
 ## players (a real LobbyServer + bot clients on loopback, guest sessions) and
-## the account screen. Pick with `-- --view menu|login|lobby|profile`.
+## the account screen. Pick with `-- --view menu|login|lobby|profile|modes|heroes|settings|collapsed|quit`.
 ## Display data for the friends panel is a fixture (no server needed).
 
 const DT := 1.0 / 60.0
@@ -40,6 +40,21 @@ func _ready() -> void:
 		"profile":
 			_fake_session()
 			_menu._show_profile()
+		"modes":
+			_fake_session()
+			_menu._open_modes()
+		"heroes":
+			_fake_session()
+			_menu._go(MainMenu.Nav.HEROES)
+		"settings":
+			_fake_session()
+			_menu._go(MainMenu.Nav.SETTINGS)
+		"collapsed":
+			_fake_session()
+			_menu._friends.set_collapsed(true)
+		"quit":
+			_fake_session()
+			_menu._confirm_quit()
 		_:
 			_fake_session()
 

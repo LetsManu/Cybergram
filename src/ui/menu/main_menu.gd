@@ -380,6 +380,14 @@ func _build_modes(content: Control) -> void:
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(d)
 		b.add_child(v)
+		var glyph := UiIcon.make([&"friends", &"play", &"target", &"check", &"up"][m],
+			72.0 if m == MODE_ONLINE else 44.0, Color(t.accent_hi, 0.35))
+		glyph.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		glyph.offset_left = -glyph.custom_minimum_size.x - 18
+		glyph.offset_top = -glyph.custom_minimum_size.y - 16
+		glyph.offset_right = -18
+		glyph.offset_bottom = -16
+		b.add_child(glyph)
 		b.pressed.connect(func() -> void: _mode = m)
 		_mode_buttons.append(b)
 		if m == MODE_ONLINE:

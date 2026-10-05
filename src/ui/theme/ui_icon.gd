@@ -8,7 +8,7 @@ extends Control
 ##   add_child(UiIcon.make(&"gear", 18.0, UiKit.tokens().text_dim))
 
 const KINDS: Array[StringName] = [&"gear", &"close", &"minus", &"left", &"right", &"up", &"down",
-	&"friends", &"play", &"check", &"ring"]
+	&"friends", &"play", &"check", &"ring", &"target"]
 
 @export var kind: StringName = &"gear":
 	set(v):
@@ -61,6 +61,10 @@ func _draw() -> void:
 		&"play":
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.4, -r * 0.6), c + Vector2(r * 0.6, 0),
 				c + Vector2(-r * 0.4, r * 0.6)]), color)
+		&"target":
+			draw_arc(c, r * 0.8, 0.0, TAU, 32, color, w, true)
+			draw_arc(c, r * 0.4, 0.0, TAU, 24, color, w, true)
+			draw_circle(c, r * 0.1, color)
 		&"ring":
 			draw_arc(c, r - w, 0.0, TAU, 40, color, w * 1.2, true)
 		&"check":
