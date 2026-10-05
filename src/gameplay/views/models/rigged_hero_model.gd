@@ -372,6 +372,18 @@ func play_cast(slot: int) -> void:
 	_fire(&"cast")
 
 
+## Menu display: hands the skeleton from the gameplay AnimationTree to a looping
+## `showcase` clip (tools/art/hero_anims.py). Returns false when the glb has none.
+func play_showcase() -> bool:
+	if anim_player == null or not anim_player.has_animation(&"showcase"):
+		return false
+	if tree != null:
+		tree.active = false
+	anim_player.get_animation(&"showcase").loop_mode = Animation.LOOP_LINEAR
+	anim_player.play(&"showcase")
+	return true
+
+
 func set_dead(dead: bool) -> void:
 	_dead = dead
 

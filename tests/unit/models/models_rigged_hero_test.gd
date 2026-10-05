@@ -154,3 +154,11 @@ func test_hero_view_plays_death_then_hides() -> void:
 	v.set_health(250, 250, false)
 	assert_bool(v.visible).is_true()
 	assert_bool((v.model as RiggedHeroModel).is_dead()).is_false()
+
+
+func test_play_showcase_loops_the_menu_clip() -> void:
+	var m := _build(&"vesper") as RiggedHeroModel
+	assert_bool(m.play_showcase()).is_true()
+	assert_bool(m.tree.active).is_false()
+	assert_str(String(m.anim_player.current_animation)).is_equal("showcase")
+	assert_int(m.anim_player.get_animation(&"showcase").loop_mode).is_equal(Animation.LOOP_LINEAR)
