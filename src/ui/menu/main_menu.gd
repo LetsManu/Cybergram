@@ -471,6 +471,7 @@ func _build_modes(content: Control) -> void:
 		b.toggled.connect(func(on: bool) -> void:
 			if on:
 				_select_mode(m))
+		b.pressed.connect(func() -> void: _select_mode(m))
 		UiSfx.attach(b)
 		b.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton and (ev as InputEventMouseButton).double_click:
