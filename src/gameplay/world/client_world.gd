@@ -96,6 +96,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	player_input = source as PlayerInputSource
 	if player_input != null:
 		player_input.fork_slot_fn = fork_pending_slot
+		player_input.aim_targets_fn = aim_targets
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
 	session.token = hello_token
@@ -148,6 +149,21 @@ func hardpoint_defs() -> Array[HardpointDef]:
 ## Team of the local player (offline: always the player team).
 func own_team() -> int:
 	return ServerWorld.TEAM_PLAYERS
+
+
+## W11-C1 gamepad aim assist: hitbox centres of visible enemy heroes relative to
+## the own eye (client-side view only; the server's hit logic is untouched).
+func aim_targets() -> Array:
+	var out: Array = []
+	if body == null or player_input == null or player_input.look == null:
+		return out
+	var eye := body.state.position + Vector3(0.0, body.eye_height(), 0.0)
+	var h := player_input.look.aim_assist_center_height_m
+	for id in _views:
+		var v: HeroView = _views[id]
+		if v.visible and v.team != own_team():
+			out.append(v.position + Vector3(0.0, h, 0.0) - eye)
+	return out
 
 
 ## Index of the hardpoint whose zone holds the predicted own hero, or -1.
