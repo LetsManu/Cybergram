@@ -15,6 +15,8 @@ extends Node
 ##   --set-pack <group>=on|off  headless: switch an optional content pack;
 ##                            exit 0 done / 1 failed
 ##   --uninstall              headless: delete the installed game (+ --keep-settings)
+##   --show-page <key>        window: open this page at start (screenshots)
+##   --show-uninstall         window: open the uninstall dialog at start (screenshots)
 
 const EXIT_PAUSED: int = 13
 
@@ -32,6 +34,8 @@ var _status: Label
 var _pause_link: Button
 var _restart_args: PackedStringArray = PackedStringArray()
 var _ai: AppImageUpdater
+## The Settings sections (set by UpdPanels.create).
+var panels: UpdPanels
 
 
 ## Parses the W15 flags. Unknown flags are ignored (main.gd has its own).
@@ -41,10 +45,10 @@ static func parse(all: PackedStringArray) -> Dictionary:
 	while i < all.size():
 		var a: String = all[i]
 		var key: String = a.substr(2) if a.begins_with("--") else ""
-		if key in ["speed-limit", "pause-after", "now", "set-pack"] and i + 1 < all.size():
+		if key in ["speed-limit", "pause-after", "now", "set-pack", "show-page"] and i + 1 < all.size():
 			out[key] = all[i + 1]
 			i += 1
-		elif key in ["preload", "uninstall", "keep-settings"]:
+		elif key in ["preload", "uninstall", "keep-settings", "show-uninstall"]:
 			out[key] = true
 		i += 1
 	return out
@@ -168,6 +172,14 @@ func add_play_links(links: HBoxContainer, make_link: Callable, button: LauncherP
 	links.move_child(_pause_link, 0)
 
 
+## main.gd _ready hook (window mode): screenshot flags.
+func after_ui(show_page: Callable) -> void:
+	if _opts.has("show-page") or _opts.has("show-uninstall"):
+		show_page.call(String(_opts.get("show-page", "settings")))
+	if _opts.has("show-uninstall") and panels != null:
+		panels.open_uninstall.call_deferred()
+
+
 func toggle_pause() -> void:
 	if _u.state == Updater.State.DOWNLOADING:
 		_u.pause()
@@ -196,6 +208,9 @@ func _window(s: Updater.State) -> void:
 
 ## Shows the pre-load line under the status when the game is ready to play.
 func _paint_detail() -> void:
+	if _detail != null and _u.state == Updater.State.PAUSED:
+		_detail.text = "Progress is kept. Press RESUME to continue."
+		return
 	if _detail == null or _u.preload_text == "":
 		return
 	if _u.state in [Updater.State.UP_TO_DATE, Updater.State.OFFLINE_READY]:

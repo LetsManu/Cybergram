@@ -24,6 +24,7 @@ static func create(host: Control, updater: Updater, cli: UpdCli) -> UpdPanels:
 	p._host = host
 	p._u = updater
 	p._cli = cli
+	cli.panels = p
 	p._build()
 	updater.content_changed.connect(p.refresh)
 	updater.state_changed.connect(func(_s: Updater.State, _m: String) -> void: p.refresh())
@@ -144,6 +145,11 @@ func _toggle(group: String, on: bool) -> void:
 		UiKit.toast(_host, "%s %s." % [ContentManifest.label(group),
 			"will be downloaded" if on else "removed"], &"info")
 	refresh.call_deferred()
+
+
+## Opens the uninstall confirmation (screenshots use this directly).
+func open_uninstall() -> void:
+	_confirm_uninstall()
 
 
 ## Confirm modal: uninstall the game, optionally keeping the saved settings.

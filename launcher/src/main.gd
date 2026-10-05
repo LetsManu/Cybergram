@@ -170,6 +170,9 @@ func _ready() -> void:
 		_login.open(_game_server)
 		if args.has("show-login"):
 			_open_login()
+		# --- W15-UPD ---
+		_upd.after_ui(_show_page)
+		# --- end W15-UPD ---
 
 
 ## Manifest arrived: replace the launcher first if the feed has a newer one.
