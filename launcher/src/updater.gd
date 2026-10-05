@@ -52,6 +52,9 @@ var _http: HTTPRequest
 ## Set when the feed was accepted without a signature check (no pinned key).
 var feed_warning: String = ""
 var _downloading: bool = false
+var _speed: float = 0.0
+var _speed_t: int = 0
+var _speed_got: int = 0
 
 
 
@@ -182,6 +185,8 @@ func start_update() -> void:
 	DirAccess.remove_absolute(part)
 	_set_state(State.DOWNLOADING, "Downloading %s..." % file_name)
 	_clear_http()
+	_speed = 0.0
+	_speed_t = 0
 	_http = HTTPRequest.new()
 	_http.download_file = part
 	_http.download_chunk_size = 1 << 20
@@ -201,7 +206,13 @@ func _process(_delta: float) -> void:
 	if total <= 0:
 		total = int(_entry.get("size", 0))
 	var frac: float = clampf(float(got) / float(total), 0.0, 1.0) if total > 0 else -1.0
-	progress_changed.emit(frac, "%.1f / %.1f MB" % [got / 1048576.0, total / 1048576.0])
+	var now: int = Time.get_ticks_msec()
+	if _speed_t == 0 or now - _speed_t >= 500:
+		if _speed_t != 0:
+			_speed = float(got - _speed_got) * 1000.0 / float(now - _speed_t)
+		_speed_t = now
+		_speed_got = got
+	progress_changed.emit(frac, LauncherCore.progress_text(got, total, _speed))
 
 
 func _on_download_done(result: int, code: int, _headers: PackedStringArray, _body: PackedByteArray, part: String) -> void:

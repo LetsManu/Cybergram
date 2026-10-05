@@ -1,0 +1,15 @@
+# UI kit files the launcher shares with the game (one repo path per line).
+# launcher/tools/sync_shared.sh copies them to the SAME path under launcher/, so every
+# res:// path inside them (tokens, font, shader, class_name scripts) resolves in the
+# launcher project unchanged. A sibling .import / .uid file is copied too when present.
+# tests/unit/launcher/launcher_shared_sync_test.gd fails when a copy differs.
+src/ui/theme/ui_kit.gd
+src/ui/theme/ui_kit_tokens.gd
+src/ui/theme/ui_bevel_box.gd
+src/ui/theme/ui_card.gd
+src/ui/theme/ui_icon.gd
+src/ui/theme/ui_modal.gd
+assets/ui/ui_kit_tokens.tres
+assets/fonts/orbitron/Orbitron-Variable.ttf
+assets/fonts/orbitron/OFL.txt
+assets/shaders/canvas_ui_background.gdshader
