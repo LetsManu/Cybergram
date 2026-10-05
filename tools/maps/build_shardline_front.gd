@@ -1277,7 +1277,15 @@ func _tower(g: Node, n: String, half: int, x0: float, x1: float, l0: float, l1: 
 		bi += 1
 		y += 3.2
 	var cap := absf(top - base)
-	_box(dressing, n + "Crown", Vector3(absf(x1 - x0) + 0.3, 0.3, absf(l1 - l0) + 0.3), P((x0 + x1) * 0.5, _hl(half, (l0 + l1) * 0.5), top + 0.15), mats["trim_" + ("a" if accent == AZURE else "n")], false)
+	# Lit crown: a thin trim band around the roof edge (outside walkable roofs).
+	var tm: Material = mats["trim_" + ("a" if accent == AZURE else "n")]
+	var cx := (x0 + x1) * 0.5
+	var cl := (l0 + l1) * 0.5
+	var wx := absf(x1 - x0)
+	var wl := absf(l1 - l0)
+	for e in [-1.0, 1.0]:
+		_box(dressing, n + "CrownX%d" % int(e), Vector3(0.18, 0.35, wl + 0.36), P(cx + e * (wx * 0.5 + 0.09), _hl(half, cl), top - 0.175), tm, false)
+		_box(dressing, n + "CrownL%d" % int(e), Vector3(wx + 0.36, 0.35, 0.18), P(cx, _hl(half, cl + e * (wl * 0.5 + 0.09)), top - 0.175), tm, false)
 	var _u := [body, cap]
 	if mount != "":
 		var my := minf(top - 2.5, 9.0) if mount == "billboard" else minf(top - 1.5, 4.2)

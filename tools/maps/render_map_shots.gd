@@ -19,6 +19,23 @@ const SHOTS := [
 	["mid-plaza", Vector3(-4, 182, 2.2), Vector3(0, 210, 1.0)],
 	["mid-plaza-spokes", Vector3(-24, 214, 3.0), Vector3(-80, 210, 1.0)],
 	["hq-gates", Vector3(0, 12, 2.0), Vector3(0, 60, 1.0)],
+	# W18-GEO living map: level changes, enterable buildings, the jungle.
+	["market-sunken-street", Vector3(0, 103, -1.8), Vector3(0, 126, -3.0)],
+	["market-terraces", Vector3(11, 102.5, 4.2), Vector3(-2, 126, -1.0)],
+	["market-shop-exterior", Vector3(1, 106, 1.7), Vector3(14, 116, 3.6)],
+	["market-shop-interior", Vector3(21.8, 120, 4.2), Vector3(14.5, 111, 3.4)],
+	["bridge-span-towers", Vector3(-78, 150, 1.7), Vector3(-80, 192, 4.0)],
+	["bridge-service-walkway", Vector3(-93, 172.5, -2.8), Vector3(-84, 182, -4.0)],
+	["bridge-guardhouse-exterior", Vector3(-83, 129, 1.7), Vector3(-99, 142, 2.0)],
+	["bridge-guardhouse-interior", Vector3(-101.6, 150, 1.7), Vector3(-96, 135, 1.2)],
+	["dock-quay", Vector3(100, 127, 4.2), Vector3(88, 152, 0.5)],
+	["dock-warehouse-exterior", Vector3(79, 96, 1.7), Vector3(92, 110, 2.0)],
+	["dock-warehouse-interior", Vector3(99, 116, 1.7), Vector3(89, 102.5, 1.2)],
+	["plaza-bridge", Vector3(-6, 191, 1.7), Vector3(-30, 210, 4.0)],
+	["jungle-alley", Vector3(15.5, 77.5, 1.7), Vector3(36, 76, 1.2)],
+	["jungle-rooftop-route", Vector3(18, 83, 6.2), Vector3(55, 89, 4.0)],
+	["jungle-pocket-courtyard", Vector3(34, 92, 1.9), Vector3(46, 80, 0.5)],
+	["jungle-catwalk-undercroft", Vector3(42, 137, 1.7), Vector3(42, 172, -3.5)],
 ]
 
 
