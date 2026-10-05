@@ -93,7 +93,7 @@ settings** and set the visibility to **Public**. Alternatively, run
 
 Requires an **x86_64** NAS (Intel/AMD CPU). ARM models cannot run it.
 
-### Update host for the launcher (TCP 8080)
+### Update host for the launcher (TCP 8080 in the container, host 8081)
 
 The same image also serves the latest client builds, so the **Cybergram
 launcher** can update players without GitHub (works while the repo is
@@ -102,14 +102,16 @@ server and serves `/version.json` (version, patch notes, per-platform file,
 size, sha256) plus the Windows and Linux zips. They are baked into the image
 at release time, so **updating the container updates the launcher feed**.
 
-- **Portainer / compose:** map **8080/tcp → 8080** as well as UDP 7777. The
-  compose file in `tools/server/` already does.
-- **Router:** forward **TCP 8080** to the NAS if players outside your LAN
-  should auto-update. Optional: without it they download the zip from the
-  GitHub release by hand.
-- **Check it:** `curl http://cyber.djboeck.at:8080/version.json`.
+- **Portainer / compose:** map host **8081/tcp → 8080** as well as UDP 7777
+  (`CYBERGRAM_API_PORT`). The compose file in `tools/server/` already does.
+  Host 8080 is the website now (docs/HOSTING.md "Website").
+- **TLS proxy:** serve it as `https://cyber-api.djboeck.at` (reverse proxy on
+  80/443 to host 8081). Forward TCP 80 and 443 on the router.
+- **Check it:** `curl https://cyber-api.djboeck.at/version.json`.
 - The launcher reads the URL from `launcher.cfg` (`version_url`), default
-  `http://cyber.djboeck.at:8080/version.json`.
+  `https://cyber-api.djboeck.at/version.json`. The old default
+  `http://cyber.djboeck.at:8080/version.json` is migrated on start, and the
+  website redirects old launchers that still use it.
 - The image gets bigger by the two client zips. An image built without
   them (empty `tools/server/updates/`) simply has the update host off.
 

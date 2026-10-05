@@ -379,7 +379,8 @@ jobs:
           echo "$out" | tail -5
           echo "$out" | grep -q "\[lobby\] open on UDP 7777"
           echo "$out" | grep -q "\[lobby\] quit after 30 ticks"
-          # The update host answers on TCP 8080.
+          # The update host answers on TCP 8080 inside the container (host 8081
+          # in the compose file; mapped 1:1 here).
           docker run -d --name upd -p 8080:8080 $IMAGE:$VERSION > /dev/null
           for _ in $(seq 1 20); do curl -sf localhost:8080/version.json -o /tmp/v.json && break; sleep 1; done
           jq -e ".version" /tmp/v.json
@@ -404,6 +405,8 @@ jobs:
           # W20-WEB: the front writes the website's public snapshot (counts only).
           for _ in $(seq 1 10); do docker exec front test -s /public/snapshot.json && break; sleep 1; done
           docker exec front cat /public/snapshot.json | jq -e '.schema == 1 and (.leaderboard.entries | type == "array")'
+          # ... and the update host serves it read-only (cyber-api.../snapshot.json).
+          docker exec front busybox wget -qO- http://127.0.0.1:8080/snapshot.json | jq -e '.schema == 1'
           docker rm -f front > /dev/null
 
       - name: Push to GitHub Container Registry

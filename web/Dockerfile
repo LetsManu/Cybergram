@@ -1,7 +1,7 @@
 # Cybergram website (W20-WEB): a small static site next to the game server.
 # Build from the REPO ROOT (the site is generated from repo files):
 #   docker build -f web/Dockerfile -t cybergram-web .
-#   docker run -d -p 8081:8080 -v cybergram-public:/srv/public:ro cybergram-web
+#   docker run -d -p 8080:8080 -v cybergram-public:/srv/public:ro cybergram-web
 # web/Dockerfile.dockerignore keeps the build context to the files needed.
 # Releases publish it as ghcr.io/letsmanu/cybergram-web (build.yml).
 
@@ -25,9 +25,12 @@ RUN rm -f /etc/nginx/conf.d/default.conf \
     && mkdir -p /var/cache/cybergram-web /srv/public \
     && chown nginx:nginx /var/cache/cybergram-web
 COPY web/docker/nginx.conf /etc/nginx/nginx.conf
+COPY web/docker/30-cybergram-api.sh /docker-entrypoint.d/30-cybergram-api.sh
 COPY web/docker/40-cybergram-release.sh /docker-entrypoint.d/40-cybergram-release.sh
 COPY --from=build /site/ /usr/share/nginx/html/
-RUN chmod 0755 /docker-entrypoint.d/40-cybergram-release.sh && nginx -t
+RUN chmod 0755 /docker-entrypoint.d/30-cybergram-api.sh /docker-entrypoint.d/40-cybergram-release.sh && nginx -t
+# Where old launchers' feed requests are sent (301), see 30-cybergram-api.sh.
+ENV CYBERGRAM_API_URL=https://cyber-api.djboeck.at
 USER nginx
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

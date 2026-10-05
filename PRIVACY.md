@@ -195,7 +195,8 @@ username, no player id, no match history, no IP address.
 anonymous numbers only: whether the server is up, how many players are
 online, how many matches run, how many players wait in each queue and the
 estimated wait. These numbers say nothing about any single person. The
-website's own privacy page (no cookies, no trackers, its server logs) is
+same file (with the opt-in leaderboard) is also served read-only next to the
+launcher update feed. The website's own privacy page (no cookies, no trackers, its server logs) is
 part of the website.
 
 ## Legal basis

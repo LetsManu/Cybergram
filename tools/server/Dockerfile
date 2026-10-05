@@ -3,9 +3,10 @@
 # To build it yourself, extract the Linux release next to it:
 #   tar -xzf Cybergram-v0.2.0-linux-x86_64.tar.gz -C tools/server/game
 #   docker build -t cybergram-server tools/server
-#   docker run -d --name cybergram -p 7777:7777/udp -p 8080:8080/tcp cybergram-server
+#   docker run -d --name cybergram -p 7777:7777/udp -p 8081:8080/tcp cybergram-server
 #
 # The image also serves the client builds for the launcher on TCP 8080
+# (published on host 8081 by the compose file, behind https://cyber-api.djboeck.at)
 # (busybox httpd). The release workflow fills tools/server/updates/ with
 # version.json + the Windows/Linux zips (launcher/tools/make_update_feed.sh).
 # Without them (empty updates/) the update host simply stays off.
@@ -19,7 +20,11 @@ COPY entrypoint.sh healthcheck.sh review_reports.sh review_reports.gd /opt/
 RUN chmod +x /opt/cybergram/Cybergram.x86_64 /opt/entrypoint.sh /opt/healthcheck.sh /opt/review_reports.sh \
     && mkdir -p /data/accounts /data/ratings /data/reports /data/tls /public \
     && chown -R cybergram:cybergram /data /public \
-    && chown cybergram:cybergram /opt/cybergram-updates
+    && chown cybergram:cybergram /opt/cybergram-updates \
+    && ln -sf /public/snapshot.json /opt/cybergram-updates/snapshot.json
+# W20-WEB: the update host also serves the front's public snapshot read-only
+# (/snapshot.json: counts and the opt-in leaderboard, the same file the
+# website shows). Until the front writes it, the link answers 404.
 # Accounts (one JSON store, written atomically) and the TLS certificate for
 # encrypted login live in the /data volume. Without a certificate the server
 # runs guest-only: it never accepts a password over an unencrypted link.

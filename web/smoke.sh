@@ -4,7 +4,8 @@
 # Runs the container hardened like the compose file (read-only, no
 # capabilities) with web/sample/snapshot.json in the public volume, then
 # checks: the home page, every generated page, the snapshot JSON, the
-# security headers, the 404 page and an access log without IP addresses.
+# security headers, the 404 page, the 301s that send old launchers' feed
+# requests to CYBERGRAM_API_URL, and an access log without IP addresses.
 set -euo pipefail
 image="${1:-cybergram-web:test}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +17,8 @@ chmod 755 "$pub"; chmod 644 "$pub/snapshot.json"
 cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; rm -rf "$pub"; }
 trap cleanup EXIT
 
-docker run -d --name "$name" -p "127.0.0.1:$port:8080" -e CYBERGRAM_RELEASE_FETCH=0 \
+api="https://api.example.test"
+docker run -d --name "$name" -p "127.0.0.1:$port:8080" -e CYBERGRAM_RELEASE_FETCH=0 -e CYBERGRAM_API_URL="$api/" \
   -v "$pub:/srv/public:ro" --read-only --tmpfs /tmp --tmpfs /var/cache/cybergram-web:uid=101,gid=101 \
   --cap-drop ALL --security-opt no-new-privileges:true "$image" >/dev/null
 base="http://127.0.0.1:$port"
@@ -37,6 +39,16 @@ snap="$(curl -fsS "$base/data/snapshot.json")" || fail "snapshot JSON"
 grep -q '"leaderboard"' <<<"$snap" || fail "snapshot content"
 code="$(curl -s -o /dev/null -w '%{http_code}' "$base/no-such-page")"
 [[ "$code" == 404 ]] || fail "404 page answered $code"
+# Old launchers' feed paths answer 301 to the API host, same path and query.
+for p in version.json version.json.sig status.json "blobs/$(printf 'a%.0s' {1..64})" files/x game/x launcher/x \
+    Cybergram-v0.13.1-windows-x86_64.zip CybergramLauncher-v0.13.1-linux-x86_64.zip \
+    Cybergram-0.13.1-x86_64.AppImage Cybergram-0.13.1-x86_64.AppImage.zsync "version.json?t=1"; do
+  got="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$base/$p")"
+  [[ "$got" == "301 $api/$p" ]] || fail "redirect of /$p: $got"
+done
+# The site's own files are not redirected.
+code="$(curl -s -o /dev/null -w '%{http_code}' "$base/data/snapshot.json")"
+[[ "$code" == 200 ]] || fail "snapshot redirected or missing ($code)"
 # The access log holds no client address (the request came from 172.17.0.1 / 127.0.0.1).
 logs="$(docker logs "$name" 2>&1)"
 grep -q '"GET /data/snapshot.json" 200' <<<"$logs" || fail "access log line missing"

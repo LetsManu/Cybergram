@@ -53,6 +53,13 @@
     you visit. GitHub's own privacy statement applies there:
     <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">GitHub privacy statement</a>.</p>
 
+  <h2 id="forwarding">Forwarding for old game launchers</h2>
+  <p>Older versions of the Cybergram launcher look for game updates at this site's address. The website answers
+    those requests (for example <code>/version.json</code> and the update files) with a redirect to the game server's
+    update address (<code>https://cyber-api.djboeck.at</code>). The launcher
+    then downloads from there; the website itself stores nothing about these requests beyond the access log
+    described above. The game's privacy notice covers the update server.</p>
+
   <h2 id="security">Security</h2>
   <p>The site sends strict security headers (a content security policy that only allows this site's own files, no
     referrer, no content sniffing). <span class="todo">[TO BE FILLED: state whether the site is served over HTTPS, and by

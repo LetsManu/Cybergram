@@ -2,8 +2,9 @@ class_name LobbyStatusWriter
 extends RefCounted
 ## Publishes a tiny anonymous status file for the launcher (players online / in
 ## lobby / in match). Only counts are written, never names or ids (GDPR). The
-## file lives in the directory the update host serves (TCP 8080), so the
-## launcher reads it over plain HTTP: http://<server>:8080/status.json
+## file lives in the directory the update host serves (TCP 8080 in the
+## container), so the launcher reads it next to version.json, e.g.
+## https://cyber-api.djboeck.at/status.json
 ##
 ## Enabled by the CYBERGRAM_STATUS_FILE environment variable (absolute path);
 ## when it is empty the writer does nothing.
