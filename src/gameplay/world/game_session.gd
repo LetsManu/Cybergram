@@ -67,6 +67,10 @@ var clock: SimClock
 var dedicated: bool = false
 var _quit_after_ticks: int = 0
 var _log_every_ticks: int = 0
+## W14 perf: whole server.step() time over the current log window (microseconds).
+var _tick_us_sum: int = 0
+var _tick_us_max: int = 0
+var _tick_us_n: int = 0
 
 
 func _ready() -> void:
@@ -424,13 +428,23 @@ func step_tick() -> void:
 	if client != null:
 		client.session.poll()
 		client.tick()
+	var t0 := Time.get_ticks_usec()
 	server.step()
+	var step_us := Time.get_ticks_usec() - t0
+	_tick_us_sum += step_us
+	_tick_us_max = maxi(_tick_us_max, step_us)
+	_tick_us_n += 1
 	_debug_uplink_squad()
 	_debug_task_squad()
 	_debug_progress()
 	_log_economy()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:
-		print("[server] tick=%d entities=%d" % [server.tick, server.registry.count()])
+		print("[server] tick=%d entities=%d | server tick avg %.2f ms max %.2f ms (budget %.1f ms)" % [server.tick,
+			server.registry.count(), float(_tick_us_sum) / maxf(_tick_us_n, 1) / 1000.0, _tick_us_max / 1000.0,
+			1000.0 / net_config.tick_rate_hz])
+		_tick_us_sum = 0
+		_tick_us_max = 0
+		_tick_us_n = 0
 		if server.wardlings != null and server.wardlings.steps > 0:
 			var w := server.wardlings
 			print("[server] wardlings=%d step avg %.3f ms (last %.3f) | AI think avg %.3f ms (last %.3f) | paths %d" % [
