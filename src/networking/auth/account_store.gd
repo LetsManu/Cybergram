@@ -2,7 +2,9 @@ class_name AccountStore
 extends RefCounted
 ## Server-side account storage interface (design/ux/lobby-and-social.md §6).
 ## An account is a JSON-safe Dictionary with exactly these keys:
-##   id (32 hex), username, password {algo, hash, salt, iterations},
+##   id (32 hex), username, password {algo, hash, salt, iterations, and
+##   W21-N1 recovery {algo, hash, salt, iterations, created_at}: the PBKDF2
+##   hash of the one-time recovery code, absent when there is none},
 ##   profile {display_name, emblem, accent, favourite_hero, and
 ##   leaderboard_public: true only while the player opts in (W20-WEB)},
 ##   friends [ids], requests_in [ids], requests_out [ids], blocks [ids],
