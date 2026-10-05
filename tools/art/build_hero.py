@@ -606,6 +606,7 @@ def reset_scene():
 
 # W14: body decimation budget x2.4 (~20-30k tris in view); `--lowpoly` keeps the W13 budget.
 HD_DECIMATE_SCALE = 1.5
+LOD_TRIS = 8000
 
 
 def build(key):
@@ -654,9 +655,22 @@ def build(key):
         body.data.attributes.remove(body.data.attributes["hd_kind"])
     mat = bpy.data.materials.new("Toon_" + h.key)
     body.data.materials.append(mat)
-    body.parent = rig
-    mod = body.modifiers.new("Armature", "ARMATURE")
-    mod.object = rig
+    lod = None
+    if not lowpoly:
+        # W14: ~8k-tri skinned LOD; at runtime it carries the ink hull up close and replaces
+        # the body beyond RiggedHeroModel.LOD_M (design/art/hero-art-bible.md §8).
+        lod = body.copy()
+        lod.data = body.data.copy()
+        lod.name = lod.data.name = h.key + "_lod"
+        bpy.context.scene.collection.objects.link(lod)
+        _activate(lod)
+        dec = lod.modifiers.new("dec", "DECIMATE")
+        dec.ratio = min(1.0, LOD_TRIS / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons)))
+        bpy.ops.object.modifier_apply(modifier=dec.name)
+    for ob in [body] + ([lod] if lod else []):
+        ob.parent = rig
+        mod = ob.modifiers.new("Armature", "ARMATURE")
+        mod.object = rig
     body.data.color_attributes.active_color = body.data.color_attributes["Color"]
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     mocap_info = hero_anims.author_all(h, use_mocap="--scripted" not in sys.argv)
@@ -664,11 +678,14 @@ def build(key):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     _activate(rig)
     body.select_set(True)
+    if lod:
+        lod.select_set(True)
+        print("lod %s: %d tris" % (lod.name, sum(len(p.vertices) - 2 for p in lod.data.polygons)))
     bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=True, export_animations=True,
                               export_animation_mode="ACTIONS", export_vertex_color="NAME", export_vertex_color_name="Color",
                               export_all_vertex_colors=False, export_skins=True, export_yup=True,
                               export_force_sampling=True, export_optimize_animation_size=True,
-                              export_materials="EXPORT", export_image_format="NONE", export_tangents=not lowpoly,
+                              export_materials="EXPORT", export_image_format="NONE", export_tangents=False,  # Godot builds MikkTSpace tangents on import (matches the bake)
                               export_def_bones=False, export_leaf_bone=False)
     side = {"clips": mocap_info, "credit": "The data used in this project was obtained from mocap.cs.cmu.edu. "
             "The database was created with funding from NSF EIA-0196217."} if mocap_info else {"clips": {}}

@@ -749,7 +749,9 @@ def composite(h, out_dir, size, col, mat, et, aoe, P, N, nrm, ob=None):
     sizes = {
         "albedo": save(alb, os.path.join(out_dir, key + "_albedo.png"), size, "RGB"),
         "mask": save(mask, os.path.join(out_dir, key + "_mask.png"), size // 2, "RGBA"),
-        "normal": save(nrm[..., :3], os.path.join(out_dir, key + "_normal.png"), size, "RGB"),
+        # B is constant: Godot rebuilds Z from XY for NORMAL_MAP (and RGTC drops B); halves the PNG.
+        "normal": save(np.concatenate([nrm[..., :2], np.ones_like(nrm[..., :1])], -1),
+                       os.path.join(out_dir, key + "_normal.png"), size, "RGB"),
     }
     if ob is None:
         return sizes
