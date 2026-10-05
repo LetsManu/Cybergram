@@ -37,7 +37,8 @@ def render_one(idx: int) -> list[str]:
         if not spec.stereo and x.ndim == 2:
             x = x.mean(axis=1)
         x = dsp.fade(x, 0.0005, 0.005)
-        x = dsp.normalize(x, spec.target, spec.mode)
+        # Loud transients overshoot after Vorbis encoding: leave them more headroom.
+        x = dsp.normalize(x, spec.target, spec.mode, -3.2 if spec.target >= -18.5 else -2.0)
         path = OUT / spec.folder / f"{spec.stem}_{v + 1:02d}.ogg"
         dsp.write_ogg(path, x, spec.quality)
         done.append(str(path.relative_to(ROOT)))

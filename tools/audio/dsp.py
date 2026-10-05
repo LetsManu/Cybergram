@@ -318,7 +318,7 @@ def soft_limit(x: np.ndarray, ceiling_db: float = -1.2) -> np.ndarray:
     return np.tanh(x / c) * c
 
 
-def normalize(x: np.ndarray, target: float, mode: str = "M", tp_ceiling: float = -1.0) -> np.ndarray:
+def normalize(x: np.ndarray, target: float, mode: str = "M", tp_ceiling: float = -2.0) -> np.ndarray:
     """Gain to `target` LUFS (M = momentary max, I = integrated) with a true-peak ceiling."""
     measure = momentary_max if mode == "M" else integrated
     y = x / (np.max(np.abs(x)) + 1e-9) * 0.5

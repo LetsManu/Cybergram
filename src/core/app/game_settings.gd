@@ -37,6 +37,35 @@ const CROSSHAIR_COLORS: Array[Color] = [Color.WHITE, Color("#4CE38A"), Color("#0
 	Color("#FFD447"), Color("#FF4FD8"), Color("#FF4A3D")]
 const BUS_EFFECTS := &"Effects"
 const BUS_UI := &"UI"
+## W21-A1 mix (design/audio/audio-events.md §Buses): Master > Music, Effects
+## (> Weapons, Abilities, Footsteps, World), UI, Voice, Ambient.
+const BUS_MUSIC := &"Music"
+const BUS_VOICE := &"Voice"
+const BUS_AMBIENT := &"Ambient"
+const BUS_WEAPONS := &"Weapons"
+const BUS_ABILITIES := &"Abilities"
+const BUS_FOOTSTEPS := &"Footsteps"
+const BUS_WORLD := &"World"
+## [name, parent] in creation order (a parent exists before its children).
+const BUS_LAYOUT: Array = [
+	[&"Music", &"Master"], [&"Effects", &"Master"], [&"Weapons", &"Effects"],
+	[&"Abilities", &"Effects"], [&"Footsteps", &"Effects"], [&"World", &"Effects"],
+	[&"UI", &"Master"], [&"Voice", &"Master"], [&"Ambient", &"Master"]]
+## Mix-engineering constants of the bus effects (not gameplay tuning): the
+## master limiter ceiling, the night-mode master compressor and the Voice
+## side-chain duck on Music (~6 dB, 150 ms release) and Ambient (~4 dB).
+const LIMITER_CEILING_DB := -1.0
+const NIGHT_THRESHOLD_DB := -20.0
+const NIGHT_RATIO := 4.0
+const DUCK_THRESHOLD_DB := -30.0
+const DUCK_RATIO_MUSIC := 4.0
+const DUCK_RATIO_AMBIENT := 2.2
+const DUCK_ATTACK_US := 20000.0
+const DUCK_RELEASE_MS := 150.0
+## Effect slots: Music / Ambient carry [Amplify (code duck), Compressor
+## (Voice side-chain)]; Master carries [Compressor (night), HardLimiter].
+const FX_CODE_DUCK := 0
+const FX_MASTER_NIGHT := 0
 
 var mouse_sensitivity_deg: float = 0.12
 var invert_y: bool = false
@@ -52,6 +81,14 @@ var aim_assist: bool = true
 var master_volume: float = 0.8
 var effects_volume: float = 1.0
 var ui_volume: float = 1.0
+## W21-A1 [audio] keys: Music, Voice (announcer) and Ambient bus volumes 0..1,
+## night mode (master 4:1 compression from -20 dB, explosions / ults -4 dB) and
+## reduced music (match music = stingers only at phase changes / final minutes).
+var music_volume: float = 0.7
+var voice_volume: float = 1.0
+var ambient_volume: float = 0.8
+var night_mode: bool = false
+var reduce_music: bool = false
 ## WindowMode.
 var window_mode: int = WindowMode.WINDOWED
 ## Window size in WINDOWED mode (0 = the engine default). Set by the launcher.
@@ -153,6 +190,11 @@ func read_config(cfg: ConfigFile) -> void:
 	master_volume = clampf(cfg.get_value("audio", "master", master_volume), 0.0, 1.0)
 	effects_volume = clampf(cfg.get_value("audio", "effects", effects_volume), 0.0, 1.0)
 	ui_volume = clampf(cfg.get_value("audio", "ui", ui_volume), 0.0, 1.0)
+	music_volume = clampf(float(cfg.get_value("audio", "music", music_volume)), 0.0, 1.0)
+	voice_volume = clampf(float(cfg.get_value("audio", "voice", voice_volume)), 0.0, 1.0)
+	ambient_volume = clampf(float(cfg.get_value("audio", "ambient", ambient_volume)), 0.0, 1.0)
+	night_mode = bool(cfg.get_value("audio", "night_mode", night_mode))
+	reduce_music = bool(cfg.get_value("audio", "reduce_music", reduce_music))
 	var legacy_fs: bool = cfg.get_value("display", "fullscreen", false)
 	window_mode = clampi(int(cfg.get_value("display", "window_mode",
 		WindowMode.FULLSCREEN if legacy_fs else WindowMode.WINDOWED)), 0, WindowMode.BORDERLESS)
@@ -195,6 +237,11 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "effects", effects_volume)
 	cfg.set_value("audio", "ui", ui_volume)
+	cfg.set_value("audio", "music", music_volume)
+	cfg.set_value("audio", "voice", voice_volume)
+	cfg.set_value("audio", "ambient", ambient_volume)
+	cfg.set_value("audio", "night_mode", night_mode)
+	cfg.set_value("audio", "reduce_music", reduce_music)
 	cfg.set_value("display", "window_mode", window_mode)
 	cfg.set_value("display", "window_w", window_w)
 	cfg.set_value("display", "window_h", window_h)
@@ -254,18 +301,59 @@ func apply_bindings() -> void:
 	bindings.apply_to_input_map()
 
 
-## Creates the Effects and UI buses (children of Master) when missing.
-## Returns the number of buses created.
+## Creates the W21-A1 bus layout (BUS_LAYOUT) under Master when missing, with
+## its effects: Master night compressor (off until night mode) + hard limiter;
+## Music / Ambient code-duck Amplify + Voice side-chain compressor. Returns the
+## number of buses created (0 when the layout already exists).
 static func ensure_buses() -> int:
 	var made := 0
-	for bus_name in [BUS_EFFECTS, BUS_UI]:
-		if AudioServer.get_bus_index(bus_name) < 0:
-			AudioServer.add_bus()
-			var idx := AudioServer.bus_count - 1
-			AudioServer.set_bus_name(idx, bus_name)
-			AudioServer.set_bus_send(idx, &"Master")
-			made += 1
+	for entry in BUS_LAYOUT:
+		var bus_name: StringName = entry[0]
+		if AudioServer.get_bus_index(bus_name) >= 0:
+			continue
+		AudioServer.add_bus()
+		var idx := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(idx, bus_name)
+		AudioServer.set_bus_send(idx, entry[1])
+		if bus_name == BUS_MUSIC or bus_name == BUS_AMBIENT:
+			AudioServer.add_effect(idx, AudioEffectAmplify.new(), FX_CODE_DUCK)
+			var duck := AudioEffectCompressor.new()
+			duck.sidechain = BUS_VOICE
+			duck.threshold = DUCK_THRESHOLD_DB
+			duck.ratio = DUCK_RATIO_MUSIC if bus_name == BUS_MUSIC else DUCK_RATIO_AMBIENT
+			duck.attack_us = DUCK_ATTACK_US
+			duck.release_ms = DUCK_RELEASE_MS
+			AudioServer.add_effect(idx, duck)
+		made += 1
+	var master := AudioServer.get_bus_index(&"Master")
+	if master >= 0 and not _has_effect(master, "AudioEffectHardLimiter"):
+		var night := AudioEffectCompressor.new()
+		night.threshold = NIGHT_THRESHOLD_DB
+		night.ratio = NIGHT_RATIO
+		AudioServer.add_effect(master, night, FX_MASTER_NIGHT)
+		AudioServer.set_bus_effect_enabled(master, FX_MASTER_NIGHT, false)
+		var lim := AudioEffectHardLimiter.new()
+		lim.ceiling_db = LIMITER_CEILING_DB
+		AudioServer.add_effect(master, lim)
 	return made
+
+
+static func _has_effect(bus: int, cls: String) -> bool:
+	for i in AudioServer.get_bus_effect_count(bus):
+		if AudioServer.get_bus_effect(bus, i).get_class() == cls:
+			return true
+	return false
+
+
+## Code-driven duck (dB, <= 0) on a bus with a FX_CODE_DUCK Amplify (Music,
+## Ambient): mixed on top of the player's volume setting, never replacing it.
+static func set_bus_duck_db(bus_name: StringName, db: float) -> void:
+	var idx := AudioServer.get_bus_index(bus_name)
+	if idx < 0 or AudioServer.get_bus_effect_count(idx) <= FX_CODE_DUCK:
+		return
+	var amp := AudioServer.get_bus_effect(idx, FX_CODE_DUCK) as AudioEffectAmplify
+	if amp != null:
+		amp.volume_db = minf(db, 0.0)
 
 
 ## Sets the volume of bus `bus_name` from a linear 0..1 value.
@@ -277,12 +365,19 @@ static func set_bus_linear(bus_name: StringName, linear: float) -> void:
 	AudioServer.set_bus_mute(idx, linear <= 0.001)
 
 
-## Master / Effects / UI bus volumes (creates the buses when missing).
+## Every bus volume plus night mode (creates the buses when missing).
 func apply_audio() -> void:
 	ensure_buses()
 	set_bus_linear(&"Master", master_volume)
 	set_bus_linear(BUS_EFFECTS, effects_volume)
 	set_bus_linear(BUS_UI, ui_volume)
+	set_bus_linear(BUS_MUSIC, music_volume)
+	set_bus_linear(BUS_VOICE, voice_volume)
+	set_bus_linear(BUS_AMBIENT, ambient_volume)
+	var master := AudioServer.get_bus_index(&"Master")
+	if master >= 0 and AudioServer.get_bus_effect_count(master) > FX_MASTER_NIGHT \
+			and AudioServer.get_bus_effect(master, FX_MASTER_NIGHT) is AudioEffectCompressor:
+		AudioServer.set_bus_effect_enabled(master, FX_MASTER_NIGHT, night_mode)
 
 
 ## Volume, window mode, render scale, VSync and FPS cap (window parts are a

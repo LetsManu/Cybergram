@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AudioEventDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/views/audio/audio_event_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"combat_heartbeat"
+folder = "weapons"
+file_stem = "weapons_combat_heartbeat"
+bus = &"UI"
+volume_db = 0
+vol_jitter_db = 0
+pitch = 1
+pitch_jitter = 0
+priority = 0
+max_voices = 1
+cooldown_ms = 700
+owner_filter = 1
