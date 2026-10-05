@@ -428,6 +428,9 @@ func _step_pick() -> void:
 					if not legal.is_empty():
 						_draft.pick(s, legal[(s.hash() & 0xFFFF) % legal.size()], now)
 		_draft.tick(now)
+		if _draft.turn != _turn_seen:
+			_turn_seen = _draft.turn
+			_turn_at = now
 		_emit_pick()
 		if _draft.state == DraftSession.State.DONE:
 			_draft = null

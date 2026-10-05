@@ -213,7 +213,9 @@ func _on_pick(s: Dictionary) -> void:
 			d.client = client
 			d.rules = rules
 			d.with_model = with_model
-			d.left.connect(func() -> void: show_play())
+			d.left.connect(func() -> void:
+				if page_name == &"draft":
+					show_play())
 			_set_page(d, &"draft")
 		(page as MmDraftScreen).set_state(s)
 

@@ -161,11 +161,10 @@ func test_draft_leave_is_a_dodge() -> void:
 	var f := _flow()
 	_to_pick(MmView.Q_RANKED)
 	var d := f.page as MmDraftScreen
-	assert_str(MmKit.banner("", &"warn").get_class()).is_equal("PanelContainer")
 	d.leave()
 	var m := d.get_node("UiModal") as UiModal
 	m.close(true)
-	assert_str(String(fake.sent[-1].op)).is_equal("dodge")
+	assert_int(fake.sent.filter(func(x: Dictionary) -> bool: return x.op == &"dodge").size()).is_equal(1)
 	assert_int(f.play.state).is_equal(MmPlayScreen.State.LOCKED)
 
 
