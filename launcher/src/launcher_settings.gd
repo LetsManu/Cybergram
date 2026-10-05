@@ -15,6 +15,10 @@ var pinned_hero: String = ""
 var on_launch: String = "stay"
 ## W15-UX: the first-run system check has been shown.
 var syscheck_done: bool = false
+## W21-U2: the launcher version whose self-update last failed and when (unix
+## seconds). Stops an update loop: the same version is retried once a day at most.
+var self_update_failed_version: String = ""
+var self_update_failed_at: int = 0
 
 
 ## `path_` defaults to user://launcher_settings.cfg.
@@ -33,6 +37,8 @@ func load_file() -> LauncherSettings:
 		if not on_launch in ["stay", "minimise", "close"]:
 			on_launch = "stay"
 		syscheck_done = bool(cfg.get_value(SECTION, "syscheck_done", false))
+		self_update_failed_version = String(cfg.get_value(SECTION, "self_update_failed_version", ""))
+		self_update_failed_at = int(cfg.get_value(SECTION, "self_update_failed_at", 0))
 	return self
 
 
@@ -44,4 +50,6 @@ func save_file() -> bool:
 	cfg.set_value(SECTION, "pinned_hero", pinned_hero)
 	cfg.set_value(SECTION, "on_launch", on_launch)
 	cfg.set_value(SECTION, "syscheck_done", syscheck_done)
+	cfg.set_value(SECTION, "self_update_failed_version", self_update_failed_version)
+	cfg.set_value(SECTION, "self_update_failed_at", self_update_failed_at)
 	return cfg.save(path) == OK

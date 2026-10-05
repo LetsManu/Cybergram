@@ -69,24 +69,27 @@ func _on_downloaded(result: int, code: int, _h: PackedStringArray, _b: PackedByt
 
 ## Swaps every file below `new_dir` into `target_dir` (see class doc).
 ## Returns "" on success or an error text (after rolling back).
-static func apply_update(new_dir: String, target_dir: String) -> String:
+## `remover` (optional, for tests) replaces the delete of a leftover: it takes a
+## path and returns true when the path is gone.
+static func apply_update(new_dir: String, target_dir: String, remover: Callable = Callable()) -> String:
 	var swapped: Array = []  # [target, had_old]
 	for file_name in DirAccess.get_files_at(new_dir):
 		var target: String = target_dir.path_join(file_name)
 		if file_name == "launcher.cfg" and FileAccess.file_exists(target):
 			continue
 		var had_old: bool = FileAccess.file_exists(target)
+		var aside: String = ""
 		if had_old:
-			DirAccess.remove_absolute(target + ".old")
-			if DirAccess.rename_absolute(target, target + ".old") != OK:
+			aside = move_aside(target, remover)
+			if aside == "":
 				_roll_back(swapped)
 				return "cannot move %s aside" % file_name
 		if DirAccess.rename_absolute(new_dir.path_join(file_name), target) != OK:
 			if had_old:
-				DirAccess.rename_absolute(target + ".old", target)
+				DirAccess.rename_absolute(aside, target)
 			_roll_back(swapped)
 			return "cannot install %s" % file_name
-		swapped.append([target, had_old])
+		swapped.append([target, aside])
 		if OS.get_name() != "Windows" and file_name.ends_with(".x86_64"):
 			FileAccess.set_unix_permissions(target, 493)  # 0755
 	return ""
@@ -96,13 +99,62 @@ static func _roll_back(swapped: Array) -> void:
 	for pair: Array in swapped:
 		var target: String = pair[0]
 		DirAccess.remove_absolute(target)
-		if pair[1]:
-			DirAccess.rename_absolute(target + ".old", target)
+		if String(pair[1]) != "":
+			DirAccess.rename_absolute(String(pair[1]), target)
 
 
-## Deletes leftovers (*.old) from a previous self-update. Call at startup.
-static func cleanup_old(dir_path: String) -> void:
+## Renames `target` to `<target>.old`, or to `<target>.old.<n>` when that name
+## is taken and cannot be deleted (a locked file on Windows, a virus scanner,
+## the previous launcher process still exiting). Returns the new path, or ""
+## when no name worked. Never loops: at most MAX_ASIDE_TRIES names are tried.
+static func move_aside(target: String, remover: Callable = Callable()) -> String:
+	for n in range(MAX_ASIDE_TRIES):
+		var candidate: String = target + (".old" if n == 0 else ".old.%d" % n)
+		if FileAccess.file_exists(candidate) or DirAccess.dir_exists_absolute(candidate):
+			var gone: bool = remover.call(candidate) if remover.is_valid() else _remove_any(candidate)
+			if not gone:
+				continue  # cannot delete it: try the next name
+		if DirAccess.rename_absolute(target, candidate) == OK:
+			return candidate
+	return ""
+
+
+static func _remove_any(path: String) -> bool:
+	LauncherCore.remove_tree(path)  # directories too
+	DirAccess.remove_absolute(path)
+	return not FileAccess.file_exists(path) and not DirAccess.dir_exists_absolute(path)
+
+
+## True for `x.old` and `x.old.<anything>` leftovers.
+static func is_leftover(file_name: String) -> bool:
+	return file_name.ends_with(".old") or file_name.contains(".old.")
+
+
+## Deletes leftovers (*.old, *.old.<n>) from earlier self-updates, best effort:
+## a file that is still locked is skipped and tried again next start. Returns
+## how many leftovers could not be removed. Call at startup.
+static func cleanup_old(dir_path: String) -> int:
+	var left: int = 0
 	for file_name in DirAccess.get_files_at(dir_path):
-		if file_name.ends_with(".old"):
+		if is_leftover(file_name):
 			DirAccess.remove_absolute(dir_path.path_join(file_name))
+			if FileAccess.file_exists(dir_path.path_join(file_name)):
+				left += 1
+	for dir_name in DirAccess.get_directories_at(dir_path):
+		if is_leftover(dir_name) and not LauncherCore.remove_tree(dir_path.path_join(dir_name)):
+			left += 1
 	LauncherCore.remove_tree(dir_path.path_join("launcher.new"))
+	return left
+
+
+## A failed self-update of `version` is not retried for this many seconds.
+const RETRY_COOLDOWN_SEC: int = 86400
+const MAX_ASIDE_TRIES: int = 8
+
+
+## True when an update to `version` may be attempted now: it did not fail
+## within the cooldown. `failed_version`/`failed_at` come from LauncherSettings.
+static func may_attempt(version: String, failed_version: String, failed_at: int, now: int) -> bool:
+	if failed_version != version or failed_at <= 0:
+		return true
+	return now - failed_at >= RETRY_COOLDOWN_SEC or now < failed_at  # clock went back: allow
