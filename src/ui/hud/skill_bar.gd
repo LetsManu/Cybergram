@@ -13,6 +13,9 @@ extends HudWidget
 ## names the node the key would buy; the Fork choice shows a flyout. The
 ## Med-Pack slot (66 px, ×N, key 4) follows a hairline divider.
 ## Idle: key chips and pips fade to 55%.
+## Denied press (polish 2026-10-05): pressing a skill that is cooling or locked
+## flashes the rim amber for DENY_S and names why above the slot ("NOT READY",
+## or the level gate in amber), so a press is never silently swallowed.
 ## Reads ClientWorld.combat / progress and hero_def.skills; writes nothing.
 
 const BINDS: Array[String] = ["Q", "E", "C", "G"]
@@ -25,8 +28,71 @@ const KEY_H: float = 30.0
 const FORK_A_TINT := Color("#5CC8FF")  # W10-T1 cool tint (heroes.md Pillar 4)
 const FORK_B_TINT := Color("#FF9440")  # warm tint
 const ULT_GATES: Array[int] = [6, 10, 14]
+## Seconds a denied press stays visible.
+const DENY_S: float = 0.45
 ## Width of the four skills plus the divider and the consumable slot.
 const WIDTH: float = 4.0 * ICON + 3.0 * GAP + 30.0 + MED
+
+var _deny_left: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _deny_kind: Array[StringName] = [&"", &"", &"", &""]
+var _was_down: Array[bool] = [false, false, false, false]
+
+
+## Why a press on a slot does nothing: &"locked" (not learned / level gate),
+## &"cooldown", or &"" when the skill can fire.
+static func deny_reason(locked: bool, cooling: bool, has_def: bool) -> StringName:
+	if not has_def or locked:
+		return &"locked"
+	if cooling:
+		return &"cooldown"
+	return &""
+
+
+## Records a press on slot `i`; a non-empty `reason` starts the deny pulse.
+func note_press(i: int, reason: StringName) -> void:
+	if reason == &"":
+		return
+	_deny_left[i] = DENY_S
+	_deny_kind[i] = reason
+
+
+func tick_deny(dt: float) -> void:
+	for i in 4:
+		_deny_left[i] = maxf(0.0, _deny_left[i] - dt)
+
+
+func deny_left(i: int) -> float:
+	return _deny_left[i]
+
+
+func deny_kind(i: int) -> StringName:
+	return _deny_kind[i]
+
+
+func _process(delta: float) -> void:
+	tick_deny(delta)
+	_poll_presses()
+	super(delta)
+
+
+## Press edges of the four skill actions (rebindable, keyboard or pad). Alt
+## (quick spend) presses learn instead of cast, and menus capture input, so
+## neither counts as a denied cast.
+func _poll_presses() -> void:
+	var client := ctx.client if ctx != null else null
+	if client == null or client.hero_def == null or client.combat == null:
+		return
+	var pi := client.player_input
+	var skip := pi == null or pi.ui_captured or pi.quick_spend or client.is_dead()
+	var c := client.combat
+	for i in 4:
+		var down := InputBindings.is_down(ACTIONS[i])
+		if down and not _was_down[i] and not skip:
+			var def: SkillDef = client.hero_def.skills[i] if i < client.hero_def.skills.size() else null
+			var locked := def == null or (c.skill_flags[i] & AbilityRunner.FLAG_LOCKED) != 0
+			var cooling := c.skill_cd_left[i] > 0 and c.skill_cd_total[i] > 0
+			note_press(i, deny_reason(locked, cooling, def != null))
+		_was_down[i] = down
 
 
 func _draw() -> void:
@@ -50,6 +116,11 @@ func _draw() -> void:
 		var cooling := left > 0 and total > 0 and not locked
 		var ult := def != null and def.ultimate
 		_slot(r, ult, locked, active, 1.0 - float(left) / float(total) if cooling else -1.0)
+		var deny := _deny_left[i] / DENY_S
+		if deny > 0.0:
+			var ring := cut_poly(r.grow(3.0), CUT + 1.0)
+			ring.append(ring[0])
+			draw_polyline(ring, Color(HudPalette.WARN_UI, deny), 2.5, true)
 		var label := def.short_label if def != null else "-"
 		var icol := Color(HudPalette.IVORY, 0.22 if locked else (0.35 if cooling else 1.0))
 		if not SkillIcons.draw(self, label, r.get_center(), 45.0, icol):
@@ -60,7 +131,9 @@ func _draw() -> void:
 			padlock(r.get_center() + Vector2(0.0, 2.0), 16.0, HudPalette.IVORY)
 			if def != null:
 				caps_c(tr("HUD_LEVEL_GATE") % def.required_level, Vector2(r.get_center().x, y - 12.0), 15,
-					HudPalette.MUTED, 0.14)
+					HudPalette.WARN_UI if deny > 0.0 else HudPalette.MUTED, 0.14)
+		elif deny > 0.0 and _deny_kind[i] == &"cooldown":
+			caps_c(tr("HUD_DENY_COOLDOWN"), Vector2(r.get_center().x, y - 12.0), 15, HudPalette.WARN_UI, 0.14)
 		else:
 			_pips(def, flags, Vector2(r.get_center().x, y - 12.0), chrome_a)
 		_draw_tree(client, r, def, flags)
