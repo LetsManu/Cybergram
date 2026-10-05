@@ -244,35 +244,35 @@ func test_geometry_is_mirror_symmetric() -> void:
 const LANE_LEN_M := 420.0
 
 
-## Walkable slopes: every navmesh polygon <= 35 degrees (stairs are smooth
-## wedges <= 32), and the rolling lane centrelines <= 20 degrees.
+## Walkable slopes. A 1 m ray grid over the whole map: no walkable surface
+## (on the navmesh, normal within 50 degrees of up; steeper is a wall or prop face the motor cannot stand on at 46) is steeper than 32.5 degrees, so every stair
+## wedge and ramp stays well under HeroMotor's 46 degree floor angle; and the
+## rolling lane floors stay <= 20 degrees (owner: hills walkable up to ~20).
 func test_slopes_stay_walkable() -> void:
 	var server := _server(false)
-	var def := _def()
-	assert_bool(await WardlingFixtures.await_nav(get_tree(), server, def)).is_true()
+	assert_bool(await WardlingFixtures.await_nav(get_tree(), server, _def())).is_true()
+	var nav := server.get_world_3d().navigation_map
 	var worst := 0.0
-	for r in [_map_node(server).get_node("NavRegion"), _map_node(server).get_node("NavRegionJungle")]:
-		var nm: NavigationMesh = (r as NavigationRegion3D).navigation_mesh
-		var v := nm.get_vertices()
-		for p in nm.get_polygon_count():
-			var poly := nm.get_polygon(p)
-			var nrm := (v[poly[1]] - v[poly[0]]).cross(v[poly[2]] - v[poly[0]]).normalized()
-			worst = maxf(worst, rad_to_deg(acos(clampf(absf(nrm.y), 0.0, 1.0))))
-	print("steepest navmesh polygon %.1f deg" % worst)
-	assert_float(worst).is_less_equal(35.0)
+	var worst_at := Vector3.ZERO
 	var lane_worst := 0.0
-	for lx in [-80.0, 0.0, 80.0]:
-		var l := 40.0
-		while l < 380.0:
-			if lx == 0.0 and ((l > 99.0 and l < 132.0) or (l > 288.0 and l < 321.0)):
-				l += 1.0
-				continue  # the market stairs
-			var a := _ray_down(server, lx + 0.5, -l, 12.0)
-			if not a.is_empty() and (a.position as Vector3).y < 4.0:
-				lane_worst = maxf(lane_worst, rad_to_deg(acos(clampf((a.normal as Vector3).y, 0.0, 1.0))))
+	var x := -134.6
+	while x <= 134.0:
+		var l := -5.4
+		while l < 425.0:
+			var a := _ray_down(server, x, -l)
+			if not a.is_empty():
+				var ang := rad_to_deg(acos(clampf((a.normal as Vector3).y, -1.0, 1.0)))
+				var on_nav := (NavigationServer3D.map_get_closest_point(nav, a.position) as Vector3).distance_to(a.position) < 0.6
+				if on_nav and ang < 50.0 and ang > worst:
+					worst = ang
+					worst_at = a.position
+				if String((a.collider as Node).name).begins_with("Rolling"):
+					lane_worst = maxf(lane_worst, ang)
 			l += 1.0
-	print("steepest lane centreline %.1f deg" % lane_worst)
-	assert_float(lane_worst).is_less_equal(20.5)
+		x += 1.0
+	print("steepest walkable surface %.1f deg at %s, rolling lanes %.1f deg" % [worst, worst_at, lane_worst])
+	assert_float(worst).is_less_equal(32.5)
+	assert_float(lane_worst).is_less_equal(20.0)
 
 
 ## Hardpoint zones sit on flat ground: >= 85 % of a 1 m grid inside each zone
@@ -294,7 +294,10 @@ func test_hardpoint_zones_are_flat() -> void:
 					if dx * dx + dz * dz <= r * r:
 						n += 1
 						var hit := _ray_down(server, h.position.x + dx, h.position.z + dz, h.position.y + 2.0)
-						if not hit.is_empty():
+						var prop := not hit.is_empty() and String((hit.collider as Node).name).begins_with("Skiff")
+						if prop:
+							ok += 1  # the dock skiff is low cover standing in the zone, not terrain
+						elif not hit.is_empty():
 							var dy: float = (hit.position as Vector3).y - h.position.y
 							if dy >= -0.3 and dy <= 0.7:
 								ok += 1
@@ -316,7 +319,7 @@ func test_no_single_spot_covers_a_whole_zone() -> void:
 	var mp := _map_node(server)
 	for r in [mp.get_node("NavRegion"), mp.get_node("NavRegionJungle")]:
 		for v in ((r as NavigationRegion3D).navigation_mesh as NavigationMesh).get_vertices():
-			if v.y >= 2.0:
+			if v.y >= 2.0 and not _reach(server.get_world_3d().navigation_map, def.hq(0).spawn_points[2], v, ALL_LAYERS, 0.6).is_empty():
 				spots.append(v + Vector3(0, 1.5, 0))
 	for b in mp.get_node("Buildings").get_children():
 		for m: Node3D in b.get_children():

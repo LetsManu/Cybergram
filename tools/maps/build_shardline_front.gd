@@ -1377,7 +1377,7 @@ func _docks(half: int) -> void:
 	_hrect(g, "Apron", half, 88.0, 103.0, 117.0, 121.0, 0.0, mats.floor_dock)
 	_hwedge(g, "LoadingRamp", half, 96.0, 103.0, 121.0, 129.0, 1, 0.0, 2.5, mats.deck)
 	_hsolid(g, "Quay", half, 95.0, 103.0, 129.0, 158.0, 2.5, -6.0, mats.floor_dock, true)
-	_hwedge(g, "QuayStairs", half, 89.0, 95.0, 150.0, 155.0, 0, 0.0, 2.5, mats.stairs, true)
+	_hwedge(g, "QuayStairs", half, 89.0, 95.0, 154.0, 159.0, 0, 0.0, 2.5, mats.stairs, true)
 	# Stacked cargo on the quay (cover for and against the holder).
 	_box(g, "QuayCargo0", Vector3(2.5, 2.6, 6.0), P(100.5, _hl(half, 141.0), 2.5 + 1.3), mats.cargo_a)
 	_box(g, "QuayCargo1", Vector3(2.5, 2.6, 6.0), P(100.5, _hl(half, 141.0), 2.5 + 3.9), mats.cargo_b)
@@ -1412,11 +1412,13 @@ func _docks(half: int) -> void:
 func _plaza_bridge() -> void:
 	var g := _node(geo, "PlazaBridge")
 	var y := 4.5
-	_solid(g, "Deck", -33.0, -28.0, 196.0, 224.0, y, y - 0.5, mats.deck, true)
+	# Deck over the spoke mouth (spoke L 205..215 passes beneath, 4 m clear);
+	# ramps down into the plaza clear of the Undercroft doors (L 191.6 / 228.4).
+	_solid(g, "Deck", -33.0, -28.0, 200.5, 219.5, y, y - 0.5, mats.deck, true)
 	for half in 2:
-		_hwedge(g, "Ramp" + _key(half).to_upper(), half, -28.0, -13.0, 196.0, 201.0, 0, y, 0.02, mats.deck)
+		_hwedge(g, "Ramp" + _key(half).to_upper(), half, -28.0, -13.0, 200.5, 205.0, 0, y, 0.02, mats.deck)
 		_box(g, "Pier" + _key(half).to_upper(), Vector3(2.0, 30.0, 2.0), P(-30.5, _hl(half, 202.0), y - 15.5), mats.cover_tall)
-	_box(g, "SignArch", Vector3(0.6, 1.0, 28.0), P(-33.3, 210.0, y + 2.6), mats.neon_violet, false)
+	_box(g, "SignArch", Vector3(0.6, 1.0, 19.0), P(-33.3, 210.0, y + 2.6), mats.neon_violet, false)
 	_add_mount("billboard", "plaza_bridge", _mount(0, -27.9, 210.0, y - 1.7, 1.0, 0.0), Vector2(8.0, 2.4))
 	ov_labels.append(["PLAZA\nBRIDGE", P(-38.0, 210.0), Color("#C9B5FF")])
 
@@ -1494,10 +1496,12 @@ func _jungle(half: int, s: float) -> void:
 	B.call("B12", 56.0, 65.0, 122.0, 140.0, 4.5, true)
 	B.call("B13", 14.0, 30.0, 125.0, 133.0, 6.0)
 	# High route: stairs up from the alleys, footbridges over the pockets.
-	_hwedge(g, "S1", half, X(s, 33.0), X(s, 38.0), 93.0, 109.0, 1, 4.5, 0.0, mats.stairs, true)
+	B.call("S1Top", 33.0, 38.0, 93.0, 97.0, 4.5, true)
+	_hwedge(g, "S1", half, X(s, 33.0), X(s, 38.0), 97.0, 109.0, 1, 4.5, 0.0, mats.stairs, true)
 	_hrect(g, "Bridge1", half, X(s, 33.0), X(s, 47.0), 85.0, 88.0, 4.5, mats.deck)
 	_hwedge(g, "S2", half, X(s, 52.0), X(s, 57.0), 102.0, 112.0, 1, 4.5, 0.0, mats.stairs, true)
 	_hwedge(g, "S3", half, X(s, 52.0), X(s, 56.0), 125.5, 136.0, 1, 0.0, 4.5, mats.stairs, true)
+	B.call("S3Top", 52.0, 56.0, 136.0, 140.0, 4.5, true)
 	_hrect(g, "Bridge2", half, X(s, 42.0), X(s, 56.0), 122.0, 125.0, 4.5, mats.deck)
 	# Cover and ambush pockets.
 	for c in [[36.0, 84.0, 1.8, 1.2], [44.0, 89.0, 1.4, 1.6], [26.0, 114.5, 0.0, 0.0], [46.0, 128.0, 1.8, 1.2],
@@ -1531,7 +1535,7 @@ func _jungle(half: int, s: float) -> void:
 	var Y := func(u: float, l: float, y := 0.0) -> Vector3:
 		return P(X(s, u), _hl(half, l), y)
 	for path in [
-		[Y.call(15.0, 76.5), Y.call(40.0, 76.5), Y.call(40.0, 86.0), Y.call(44.5, 86.0), Y.call(44.5, 74.5), Y.call(pad_edge, 74.5)],
+		[Y.call(15.0, 76.5), Y.call(35.5, 76.5), Y.call(35.5, 86.0), Y.call(44.5, 86.0), Y.call(44.5, 74.5), Y.call(pad_edge, 74.5)],
 		[Y.call(44.5, 86.0), Y.call(44.5, 114.5), Y.call(lane_edge, 114.5, ly)],
 		[Y.call(28.0, 123.0, 1.0), Y.call(32.5, 123.0), Y.call(32.5, 135.5), Y.call(14.0, 135.5)],
 		[Y.call(32.5, 114.5), Y.call(49.5, 114.5), Y.call(49.5, 129.0), Y.call(42.0, 136.0), Y.call(42.0, 160.0), Y.call(42.0, 172.0, UNDER_Y)],
@@ -1724,7 +1728,8 @@ func _hardpoint(anchors: Node3D, id: StringName, task: int, pos: Vector3, r: flo
 			ring.scale = Vector3(1, 0.08, 1)
 			ring.position = Vector3(0, 0.05, 0)
 			_add(vis, ring)
-			_cyl(vis, "Plinth", 2.8, 2.4, 0.6, Vector3(0, 0.3, 0), mats.cover_tall, true, 24)
+			# W18-GEO: a chest-high plinth so no single raised spot sees the whole ring.
+			_cyl(vis, "Plinth", 2.8, 2.4, 1.8, Vector3(0, 0.3, 0), mats.cover_tall, true, 24)
 			_cyl(vis, "LightPillar", 0.7, 0.7, 12.0, Vector3(0, 0.9, 0), mats["glow_" + k], false, 16)
 
 
