@@ -68,7 +68,7 @@ const DEFAULT_PATH := "res://assets/data/app/comfort_rules.tres"
 @export_range(0.0, 1.0, 0.05) var damage_vignette_max_alpha: float = 0.6
 @export_range(0.1, 3.0, 0.05) var damage_vignette_fade_s: float = 0.8
 @export_range(0.1, 1.0, 0.05) var damage_vignette_inner: float = 0.4
-@export_range(0.0, 1.0, 0.05) var damage_static_alpha: float = 0.3
+@export_range(0.0, 1.0, 0.05) var damage_static_alpha: float = 0.15
 @export_range(0.1, 1.0, 0.05) var damage_static_inner: float = 0.88
 
 @export_group("Viewmodel")
