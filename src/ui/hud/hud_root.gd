@@ -121,7 +121,8 @@ func _build() -> void:
 	_squad = _add(SquadStrip.new(), z_bl, Rect2(0, 1, 1, 1), Vector2(-(VitalsPanel.H + SquadStrip.H + 24.0), -(VitalsPanel.H + 24.0))) as SquadStrip
 	_skills = _fill(SkillBar.new(), _zone("BottomCentre", 0.3, 0.72, 0.7, 1.0)) as SkillBar
 	_weapon = _fill(WeaponPanel.new(), _zone("BottomRight", 0.70, 0.74, 1.0, 1.0)) as WeaponPanel
-	_armory = _fill(ArmoryPanel.new(), _zone("Armory", 0.02, 0.04, 0.98, 0.96)) as ArmoryPanel
+	# v0.12: left panel, 1170 wide, between the header and the vitals.
+	_armory = _fill(ArmoryPanel.new(), _zone("Armory", -0.032, 0.104, 0.616, 0.83)) as ArmoryPanel
 	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.22, 0.8, 0.9)) as DeathScreen
 	_end = _fill(EndBanner.new(), _zone("End", 0.0, 0.20, 1.0, 0.36)) as EndBanner
 	_scoreboard = _fill(Scoreboard.new(), _zone("Scoreboard", 0.0, 0.0, 1.0, 1.0)) as Scoreboard
