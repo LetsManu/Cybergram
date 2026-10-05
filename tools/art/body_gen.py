@@ -588,6 +588,7 @@ def skin(ob, J, names, lm):
     _limit(ob)
     bpy.data.objects.remove(rig, do_unlink=True)
     bpy.data.armatures.remove(arm)
+    bpy.context.view_layer.update()  # drops the stale view-layer entry of the removed rig
 
 
 def _nearest_bone(ob, J, idx):
