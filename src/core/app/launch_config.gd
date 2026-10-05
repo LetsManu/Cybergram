@@ -106,7 +106,7 @@ var port: int = 0
 ## CLIENT mode: server address (host name or IP).
 var connect_address: String = ""
 ## Dedicated server: most simultaneous remote clients.
-var max_clients: int = 8
+var max_clients: int = 12  # W14: a full 5v5 lobby (10 seats) + spare
 ## Debug: open the pause menu on start (UI evidence captures).
 var debug_pause_menu: bool = false
 ## Debug: with --debug-settings <video|audio|controls|gameplay|0-3> the pause menu
