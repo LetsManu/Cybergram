@@ -23,6 +23,9 @@ extends Control
 
 ## Width of the left sidebar (ui-kit.md: 72-88 px).
 const SIDEBAR_W: int = 88
+## Home news card height and how many bullet lines it summarises.
+const NEWS_CARD_H: int = 160
+const NEWS_BULLETS: int = 2
 
 var _updater: Updater
 var _pages: Dictionary = {}
@@ -31,6 +34,8 @@ var _page_title: Label
 var _headline: Label
 var _news_row: HBoxContainer
 var _notes_box: VBoxContainer
+var _notes_scroll: ScrollContainer
+var _notes_cards: Array[Control] = []
 var _server_dot: Control
 var _chip_name: Label
 var _chip_btn: Button
@@ -492,7 +497,7 @@ func _build_sidebar() -> Control:
 	var tile_row: CenterContainer = CenterContainer.new()
 	col.add_child(tile_row)
 	var tile: PanelContainer = PanelContainer.new()
-	tile.custom_minimum_size = Vector2(60, 60)
+	tile.custom_minimum_size = Vector2(52, 52)
 	tile.add_theme_stylebox_override("panel", UiKit.panel_box(t.panel_raised, 6, t.accent))
 	tile_row.add_child(tile)
 	var logo: TextureRect = TextureRect.new()
@@ -601,7 +606,7 @@ func _build_home() -> Control:
 	var t: UiKitTokens = UiKit.tokens()
 	var page: MarginContainer = MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		page.add_theme_constant_override("margin_" + side, 22)
+		page.add_theme_constant_override("margin_" + side, 14)
 	var col: VBoxContainer = VBoxContainer.new()
 	col.add_theme_constant_override("separation", 4)
 	page.add_child(col)
@@ -611,7 +616,7 @@ func _build_home() -> Control:
 	col.add_child(brand)
 	var logo: TextureRect = TextureRect.new()
 	logo.texture = load("res://icon.svg")
-	logo.custom_minimum_size = Vector2(60, 60)
+	logo.custom_minimum_size = Vector2(52, 52)
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	brand.add_child(logo)
@@ -624,6 +629,7 @@ func _build_home() -> Control:
 	col.add_child(UiKit.spacer(8))
 	col.add_child(UiKit.label("LATEST RELEASE", &"caption", t.accent_hi))
 	_headline = UiKit.label("Waiting for the update server...", &"title")
+	_headline.add_theme_font_size_override("font_size", 23)
 	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_headline.max_lines_visible = 2
 	_headline.custom_minimum_size.x = 400
@@ -633,7 +639,7 @@ func _build_home() -> Control:
 	col.add_child(fill)
 	_news_row = HBoxContainer.new()
 	_news_row.add_theme_constant_override("separation", 12)
-	_news_row.custom_minimum_size.y = 118
+	_news_row.custom_minimum_size.y = NEWS_CARD_H
 	col.add_child(_news_row)
 	return page
 
@@ -641,6 +647,7 @@ func _build_home() -> Control:
 func _build_notes() -> Control:
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_notes_scroll = scroll
 	var margin: MarginContainer = MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for side in ["left", "right", "top", "bottom"]:
@@ -732,6 +739,7 @@ func _refresh_news() -> void:
 		c.queue_free()
 	for c in _notes_box.get_children():
 		c.queue_free()
+	_notes_cards.clear()
 	var md: String = _updater.latest_notes_md
 	if md == "":
 		_notes_box.add_child(UiKit.label("Patch notes appear here once the update server answers.", &"body", t.text_off))
@@ -747,21 +755,76 @@ func _refresh_news() -> void:
 		var card: UiCard = UiKit.card(String(sec["title"]).to_upper(), 14)
 		card.body.add_child(_rich(sec["md"], true))
 		_notes_box.add_child(card)
+		_notes_cards.append(card)
 		if shown < 3:
-			var small: UiCard = UiKit.card(String(sec["title"]).to_upper(), 12)
-			small.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			small.clip_contents = true
-			small.custom_minimum_size = Vector2(0, 118)
-			small.title_label.clip_text = true
-			small.title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-			var rt: RichTextLabel = _rich(sec["md"], false)
-			rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			rt.fit_content = false
-			rt.scroll_active = false
-			small.body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			small.body.add_child(rt)
-			_news_row.add_child(small)
+			_news_row.add_child(_news_card(sec, _notes_cards.size() - 1))
 			shown += 1
+
+
+## Home summary card: wrapped title, the first whole bullet lines, a soft fade
+## and a "Read more" link that opens the Patch notes page at that section.
+func _news_card(sec: Dictionary, index: int) -> Control:
+	var t: UiKitTokens = UiKit.tokens()
+	var card: UiCard = UiKit.card("", 12)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.custom_minimum_size = Vector2(0, NEWS_CARD_H)
+	card.clip_contents = true
+	card.body.add_theme_constant_override("separation", 3)
+	var title: Label = UiKit.label(String(sec["title"]).to_upper(), &"heading", t.text)
+	title.add_theme_font_size_override("font_size", 14)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.max_lines_visible = 2
+	card.body.add_child(title)
+	var bullets: int = 0
+	for raw in String(sec["md"]).split("\n"):
+		var l: String = raw.strip_edges()
+		if not (l.begins_with("- ") or l.begins_with("* ")):
+			continue
+		var b: Label = UiKit.label("\u2022 " + l.substr(2).replace("**", "").replace("`", ""), &"small", t.text_dim)
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.max_lines_visible = 2
+		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		card.body.add_child(b)
+		bullets += 1
+		if bullets >= NEWS_BULLETS:
+			break
+	var fill: Control = Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	fill.custom_minimum_size.y = 14
+	card.body.add_child(fill)
+	var more: Button = UiKit.button("Read more  \u2192", func() -> void: _open_note(index), &"ghost", 24)
+	more.add_theme_font_size_override("font_size", 12)
+	more.add_theme_color_override("font_color", t.accent_hi)
+	more.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	card.body.add_child(more)
+	# Soft fade above the link so a long summary never ends in a hard cut.
+	var grad: Gradient = Gradient.new()
+	grad.set_color(0, Color(t.panel, 0.0))
+	grad.set_color(1, Color(t.panel.r, t.panel.g, t.panel.b, 1.0))
+	var gt: GradientTexture2D = GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0, 1)
+	gt.width = 4
+	gt.height = 24
+	var fade: TextureRect = TextureRect.new()
+	fade.texture = gt
+	fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fade.stretch_mode = TextureRect.STRETCH_SCALE
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fill.add_child(fade)
+	return card
+
+
+## Patch notes page, scrolled to section `index`.
+func _open_note(index: int) -> void:
+	_show_page("notes")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if index < _notes_cards.size() and is_instance_valid(_notes_cards[index]):
+		var c: Control = _notes_cards[index]
+		_notes_scroll.scroll_vertical = int(c.global_position.y - _notes_box.global_position.y + 24)
 
 
 func _rich(md: String, fit: bool) -> RichTextLabel:
