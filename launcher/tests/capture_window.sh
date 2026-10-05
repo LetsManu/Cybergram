@@ -47,7 +47,7 @@ fi
 frames=60; extra=""
 [[ "$mode" == "updating" ]] && { frames=150; extra="--auto-update"; }
 [[ "$mode" == "login" ]] && { extra="--show-login"; frames=900; }
-xvfb-run -a -s "-screen 0 960x560x24" timeout 90 "$godot" --path "$here" --rendering-driver opengl3 --resolution 960x560 \
+xvfb-run -a -s "-screen 0 ${CAP_RES:-1280x720}x24" timeout 90 "$godot" --path "$here" --rendering-driver opengl3 --resolution ${CAP_RES:-1280x720} \
   --write-movie "$tmp/frames/f.png" --quit-after "$frames" -- --config "$tmp/l.cfg" --install-root "$tmp/inst" --no-launch $extra > /dev/null 2>&1
 mkdir -p "$(dirname "$out")"
 cp "$(ls "$tmp"/frames/*.png | sort | tail -n 1)" "$out"
