@@ -289,7 +289,7 @@ func finish_match(won: bool, voided := false) -> void:
 		var svc_medal := func(r: float) -> Dictionary: return _medal(r)
 		rating = {"before": roundi(before), "after": roundi(before + delta), "delta": roundi(delta),
 			"medal_before": svc_medal.call(before), "medal_after": svc_medal.call(before + delta),
-			"progress": MmView.medal_progress(before + delta, rules.medal_division_span),
+			"progress": MmView.medal_progress(before + delta, rules.medal_division_span, rules.medal_bands),
 			"calibrating": bool(my_ranked.get("calibrating", false)),
 			"games_played": rules.calibration_games - int(my_ranked.get("games_left", 0)),
 			"games_needed": rules.calibration_games}
@@ -334,7 +334,7 @@ func drop_connection() -> void:
 func profile() -> Dictionary:
 	return {"calibration_games": rules.calibration_games,
 		"tracks": {&"ranked": my_ranked.merged({"progress": MmView.medal_progress(float(my_ranked.get("rating", 0)),
-			rules.medal_division_span)}), &"normal": {"games": 42}, &"all_random": {"games": 17}},
+			rules.medal_division_span, rules.medal_bands)}), &"normal": {"games": 42}, &"all_random": {"games": 17}},
 		"history": [
 			{"queue": MmView.Q_RANKED, "won": true, "hero": &"hero_brannoc", "kills": 7, "deaths": 4, "assists": 11, "delta": 18, "ago_s": 3600},
 			{"queue": MmView.Q_ARAM, "won": false, "hero": &"hero_hex", "kills": 12, "deaths": 9, "assists": 14, "delta": 0, "ago_s": 7200},

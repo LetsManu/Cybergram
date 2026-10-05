@@ -126,10 +126,15 @@ static func ranked_line(info: Dictionary, calibration_games: int = 10) -> String
 
 
 ## Share of the current medal division reached (0..1) for the progress bar.
-static func medal_progress(rating: float, division_span: float = 40.0) -> float:
+## `bands`: MatchmakingRulesDef.medal_bands (divisions count from the band's min).
+static func medal_progress(rating: float, division_span: float = 40.0, bands: Array = []) -> float:
 	if division_span <= 0.0:
 		return 0.0
-	return fposmod(rating, division_span) / division_span
+	var base := 0.0
+	for b: Dictionary in bands:
+		if rating >= float(b.get("min", 0.0)):
+			base = float(b.get("min", 0.0))
+	return fposmod(rating - base, division_span) / division_span
 
 
 ## What the post-match screen shows of a rating change: {visible: bool,

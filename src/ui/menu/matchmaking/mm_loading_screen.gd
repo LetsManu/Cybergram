@@ -68,9 +68,9 @@ func _build() -> void:
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	col.offset_left = 80
 	col.offset_right = -80
-	col.offset_top = 56
-	col.offset_bottom = -56
-	col.add_theme_constant_override("separation", 22)
+	col.offset_top = 40
+	col.offset_bottom = -40
+	col.add_theme_constant_override("separation", 16)
 	add_child(col)
 	var eb := UiKit.eyebrow(tr("HUD_MM_LOADING_EYEBROW"))
 	eb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -121,6 +121,7 @@ func _apply() -> void:
 		var team := int(s.get("team", 0))
 		_teams[0 if team == my_team else 1].add_child(_card(s, team == my_team))
 	_reconnect.visible = state == State.DISCONNECTED
+	_bar.visible = state == State.CONNECTING
 	_leave.visible = state != State.CONNECTING
 	match state:
 		State.CONNECTING:
@@ -139,13 +140,13 @@ func _apply() -> void:
 func _card(s: Dictionary, ally: bool) -> Control:
 	var t := UiKit.tokens()
 	var p := MmKit.frame(0, Color(t.panel_raised, 0.9), t.accent_dim if ally else Color(t.danger, 0.5))
-	p.custom_minimum_size = Vector2(176, 236)
+	p.custom_minimum_size = Vector2(160, 200)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	p.add_child(v)
 	var hero := StringName(s.get("hero", &""))
 	var img := TextureRect.new()
-	img.custom_minimum_size = Vector2(176, 176)
+	img.custom_minimum_size = Vector2(160, 148)
 	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	var e := MmView.hero_entry(hero)

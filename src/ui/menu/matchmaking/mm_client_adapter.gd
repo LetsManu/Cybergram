@@ -294,7 +294,7 @@ static func result_of(d: Dictionary, ranked: Dictionary, rules: MatchmakingRules
 			"games_played": rules.calibration_games - int(track.get("games_left", 0)), "games_needed": rules.calibration_games}
 		if after >= 0.0:
 			rating.merge({"before": roundi(after - delta), "after": roundi(after), "medal_before": svc.medal_for(after - delta),
-				"medal_after": svc.medal_for(after), "progress": MmView.medal_progress(after, rules.medal_division_span)})
+				"medal_after": svc.medal_for(after), "progress": MmView.medal_progress(after, rules.medal_division_span, rules.medal_bands)})
 	return {"match_id": str(d.get("match", "")), "queue": queue, "won": bool(d.get("won", 0)),
 		"voided": bool(d.get("voided", 0)), "duration_s": int(d.get("duration", 0)), "stats": stats,
 		"rating": rating, "players": players}
@@ -313,7 +313,7 @@ static func profile_of(d: Dictionary, rules: MatchmakingRulesDef) -> Dictionary:
 	for t: Dictionary in d.get("tracks", []):
 		var r := int(t.get("rating", -1))
 		var e := {"calibrating": r < 0, "games_left": int(t.get("games_left", 0)), "rating": r,
-			"medal": {} if r < 0 else svc.medal_for(r), "progress": 0.0 if r < 0 else MmView.medal_progress(r, rules.medal_division_span)}
+			"medal": {} if r < 0 else svc.medal_for(r), "progress": 0.0 if r < 0 else MmView.medal_progress(r, rules.medal_division_span, rules.medal_bands)}
 		tracks[StringName(t.get("track_id", &""))] = e
 	return {"calibration_games": rules.calibration_games, "tracks": tracks, "history": []}
 
