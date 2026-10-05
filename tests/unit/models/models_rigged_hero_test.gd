@@ -243,7 +243,8 @@ func test_gen_pipeline_vesper_has_baked_cloth_bones() -> void:
 		if b.begins_with("Cloth_"):
 			n += 1
 		assert_bool(b.begins_with("Sec_")).override_failure_message("baked cloth and spring never mix").is_false()
-	assert_int(n).is_equal(15)
+	assert_int(n).is_equal(21)
+	assert_int(m.skeleton.get_bone_count()).is_less_equal(42)  # art-bible skeleton cap
 	assert_bool(m.anim_player.has_animation(&"death_back")).is_true()
 	var run := m.anim_player.get_animation(&"run")
 	var keyed := false

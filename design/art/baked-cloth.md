@@ -7,7 +7,7 @@ identical on every machine.
 
 ## Naming
 `Cloth_<part>_<chain>_<n>`, n = 1.. from the garment's top row to its hem; `chain` is the
-name given in the hero's `cloth` spec (Vesper: `FR, BR, B, BL, FL`). The root (n = 1) is
+name given in the hero's `cloth` spec (Vesper: `FR, R, BR, B, BL, L, FL`). The root (n = 1) is
 parented to the spec's `parent` bone (default `Hips`). Chain bones are connected head to
 tail and keyed with **rotation only**.
 
@@ -46,9 +46,15 @@ crossfades, the loco blend space) blend bone rotations, not a live simulation. I
 reacts to knockback, wind or speed changes beyond the clip. In return it costs nothing at
 runtime and always looks the same as in the evidence renders.
 
+## Hem rule
+The hem rows are trim-coloured on the outside and the inside of the shell, under a raised
+hem band that drops a few mm below the edge. With 60 deg between chains, linear blend skinning
+let the lining poke through a layered hem at full flare (ragged teeth); gold on gold hides it.
+Torn or ragged hems are not a default; if a hero wants one, model it explicitly.
+
 ## Budget
 - Skeleton: GAME_BONES (20) + Weapon + cloth bones. **Cap 42 bones**, as in
-  secondary-motion.md. Vesper: 5 chains x 3 = 15 -> 36 bones.
+  secondary-motion.md. Vesper: 7 chains x 3 = 21 -> 42 bones (at the cap).
 - Bake time: about 1 min per hero for 22 clips (Vesper, 4-core CPU). It is printed as
   `cloth: baked N clips in S s (per clip)` and in the `timing` line.
 - glb size: about +0.2 MB for 15 keyed rotation tracks over all clips.

@@ -78,8 +78,12 @@ ankles, soles, back of the head).
   `shadow`, `warm`, `cool`, `top` (height falloff).
 - **Creases:** `ao`, `ao_dist` (keep it short: 2.5 cm; long reach darkens garment gaps
   in blotches), `crease_ink`.
-- **Hatching (shadow zone only):** `hatch`, `hatch_spacing` (1.4 cm), `hatch_width`,
-  `cross` (crease depth where the cross-hatch starts).
+- **Hatching (sparse, shadow side only):** `hatch`, `hatch_threshold` (N.L where it starts;
+  keep it below `terminator - soft`), `hatch_fade`, `hatch_density` (share of the zone in
+  stroke clusters), `hatch_spacing` (2.4 cm), `hatch_width`, `cross`.
+- **Runtime shader overrides:** `paint.shader` = {uniform: value}. It is written to
+  `<id>_anim.tres` and applied by `RiggedHeroModel` for this hero only (Vesper:
+  `hatch_strength` 0.1, because the hatching is painted).
 - **Highlights and ink:** `edge` (convex edge strokes), `ink`, `ink_border`, `ink_px`
   (colour-block borders), `grit`.
 - **Normals and UVs:** `normal_bump` (detail-only normal map), `uv_margin`.
@@ -100,10 +104,10 @@ Weapon + chains x bones). A part is cloth OR `Sec_` spring, never both.
 |---|---|---|---|
 | Tris in view | <= 30k | 18.3k | 25.9k |
 | LOD | ~8k | 8.0k | 8.0k |
-| Bones | <= 42 | 36 | 30 |
-| glb + maps | < 8 MB | 2.2 + 2.1 MB | 2.9 + 2.3 MB |
-| UV atlas used | >= 75 % | 75.4 % | 46 % |
-| Build time | | ~4.5 min | 2.3 min |
+| Bones | <= 42 | 42 (21 cloth) | 30 |
+| glb + maps | < 8 MB | 2.3 + 1.8 MB | 2.9 + 2.3 MB |
+| UV atlas used | >= 75 % | 76.6 % | 46 % |
+| Build time | | 4.5-7.5 min | 2.3 min |
 
 The build prints all of these. Run `tools/ci/run_tests.sh` (the rigged-hero suite checks
 the tri budget, clips, cloth bones and death_back).

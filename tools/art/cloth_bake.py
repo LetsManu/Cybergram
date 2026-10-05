@@ -257,11 +257,13 @@ def _emit(h, g, k):
                 store[i] = v
         new = []
         edges = {}
-        for (a, b, c, d), _r, _c in faces:
+        for (a, b, c, d), r, _c in faces:
             fo = bm.faces.new([outer[a], outer[b], outer[c], outer[d]])
             fi = bm.faces.new([inner[d], inner[c], inner[b], inner[a]])
-            _paint_face(fo, h.pcol, h.puv, h.color(c_out), "flat")
-            _paint_face(fi, h.pcol, h.puv, h.color(c_in), "flat")
+            _paint_face(fo, h.pcol, h.puv, h.color(c_rim if r >= g.R - hb else c_out), "flat")
+            # The hem rows are trim-coloured outside and inside: where skinning lets the lining
+            # poke through the layered hem band while the coat flares, it stays gold.
+            _paint_face(fi, h.pcol, h.puv, h.color(c_rim if r >= g.R - hb else c_in), "flat")
             new += [fo, fi]
             for e in ((a, b), (b, c), (c, d), (d, a)):
                 key = tuple(sorted(e))

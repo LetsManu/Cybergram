@@ -267,7 +267,8 @@ HEROES = {
         "weapon": "threadcaster_w16",
         "cloth": [{"part": "coat", "kind": "skirt", "top": 0.10, "hem": 0.36, "offset": 0.016, "flare": 0.13,
                    "clear": 0.03, "open_front": 52, "slits": [(150, 0.55), (210, 0.55)],
-                   "chains": [("FR", 60), ("BR", 120), ("B", 180), ("BL", 240), ("FL", 300)], "bones": 3,
+                   "chains": [("FR", 45), ("R", 90), ("BR", 128), ("B", 180), ("BL", 232), ("L", 270), ("FL", 315)],
+                   "bones": 3,  # 7 x 3 = 21 cloth bones -> 42 total (the art-bible cap)
                    "rows": 10, "col_deg": 10, "thick": 0.014,
                    "colors": {"outer": "plum", "inner": "ink", "hem": "braid", "trim": "braid"}}],
         # One-handed: carbine at chest height, the off hand free and open (conductor).
