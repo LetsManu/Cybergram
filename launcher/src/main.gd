@@ -18,18 +18,33 @@ extends Control
 ##   --self-updated         set by the restart after a self-update (skips another one)
 ##   --settings <file>      launcher settings file (default user://launcher_settings.cfg)
 ##   --no-launch            window mode: never start the game (screenshots)
+##   --show-login           window mode: open the sign-in dialog at start (screenshots)
 
-const ACCENT: Color = Color("2fd6ff")
-const PINK: Color = Color("ff4fa3")
-const BG: Color = Color("0b1018")
-const PANEL: Color = Color("121a26")
+## Width of the left sidebar (ui-kit.md: 72-88 px).
+const SIDEBAR_W: int = 88
 
 var _updater: Updater
-var _news: RichTextLabel
+var _pages: Dictionary = {}
+var _nav: Dictionary = {}
+var _page_title: Label
+var _headline: Label
+var _news_row: HBoxContainer
+var _notes_box: VBoxContainer
+var _server_dot: Control
+var _chip_name: Label
+var _chip_btn: Button
+var _chip_ring: UiIcon
+var _login_modal: Control
+var _login_card: UiCard
+var _guest_btn: Button
+var _guest_only: bool = false
+var _login_name: String = ""
+var _repairing: bool = false
+var _last_frac: float = -1.0
+var _last_progress: String = ""
+var _play_version: Label
 var _status: Label
-var _bar: ProgressBar
-var _bar_label: Label
-var _button: Button
+var _button: LauncherPlayButton
 var _skip: Button
 var _version_label: Label
 var _server_label: Label
@@ -116,6 +131,8 @@ func _ready() -> void:
 		_login.login_result.connect(_on_login_result)
 		_user_edit.text = _settings.username
 		_login.open(_game_server)
+		if args.has("show-login"):
+			_open_login()
 
 
 ## Manifest arrived: replace the launcher first if the feed has a newer one.
@@ -161,29 +178,45 @@ func _on_self_updated(ok: bool, message: String, _new_version: String, entry: Di
 
 # --- login (the game then starts already signed in) ------------------------
 
+# --- login (the game then starts already signed in) ------------------------
+
 func _on_link_ready(secure: bool) -> void:
+	_chip_btn.disabled = false
 	_login_btn.disabled = false
 	_user_edit.editable = secure
 	_pass_edit.editable = secure
 	if secure:
-		_login_status.text = "Sign in so the game starts logged in, or just press PLAY."
+		_login_status.text = "Sign in so the game starts logged in, or play as a guest."
+		_guest_btn.visible = true
 	else:
-		_login_status.text = "This server has no encrypted login yet. Press PLAY to play as a guest."
-		_login_btn.disabled = true
+		_set_guest_only("This server has no encrypted login yet, so passwords are never sent. You can still play as a guest.")
 
 
 func _on_link_failed(message: String) -> void:
-	_login_btn.disabled = true
-	_login_status.text = message + " You can still press PLAY."
+	_chip_btn.disabled = false
+	_set_guest_only(message + " You can still play as a guest.")
+
+
+## The server cannot take a login: the modal only offers "Play as guest".
+func _set_guest_only(message: String) -> void:
+	_guest_only = true
+	_login_status.text = message
+	_login_btn.visible = false
+	_user_edit.visible = false
+	_pass_edit.visible = false
+	_guest_btn.visible = true
+	_guest_btn.text = "PLAY AS GUEST"
+
+
+func _on_guest_pressed() -> void:
+	_close_login()
+	if _updater.state in [Updater.State.UP_TO_DATE, Updater.State.OFFLINE_READY]:
+		_play()
 
 
 func _on_login_pressed() -> void:
 	if _login.is_logged_in():
-		_login.logout()
-		_login_btn.text = "Log in"
-		_login_status.text = "Signed out."
-		_user_edit.editable = true
-		_pass_edit.editable = true
+		_on_chip_pressed()
 		return
 	_login_btn.disabled = true
 	_login_status.text = "Signing in..."
@@ -192,7 +225,7 @@ func _on_login_pressed() -> void:
 	_login.login(_user_edit.text, pw)
 
 
-func _on_login_result(ok: bool, message: String, _name: String) -> void:
+func _on_login_result(ok: bool, message: String, display_name: String) -> void:
 	_login_btn.disabled = false
 	_login_status.text = message
 	if ok:
@@ -201,14 +234,19 @@ func _on_login_result(ok: bool, message: String, _name: String) -> void:
 		_login_btn.text = "Log out"
 		_user_edit.editable = false
 		_pass_edit.editable = false
+		_login_name = display_name
+		_refresh_chip()
+		_close_login()
 
 
 func _on_probed(info: Dictionary) -> void:
 	if _server_label == null:
 		return
-	_server_label.text = "● " + LauncherCore.status_text(info)
-	_server_label.add_theme_color_override("font_color",
-		Color("3ddc84") if info.get("reachable", false) else Color("ff5470"))
+	var t: UiKitTokens = UiKit.tokens()
+	_server_label.text = LauncherCore.status_text(info)
+	var c: Color = t.ok if info.get("reachable", false) else t.danger
+	_server_dot.color = c
+	_server_label.add_theme_color_override("font_color", t.text if info.get("reachable", false) else c)
 
 
 func _parse_args(all: PackedStringArray) -> Dictionary:
@@ -221,7 +259,7 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 			if key in ["config", "install-root", "update-to", "settings", "move-install-to", "launcher-dir", "launcher-version"] and i + 1 < all.size():
 				out[key] = all[i + 1]
 				i += 1
-			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated"]:
+			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated", "show-login"]:
 				out[key] = true
 		i += 1
 	return out
@@ -235,39 +273,39 @@ func _on_state(s: Updater.State, msg: String) -> void:
 		return
 	if _self_busy:
 		return
+	var t: UiKitTokens = UiKit.tokens()
 	_status.text = msg
+	_status.add_theme_color_override("font_color", t.danger if s == Updater.State.ERROR else t.text_dim)
 	_version_label.text = _version_text()
+	_play_version.text = _version_text()
 	_skip.visible = false
-	_repair.disabled = s in [Updater.State.CHECKING, Updater.State.DOWNLOADING, Updater.State.INSTALLING, Updater.State.VERIFYING] \
-		or _updater.installed_version() == "" and s != Updater.State.UPDATE_AVAILABLE
-	_install_label.text = "Install folder: " + _updater.install_root()
-	_bar.visible = s == Updater.State.DOWNLOADING or s == Updater.State.INSTALLING
-	_bar_label.visible = _bar.visible
-	_button.disabled = false
+	var working: bool = s in [Updater.State.CHECKING, Updater.State.DOWNLOADING, Updater.State.INSTALLING, Updater.State.VERIFYING]
+	_repair.disabled = working or _updater.installed_version() == "" and s != Updater.State.UPDATE_AVAILABLE
+	_install_label.text = _updater.install_root()
+	if not working:
+		_repairing = false
 	match s:
 		Updater.State.CHECKING:
-			_button.text = "CHECKING..."
-			_button.disabled = true
+			_button.show_idle("CHECKING", true)
 		Updater.State.UP_TO_DATE:
-			_button.text = "PLAY"
+			_button.show_idle("PLAY")
 		Updater.State.UPDATE_AVAILABLE:
-			_button.text = "INSTALL" if _updater.installed_version() == "" else "UPDATE"
+			_button.show_idle("INSTALL" if _updater.installed_version() == "" else "UPDATE")
 			_skip.visible = _updater.installed_version() != ""
 		Updater.State.OFFLINE_READY:
-			_button.text = "PLAY (OFFLINE)"
+			_button.show_idle("PLAY (OFFLINE)")
 		Updater.State.OFFLINE_NONE:
-			_button.text = "RETRY"
+			_button.show_idle("RETRY")
 		Updater.State.DOWNLOADING, Updater.State.INSTALLING:
-			_button.text = "UPDATING..."
-			_button.disabled = true
+			_last_frac = -1.0
+			_last_progress = ""
+			_refresh_busy()
 		Updater.State.VERIFYING:
-			_button.text = "VERIFYING..."
-			_button.disabled = true
+			_button.show_busy("VERIFYING", msg, -1.0)
 		Updater.State.ERROR:
-			_button.text = "RETRY"
+			_button.show_idle("RETRY")
 			_skip.visible = _updater.installed_version() != ""
-	if _updater.latest_notes_md != "":
-		_news.text = LauncherCore.markdown_to_bbcode(_updater.latest_notes_md)
+	_refresh_news()
 
 
 func _headless_state(s: Updater.State, msg: String) -> void:
@@ -304,9 +342,20 @@ func _headless_state(s: Updater.State, msg: String) -> void:
 func _on_progress(frac: float, label: String) -> void:
 	if _headless_mode != "":
 		return
-	_bar.indeterminate = frac < 0.0
-	_bar.value = maxf(frac, 0.0) * 100.0
-	_bar_label.text = label
+	_last_frac = frac
+	_last_progress = label
+	_refresh_busy()
+
+
+## Busy PLAY button (updating / installing / repairing) from the updater state.
+func _refresh_busy() -> void:
+	match _updater.state:
+		Updater.State.DOWNLOADING:
+			var verb: String = "REPAIRING" if _repairing else ("INSTALLING" if _updater.installed_version() == "" else "UPDATING")
+			var pct: String = " %d%%" % int(_last_frac * 100.0) if _last_frac >= 0.0 else ""
+			_button.show_busy(verb + pct, _last_progress, _last_frac)
+		Updater.State.INSTALLING:
+			_button.show_busy("UNPACKING", _last_progress, 1.0)
 
 
 func _on_button() -> void:
@@ -364,150 +413,43 @@ func _apply_root(dir: String, move: bool) -> void:
 
 func _version_text() -> String:
 	var inst: String = _updater.installed_version()
-	var s: String = "Installed: %s" % (inst if inst != "" else "none")
+	var s: String = "Installed %s" % (inst if inst != "" else "none")
 	if _updater.latest_version != "":
-		s += "    Latest: %s" % _updater.latest_version
+		s += "   |   Latest %s" % _updater.latest_version
 	return s
 
 
+# --- UI (design/ux/ui-kit.md section 8.3) -----------------------------------
+
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg: ColorRect = ColorRect.new()
-	bg.color = BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	theme = UiKit.theme()
+	add_child(UiKit.background())
 
-	var margin: MarginContainer = MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
-	add_child(margin)
-	var root: VBoxContainer = VBoxContainer.new()
-	root.add_theme_constant_override("separation", 16)
-	margin.add_child(root)
+	var shell: HBoxContainer = HBoxContainer.new()
+	shell.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shell.add_theme_constant_override("separation", 0)
+	add_child(shell)
+	shell.add_child(_build_sidebar())
 
-	# Header: logo + title.
-	var head: HBoxContainer = HBoxContainer.new()
-	head.add_theme_constant_override("separation", 16)
-	root.add_child(head)
-	var logo: TextureRect = TextureRect.new()
-	logo.texture = load("res://icon.svg")
-	logo.custom_minimum_size = Vector2(64, 64)
-	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	head.add_child(logo)
-	var titles: VBoxContainer = VBoxContainer.new()
-	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	head.add_child(titles)
-	var title: Label = Label.new()
-	title.text = "CYBERGRAM"
-	title.add_theme_font_size_override("font_size", 36)
-	title.add_theme_color_override("font_color", ACCENT)
-	titles.add_child(title)
-	var sub: Label = Label.new()
-	sub.text = "PvP first-person MOBA shooter"
-	sub.add_theme_color_override("font_color", Color("8a97a8"))
-	titles.add_child(sub)
-	var spacer: Control = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(spacer)
-	_server_label = Label.new()
-	_server_label.text = "● Checking server..."
-	_server_label.add_theme_color_override("font_color", Color("8a97a8"))
-	_server_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(_server_label)
-
-	# Body: news (left) + action panel (right).
-	var body: HBoxContainer = HBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 20)
-	root.add_child(body)
-
-	var news_panel: PanelContainer = PanelContainer.new()
-	news_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	news_panel.add_theme_stylebox_override("panel", _box(PANEL, 14))
-	body.add_child(news_panel)
-	var news_box: VBoxContainer = VBoxContainer.new()
-	news_panel.add_child(news_box)
-	var news_title: Label = Label.new()
-	news_title.text = "NEWS AND PATCH NOTES"
-	news_title.add_theme_color_override("font_color", PINK)
-	news_box.add_child(news_title)
-	_news = RichTextLabel.new()
-	_news.bbcode_enabled = true
-	_news.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_news.text = "[color=#8a97a8]Patch notes appear here once the update server answers.[/color]"
-	news_box.add_child(_news)
-
-	var side: PanelContainer = PanelContainer.new()
-	side.custom_minimum_size = Vector2(300, 0)
-	side.add_theme_stylebox_override("panel", _box(PANEL, 18))
-	body.add_child(side)
-	var sv: VBoxContainer = VBoxContainer.new()
-	sv.add_theme_constant_override("separation", 6)
-	sv.alignment = BoxContainer.ALIGNMENT_END
-	side.add_child(sv)
-
-	_build_login(sv)
-
-	_status = Label.new()
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_status.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	sv.add_child(_status)
-
-	_bar = ProgressBar.new()
-	_bar.custom_minimum_size = Vector2(0, 18)
-	_bar.show_percentage = false
-	_bar.add_theme_stylebox_override("fill", _box(ACCENT, 0, 4))
-	_bar.add_theme_stylebox_override("background", _box(Color("1e2a3a"), 0, 4))
-	_bar.visible = false
-	sv.add_child(_bar)
-	_bar_label = Label.new()
-	_bar_label.add_theme_color_override("font_color", Color("8a97a8"))
-	_bar_label.visible = false
-	sv.add_child(_bar_label)
-
-	_button = Button.new()
-	_button.custom_minimum_size = Vector2(0, 56)
-	_button.add_theme_font_size_override("font_size", 26)
-	_button.add_theme_color_override("font_color", BG)
-	_button.add_theme_color_override("font_hover_color", BG)
-	_button.add_theme_color_override("font_pressed_color", BG)
-	_button.add_theme_color_override("font_disabled_color", Color("5b6676"))
-	_button.add_theme_stylebox_override("normal", _box(ACCENT, 0, 6))
-	_button.add_theme_stylebox_override("hover", _box(Color("6fe4ff"), 0, 6))
-	_button.add_theme_stylebox_override("pressed", _box(Color("1fa6c8"), 0, 6))
-	_button.add_theme_stylebox_override("disabled", _box(Color("1e2a3a"), 0, 6))
-	_button.text = "CHECKING..."
-	_button.disabled = true
-	_button.pressed.connect(_on_button)
-	sv.add_child(_button)
-
-	_skip = Button.new()
-	_skip.text = "Play installed version without updating"
-	_skip.flat = true
-	_skip.add_theme_font_size_override("font_size", 13)
-	_skip.visible = false
-	_skip.pressed.connect(_play)
-	sv.add_child(_skip)
-
-	_repair = Button.new()
-	_repair.text = "Verify / repair"
-	_repair.flat = true
-	_repair.add_theme_font_size_override("font_size", 13)
-	_repair.pressed.connect(func() -> void: _updater.verify_and_repair())
-	var tools_row: HBoxContainer = HBoxContainer.new()
-	tools_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	sv.add_child(tools_row)
-	tools_row.add_child(_repair)
-
-	var change: Button = Button.new()
-	change.text = "Install folder..."
-	change.flat = true
-	change.add_theme_font_size_override("font_size", 13)
-	change.pressed.connect(func() -> void: _dialog.popup_centered(Vector2i(720, 460)))
-	tools_row.add_child(change)
+	var main: VBoxContainer = VBoxContainer.new()
+	main.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main.add_theme_constant_override("separation", 0)
+	shell.add_child(main)
+	main.add_child(_build_top_bar())
+	var stack: Control = Control.new()
+	stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.clip_contents = true
+	main.add_child(stack)
+	_pages["home"] = _build_home()
+	_pages["notes"] = _build_notes()
+	_pages["settings"] = _build_settings()
+	for key in _pages:
+		var p: Control = _pages[key]
+		p.set_anchors_preset(Control.PRESET_FULL_RECT)
+		stack.add_child(p)
+	main.add_child(_build_play_panel())
+	_show_page("home")
 
 	_dialog = FileDialog.new()
 	_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
@@ -522,55 +464,381 @@ func _build_ui() -> void:
 	_confirm.confirmed.connect(func() -> void: _apply_root(_pending_root, true))
 	_confirm.canceled.connect(func() -> void: _apply_root(_pending_root, false))
 	add_child(_confirm)
-
-	_install_label = Label.new()
-	_install_label.clip_text = true
-	_install_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_install_label.add_theme_font_size_override("font_size", 11)
-	_install_label.add_theme_color_override("font_color", Color("5b6676"))
-	_install_label.text = "Install folder: " + _updater.install_root()
-	sv.add_child(_install_label)
-
-	_version_label = Label.new()
-	_version_label.add_theme_color_override("font_color", Color("5b6676"))
-	_version_label.text = _version_text()
-	root.add_child(_version_label)
+	_build_login_modal()
+	_refresh_chip()
+	_refresh_news()
+	_on_progress(-1.0, "")
 
 
-func _build_login(parent: Control) -> void:
-	_login_box = VBoxContainer.new()
-	_login_box.add_theme_constant_override("separation", 6)
-	parent.add_child(_login_box)
-	var title: Label = Label.new()
-	title.text = "ACCOUNT"
-	title.add_theme_color_override("font_color", PINK)
-	_login_box.add_child(title)
-	_user_edit = LineEdit.new()
-	_user_edit.placeholder_text = "Username"
-	_user_edit.max_length = 32
+func _build_sidebar() -> Control:
+	var t: UiKitTokens = UiKit.tokens()
+	var panel: PanelContainer = PanelContainer.new()
+	panel.custom_minimum_size.x = SIDEBAR_W
+	var sb: StyleBoxFlat = UiKit.panel_box(Color(t.bg_deep, 0.9), 0)
+	sb.border_width_right = 1
+	sb.border_color = t.line
+	panel.add_theme_stylebox_override("panel", sb)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	panel.add_child(col)
+	col.add_child(UiKit.spacer(14))
+	# Game tile (selected: violet frame, brass tick).
+	var tile_row: CenterContainer = CenterContainer.new()
+	col.add_child(tile_row)
+	var tile: PanelContainer = PanelContainer.new()
+	tile.custom_minimum_size = Vector2(60, 60)
+	tile.add_theme_stylebox_override("panel", UiKit.panel_box(t.panel_raised, 6, t.accent))
+	tile_row.add_child(tile)
+	var logo: TextureRect = TextureRect.new()
+	logo.texture = load("res://icon.svg")
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tile.add_child(logo)
+	col.add_child(UiKit.spacer(14))
+	var group: ButtonGroup = ButtonGroup.new()
+	for entry in [["HOME", "home"], ["PATCH\nNOTES", "notes"], ["SETTINGS", "settings"]]:
+		var b: Button = Button.new()
+		b.text = entry[0]
+		b.toggle_mode = true
+		b.button_group = group
+		b.custom_minimum_size = Vector2(0, 52)
+		b.focus_mode = Control.FOCUS_ALL
+		b.add_theme_font_override("font", UiKit.display_font(600, 1))
+		b.add_theme_font_size_override("font_size", 10)
+		b.add_theme_color_override("font_color", t.text_dim)
+		b.add_theme_color_override("font_hover_color", t.text)
+		b.add_theme_color_override("font_pressed_color", t.accent_hi)
+		b.add_theme_color_override("font_hover_pressed_color", t.accent_hi)
+		var flat: StyleBoxFlat = StyleBoxFlat.new()
+		flat.bg_color = Color(0, 0, 0, 0)
+		var on: StyleBoxFlat = StyleBoxFlat.new()
+		on.bg_color = Color(t.accent, 0.16)
+		on.border_width_left = 3
+		on.border_color = t.accent
+		var hov: StyleBoxFlat = StyleBoxFlat.new()
+		hov.bg_color = Color(t.text, 0.05)
+		b.add_theme_stylebox_override("normal", flat)
+		b.add_theme_stylebox_override("hover", hov)
+		b.add_theme_stylebox_override("pressed", on)
+		b.add_theme_stylebox_override("hover_pressed", on)
+		b.add_theme_stylebox_override("focus", UiKit.focus_box())
+		var page: String = entry[1]
+		b.pressed.connect(func() -> void: _show_page(page))
+		b.button_pressed = page == "home"
+		_nav[page] = b
+		col.add_child(b)
+	var fill: Control = Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(fill)
+	col.add_child(UiKit.label("v" + _own_version, &"caption", t.text_off, HORIZONTAL_ALIGNMENT_CENTER))
+	col.add_child(UiKit.spacer(8))
+	return panel
+
+
+func _show_page(key: String) -> void:
+	for k in _pages:
+		(_pages[k] as Control).visible = k == key
+	if _page_title != null:
+		_page_title.text = {"home": "HOME", "notes": "PATCH NOTES", "settings": "SETTINGS"}[key]
+	if _nav.has(key):
+		(_nav[key] as Button).button_pressed = true
+	UiKit.transition_in(_pages[key], Vector2.ZERO)
+
+
+func _build_top_bar() -> Control:
+	var t: UiKitTokens = UiKit.tokens()
+	var bar: PanelContainer = PanelContainer.new()
+	bar.custom_minimum_size.y = 56
+	var sb: StyleBoxFlat = UiKit.panel_box(Color(t.bg_deep, 0.8), 0)
+	sb.content_margin_left = 24
+	sb.content_margin_right = 20
+	sb.border_width_bottom = 1
+	sb.border_color = t.line
+	bar.add_theme_stylebox_override("panel", sb)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	bar.add_child(row)
+	_page_title = UiKit.label("HOME", &"nav", t.text)
+	_page_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_page_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_page_title)
+	# Server status badge.
+	var badge: PanelContainer = PanelContainer.new()
+	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.add_theme_stylebox_override("panel", UiKit.panel_box(t.panel_sunken, 6, t.line))
+	row.add_child(badge)
+	var brow: HBoxContainer = HBoxContainer.new()
+	brow.add_theme_constant_override("separation", 7)
+	badge.add_child(brow)
+	_server_dot = UiIcon.make(&"ring", 10, t.text_off)
+	_server_dot.custom_minimum_size = Vector2(10, 10)
+	_server_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	brow.add_child(_server_dot)
+	_server_label = UiKit.label("Checking server...", &"small", t.text_dim)
+	brow.add_child(_server_label)
+	# Account chip.
+	var chip: HBoxContainer = HBoxContainer.new()
+	chip.add_theme_constant_override("separation", 8)
+	row.add_child(chip)
+	_chip_ring = UiIcon.make(&"friends", 24, t.text_dim)
+	chip.add_child(UiKit.avatar(_chip_ring, t.text_off, 36))
+	_chip_name = UiKit.label("GUEST", &"nav", t.text)
+	_chip_name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.add_child(_chip_name)
+	_chip_btn = UiKit.button("LOG IN", _on_chip_pressed, &"secondary", 34)
+	_chip_btn.disabled = true
+	chip.add_child(_chip_btn)
+	return bar
+
+
+func _build_home() -> Control:
+	var t: UiKitTokens = UiKit.tokens()
+	var page: MarginContainer = MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		page.add_theme_constant_override("margin_" + side, 22)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	page.add_child(col)
+	# Key art: logo + tagline over the animated shader background.
+	var brand: HBoxContainer = HBoxContainer.new()
+	brand.add_theme_constant_override("separation", 16)
+	col.add_child(brand)
+	var logo: TextureRect = TextureRect.new()
+	logo.texture = load("res://icon.svg")
+	logo.custom_minimum_size = Vector2(60, 60)
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	brand.add_child(logo)
+	var names: VBoxContainer = VBoxContainer.new()
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.add_theme_constant_override("separation", 0)
+	brand.add_child(names)
+	names.add_child(UiKit.label("CYBERGRAM", &"display"))
+	names.add_child(UiKit.label("PvP first-person MOBA shooter", &"body", t.gold))
+	col.add_child(UiKit.spacer(8))
+	col.add_child(UiKit.label("LATEST RELEASE", &"caption", t.accent_hi))
+	_headline = UiKit.label("Waiting for the update server...", &"title")
+	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_headline.max_lines_visible = 2
+	_headline.custom_minimum_size.x = 400
+	col.add_child(_headline)
+	var fill: Control = Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(fill)
+	_news_row = HBoxContainer.new()
+	_news_row.add_theme_constant_override("separation", 12)
+	_news_row.custom_minimum_size.y = 118
+	col.add_child(_news_row)
+	return page
+
+
+func _build_notes() -> Control:
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var margin: MarginContainer = MarginContainer.new()
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	scroll.add_child(margin)
+	_notes_box = VBoxContainer.new()
+	_notes_box.add_theme_constant_override("separation", 12)
+	margin.add_child(_notes_box)
+	return scroll
+
+
+func _build_settings() -> Control:
+	var t: UiKitTokens = UiKit.tokens()
+	var margin: MarginContainer = MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.add_theme_constant_override("separation", 12)
+	margin.add_child(col)
+	var inst: UiCard = UiKit.card("INSTALLATION", 16)
+	col.add_child(inst)
+	_install_label = UiKit.label("", &"small", t.text_dim)
+	_install_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	inst.body.add_child(_install_label)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	inst.body.add_child(row)
+	row.add_child(UiKit.button("INSTALL FOLDER...", func() -> void: _dialog.popup_centered(Vector2i(720, 460)), &"secondary", 38))
+	_repair = UiKit.button("VERIFY / REPAIR", func() -> void:
+		_repairing = true
+		_updater.verify_and_repair(), &"secondary", 38)
+	row.add_child(_repair)
+	var about: UiCard = UiKit.card("ABOUT", 16)
+	col.add_child(about)
+	_version_label = UiKit.label("", &"small", t.text_dim)
+	about.body.add_child(_version_label)
+	about.body.add_child(UiKit.label("Launcher %s" % _own_version, &"small", t.text_off))
+	return margin
+
+
+## Persistent PLAY panel (bottom-left of the main area).
+func _build_play_panel() -> Control:
+	var t: UiKitTokens = UiKit.tokens()
+	var strip: PanelContainer = PanelContainer.new()
+	var sb: StyleBoxFlat = UiKit.panel_box(Color(t.bg_deep, 0.88), 0)
+	sb.content_margin_left = 28
+	sb.content_margin_right = 28
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	sb.border_width_top = 1
+	sb.border_color = t.gold
+	strip.add_theme_stylebox_override("panel", sb)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	strip.add_child(row)
+	var left: VBoxContainer = VBoxContainer.new()
+	left.custom_minimum_size.x = 340
+	left.add_theme_constant_override("separation", 4)
+	row.add_child(left)
+	_status = UiKit.label("", &"small", t.text_dim)
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.max_lines_visible = 1
+	_status.custom_minimum_size.y = 24
+	_status.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	left.add_child(_status)
+	_button = LauncherPlayButton.new()
+	_button.show_idle("CHECKING", true)
+	_button.pressed.connect(_on_button)
+	left.add_child(_button)
+	var right: VBoxContainer = VBoxContainer.new()
+	right.alignment = BoxContainer.ALIGNMENT_END
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_theme_constant_override("separation", 4)
+	row.add_child(right)
+	_skip = UiKit.button("PLAY INSTALLED VERSION", _play, &"ghost", 32)
+	_skip.visible = false
+	_skip.size_flags_horizontal = Control.SIZE_SHRINK_END
+	right.add_child(_skip)
+	_play_version = UiKit.label("", &"small", t.text_off, HORIZONTAL_ALIGNMENT_RIGHT)
+	right.add_child(_play_version)
+	return strip
+
+
+func _refresh_news() -> void:
+	if _news_row == null:
+		return
+	var t: UiKitTokens = UiKit.tokens()
+	for c in _news_row.get_children():
+		c.queue_free()
+	for c in _notes_box.get_children():
+		c.queue_free()
+	var md: String = _updater.latest_notes_md
+	if md == "":
+		_notes_box.add_child(UiKit.label("Patch notes appear here once the update server answers.", &"body", t.text_off))
+		return
+	var parts: Dictionary = LauncherCore.split_notes(md)
+	if parts["headline"] != "":
+		_headline.text = parts["headline"]
+		_notes_box.add_child(UiKit.label(parts["headline"], &"title"))
+	if parts["intro"] != "":
+		_notes_box.add_child(_rich(parts["intro"], false))
+	var shown: int = 0
+	for sec in parts["sections"]:
+		var card: UiCard = UiKit.card(String(sec["title"]).to_upper(), 14)
+		card.body.add_child(_rich(sec["md"], true))
+		_notes_box.add_child(card)
+		if shown < 3:
+			var small: UiCard = UiKit.card(String(sec["title"]).to_upper(), 12)
+			small.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			small.clip_contents = true
+			small.custom_minimum_size = Vector2(0, 118)
+			small.title_label.clip_text = true
+			small.title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			var rt: RichTextLabel = _rich(sec["md"], false)
+			rt.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			rt.fit_content = false
+			rt.scroll_active = false
+			small.body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			small.body.add_child(rt)
+			_news_row.add_child(small)
+			shown += 1
+
+
+func _rich(md: String, fit: bool) -> RichTextLabel:
+	var t: UiKitTokens = UiKit.tokens()
+	var rt: RichTextLabel = RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = fit
+	rt.scroll_active = false
+	rt.add_theme_color_override("default_color", t.text_dim)
+	rt.add_theme_font_size_override("normal_font_size", t.size_small)
+	rt.add_theme_font_size_override("bold_font_size", t.size_small)
+	rt.add_theme_font_size_override("bold_italics_font_size", t.size_small)
+	rt.text = LauncherCore.markdown_to_bbcode(md.strip_edges())
+	return rt
+
+
+# --- account chip + login modal ---------------------------------------------
+
+func _refresh_chip() -> void:
+	if _chip_name == null:
+		return
+	var t: UiKitTokens = UiKit.tokens()
+	var in_now: bool = _login != null and _login.is_logged_in()
+	_chip_name.text = (_login_name if _login_name != "" else _user_edit.text).to_upper() if in_now else "GUEST"
+	_chip_btn.text = "LOG OUT" if in_now else "LOG IN"
+	_chip_ring.color = t.ok if in_now else t.text_dim
+
+
+func _on_chip_pressed() -> void:
+	if _login != null and _login.is_logged_in():
+		_login.logout()
+		_login_status.text = "Signed out."
+		_login_btn.text = "Log in"
+		_user_edit.editable = true
+		_pass_edit.editable = true
+		_login_name = ""
+		_refresh_chip()
+		return
+	_open_login()
+
+
+func _open_login() -> void:
+	_login_modal.visible = true
+	UiKit.transition_in(_login_card, Vector2.ZERO)
+	(_guest_btn if _guest_only else _user_edit).grab_focus.call_deferred()
+
+
+func _close_login() -> void:
+	_login_modal.visible = false
+
+
+func _build_login_modal() -> void:
+	var t: UiKitTokens = UiKit.tokens()
+	_login_modal = Control.new()
+	_login_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_login_modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	_login_modal.visible = false
+	add_child(_login_modal)
+	var dim: ColorRect = ColorRect.new()
+	dim.color = Color(t.bg_deep, 0.78)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_login_modal.add_child(dim)
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_login_modal.add_child(center)
+	_login_card = UiKit.card("SIGN IN", 20)
+	_login_card.custom_minimum_size.x = 420
+	center.add_child(_login_card)
+	_login_card.header_right.add_child(UiKit.icon_button(&"close", _close_login, "Close", 28))
+	_login_box = _login_card.body
+	_login_box.add_theme_constant_override("separation", 8)
+	_login_status = UiKit.label("Connecting to the game server...", &"small", t.text_dim)
+	_login_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_login_box.add_child(_login_status)
+	_user_edit = UiKit.line_edit("Username", 32)
 	_login_box.add_child(_user_edit)
-	_pass_edit = LineEdit.new()
-	_pass_edit.placeholder_text = "Password"
+	_pass_edit = UiKit.line_edit("Password", 128)
 	_pass_edit.secret = true
-	_pass_edit.max_length = 128
 	_pass_edit.text_submitted.connect(func(_t: String) -> void: _on_login_pressed())
 	_login_box.add_child(_pass_edit)
-	_login_btn = Button.new()
-	_login_btn.text = "Log in"
+	_login_btn = UiKit.button("Log in", _on_login_pressed, &"primary", 42)
 	_login_btn.disabled = true
-	_login_btn.pressed.connect(_on_login_pressed)
 	_login_box.add_child(_login_btn)
-	_login_status = Label.new()
-	_login_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_login_status.add_theme_font_size_override("font_size", 12)
-	_login_status.add_theme_color_override("font_color", Color("8a97a8"))
-	_login_status.text = "Connecting to the game server..."
-	_login_box.add_child(_login_status)
-
-
-func _box(color: Color, pad: int, radius: int = 8) -> StyleBoxFlat:
-	var sb: StyleBoxFlat = StyleBoxFlat.new()
-	sb.bg_color = color
-	sb.set_corner_radius_all(radius)
-	sb.set_content_margin_all(pad)
-	return sb
+	_guest_btn = UiKit.button("PLAY AS GUEST", _on_guest_pressed, &"secondary", 42)
+	_guest_btn.visible = false
+	_login_box.add_child(_guest_btn)
