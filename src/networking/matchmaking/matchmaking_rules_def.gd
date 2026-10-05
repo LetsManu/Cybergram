@@ -111,6 +111,9 @@ const BOT_PREFIX := "bot:"
 @export_range(0, 3) var rerolls_per_player: int = 1
 ## A teammate swap request expires after this long (s). Safe range 5-30.
 @export_range(5.0, 60.0) var swap_request_ttl_s: float = 10.0
+## W17B: a player disconnected from the front this long during the pick
+## phase counts as a dodge. Safe range 5-30.
+@export_range(2.0, 60.0) var pick_disconnect_grace_s: float = 10.0
 
 @export_group("Fair play")
 ## A remake vote may start only this long after the match starts (s).
@@ -123,6 +126,14 @@ const BOT_PREFIX := "bot:"
 ## Reports are deleted this many days after they were filed (PRIVACY.md).
 ## Safe range 7-90.
 @export_range(1, 365) var report_retention_days: int = 30
+## W17B: reports and honour are accepted this long after a match (s). Safe 120-1800.
+@export_range(60.0, 3600.0) var report_window_s: float = 600.0
+## W17B: match history entries (ids, heroes, result, duration) are deleted
+## this many days after the match (PRIVACY.md). Safe range 30-365.
+@export_range(1, 3650) var history_retention_days: int = 180
+## W17B: persisted lockout strikes of an account are deleted this many days
+## after its last strike (PRIVACY.md). Safe range 7-90.
+@export_range(1, 365) var lockout_retention_days: int = 30
 
 @export_group("Match servers")
 ## Port range for match processes, overridden by CYBERGRAM_MATCH_PORTS.
@@ -130,6 +141,11 @@ const BOT_PREFIX := "bot:"
 @export var match_port_last: int = 7809
 ## Most concurrent match processes. Safe range 1-64 (2 per core).
 @export_range(1, 256) var max_concurrent_matches: int = 8
+## W17B: a formed match waits this long for a free match process before it
+## is voided and its players re-queued (s). Safe range 30-300.
+@export_range(10.0, 600.0) var allocate_wait_s: float = 120.0
+## W17B: queue status is pushed to queued players this often (s). Safe 1-5.
+@export_range(0.5, 10.0) var queue_status_every_s: float = 2.0
 
 
 ## True when `seat_id` is a bot seat.

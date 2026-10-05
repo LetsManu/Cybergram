@@ -100,6 +100,19 @@ func ticket(ticket_id: int) -> Dictionary:
 	return (_tickets.get(ticket_id, {}) as Dictionary).duplicate(true)
 
 
+## Puts a party back with priority and its original queue time (a match
+## was voided before it could be played). `members` as in enqueue().
+## Returns the ticket id, or 0 when a member is already queued or held.
+func requeue(queue_id: StringName, members: Array, enqueued_at: float) -> int:
+	if rules.queue(queue_id) == null or members.is_empty():
+		return 0
+	for m in members:
+		var id := String(m.get("id", ""))
+		if id == "" or _by_account.has(id) or _held.has(id):
+			return 0
+	return int(_make_ticket(queue_id, members, enqueued_at, true).id)
+
+
 ## Forms every match possible now. Tickets in a proposal leave the queue
 ## until resolve_ready_check() or confirm().
 func tick(now: float) -> Array[Dictionary]:
