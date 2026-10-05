@@ -282,6 +282,14 @@ def _emit(h, g, k):
                     f = bm.faces.new([outer[y], outer[x], inner[x], inner[y]])
                     _paint_face(f, h.pcol, h.puv, h.color(c_rim), "flat")
                     new.append(f)
+        if g.closed:  # a closed ring unwraps into an annulus that overlaps itself: cut it in four
+            cuts = {0, g.nc // 4, g.nc // 2, (3 * g.nc) // 4}
+            for (a, _b, _c, d), _r, cc in faces:
+                if cc in cuts:
+                    for store in (outer, inner):
+                        e = bm.edges.get([store[a], store[d]])
+                        if e is not None:
+                            e.seam = True
         for f in new:
             f[h.pkind] = KIND_SOFT
             f.smooth = True
