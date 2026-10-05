@@ -69,6 +69,11 @@ docker logs -f cybergram          # "[lobby] open on UDP 7777 ..."
 
 Or with compose: `docker compose -f tools/server/docker-compose.yml up -d`.
 
+From v0.13 the container starts in **front mode** (one process per match; publish
+UDP 7800-7809 as well, and see `tools/server/.env.example`). Upgrade steps,
+rollback to `CYBERGRAM_MODE=single` and automatic updates are in
+[HOSTING.md](HOSTING.md).
+
 **Synology:**
 1. Open **Container Manager → Registry → Add**, and add
    `ghcr.io/letsmanu/cybergram-server`.
