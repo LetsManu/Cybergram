@@ -1,0 +1,5 @@
+PROBE north    draw_calls=1184 objects=1184 frame_ms=367.13 worst_ms=613.25 render_cpu_ms=357.54 render_gpu_ms=357.56
+PROBE center   draw_calls=1292 objects=1292 frame_ms=368.50 worst_ms=472.41 render_cpu_ms=371.44 render_gpu_ms=371.32
+PROBE south    draw_calls=1230 objects=1230 frame_ms=344.95 worst_ms=576.33 render_cpu_ms=322.49 render_gpu_ms=322.30
+PROBE skyline  draw_calls=19 objects=19 frame_ms=229.26 worst_ms=392.19 render_cpu_ms=209.53 render_gpu_ms=209.25
+PROBE mean draw_calls=931.2 frame_ms=327.46
