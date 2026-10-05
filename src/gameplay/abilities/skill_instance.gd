@@ -21,6 +21,10 @@ var active: bool = false
 var active_until_tick: int = -1
 ## Times this skill completed a cast (diagnostics / tests).
 var casts: int = 0
+## W11-M1 recast window: tick until which a node recast (Echo / Rebound) may be pressed
+## (-1 = none) and where the skill was cast from.
+var recast_until_tick: int = -1
+var recast_point: Vector3 = Vector3.ZERO
 ## W9-H2 multi-charge skills (param `charges` > 1; `cooldown` = seconds per
 ## charge). -1 = not initialised (full).
 var charges_left: int = -1
@@ -131,6 +135,14 @@ func consume_charge(tick: int, recharge_ticks: int) -> void:
 
 
 ## Effect list: the def's effects plus effects appended by learned nodes.
+## Recast effects of the learned nodes (empty = this skill has no node recast).
+func node_recast_effects() -> Array:
+	var out: Array = []
+	for n in learned:
+		out.append_array(n.recast_effects)
+	return out
+
+
 func effects() -> Array:
 	var out: Array = def.effects.duplicate()
 	for n in learned:

@@ -49,6 +49,20 @@ func _hero(path: String, at: Vector3, team: int, walk: bool = false) -> HeroBody
 	return _server.hero(_server.add_scripted_hero(holder, at, load(path) as HeroDef, team))
 
 
+func _cast(h: HeroBody, slot: int) -> bool:
+	var cmd := InputCommand.new()
+	return h.combat.abilities.try_activate(slot, h, cmd, _server.tick, _server.abilities)
+
+
+func _learn_fork(h: HeroBody, slot: int, fork: int) -> SkillInstance:
+	var s := h.combat.abilities.skill(slot)
+	for k in [SkillNodeDef.Kind.UNLOCK, SkillNodeDef.Kind.BOOST, fork]:
+		var n := s.node_of(k)
+		if n != null and not s.has_node(k):
+			s.learn(n, h.combat.stats)
+	return s
+
+
 func _run(n: int) -> void:
 	for i in n:
 		_server.step()
@@ -257,3 +271,46 @@ func test_expiry_hook_runs_on_expiry_and_not_before() -> void:
 	assert_float(ally.combat.health.hp).is_equal(50.0)
 	_run(11 * HZ)  # 10 s wall expires
 	assert_float(ally.combat.health.hp).is_greater(100.0)
+
+
+# ------------------------------------------------------------------ Recast (Echo / Rebound)
+
+func test_rebound_second_press_inside_window_slides_again_once() -> void:
+	_world()
+	var r := _hero("res://assets/data/heroes/hero_ryker_vance.tres", Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn_fork(r, 2, SkillNodeDef.Kind.FORK_B)
+	assert_bool(_cast(r, 2)).is_true()
+	assert_bool(_cast(r, 2)).is_false()  # still sliding / on cooldown
+	_run(20)
+	var casts := s.casts
+	assert_bool(_cast(r, 2)).is_true()  # second slide, cooldown ignored
+	assert_int(s.casts).is_equal(casts)  # not a new cast
+	assert_int(s.recast_until_tick).is_equal(-1)  # one use
+	_run(20)
+	assert_bool(_cast(r, 2)).is_false()
+
+
+func test_rebound_window_expires() -> void:
+	_world()
+	var r := _hero("res://assets/data/heroes/hero_ryker_vance.tres", Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	_learn_fork(r, 2, SkillNodeDef.Kind.FORK_B)
+	assert_bool(_cast(r, 2)).is_true()
+	_run(3 * HZ)  # window is 2 s
+	assert_bool(_cast(r, 2)).is_false()
+
+
+func test_echo_second_press_snaps_back_to_the_start_point() -> void:
+	_world()
+	var sa := _hero("res://assets/data/heroes/hero_sable.tres", Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	var s := _learn_fork(sa, 1, SkillNodeDef.Kind.FORK_A)
+	var start := sa.state.position
+	assert_bool(_cast(sa, 1)).is_true()
+	_run(HZ)
+	assert_float(sa.state.position.distance_to(start)).is_greater(3.0)  # she phased away
+	assert_bool(_cast(sa, 1)).is_true()  # Echo
+	assert_float(sa.state.position.distance_to(start)).is_less(0.1)
+	assert_bool(_cast(sa, 1)).is_false()  # once
+	assert_int(s.casts).is_equal(1)

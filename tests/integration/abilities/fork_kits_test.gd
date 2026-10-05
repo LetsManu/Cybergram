@@ -322,7 +322,8 @@ func test_ryker_slide_forks_momentum_rebound_and_mastery_dr() -> void:
 	assert_bool(_server.abilities.extras.buffs.has(r)).is_true()  # Momentum: +20% weapon damage window
 	assert_bool(r.combat.status.has(StatusComponent.Kind.DR)).is_true()  # Mastery: 30% DR while sliding
 	var s2 := _learn(r2, 2, SkillNodeDef.Kind.FORK_B)
-	assert_int(s2.max_charges()).is_equal(2)  # Rebound: a second slide
+	assert_bool(s2.node_recast_effects().is_empty()).is_false()  # Rebound: a real recast (W11-M1; see w11_mechanics_test)
+	assert_float(s2.param(&"recast_window")).is_equal(2.0)
 	assert_float(s.param(&"dr")).is_equal_approx(0.3, 1e-4)
 
 

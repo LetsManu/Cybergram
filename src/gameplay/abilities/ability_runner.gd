@@ -177,6 +177,13 @@ func try_activate(slot: int, h: HeroBody, cmd: InputCommand, tick: int, world: A
 	var s := skills[slot]
 	if world != null and world.extras.is_silenced(h):
 		return _reject(slot, Reject.STUNNED)  # heroes.md §3.6 Silence: no skills
+	if tick < s.recast_until_tick and h.state.dash_ticks <= 0:  # W11-M1: Echo / Rebound, once per cast, not mid-dash
+		var nrc := s.node_recast_effects()
+		if not nrc.is_empty():
+			s.recast_until_tick = -1
+			var nctx := _context(s, h, cmd, tick, world)
+			nctx.run(nrc)
+			return true
 	if (s.on_cooldown(tick) or s.active) and not s.def.recast_effects.is_empty():
 		var rctx := _context(s, h, cmd, tick, world)
 		rctx.run(s.def.recast_effects)
@@ -248,6 +255,9 @@ func _execute(s: SkillInstance, ctx: EffectContext, world: AbilityWorld) -> void
 	else:
 		start_cooldown(s, _now)
 	s.casts += 1
+	s.recast_point = ctx.caster.state.position
+	var window := roundi(s.param(&"recast_window") * tick_hz)
+	s.recast_until_tick = _now + window if window > 0 and not s.node_recast_effects().is_empty() else -1
 	ctx.run(s.effects())
 	skill_activated.emit(s.slot, _now)
 
