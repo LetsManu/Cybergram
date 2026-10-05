@@ -368,6 +368,7 @@ jobs:
         run: |
           chmod +x tools/server/game/Cybergram.x86_64
           docker build \
+            --build-arg CYBERGRAM_BUILD_VERSION=$VERSION \
             --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
             --label org.opencontainers.image.version=$VERSION \
             -t $IMAGE:$VERSION -t $IMAGE:latest tools/server

@@ -28,7 +28,10 @@ RUN chmod +x /opt/cybergram/Cybergram.x86_64 /opt/entrypoint.sh /opt/healthcheck
 # Accounts (one JSON store, written atomically) and the TLS certificate for
 # encrypted login live in the /data volume. Without a certificate the server
 # runs guest-only: it never accepts a password over an unencrypted link.
-ENV CYBERGRAM_DATA_DIR=/data/accounts \
+# Build tag of this image (patch draining: new matches go to the new build).
+ARG CYBERGRAM_BUILD_VERSION=dev
+ENV CYBERGRAM_BUILD_VERSION=${CYBERGRAM_BUILD_VERSION} \
+    CYBERGRAM_DATA_DIR=/data/accounts \
     CYBERGRAM_TLS_CERT=/data/tls/fullchain.pem \
     CYBERGRAM_TLS_KEY=/data/tls/privkey.pem \
     CYBERGRAM_STATUS_FILE=/opt/cybergram-updates/status.json \
