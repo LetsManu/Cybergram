@@ -85,6 +85,8 @@ var _auto_guest_sent: bool = false
 ## W21-U2: ends every wait on the server with a clear message and a retry.
 var _watch: ConnectionWatch = ConnectionWatch.new()
 var _conn_error: ConnectionErrorPanel
+## W21-U2: the CAREER page container (profile + ranks).
+var _career: CareerLayout
 ## The `then` / address of the last _with_session, kept for the retry button.
 var _retry_then: Callable
 var _retry_addr: String = ""
@@ -662,6 +664,9 @@ func _close_profile_only() -> void:
 	if _profile_screen != null:
 		_profile_screen.queue_free()
 		_profile_screen = null
+	if _career != null:
+		_career.queue_free()
+		_career = null
 
 
 ## While the lobby is open the shell's PLAY and nav are locked (the lobby owns
@@ -1086,25 +1091,21 @@ func _show_profile() -> void:
 	_profile_screen.session = _online.session
 	_profile_screen.requested.connect(_request)
 	_profile_screen.closed.connect(_close_profile)
-	_center.add_child(_profile_screen)
+	# W21-U2: PROFILE and RANKS share one responsive page (side by side, stacked or scrolling).
+	_career = CareerLayout.new()
+	_content.add_child(_career)
+	_career.add_panel(_profile_screen)
 	UiKit.transition_in(_profile_screen)
 	# --- W17B-UI --- ranked medal, calibration and recent matches beside the profile.
 	if _mm_mode() != "" and _mm_client() != null:
 		_mm_profile = MmProfilePanel.new()
 		_mm_profile.client = _mm_client()
-		_mm_profile.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		_mm_profile.offset_left = -470
-		_mm_profile.offset_right = -24
-		_mm_profile.offset_top = 24
-		_mm_profile.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		_content.add_child(_mm_profile)
+		_career.add_panel(_mm_profile)
 	# --- end W17B-UI ---
 
 
 func _close_profile() -> void:
-	if _profile_screen != null:
-		_profile_screen.queue_free()
-		_profile_screen = null
+	_close_profile_only()
 	_set_nav(Nav.HOME)
 	_hide_pages()
 	_tiles.visible = true
