@@ -307,7 +307,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 		if body == null:
 			_spawn_own(s.own_state)
 		else:
-			_visual_offset += predictor.reconcile(s.own_state, s.last_processed_seq)
+			_blend_correction(predictor.reconcile(s.own_state, s.last_processed_seq))
 	_apply_objectives(s)
 	_apply_match(s)
 	_apply_progress(s.progress)  # E13/E15
