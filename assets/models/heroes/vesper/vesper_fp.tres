@@ -1,0 +1,30 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/fp_pos = Vector3(0.1550, -0.2050, -0.3400)
+metadata/sockets = {
+"fx_muzzle": Vector3(0.1103, -0.1385, -1.0360),
+"grip_l": Vector3(0.1379, -0.1903, -0.6191),
+"socket_barrel": Vector3(0.1294, -0.1314, -0.6957),
+"socket_chamber": Vector3(0.1752, -0.1618, -0.4594),
+"socket_core": Vector3(0.1522, -0.1321, -0.3009),
+"socket_frame": Vector3(0.1158, -0.1709, -0.4562)
+}
+metadata/clip_length = {
+"cast": 0.6667,
+"cast_ult": 1.2000,
+"draw": 0.4667,
+"fire": 0.2667,
+"holster": 0.4000,
+"idle": 3.0000,
+"inspect": 3.2000,
+"jump": 0.4667,
+"land": 0.4667,
+"reload": 1.8000,
+"sprint": 0.6667,
+"walk": 1.0667
+}
+metadata/fp_scale = 1.000
+metadata/tris = 14188
+metadata/weapon = "threadcaster_w16"
+metadata/fallback = false

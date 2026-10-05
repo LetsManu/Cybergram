@@ -62,9 +62,31 @@ step prints a notice and the build stays unsigned.
 4. Delete `cert.b64` afterwards. The next CI run signs the executables; the
    "Sign Windows executables" step log lists each signed file.
 
-Notes: a certificate kept only on a hardware token (most EV certificates
-since 2023) cannot be exported as a `.pfx`; it then needs a cloud signing
-service or a Windows runner with the token, which is a separate change. The
+Notes: a certificate kept only on a hardware token or in a cloud key (most
+certificates since 2023, including Certum SimplySign) cannot be exported as a
+`.pfx`; sign on your own PC instead (next section).
+
+### Signing on your own PC (Certum SimplySign or a card)
+
+`installer/sign_release_local.ps1` signs a published release on Windows and
+uploads the signed files back to it.
+
+1. **One-time setup:**
+   - Install the GitHub CLI and log in: `winget install GitHub.cli`, then
+     `gh auth login`.
+   - Install the Windows SDK signing tools (they include `signtool.exe`).
+   - Install SimplySign Desktop (or the card reader driver).
+2. **Prepare:** start SimplySign Desktop and log in. The certificate then
+   shows under Personal, Certificates in `certmgr.msc`.
+3. **After each release**, in PowerShell from the repo folder:
+   `.\installer\sign_release_local.ps1 -Version v0.14.0`
+   - `-Portable` also signs the `.exe` files inside the portable Windows zips.
+   - `-DryRun` signs into a temp folder without uploading.
+   - `-Thumbprint <sha1>` picks the certificate when you have several.
+
+The script signs with SHA-256 and a Certum timestamp, verifies each
+signature, updates `SHA256SUMS.txt` and re-uploads with `--clobber`. Run it
+before you announce a release, because downloads made earlier stay unsigned. The
 NSIS uninstaller inside the installer stays unsigned. An EV certificate removes
 the SmartScreen warning at once; a standard one builds reputation over time.
 

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/fp_pos = Vector3(0.1350, -0.1400, -0.2000)
+metadata/sockets = {
+"fx_muzzle": Vector3(0.0085, -0.1136, -0.8695),
+"grip_l": Vector3(0.0964, -0.1491, -0.4974),
+"socket_barrel": Vector3(0.0207, -0.0951, -0.6897),
+"socket_chamber": Vector3(0.1217, -0.0934, -0.3201),
+"socket_core": Vector3(0.0361, -0.0509, -0.3493),
+"socket_frame": Vector3(0.0730, -0.1368, -0.2923)
+}
+metadata/clip_length = {
+"cast": 0.6667,
+"cast_ult": 1.2000,
+"draw": 0.4667,
+"fire": 0.2667,
+"holster": 0.4000,
+"idle": 3.0000,
+"inspect": 3.2000,
+"jump": 0.4667,
+"land": 0.4667,
+"reload": 1.8000,
+"sprint": 0.6667,
+"walk": 1.0667
+}
+metadata/fp_scale = 0.740
+metadata/tris = 11904
+metadata/weapon = "breakline_ar7"
+metadata/fallback = false

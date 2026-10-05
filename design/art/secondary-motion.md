@@ -26,3 +26,9 @@ Chain length 0.15 to 0.35 m per bone reads best at third-person distance.
 
 ## Cost
 One simulator per hero, Medium+ only, switched off beyond 25 m (`SecondaryMotion.FAR_M`).
+
+## W16: baked cloth
+Heroes on the gen pipeline can carry `Cloth_<part>_<chain>_<n>` bones instead: garments
+simulated at build time and baked into the clips (design/art/baked-cloth.md). **A part
+is either baked cloth or a `Sec_` spring, never both.** Vesper's coat moved from the
+planned `Sec_coat_*` chains to baked cloth; `SecondaryMotion` ignores `Cloth_` bones.

@@ -1,0 +1,30 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/fp_pos = Vector3(0.1500, -0.1650, -0.2000)
+metadata/sockets = {
+"fx_muzzle": Vector3(0.0448, -0.1438, -0.8623),
+"grip_l": Vector3(0.1041, -0.1708, -0.5267),
+"socket_barrel": Vector3(0.0669, -0.1165, -0.6437),
+"socket_chamber": Vector3(0.1434, -0.1198, -0.3514),
+"socket_core": Vector3(0.0988, -0.0879, -0.3558),
+"socket_frame": Vector3(0.1007, -0.1485, -0.2742)
+}
+metadata/clip_length = {
+"cast": 0.6667,
+"cast_ult": 1.2000,
+"draw": 0.4667,
+"fire": 0.2667,
+"holster": 0.4000,
+"idle": 3.0000,
+"inspect": 3.2000,
+"jump": 0.4667,
+"land": 0.4667,
+"reload": 1.8000,
+"sprint": 0.6667,
+"walk": 1.0667
+}
+metadata/fp_scale = 0.740
+metadata/tris = 9544
+metadata/weapon = "tackhammer_w16"
+metadata/fallback = false

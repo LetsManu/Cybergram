@@ -26,9 +26,10 @@ func _draw() -> void:
 	var n := maxi(MIN_SLOTS, pips.size())
 	var y := size.y - H
 	caps(tr("HUD_SQUAD"), Vector2(0.0, y + 22.0), 16, Color(HudPalette.MUTED, a), 0.22)
-	var first: WardlingPresenter.SquadPip = pips[0]
-	caps(tr(COMMAND_KEYS.get(first.command, "HUD_SQUAD")), Vector2(0.0, y + 49.0), 18, Color(HudPalette.IVORY, a), 0.2)
-	var hw := maxf(caps_width(tr("HUD_SQUAD"), 16), caps_width(tr(COMMAND_KEYS.get(first.command, "HUD_SQUAD")), 18, 0.2))
+	var head := headline_key(pips)
+	var head_col := HudPalette.IVORY if head in COMMAND_KEYS.values() else HudPalette.WARN_UI
+	caps(tr(head), Vector2(0.0, y + 49.0), 18, Color(head_col, a), 0.2)
+	var hw := maxf(caps_width(tr("HUD_SQUAD"), 16), caps_width(tr(head), 18, 0.2))
 	var x0 := hw + 21.0
 	var col := ctx.team_color(ctx.own_team())
 	for i in n:
@@ -48,6 +49,18 @@ func _draw() -> void:
 		var normal: bool = badge == COMMAND_LETTER.get(p.command, "-")
 		text_c("%d%s" % [i + 1, badge], Vector2(cx, y + 45.0), 15,
 			Color(HudPalette.MUTED if normal else HudPalette.WARN_UI, a), ctx.font_mono)
+
+
+## Headline under "SQUAD": what the squad is actually doing (polish
+## 2026-10-05). All members dissolving -> DISSOLVING; every live member walking
+## back -> RETURNING; otherwise the command of the first live member.
+static func headline_key(pips: Array) -> String:
+	var live: Array = pips.filter(func(p: WardlingPresenter.SquadPip) -> bool: return not p.dissolving)
+	if live.is_empty():
+		return "HUD_SQ_DISSOLVING"
+	if live.all(func(p: WardlingPresenter.SquadPip) -> bool: return (p.flags & WardlingSim.FLAG_RETURNING) != 0):
+		return "HUD_SQ_RETURNING"
+	return COMMAND_KEYS.get((live[0] as WardlingPresenter.SquadPip).command, "HUD_SQUAD")
 
 
 ## State badge letter for one pip.

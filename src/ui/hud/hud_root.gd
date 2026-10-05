@@ -218,23 +218,46 @@ func _apply_context(c: ClientWorld) -> void:
 	elif dead:
 		bd = HudScrims.Backdrop.DEAD
 	_scrims.set_backdrop(bd)
-	_header.visible = not board
-	_front.visible = not board and not shop
-	_minimap.visible = gameplay and not shop
-	_kill_feed.visible = gameplay and not shop
-	_tracker.visible = gameplay and not shop
+	var sd := c.sudden_death != null and c.sudden_death.active
+	var v := context_visibility(dead, board, shop, ended, sd)
+	_header.visible = v.header
+	_front.visible = v.front
+	_minimap.visible = v.minimap
+	_kill_feed.visible = v.kill_feed
+	_tracker.visible = v.tracker
 	if _task_cue != null:
-		_task_cue.visible = gameplay and not shop
-	_toasts.visible = not board
-	_center.visible = not dead
-	_squad.visible = gameplay and not shop
-	_vitals.visible = not dead
-	_skills.visible = not board and not shop
-	_weapon.visible = gameplay
+		_task_cue.visible = v.tracker
+	_toasts.visible = v.toasts
+	_center.visible = v.center
+	_squad.visible = v.squad
+	_vitals.visible = v.vitals
+	_skills.visible = v.skills
+	_weapon.visible = v.weapon
 	_armory.visible = shop or _armory.wants_draw()
 	_death.visible = dead and not board
 	_end.visible = not board
 	_scoreboard.visible = board
+
+
+## hud.md §12 / §14 widget visibility per context. Sudden Death rounds hide
+## the objective tracker / task cue and the squad strip (the front strip shows
+## the alive pips instead); at match end only the header, toasts and the end
+## banner stay, so the banner is not read through the combat HUD.
+static func context_visibility(dead: bool, board: bool, shop: bool, ended: bool, sd: bool) -> Dictionary:
+	var gameplay := not board and not dead and not ended
+	return {
+		"header": not board,
+		"front": not board and not shop and not ended,
+		"minimap": gameplay and not shop,
+		"kill_feed": gameplay and not shop,
+		"tracker": gameplay and not shop and not sd,
+		"toasts": not board,
+		"center": not dead and not ended,
+		"squad": gameplay and not shop and not sd,
+		"vitals": not dead and not ended,
+		"skills": not board and not shop and not ended,
+		"weapon": gameplay,
+	}
 
 
 var _hud_rev: int = GameSettings.hud_revision

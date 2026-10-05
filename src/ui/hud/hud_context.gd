@@ -94,6 +94,24 @@ func key_label(action: StringName, fallback: String) -> String:
 	return t
 
 
+## Translated prompt `tr_key` with its "[%s]" filled by the key chip text of
+## `action` (current binding, or pad glyph while a pad is in use).
+func prompt(tr_key: String, action: StringName, fallback: String) -> String:
+	var fmt := tr(tr_key)
+	return fmt % key_label(action, fallback) if "%s" in fmt else fmt
+
+
+## Key text for picking Fork A (`second` = false) or B: the fork key, or on a
+## pad without a fork binding the skill 1 / skill 2 button, which is what
+## PlayerInputSource accepts there.
+func fork_key(second: bool) -> String:
+	var fork := &"fork_b" if second else &"fork_a"
+	var b := GameSettings.shared().bindings if GameSettings.shared() != null else null
+	if pad_active and b != null and b.get_pad_spec(String(fork)) == InputBindings.UNBOUND:
+		return key_label(&"skill_2" if second else &"skill_1", "RB" if second else "LB")
+	return key_label(fork, "2" if second else "1")
+
+
 ## Compact pad glyph text for a chip ("D-Pad Up" -> "D↑").
 static func short_pad(t: String) -> String:
 	match t:

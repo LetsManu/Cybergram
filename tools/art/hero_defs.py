@@ -458,3 +458,18 @@ import hero_defs_more  # noqa: E402  (the other five heroes; imports helpers fro
 
 HEROES.update(hero_defs_more.HEROES)
 WEAPONS.update(hero_defs_more.WEAPONS)
+
+import hero_defs_gen  # noqa: E402  (W16: heroes on the bespoke pipeline override their legacy entry)
+
+HEROES.update(hero_defs_gen.HEROES)
+WEAPONS.update(hero_defs_gen.WEAPONS)
+
+import hero_defs_gen_a  # noqa: E402  (W16-HERO-A: Ryker, Brannoc, Hex on the bespoke pipeline)
+
+HEROES.update(hero_defs_gen_a.HEROES)
+WEAPONS.update(hero_defs_gen_a.WEAPONS)
+
+import hero_defs_gen_b  # noqa: E402  (W16-HERO-B: Liora, Sable, Juniper on the bespoke pipeline)
+
+HEROES.update(hero_defs_gen_b.HEROES)
+WEAPONS.update(hero_defs_gen_b.WEAPONS)
