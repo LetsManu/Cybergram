@@ -25,6 +25,9 @@ const LEGACY_FILES: Array[String] = ["user://profile.cfg", "user://friends.cfg",
 ## Memory only: resumes the server session after a match (never on disk).
 static var session_token: String = ""
 static var session_server: String = ""
+## The held token is a guest session (may be resumed over plain UDP). An
+## account token is only ever sent on a DTLS link (W11-Q1 SEC-001).
+static var session_guest: bool = false
 ## Where the legacy profile is looked for (tests override).
 static var legacy_profile_path: String = "user://profile.cfg"
 
@@ -204,8 +207,8 @@ func _with_session(then: Callable, addr: String = "") -> void:
 	if _online == null or _server != a:
 		if not _connect(a):
 			return
-	if session_token != "" and session_server == a:
-		_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": session_token})
+	if session_token != "" and session_server == a and _send_resume():
+		pass
 	elif AppRoot.auto_ready and not _auto_guest_sent:
 		_auto_guest()
 	else:
@@ -225,9 +228,11 @@ func _resume_from_launcher() -> bool:
 		return false
 	session_token = token
 	session_server = server
+	session_guest = false  # the launcher only hands over account sessions
 	if not _connect(server):
 		return false
-	_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": token})
+	if not _send_resume():
+		_show_login()
 	return true
 
 
@@ -264,6 +269,25 @@ func _fall_back_to_plain() -> void:
 	AuthConfig.plain_hosts[host] = true
 	_auto_guest_sent = false
 	_with_session(_then, addr)
+
+
+## True when a session token of this kind may be sent on this link: an
+## account token never travels over plain UDP (an attacker who blocks the DTLS
+## handshake would otherwise read it after the guest-only fallback).
+static func may_send_token(link_secure: bool, guest: bool) -> bool:
+	return link_secure or guest
+
+
+## Sends OP_RESUME with the held token when may_send_token() allows it on the
+## current link. False (nothing sent) otherwise.
+func _send_resume() -> bool:
+	if _online == null or session_token == "":
+		return false
+	if not may_send_token(_enet != null and _enet.is_secure, session_guest):
+		push_warning("[net] not resuming the account session over an unencrypted link")
+		return false
+	_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": session_token})
+	return true
 
 
 func _disconnect() -> void:
@@ -303,6 +327,7 @@ func _on_account(d: Dictionary) -> void:
 	if d.has("token") and ok:
 		session_token = str(d.token)
 		session_server = _server
+		session_guest = int(d.get("guest", 0)) != 0
 		var was_login := _login != null
 		_close_login()
 		_refresh_chip()
@@ -504,8 +529,8 @@ func _show_lobby(addr: String, party_id: String) -> void:
 		# Leaving frees the seat: reconnect and resume the session for the friends panel.
 		_disconnect()
 		if session_token != "":
-			_connect(addr)
-			_online.request(AccountCodec.OP_RESUME, {"ver": MsgType.PROTOCOL_VERSION, "token": session_token})
+			if _connect(addr):
+				_send_resume()
 		_friends.allow_join = true
 		_refresh_chip()
 		_play.grab_focus.call_deferred())
