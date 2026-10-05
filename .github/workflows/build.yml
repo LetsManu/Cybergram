@@ -400,7 +400,9 @@ jobs:
           done
           docker inspect -f '{{.State.Health.Status}}' front | grep -q healthy || { docker logs front | tail -30; exit 1; }
           # UDP 7777 (hex 1E61) and the warm match port 7800 (hex 1E78) are bound.
-          docker exec front sh -c "grep -qi ':1E61 ' /proc/net/udp && grep -qi ':1E78 ' /proc/net/udp"
+          # Godot binds dual-stack sockets, which the kernel lists in udp6 (same probe as healthcheck.sh).
+          docker exec front sh -c "grep -qi ':1E61 ' /proc/net/udp /proc/net/udp6 && grep -qi ':1E78 ' /proc/net/udp /proc/net/udp6" \
+            || { docker logs front | tail -30; exit 1; }
           docker rm -f front > /dev/null
 
       - name: Push to GitHub Container Registry
