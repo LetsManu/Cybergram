@@ -27,3 +27,11 @@ extends Resource
 @export_range(1, 500) var max_friends: int = 200
 @export_range(1, 200) var max_pending_requests: int = 50
 @export_range(1, 500) var max_blocks: int = 200
+## W21-N1 recovery code (PRIVACY.md: only its PBKDF2 hash is stored): groups
+## of Crockford base32 characters (5 bit each), e.g. 4 x 5 = 100 bit.
+@export_range(2, 8) var recovery_groups: int = 4
+@export_range(4, 8) var recovery_group_len: int = 5
+## Admin reset requests (AccountAdmin): the running server looks into its
+## admin folder this often, and the admin tool waits this long for it.
+@export_range(0.5, 60.0) var admin_poll_s: float = 2.0
+@export_range(1.0, 120.0) var admin_wait_s: float = 15.0

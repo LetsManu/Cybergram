@@ -19,3 +19,7 @@ max_accounts = 50000
 max_friends = 200
 max_pending_requests = 50
 max_blocks = 200
+recovery_groups = 4
+recovery_group_len = 5
+admin_poll_s = 2.0
+admin_wait_s = 15.0
