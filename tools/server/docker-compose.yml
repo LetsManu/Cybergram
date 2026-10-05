@@ -1,4 +1,4 @@
-# Cybergram dedicated server (lobby + 3v3 matches, bots fill free slots).
+# Cybergram dedicated server (front + one process per 5v5 / 3v3 match).
 #   docker compose -f tools/server/docker-compose.yml up -d
 # The image is published with every release (x86_64 only):
 #   ghcr.io/letsmanu/cybergram-server:latest  (or a fixed :v0.4.0)
@@ -24,7 +24,8 @@ services:
       # CYBERGRAM_MATCH_PORTS below.
       - "7800-7809:7800-7809/udp"
     volumes:
-      # Player accounts. Keep this volume: deleting it deletes every account.
+      # Everything the server keeps: accounts, ratings, lockouts, match history,
+      # reports, crash reports. Keep this volume: deleting it deletes every account.
       - cybergram-data:/data
       # TLS certificate for encrypted login (e.g. Let's Encrypt for your
       # domain): put fullchain.pem + privkey.pem in ./tls, readable by the
@@ -38,16 +39,22 @@ services:
     #   docker cp motd.txt cybergram:/data/motd.txt
     # An absent file shows no message.
     environment:
-      CYBERGRAM_MOTD_FILE: /data/motd.txt
-      # Hosting (W17, docs/HOSTING.md). single = today's one-process server;
-      # front = one process per match (needs the phase-B build).
-      CYBERGRAM_MODE: single
+      CYBERGRAM_MOTD_FILE: ${CYBERGRAM_MOTD_FILE:-/data/motd.txt}
+      # Hosting (docs/HOSTING.md). front (default since v0.13) = one process per
+      # match; single = the old one-process server (rollback).
+      # Every value below can be set in a .env file next to this file
+      # (see .env.example).
+      CYBERGRAM_MODE: ${CYBERGRAM_MODE:-front}
       # Address clients are told to connect to (domain or public IP of the
       # VPS / relay). Empty = the address they used to reach this server.
-      CYBERGRAM_PUBLIC_HOST: ""
-      CYBERGRAM_MATCH_PORTS: "7800-7809"
+      CYBERGRAM_PUBLIC_HOST: ${CYBERGRAM_PUBLIC_HOST:-}
+      # Keep equal to the 7800-7809 port mapping above and your firewall.
+      CYBERGRAM_MATCH_PORTS: ${CYBERGRAM_MATCH_PORTS:-7800-7809}
       # 0 = 2 matches per core. About 190 MiB RAM per running match.
-      CYBERGRAM_MAX_MATCHES: "0"
+      CYBERGRAM_MAX_MATCHES: ${CYBERGRAM_MAX_MATCHES:-0}
+      # Join ticket keys, "k1:<64 hex>[,k0:<hex>]"; first is active. Empty =
+      # a random key per start (fine on one host).
+      CYBERGRAM_TICKET_KEYS: ${CYBERGRAM_TICKET_KEYS:-}
       CYBERGRAM_DRAIN_MAX_S: "2340"   # a bit under stop_grace_period
     # Resource limits (W17): uncomment and size to the host. Budget about
     # 190 MiB per match process plus ~250 MiB for the front; 2 matches per core.
