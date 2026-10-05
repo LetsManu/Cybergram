@@ -42,7 +42,7 @@ func _draw() -> void:
 	if _marker_left > 0.0:
 		_marker(c, 1.0 - _marker_left / _marker_total)
 	if ctx.armory_prompt:
-		text_c(tr("HUD_ARMORY_PROMPT"), c + Vector2(0.0, 110.0), 20, HudPalette.LUMEN, ctx.font_display)
+		caps_c(tr("HUD_ARMORY_PROMPT"), c + Vector2(0.0, 110.0), 20, HudPalette.BRASS_HI, 0.16)
 	var input := ctx.client.player_input if ctx.client != null else null
 	if input != null and input.wheel_open:
 		_wheel(c, input)
@@ -109,10 +109,10 @@ func _x(c: Vector2, inner: float, outer: float, col: Color, w: float) -> void:
 ## Four 90° slices: Follow top, Hold right, Attack bottom, Capture left (§7).
 func _wheel(c: Vector2, input: PlayerInputSource) -> void:
 	var sel := input.wheel_selection()
-	draw_circle(c, WHEEL_R, Color(HudPalette.PANEL, 0.4))
-	draw_arc(c, WHEEL_R, 0.0, TAU, 48, HudPalette.KEYLINE, 1.5, true)
+	draw_circle(c, WHEEL_R, Color(HudPalette.INK, 0.45))
+	draw_arc(c, WHEEL_R, 0.0, TAU, 48, Color(HudPalette.BRASS, 0.55), 1.0, true)
 	for i in 4:
 		var a := -PI / 2.0 + i * PI / 2.0
 		var lit := sel == PlayerInputSource.WHEEL_SLICES[i]
 		var pos := c + Vector2(cos(a), sin(a)) * WHEEL_R * 0.64
-		text_c(tr(WHEEL_KEYS[i]), pos, 16, HudPalette.LUMEN if lit else HudPalette.TEXT, ctx.font_display)
+		caps_c(tr(WHEEL_KEYS[i]), pos, 16, HudPalette.BRASS_HI if lit else HudPalette.IVORY, 0.18)
