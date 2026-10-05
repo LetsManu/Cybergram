@@ -5,21 +5,13 @@ extends GdUnitTestSuite
 
 const HudContextScript := preload("res://src/ui/hud/hud_context.gd")
 
-const TRANSLATION := "res://assets/localization/hud.en.translation"
-
 var _saved: Dictionary = {}
-var _tr: Translation
 
 
 func before() -> void:
-	# The suite runs without AppRoot, so the HUD strings are registered here.
-	_tr = load(TRANSLATION) as Translation
-	TranslationServer.add_translation(_tr)
-	TranslationServer.set_locale("en")
-
-
-func after() -> void:
-	TranslationServer.remove_translation(_tr)
+	# The shared, process-wide loader; never remove it again here, because
+	# HudStrings registers once per process and every later suite relies on it.
+	HudStrings.ensure_loaded()
 
 
 func before_test() -> void:
