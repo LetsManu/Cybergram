@@ -50,6 +50,9 @@ var effects_volume: float = 1.0
 var ui_volume: float = 1.0
 ## WindowMode.
 var window_mode: int = WindowMode.WINDOWED
+## Window size in WINDOWED mode (0 = the engine default). Set by the launcher.
+var window_w: int = 0
+var window_h: int = 0
 ## 3D render resolution scale, 0.5..1.0.
 var render_scale: float = 1.0
 var vsync: bool = true
@@ -123,6 +126,8 @@ func read_config(cfg: ConfigFile) -> void:
 	var legacy_fs: bool = cfg.get_value("display", "fullscreen", false)
 	window_mode = clampi(int(cfg.get_value("display", "window_mode",
 		WindowMode.FULLSCREEN if legacy_fs else WindowMode.WINDOWED)), 0, WindowMode.BORDERLESS)
+	window_w = maxi(0, int(cfg.get_value("display", "window_w", window_w)))
+	window_h = maxi(0, int(cfg.get_value("display", "window_h", window_h)))
 	render_scale = clampf(cfg.get_value("display", "render_scale", render_scale), RENDER_SCALE_MIN, RENDER_SCALE_MAX)
 	vsync = cfg.get_value("display", "vsync", vsync)
 	fps_cap_index = clampi(int(cfg.get_value("display", "fps_cap_index", fps_cap_index)), 0, FPS_CAPS.size() - 1)
@@ -149,6 +154,8 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value("audio", "effects", effects_volume)
 	cfg.set_value("audio", "ui", ui_volume)
 	cfg.set_value("display", "window_mode", window_mode)
+	cfg.set_value("display", "window_w", window_w)
+	cfg.set_value("display", "window_h", window_h)
 	cfg.set_value("display", "render_scale", render_scale)
 	cfg.set_value("display", "vsync", vsync)
 	cfg.set_value("display", "fps_cap_index", fps_cap_index)
@@ -231,6 +238,8 @@ func apply_display() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, borderless)
 	if DisplayServer.window_get_mode() != want:
 		DisplayServer.window_set_mode(want)
+	if want == DisplayServer.WINDOW_MODE_WINDOWED and not borderless and window_w > 0 and window_h > 0:
+		DisplayServer.window_set_size(Vector2i(window_w, window_h))
 	if borderless:
 		DisplayServer.window_set_size(DisplayServer.screen_get_size())
 		DisplayServer.window_set_position(DisplayServer.screen_get_position())

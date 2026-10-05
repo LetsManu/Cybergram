@@ -19,6 +19,7 @@ func _init() -> void:
 	_test_handoff()
 	_test_status()
 	_test_redaction()
+	_test_crash_consent()
 	print("launcher online tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)
 
@@ -109,3 +110,42 @@ func _test_redaction() -> void:
 		DirAccess.remove_absolute(p)
 	DirAccess.remove_absolute(dir.path_join("logs"))
 	DirAccess.remove_absolute(dir)
+
+
+func _test_crash_consent() -> void:
+	var path: String = OS.get_cache_dir().path_join("cg_privacy_test_%d.cfg" % Time.get_ticks_usec())
+	var p: OnlinePrefs = OnlinePrefs.new(path).load_file()
+	_check(p.crash_mode == OnlinePrefs.CRASH_ASK, "crash: default asks (never sends on its own)")
+	_check(not p.discord_presence, "discord: off by default")
+	_check(OnlinePrefs.crash_action(p.crash_mode) == "ask", "crash: default action is the prompt")
+	_check(OnlinePrefs.mode_after_prompt(true, true) == OnlinePrefs.CRASH_ASK, "prompt: send + always ask keeps asking")
+	_check(OnlinePrefs.mode_after_prompt(false, true) == OnlinePrefs.CRASH_ASK, "prompt: don't send + always ask")
+	_check(OnlinePrefs.mode_after_prompt(true, false) == OnlinePrefs.CRASH_ALWAYS, "prompt: send, remember")
+	_check(OnlinePrefs.mode_after_prompt(false, false) == OnlinePrefs.CRASH_NEVER, "prompt: don't send, remember")
+	p.crash_mode = OnlinePrefs.CRASH_ALWAYS
+	p.discord_presence = true
+	_check(p.save_file(), "prefs saved")
+	var q: OnlinePrefs = OnlinePrefs.new(path).load_file()
+	_check(q.crash_mode == OnlinePrefs.CRASH_ALWAYS and q.discord_presence, "prefs reloaded")
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.set_value(OnlinePrefs.SECTION, "crash_reports", "sometimes")
+	cfg.set_value(OnlinePrefs.SECTION, "discord_presence", "yes")
+	cfg.save(path)
+	var r: OnlinePrefs = OnlinePrefs.new(path).load_file()
+	_check(r.crash_mode == OnlinePrefs.CRASH_ASK and not r.discord_presence, "prefs: junk falls back to private defaults")
+	DirAccess.remove_absolute(path)
+	_check(CrashReporter.is_crash(11) and CrashReporter.is_crash(1) and not CrashReporter.is_crash(0) \
+		and not CrashReporter.is_crash(-1), "crash: exit codes")
+	_check(CrashReporter.MAX_BYTES <= 65536, "crash: payload within the server limit")
+	# A crash on the watched process is seen (exit code 3 from a shell).
+	var cr: CrashReporter = CrashReporter.new()
+	var pid: int = OS.create_process("/bin/sh", PackedStringArray(["-c", "exit 3"]))
+	cr.watch(pid)
+	while OS.is_process_running(pid):
+		OS.delay_msec(20)
+	_check(OS.get_process_exit_code(pid) == 3, "crash: exit code visible after another watcher reaped it")
+	cr.free()
+	# No encrypted link: send_crash_report sends nothing.
+	var login: LauncherLogin = LauncherLogin.new()
+	_check(not login.send_crash_report(PackedByteArray([1, 2, 3])), "crash: nothing sent without an encrypted link")
+	login.free()

@@ -1,6 +1,6 @@
 class_name CrashReporter
 extends Node
-## Starts the game, watches its exit code and, after a crash (any non-zero
+## Watches the game's exit code and, after a crash (any non-zero
 ## code: an error exit or a signal such as 11 = SIGSEGV), handles the opt-in
 ## crash report (W15):
 ## - OnlinePrefs.crash_mode "ask" (default): a prompt "Send crash report?"
@@ -34,12 +34,11 @@ var _since: float = 0.0
 var _wait: float = -1.0
 
 
-## Starts `exe` and watches it. False when it could not start.
-func launch(exe: String, args: PackedStringArray = PackedStringArray()) -> bool:
-	if not FileAccess.file_exists(exe):
-		return false
-	pid = OS.create_process(exe, args)
-	return pid > 0
+## Watches the game process `pid_` (started by LauncherUx.launch) for its
+## exit code. Godot keeps the code of a reaped child, so both watchers see it.
+func watch(pid_: int) -> void:
+	pid = pid_ if pid_ > 0 else -1
+	_since = 0.0
 
 
 ## True while the started game runs.

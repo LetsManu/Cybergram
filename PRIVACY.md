@@ -55,6 +55,12 @@ same lobby. The lobby keeps the last 20 lines in memory so that a player who
 joins can read them. They are cleared when the match starts. Chat is never
 logged.
 
+**Hero play history (local only).** The game keeps, on your PC only, how many
+matches and minutes you played with each hero and when you last played it
+(`hero_play_history.cfg` in the game's user folder). The launcher reads this
+file on the same PC to show the patch notes for your most played heroes. It is
+never sent to any server. Delete the file to reset it.
+
 ## Legal basis
 
 Art. 6(1)(b) GDPR: we need this data to provide the online game you sign up
