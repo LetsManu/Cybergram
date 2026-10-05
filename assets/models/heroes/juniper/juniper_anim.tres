@@ -4,7 +4,10 @@
 metadata/clip_speed = {
 "death": 0.000,
 "jump": 0.000,
-"run": 2.741,
-"run_back": 1.099,
-"walk": 1.099
+"run": 2.491,
+"run_back": 0.998,
+"walk": 0.998
+}
+metadata/shader = {
+"hatch_strength": 0.1
 }
