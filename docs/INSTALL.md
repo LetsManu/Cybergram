@@ -37,22 +37,35 @@ delete that folder yourself.
 
 ### Unsigned installer warning (SmartScreen)
 
-The installer is not code-signed yet, so Windows shows "Windows protected your
-PC - Unknown publisher". Choose **More info**, then **Run anyway**. Check the
-file against `SHA256SUMS.txt` first if you want to be sure.
+Builds made without the signing secrets (below) are not code-signed, so Windows
+shows "Windows protected your PC - Unknown publisher". Choose **More info**,
+then **Run anyway**. Check the file against `SHA256SUMS.txt` first if you want
+to be sure.
 
-### Adding signing later
+### Turning on code signing
 
-1. Buy or obtain a code-signing certificate (an EV certificate removes the
-   SmartScreen warning at once; a standard one builds reputation over time).
-2. Store it as GitHub secrets, for example `WINDOWS_CERT_PFX_BASE64` and
-   `WINDOWS_CERT_PASSWORD`.
-3. In `.github/workflows/build.yml`, after "Build installers", sign on the
-   Ubuntu runner with `osslsigncode` (`apt install osslsigncode`):
-   `osslsigncode sign -pkcs12 cert.pfx -pass "$PW" -n Cybergram -t http://timestamp.digicert.com -in X.exe -out X.signed.exe`
-   Sign `CybergramLauncher.exe` and the game exe before packaging, and the
-   `CybergramSetup-*.exe` after. (On a Windows runner use `signtool sign /fd sha256 /tr <timestamp-url> /td sha256`.)
-4. Delete the temporary .pfx afterwards. Nothing is signed or bought today.
+CI already signs `Cybergram.exe`, `CybergramLauncher.exe` and
+`CybergramSetup-*.exe` (`installer/sign_windows.sh`, osslsigncode, SHA-256,
+DigiCert timestamp) as soon as two repository secrets exist. Without them the
+step prints a notice and the build stays unsigned.
+
+1. Export the code-signing certificate **with its private key** as a `.pfx`
+   (`.p12`) file with a password. (Windows: certmgr, Personal, Certificates,
+   right-click, All Tasks, Export, "Yes, export the private key".)
+2. Base64-encode it on one line:
+   - Linux/macOS: `base64 -w0 cert.pfx > cert.b64` (macOS: `base64 -i cert.pfx -o cert.b64`)
+   - Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")) | Set-Content cert.b64`
+3. GitHub, repository **Settings, Secrets and variables, Actions, New repository secret**:
+   - `WINDOWS_SIGN_PFX_B64`: the contents of `cert.b64`
+   - `WINDOWS_SIGN_PASSWORD`: the `.pfx` password
+4. Delete `cert.b64` afterwards. The next CI run signs the executables; the
+   "Sign Windows executables" step log lists each signed file.
+
+Notes: a certificate kept only on a hardware token (most EV certificates
+since 2023) cannot be exported as a `.pfx`; it then needs a cloud signing
+service or a Windows runner with the token, which is a separate change. The
+NSIS uninstaller inside the installer stays unsigned. An EV certificate removes
+the SmartScreen warning at once; a standard one builds reputation over time.
 
 ## Linux
 
