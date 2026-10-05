@@ -24,7 +24,7 @@ const GROUP_INTERFACE := "interface"
 ## while the HUD offers a Fork the skill-1 / skill-2 pad buttons (LB / RB) pick it. Names and defaults follow
 ## PlayerInputSource (hud.md §13) and the HUD (Tab scoreboard, F3 net graph).
 ## Keycodes: W 87, S 83, A 65, D 68, Space 32, Ctrl 4194326, Shift 4194325,
-## R 82, F 70, 4 52, T 84, Q 81, E 69, C 67, G 71, Alt 4194328, Z 90, X 88, V 86,
+## R 82, F 70, 4 52, I 73, Q 81, E 69, C 67, G 71, Alt 4194328, Z 90, X 88, V 86,
 ## B 66, Tab 4194306, F3 4194334, Esc 4194305.
 const ACTIONS: Array = [
 	["move_forward", GROUP_MOVE, "k:87", "a:1:-1"],
@@ -39,8 +39,8 @@ const ACTIONS: Array = [
 	["reload", GROUP_COMBAT, "k:82", "j:2"],
 	["interact", GROUP_COMBAT, "k:70", "j:3"],
 	["use_medpack", GROUP_COMBAT, "k:52", "j:12"],
-	# W19-VM: weapon inspect (first-person presentation only; T, pad unbound).
-	["inspect", GROUP_COMBAT, "k:84", ""],
+	# W19-VM: weapon inspect (first-person presentation only; I, pad unbound).
+	["inspect", GROUP_COMBAT, "k:73", ""],
 	["skill_1", GROUP_SKILLS, "k:81", "j:9"],
 	["skill_2", GROUP_SKILLS, "k:69", "j:10"],
 	["skill_3", GROUP_SKILLS, "k:67", "j:13"],

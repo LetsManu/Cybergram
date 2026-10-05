@@ -56,11 +56,10 @@ def _vesper_detail(h, W):
 
 
 def _vesper_arm_extras(h, side, add):
-    """Gold knuckle plate + three-strand team thread ring on the left middle finger
-    (the Loom threads end at her left hand in third person)."""
+    """A team-lit thread ring on the left middle finger (the Loom threads end at her
+    left hand in third person)."""
     if side == "L":
         add.ring_on("Middle", 0, 0.45, "team", "team_emit", 0.0035)
-        add.thread("team", "team_emit")
 
 
 HEROES = {
@@ -85,7 +84,7 @@ HEROES = {
         "arm": {"glove": "glove", "plate": "gold",
                 "bands": [(0.0, 0.05, "glove", 0.004, 0.006, None),
                           (0.05, 0.085, "gold", 0.0075, 0.0, None),
-                          (0.085, 0.40, "plum", 0.0135, 0.022, "gold")],
+                          (0.085, 0.40, "plum", 0.012, 0.014, "gold")],
                 "extras": _vesper_arm_extras},
         "detail": _vesper_detail,
         "paint": {},

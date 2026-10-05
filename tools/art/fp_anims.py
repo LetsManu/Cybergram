@@ -159,7 +159,7 @@ def _reload_spool(c, t):
     """Vesper: tilt the carbine, the left hand spins the spool drum (re-threading),
     pulls the new thread along the needle barrel, back to idle."""
     a = env(t, 0.0, 0.18) - env(t, 0.82, 1.0)
-    W = c.W(-0.065 * a, 0.03 * a, 0.04 * a, 6 * a, -38 * a, 14 * a)
+    W = c.W(-0.045 * a, 0.04 * a, 0.035 * a, 6 * a, -38 * a, 14 * a)
     u = max(0.0, min(1.0, (t - 0.24) / 0.38))
     phi = -35 * math.sin(2 * math.pi * 2 * u) * env(t, 0.22, 0.3) * (1 - env(t, 0.58, 0.64))
     spool = Matrix.Translation(c.rig.mag_c) @ c.spin(phi) @ Matrix.Translation(-c.rig.mag_c)
@@ -243,7 +243,7 @@ def inspect(c, t):
     """Show the left flank (the off hand strokes the barrel), flip to the right flank, back."""
     a = env(t, 0.0, 0.2) - env(t, 0.82, 1.0)
     b = env(t, 0.42, 0.55) - env(t, 0.72, 0.82)
-    W = c.W(-0.11 * a, -0.06 * a, 0.07 * a, 8 * a + 16 * b, -70 * a + 100 * b, 28 * a - 14 * b)
+    W = c.W(-0.08 * a, 0.02 * a, 0.05 * a, 8 * a + 16 * b, -70 * a + 100 * b, 28 * a - 14 * b)
     stroke = env(t, 0.18, 0.4)
     Lw = mat((-0.1, 0.08 + 0.16 * stroke, 0.0), (0.35, 0.85, 0.35), (-1.0, 0.1, 0.25))
     wL = (env(t, 0.12, 0.22) - env(t, 0.4, 0.5))

@@ -56,6 +56,12 @@ func _run() -> void:
 		push_error("no FP glb for %s" % key)
 		quit(1)
 		return
+	if OS.get_cmdline_user_args().has("--flat"):  # look-dev after a --notex build (stale maps)
+		var flat := (FpViewmodel.material(key, ModelPalette.TEAM_CONCORD).duplicate()) as ShaderMaterial
+		flat.set_shader_parameter("use_maps", 0.0)
+		flat.next_pass = FpViewmodel.material(key, ModelPalette.TEAM_CONCORD).next_pass
+		for mi in fp.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_override = flat
 	fp.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	await _settle(fp, 1.0)
 	await _save("%s/%s_fp_idle_fov90.png" % [out, key])

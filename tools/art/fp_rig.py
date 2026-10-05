@@ -224,8 +224,10 @@ class MeshAdder:
             nf[h.pkind] = kind
             _paint_face(nf, h.pcol, h.puv, h.color(color), ch)
 
-    def loft(self, rings, weights, color, ch="flat", cap0=False, cap1=False, M=None, kind=KIND_SOFT, tip=None):
-        """Rings (lists of n points) joined into a tube; optional fan caps / a tip point."""
+    def loft(self, rings, weights, color, ch="flat", cap0=False, cap1=False, M=None, kind=KIND_SOFT, tip=None,
+             flip=False):
+        """Rings (lists of n points) joined into a tube; optional fan caps / a tip point.
+        Normals point out for rings stepping along +Y of their frame; `flip` for -Y."""
         n = len(rings[0])
         verts, wts, faces = [], [], []
         for r, w in zip(rings, weights):
@@ -234,20 +236,20 @@ class MeshAdder:
         for i in range(len(rings) - 1):
             for k in range(n):
                 a, b = i * n + k, i * n + (k + 1) % n
-                faces.append((a, b, b + n, a + n))
+                faces.append((a, b, b + n, a + n) if flip else (a, a + n, b + n, b))
         if cap0:
             c = sum(rings[0], Vector()) / n
             verts.append(c)
             wts.append(weights[0])
             ci = len(verts) - 1
-            faces += [(ci, (k + 1) % n, k) for k in range(n)]
+            faces += [(ci, k, (k + 1) % n) for k in range(n)]
         if tip is not None or cap1:
             c = tip if tip is not None else sum(rings[-1], Vector()) / n
             verts.append(c)
             wts.append(weights[-1])
             ci = len(verts) - 1
             o = (len(rings) - 1) * n
-            faces += [(o + k, o + (k + 1) % n, ci) for k in range(n)]
+            faces += [(o + (k + 1) % n, o + k, ci) for k in range(n)]
         if M is not None:
             verts = [M @ v for v in verts]
         self.add(verts, faces, wts, color, ch, kind)
@@ -346,18 +348,6 @@ class ArmBuilder:
                 faces.append((a, b2, ((i + 1) % n) * k + (j + 1) % k, i * k + (j + 1) % k))
         self.a.add(verts, faces, [{bone: 1.0}] * len(verts), color, ch, KIND_PART)
 
-    def thread(self, color, ch):
-        """A glowing thread from the wrist up along the back of the forearm (Vesper)."""
-        s, m = self.c.s, self.c.m
-        hand, fore = self.b("Hand"), self.b("LowerArm")
-        pts = [Vector((m * 0.004 * s, 0.03 * s, 0.024 * s)), Vector((m * 0.006, -0.02, 0.036)),
-               Vector((m * 0.004, -0.09, 0.05))]
-        rings, wts = [], []
-        for i, p in enumerate(pts):
-            rings.append(ring(p, Vector((1, 0, 0)), Vector((0, 0, 1)), 0.0022, 0.0022, 6, 2.0))
-            wts.append({hand: 1.0} if i == 0 else ({hand: 0.4, fore: 0.6} if i == 1 else {fore: 1.0}))
-        self.a.loft(rings, wts, color, ch, cap0=True, cap1=True, M=self.H, kind=KIND_PART)
-
     def forearm(self, glove):
         """Arm skin under the sleeve + the hero's bands (cuff, sleeve) as shells, rims as tori."""
         fore, hand = self.b("LowerArm"), self.b("Hand")
@@ -385,12 +375,12 @@ class ArmBuilder:
                 rings.append(ring(Vector((0, -dd, 0)), X, Z, rx + off + fl, rz + off + fl * 0.8, 16, 2.4))
             inner = [ring(Vector((0, -dd, 0)), X, Z, rad(dd)[0] + off * 0.3, rad(dd)[1] + off * 0.3, 16, 2.4)
                      for dd in (d0,)]
-            self.a.loft(inner + rings, [w(d0)] + [w(dd) for dd in ds], col, M=self.H)
+            self.a.loft(inner + rings, [w(d0)] + [w(dd) for dd in ds], col, M=self.H, flip=True)
             if rim:
                 rx, rz = rad(d0)
                 r0 = [ring(Vector((0, -d0 + dy, 0)), X, Z, rx + off + flare + dr, rz + off + flare * 0.8 + dr, 16, 2.4)
                       for dy, dr in ((0.004, 0.0), (0.0, 0.004), (-0.006, 0.003), (-0.008, 0.0))]
-                self.a.loft(r0, [w(d0)] * 4, rim, M=self.H, kind=KIND_PART)
+                self.a.loft(r0, [w(d0)] * 4, rim, M=self.H, kind=KIND_PART, flip=True)
 
 
 # ------------------------------------------------------------------ the FP hero

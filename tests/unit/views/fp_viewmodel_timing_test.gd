@@ -71,4 +71,4 @@ func test_loco_point_respects_sway_toggle() -> void:
 
 func test_inspect_is_a_bindable_action() -> void:
 	assert_bool(InputBindings.action_ids().has("inspect")).is_true()
-	assert_str(InputBindings.default_spec("inspect")).is_equal("k:84")
+	assert_str(InputBindings.default_spec("inspect")).is_equal("k:%d" % KEY_I)
