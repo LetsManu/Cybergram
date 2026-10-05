@@ -22,7 +22,11 @@ extends Control
 ##   --show-login           window mode: open the sign-in dialog at start (screenshots)
 
 ## Width of the left sidebar (ui-kit.md: 72-88 px).
-const SIDEBAR_W: int = 88
+const SIDEBAR_W: int = 76
+## Mockup reference (design/ux/mockups/v0.9/Launcher.dc.html): 1280x720.
+const REF_W: float = 1280.0
+const RAIL_W: int = 76
+const PLAY_BAR_H: int = 112
 ## Home news card height and how many bullet lines it summarises.
 const NEWS_CARD_H: int = 160
 const NEWS_BULLETS: int = 2
@@ -32,14 +36,19 @@ var _pages: Dictionary = {}
 var _nav: Dictionary = {}
 var _page_title: Label
 var _headline: Label
-var _news_row: HBoxContainer
+var _news_row: VBoxContainer
+var _art: Control
+var _patch_label: Label
+var _blurb: Label
+var _detail: Label
+var _verify_link: Button
+var _chip_avatar: UiPortrait
 var _notes_box: VBoxContainer
 var _notes_scroll: ScrollContainer
 var _notes_cards: Array[Control] = []
 var _server_dot: Control
 var _chip_name: Label
 var _chip_btn: Button
-var _chip_ring: UiIcon
 var _login_modal: Control
 var _login_card: UiCard
 var _guest_btn: Button
@@ -251,10 +260,10 @@ func _on_probed(info: Dictionary) -> void:
 	if _server_label == null:
 		return
 	var t: UiKitTokens = UiKit.tokens()
-	_server_label.text = LauncherCore.status_text(info)
+	_server_label.text = "\u25cf  " + LauncherCore.status_text(info)
 	var c: Color = t.ok if info.get("reachable", false) else t.danger
 	_server_dot.color = c
-	_server_label.add_theme_color_override("font_color", t.text if info.get("reachable", false) else c)
+	_server_label.add_theme_color_override("font_color", c)
 
 
 func _parse_args(all: PackedStringArray) -> Dictionary:
@@ -283,12 +292,14 @@ func _on_state(s: Updater.State, msg: String) -> void:
 		return
 	var t: UiKitTokens = UiKit.tokens()
 	_status.text = msg
-	_status.add_theme_color_override("font_color", t.danger if s == Updater.State.ERROR else t.text_dim)
+	_status.add_theme_color_override("font_color", t.danger if s == Updater.State.ERROR else t.text)
+	_detail.text = _detail_text(s)
 	_version_label.text = _version_text()
 	_play_version.text = _version_text()
 	_skip.visible = false
 	var working: bool = s in [Updater.State.CHECKING, Updater.State.DOWNLOADING, Updater.State.INSTALLING, Updater.State.VERIFYING]
 	_repair.disabled = working or _updater.installed_version() == "" and s != Updater.State.UPDATE_AVAILABLE
+	_verify_link.disabled = _repair.disabled
 	_install_label.text = _updater.install_root()
 	if not working:
 		_repairing = false
@@ -365,8 +376,10 @@ func _refresh_busy() -> void:
 			var verb: String = "REPAIRING" if _repairing else ("INSTALLING" if _updater.installed_version() == "" else "UPDATING")
 			var pct: String = " %d%%" % int(_last_frac * 100.0) if _last_frac >= 0.0 else ""
 			_button.show_busy(verb + pct, _last_progress, _last_frac)
+			_detail.text = _last_progress
 		Updater.State.INSTALLING:
 			_button.show_busy("UNPACKING", _last_progress, 1.0)
+			_detail.text = _last_progress
 
 
 func _on_button() -> void:
@@ -426,8 +439,20 @@ func _version_text() -> String:
 	var inst: String = _updater.installed_version()
 	var s: String = "Installed %s" % (inst if inst != "" else "none")
 	if _updater.latest_version != "":
-		s += "   |   Latest %s" % _updater.latest_version
-	return s
+		s += "  \u00b7  Latest %s" % _updater.latest_version
+	return s + "  \u00b7  Launcher %s" % _own_version
+
+
+## Second status line (mono): what the play button will do.
+func _detail_text(s: Updater.State) -> String:
+	match s:
+		Updater.State.UPDATE_AVAILABLE:
+			return "%s \u2192 %s" % [_updater.installed_version() if _updater.installed_version() != "" else "none",
+				_updater.latest_version]
+		Updater.State.UP_TO_DATE, Updater.State.OFFLINE_READY:
+			return ("Signed in as %s" % _chip_name.text) if _login != null and _login.is_logged_in() \
+				else "Cybergram %s" % _updater.installed_version()
+	return ""
 
 
 # --- UI (design/ux/ui-kit.md section 8.3) -----------------------------------
@@ -435,23 +460,35 @@ func _version_text() -> String:
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	theme = UiKit.theme()
-	add_child(UiKit.background())
-
-	var shell: HBoxContainer = HBoxContainer.new()
-	shell.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shell.add_theme_constant_override("separation", 0)
-	add_child(shell)
-	shell.add_child(_build_sidebar())
-
-	var main: VBoxContainer = VBoxContainer.new()
-	main.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main.add_theme_constant_override("separation", 0)
-	shell.add_child(main)
-	main.add_child(_build_top_bar())
+	var bg: ColorRect = UiKit.background()
+	# Mockup spotlight: centre (980, 360) r 280 at 1280x720 = 1.125x in the shader's 1440x810 space.
+	UiKit.set_background_layout(bg, 0.0, Vector2(1102, 405), 315.0, false)
+	add_child(bg)
+	_art = Control.new()
+	_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_art)
+	# Key art: three heroes on the right (mockup positions, right-anchored).
+	for a in [["brannoc", 640, 120, 470, 0.55], ["sable", 960, 110, 480, 0.55], ["vesper_loom", 770, 60, 560, 1.0]]:
+		var img: TextureRect = TextureRect.new()
+		img.texture = UiKit.portrait_texture(String(a[0]))
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+		img.modulate.a = float(a[4])
+		img.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		var h: float = float(a[3])
+		img.offset_left = float(a[1]) - REF_W
+		img.offset_right = img.offset_left + h * 0.72
+		img.offset_top = float(a[2])
+		img.offset_bottom = float(a[2]) + h
+		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_art.add_child(img)
 	var stack: Control = Control.new()
-	stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stack.clip_contents = true
-	main.add_child(stack)
+	stack.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stack.offset_left = RAIL_W
+	stack.offset_bottom = -PLAY_BAR_H
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(stack)
 	_pages["home"] = _build_home()
 	_pages["notes"] = _build_notes()
 	_pages["settings"] = _build_settings()
@@ -459,7 +496,9 @@ func _build_ui() -> void:
 		var p: Control = _pages[key]
 		p.set_anchors_preset(Control.PRESET_FULL_RECT)
 		stack.add_child(p)
-	main.add_child(_build_play_panel())
+	add_child(_build_sidebar())
+	add_child(_build_top_bar())
+	add_child(_build_play_panel())
 	_show_page("home")
 
 	_dialog = FileDialog.new()
@@ -481,165 +520,209 @@ func _build_ui() -> void:
 	_on_progress(-1.0, "")
 
 
+## Icon rail: the CG diamond, then HOME / NOTES / SETTINGS (icon + caption,
+## a 2 px brass bar on the active one).
 func _build_sidebar() -> Control:
 	var t: UiKitTokens = UiKit.tokens()
 	var panel: PanelContainer = PanelContainer.new()
-	panel.custom_minimum_size.x = SIDEBAR_W
-	var sb: StyleBoxFlat = UiKit.panel_box(Color(t.bg_deep, 0.9), 0)
+	panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	panel.offset_right = RAIL_W
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = t.bg_deep
 	sb.border_width_right = 1
 	sb.border_color = t.line
 	panel.add_theme_stylebox_override("panel", sb)
 	var col: VBoxContainer = VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", 8)
 	panel.add_child(col)
-	col.add_child(UiKit.spacer(14))
-	# Game tile (selected: violet frame, brass tick).
-	var tile_row: CenterContainer = CenterContainer.new()
-	col.add_child(tile_row)
-	var tile: PanelContainer = PanelContainer.new()
-	tile.custom_minimum_size = Vector2(52, 52)
-	tile.add_theme_stylebox_override("panel", UiKit.panel_box(t.panel_raised, 6, t.accent))
-	tile_row.add_child(tile)
-	var logo: TextureRect = TextureRect.new()
-	logo.texture = load("res://icon.svg")
-	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tile.add_child(logo)
-	col.add_child(UiKit.spacer(14))
+	col.add_child(UiKit.spacer(22))
+	var mark: Control = Control.new()
+	mark.custom_minimum_size = Vector2(34, 34)
+	mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	mark.draw.connect(func() -> void:
+		var c: Vector2 = Vector2(17, 17)
+		var pts: PackedVector2Array = PackedVector2Array([c + Vector2(0, -16), c + Vector2(16, 0), c + Vector2(0, 16),
+			c + Vector2(-16, 0), c + Vector2(0, -16)])
+		mark.draw_polyline(pts, t.accent, 1.5, true)
+		var f: Font = UiKit.display_font(700, 0)
+		var w: float = f.get_string_size("CG", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		mark.draw_string(f, Vector2(17 - w * 0.5, 21.5), "CG", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, t.accent_hi))
+	col.add_child(mark)
+	col.add_child(UiKit.spacer(18))
 	var group: ButtonGroup = ButtonGroup.new()
-	for entry in [["HOME", "home"], ["PATCH\nNOTES", "notes"], ["SETTINGS", "settings"]]:
+	for entry in [["HOME", "home", &"home"], ["NOTES", "notes", &"notes"], ["SETTINGS", "settings", &"gear"]]:
 		var b: Button = Button.new()
-		b.text = entry[0]
 		b.toggle_mode = true
 		b.button_group = group
-		b.custom_minimum_size = Vector2(0, 52)
+		b.custom_minimum_size = Vector2(RAIL_W, 64)
 		b.focus_mode = Control.FOCUS_ALL
-		b.add_theme_font_override("font", UiKit.display_font(600, 1))
-		b.add_theme_font_size_override("font_size", 10)
-		b.add_theme_color_override("font_color", t.text_dim)
-		b.add_theme_color_override("font_hover_color", t.text)
-		b.add_theme_color_override("font_pressed_color", t.accent_hi)
-		b.add_theme_color_override("font_hover_pressed_color", t.accent_hi)
-		var flat: StyleBoxFlat = StyleBoxFlat.new()
-		flat.bg_color = Color(0, 0, 0, 0)
-		var on: StyleBoxFlat = StyleBoxFlat.new()
-		on.bg_color = Color(t.accent, 0.16)
-		on.border_width_left = 3
-		on.border_color = t.accent
-		var hov: StyleBoxFlat = StyleBoxFlat.new()
-		hov.bg_color = Color(t.text, 0.05)
-		b.add_theme_stylebox_override("normal", flat)
-		b.add_theme_stylebox_override("hover", hov)
-		b.add_theme_stylebox_override("pressed", on)
-		b.add_theme_stylebox_override("hover_pressed", on)
+		b.tooltip_text = String(entry[0]).capitalize()
+		var empty: StyleBoxEmpty = StyleBoxEmpty.new()
+		for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+			b.add_theme_stylebox_override(st, empty)
 		b.add_theme_stylebox_override("focus", UiKit.focus_box())
+		var icon: UiIcon = UiIcon.make(entry[2], 20, t.text_dim)
+		icon.position = Vector2((RAIL_W - 20) * 0.5, 14)
+		b.add_child(icon)
+		var cap: Label = Label.new()
+		cap.text = entry[0]
+		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cap.add_theme_font_size_override("font_size", 10)
+		cap.add_theme_font_override("font", _tracked_body(10, 0.14))
+		cap.position = Vector2(0, 38)
+		cap.size = Vector2(RAIL_W, 14)
+		cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(cap)
+		var bar: ColorRect = ColorRect.new()
+		bar.color = t.accent
+		bar.position = Vector2(0, 14)
+		bar.size = Vector2(2, 36)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(bar)
+		var paint: Callable = func() -> void:
+			var on: bool = b.button_pressed
+			var hot: bool = b.is_hovered() or b.has_focus()
+			var c: Color = t.text if on or hot else t.text_dim
+			icon.color = c
+			cap.add_theme_color_override("font_color", c)
+			bar.visible = on
+		b.draw.connect(paint)
+		b.mouse_entered.connect(paint)
+		b.mouse_exited.connect(paint)
 		var page: String = entry[1]
 		b.pressed.connect(func() -> void: _show_page(page))
 		b.button_pressed = page == "home"
 		_nav[page] = b
 		col.add_child(b)
-	var fill: Control = Control.new()
-	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(fill)
-	col.add_child(UiKit.label("v" + _own_version, &"caption", t.text_off, HORIZONTAL_ALIGNMENT_CENTER))
-	col.add_child(UiKit.spacer(8))
 	return panel
+
+
+## Body font with `em` tracking at `size` px.
+static func _tracked_body(size: int, em: float, weight: int = 400) -> Font:
+	var f: FontVariation = UiKit.body_font(weight).duplicate() as FontVariation
+	f.spacing_glyph = UiKit.track(size, em)
+	return f
 
 
 func _show_page(key: String) -> void:
 	for k in _pages:
 		(_pages[k] as Control).visible = k == key
-	if _page_title != null:
-		_page_title.text = {"home": "HOME", "notes": "PATCH NOTES", "settings": "SETTINGS"}[key]
+	if _art != null:
+		_art.visible = key == "home"
 	if _nav.has(key):
 		(_nav[key] as Button).button_pressed = true
 	UiKit.transition_in(_pages[key], Vector2.ZERO)
 
 
+## Top right: server status line, then the account (avatar, name, log in/out).
 func _build_top_bar() -> Control:
 	var t: UiKitTokens = UiKit.tokens()
-	var bar: PanelContainer = PanelContainer.new()
-	bar.custom_minimum_size.y = 56
-	var sb: StyleBoxFlat = UiKit.panel_box(Color(t.bg_deep, 0.8), 0)
-	sb.content_margin_left = 24
-	sb.content_margin_right = 20
-	sb.border_width_bottom = 1
-	sb.border_color = t.line
-	bar.add_theme_stylebox_override("panel", sb)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
-	bar.add_child(row)
-	_page_title = UiKit.label("HOME", &"nav", t.text)
-	_page_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_page_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(_page_title)
-	# Server status badge.
-	var badge: PanelContainer = PanelContainer.new()
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	badge.add_theme_stylebox_override("panel", UiKit.panel_box(t.panel_sunken, 6, t.line))
-	row.add_child(badge)
-	var brow: HBoxContainer = HBoxContainer.new()
-	brow.add_theme_constant_override("separation", 7)
-	badge.add_child(brow)
-	_server_dot = UiIcon.make(&"ring", 10, t.text_off)
-	_server_dot.custom_minimum_size = Vector2(10, 10)
-	_server_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	brow.add_child(_server_dot)
+	row.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	row.offset_right = -28
+	row.offset_top = 18
+	row.offset_left = -600
+	row.offset_bottom = 58
+	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	row.alignment = BoxContainer.ALIGNMENT_END
+	row.add_theme_constant_override("separation", 22)
+	_server_dot = UiIcon.make(&"ring", 8, t.text_off)  # kept for _on_probed; drawn as the bullet colour
+	_server_dot.visible = false
+	row.add_child(_server_dot)
 	_server_label = UiKit.label("Checking server...", &"small", t.text_dim)
-	brow.add_child(_server_label)
-	# Account chip.
+	_server_label.add_theme_font_size_override("font_size", 13)
+	_server_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_server_label)
 	var chip: HBoxContainer = HBoxContainer.new()
-	chip.add_theme_constant_override("separation", 8)
+	chip.add_theme_constant_override("separation", 10)
 	row.add_child(chip)
-	_chip_ring = UiIcon.make(&"friends", 24, t.text_dim)
-	chip.add_child(UiKit.avatar(_chip_ring, t.text_off, 36))
-	_chip_name = UiKit.label("GUEST", &"nav", t.text)
+	_chip_avatar = UiPortrait.create(null, 32.0, t.line_strong)
+	_chip_avatar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.add_child(_chip_avatar)
+	_chip_name = Label.new()
+	_chip_name.text = "Guest"
+	_chip_name.add_theme_font_override("font", UiKit.body_font(500))
+	_chip_name.add_theme_font_size_override("font_size", 14)
 	_chip_name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	chip.add_child(_chip_name)
-	_chip_btn = UiKit.button("LOG IN", _on_chip_pressed, &"secondary", 34)
+	_chip_btn = _link("Log in", _on_chip_pressed)
 	_chip_btn.disabled = true
 	chip.add_child(_chip_btn)
-	return bar
+	return row
 
 
+## A quiet text link (muted, ivory on hover / focus).
+func _link(text: String, cb: Callable, col: Color = Color(0, 0, 0, 0)) -> Button:
+	var t: UiKitTokens = UiKit.tokens()
+	var b: Button = Button.new()
+	b.text = text
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var empty: StyleBoxEmpty = StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, empty)
+	b.add_theme_stylebox_override("focus", UiKit.focus_box())
+	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_color_override("font_color", col if col.a > 0.0 else t.text_dim)
+	b.add_theme_color_override("font_hover_color", t.accent_hi if col.a > 0.0 else t.text)
+	b.add_theme_color_override("font_focus_color", t.accent_hi if col.a > 0.0 else t.text)
+	b.add_theme_color_override("font_disabled_color", t.text_off)
+	b.pressed.connect(cb)
+	return b
+
+
+## HOME: wordmark eyebrow, patch label, headline, blurb, "Read patch notes"
+## and a hairline news list with mono version tags.
 func _build_home() -> Control:
 	var t: UiKitTokens = UiKit.tokens()
-	var page: MarginContainer = MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		page.add_theme_constant_override("margin_" + side, 14)
+	var page: Control = Control.new()
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col: VBoxContainer = VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
+	col.position = Vector2(124 - RAIL_W, 104)
+	col.size = Vector2(500, 0)
+	col.custom_minimum_size.x = 500
+	col.add_theme_constant_override("separation", 0)
 	page.add_child(col)
-	# Key art: logo + tagline over the animated shader background.
-	var brand: HBoxContainer = HBoxContainer.new()
-	brand.add_theme_constant_override("separation", 16)
-	col.add_child(brand)
-	var logo: TextureRect = TextureRect.new()
-	logo.texture = load("res://icon.svg")
-	logo.custom_minimum_size = Vector2(52, 52)
-	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	brand.add_child(logo)
-	var names: VBoxContainer = VBoxContainer.new()
-	names.alignment = BoxContainer.ALIGNMENT_CENTER
-	names.add_theme_constant_override("separation", 0)
-	brand.add_child(names)
-	names.add_child(UiKit.label("CYBERGRAM", &"display"))
-	names.add_child(UiKit.label("PvP first-person MOBA shooter", &"body", t.gold))
+	var mark: Label = Label.new()
+	mark.text = "CYBERGRAM"
+	mark.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(13, 0.32)))
+	mark.add_theme_font_size_override("font_size", 13)
+	mark.add_theme_color_override("font_color", t.text_dim)
+	col.add_child(mark)
+	col.add_child(UiKit.spacer(26))
+	_patch_label = Label.new()
+	_patch_label.add_theme_font_override("font", _tracked_body(12, 0.24, 600))
+	_patch_label.add_theme_font_size_override("font_size", 12)
+	_patch_label.add_theme_color_override("font_color", t.accent)
+	col.add_child(_patch_label)
 	col.add_child(UiKit.spacer(8))
-	col.add_child(UiKit.label("LATEST RELEASE", &"caption", t.accent_hi))
-	_headline = UiKit.label("Waiting for the update server...", &"title")
-	_headline.add_theme_font_size_override("font_size", 23)
+	_headline = Label.new()
+	_headline.text = "Waiting for the update server..."
+	_headline.add_theme_font_override("font", UiKit.display_font(600, 1))
+	_headline.add_theme_font_size_override("font_size", 48)
+	_headline.add_theme_constant_override("line_spacing", -14)
 	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_headline.max_lines_visible = 2
-	_headline.custom_minimum_size.x = 400
+	_headline.custom_minimum_size.x = 500
 	col.add_child(_headline)
-	var fill: Control = Control.new()
-	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(fill)
-	_news_row = HBoxContainer.new()
-	_news_row.add_theme_constant_override("separation", 12)
-	_news_row.custom_minimum_size.y = NEWS_CARD_H
+	col.add_child(UiKit.spacer(14))
+	_blurb = Label.new()
+	_blurb.add_theme_font_size_override("font_size", 15)
+	_blurb.add_theme_constant_override("line_spacing", 8)
+	_blurb.add_theme_color_override("font_color", t.text_dim)
+	_blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_blurb.max_lines_visible = 2
+	_blurb.custom_minimum_size.x = 440
+	_blurb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	col.add_child(_blurb)
+	col.add_child(UiKit.spacer(10))
+	var more: Button = _link("Read patch notes  →", func() -> void: _open_note(0), t.accent)
+	more.add_theme_font_size_override("font_size", 14)
+	more.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	col.add_child(more)
+	col.add_child(UiKit.spacer(28))
+	_news_row = VBoxContainer.new()
+	_news_row.add_theme_constant_override("separation", 0)
 	col.add_child(_news_row)
 	return page
 
@@ -688,46 +771,72 @@ func _build_settings() -> Control:
 	return margin
 
 
-## Persistent PLAY panel (bottom-left of the main area).
+## The play bar (bottom, right of the rail): the chamfered button that fills
+## with progress, the status + mono detail lines, versions and the verify /
+## play-installed links on the right.
 func _build_play_panel() -> Control:
 	var t: UiKitTokens = UiKit.tokens()
 	var strip: PanelContainer = PanelContainer.new()
-	var sb: StyleBoxFlat = UiKit.panel_box(Color(t.bg_deep, 0.88), 0)
-	sb.content_margin_left = 28
-	sb.content_margin_right = 28
-	sb.content_margin_top = 12
-	sb.content_margin_bottom = 12
+	strip.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	strip.offset_left = RAIL_W
+	strip.offset_top = -PLAY_BAR_H
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(t.bg_deep, 0.96)
+	sb.content_margin_left = 48
+	sb.content_margin_right = 48
 	sb.border_width_top = 1
-	sb.border_color = t.gold
+	sb.border_color = t.line
 	strip.add_theme_stylebox_override("panel", sb)
 	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 20)
+	row.add_theme_constant_override("separation", 28)
 	strip.add_child(row)
-	var left: VBoxContainer = VBoxContainer.new()
-	left.custom_minimum_size.x = 340
-	left.add_theme_constant_override("separation", 4)
-	row.add_child(left)
-	_status = UiKit.label("", &"small", t.text_dim)
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.max_lines_visible = 1
-	_status.custom_minimum_size.y = 24
-	_status.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	left.add_child(_status)
 	_button = LauncherPlayButton.new()
+	_button.custom_minimum_size = Vector2(300, 64)
+	_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_button.show_idle("CHECKING", true)
 	_button.pressed.connect(_on_button)
-	left.add_child(_button)
+	row.add_child(_button)
+	var mid: VBoxContainer = VBoxContainer.new()
+	mid.alignment = BoxContainer.ALIGNMENT_CENTER
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_theme_constant_override("separation", 2)
+	row.add_child(mid)
+	_status = Label.new()
+	_status.add_theme_font_override("font", UiKit.body_font(500))
+	_status.add_theme_font_size_override("font_size", 14)
+	_status.add_theme_color_override("font_color", t.text)
+	_status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_status.custom_minimum_size.x = 120
+	mid.add_child(_status)
+	_detail = Label.new()
+	_detail.add_theme_font_override("font", UiKit.mono_font())
+	_detail.add_theme_font_size_override("font_size", 12)
+	_detail.add_theme_color_override("font_color", t.text_dim)
+	_detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	mid.add_child(_detail)
 	var right: VBoxContainer = VBoxContainer.new()
-	right.alignment = BoxContainer.ALIGNMENT_END
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_constant_override("separation", 4)
+	right.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_theme_constant_override("separation", 0)
 	row.add_child(right)
-	_skip = UiKit.button("PLAY INSTALLED VERSION", _play, &"ghost", 32)
-	_skip.visible = false
-	_skip.size_flags_horizontal = Control.SIZE_SHRINK_END
-	right.add_child(_skip)
-	_play_version = UiKit.label("", &"small", t.text_off, HORIZONTAL_ALIGNMENT_RIGHT)
+	_play_version = Label.new()
+	_play_version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_play_version.add_theme_font_size_override("font_size", 12)
+	_play_version.add_theme_color_override("font_color", t.text_off)
 	right.add_child(_play_version)
+	var links: HBoxContainer = HBoxContainer.new()
+	links.alignment = BoxContainer.ALIGNMENT_END
+	links.add_theme_constant_override("separation", 16)
+	right.add_child(links)
+	_skip = _link("Play installed version", _play)
+	_skip.add_theme_font_size_override("font_size", 12)
+	_skip.visible = false
+	links.add_child(_skip)
+	_verify_link = _link("Verify files", func() -> void:
+		if not _repair.disabled:
+			_repairing = true
+			_updater.verify_and_repair())
+	_verify_link.add_theme_font_size_override("font_size", 12)
+	links.add_child(_verify_link)
 	return strip
 
 
@@ -741,14 +850,19 @@ func _refresh_news() -> void:
 		c.queue_free()
 	_notes_cards.clear()
 	var md: String = _updater.latest_notes_md
+	var ver: String = _updater.latest_version
+	_patch_label.text = ("PATCH " + ver.get_slice(".", 0) + "." + ver.get_slice(".", 1)) if ver != "" else ""
 	if md == "":
 		_notes_box.add_child(UiKit.label("Patch notes appear here once the update server answers.", &"body", t.text_off))
 		return
 	var parts: Dictionary = LauncherCore.split_notes(md)
 	if parts["headline"] != "":
-		_headline.text = parts["headline"]
+		_headline.text = LauncherCore.headline_title(parts["headline"])
+		# Mockup: 48 px on one line; long titles step down so the news list fits.
+		_headline.add_theme_font_size_override("font_size", 48 if _headline.text.length() <= 20 else 38)
 		_notes_box.add_child(UiKit.label(parts["headline"], &"title"))
 	if parts["intro"] != "":
+		_blurb.text = LauncherCore.plain_text(parts["intro"])
 		_notes_box.add_child(_rich(parts["intro"], false))
 	var shown: int = 0
 	for sec in parts["sections"]:
@@ -761,60 +875,58 @@ func _refresh_news() -> void:
 			shown += 1
 
 
-## Home summary card: wrapped title, the first whole bullet lines, a soft fade
-## and a "Read more" link that opens the Patch notes page at that section.
+## A hairline news row: mono version tag, the section title and its first
+## bullet; opens the Patch notes page at that section.
 func _news_card(sec: Dictionary, index: int) -> Control:
 	var t: UiKitTokens = UiKit.tokens()
-	var card: UiCard = UiKit.card("", 12)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size = Vector2(0, NEWS_CARD_H)
-	card.clip_contents = true
-	card.body.add_theme_constant_override("separation", 3)
-	var title: Label = UiKit.label(String(sec["title"]).to_upper(), &"heading", t.text)
+	var b: Button = Button.new()
+	b.custom_minimum_size = Vector2(500, 62)
+	var sb: StyleBoxFlat = StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_width_top = 1
+	sb.border_color = t.line
+	for st in ["normal", "hover", "pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", UiKit.focus_box())
+	var row: HBoxContainer = HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_top = 14
+	row.add_theme_constant_override("separation", 20)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(row)
+	var tag: Label = Label.new()
+	tag.text = _updater.latest_version
+	tag.custom_minimum_size.x = 64
+	tag.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	tag.add_theme_font_override("font", UiKit.mono_font())
+	tag.add_theme_font_size_override("font_size", 12)
+	tag.add_theme_color_override("font_color", t.text_off)
+	row.add_child(tag)
+	var v: VBoxContainer = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(v)
+	var title: Label = Label.new()
+	title.text = String(sec["title"])
+	title.add_theme_font_override("font", UiKit.body_font(500))
 	title.add_theme_font_size_override("font_size", 14)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	title.max_lines_visible = 2
-	card.body.add_child(title)
-	var bullets: int = 0
-	for raw in String(sec["md"]).split("\n"):
-		var l: String = raw.strip_edges()
-		if not (l.begins_with("- ") or l.begins_with("* ")):
-			continue
-		var b: Label = UiKit.label("\u2022 " + l.substr(2).replace("**", "").replace("`", ""), &"small", t.text_dim)
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.max_lines_visible = 2
-		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		card.body.add_child(b)
-		bullets += 1
-		if bullets >= NEWS_BULLETS:
-			break
-	var fill: Control = Control.new()
-	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	fill.custom_minimum_size.y = 14
-	card.body.add_child(fill)
-	var more: Button = UiKit.button("Read more  \u2192", func() -> void: _open_note(index), &"ghost", 24)
-	more.add_theme_font_size_override("font_size", 12)
-	more.add_theme_color_override("font_color", t.accent_hi)
-	more.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	card.body.add_child(more)
-	# Soft fade above the link so a long summary never ends in a hard cut.
-	var grad: Gradient = Gradient.new()
-	grad.set_color(0, Color(t.panel, 0.0))
-	grad.set_color(1, Color(t.panel.r, t.panel.g, t.panel.b, 1.0))
-	var gt: GradientTexture2D = GradientTexture2D.new()
-	gt.gradient = grad
-	gt.fill_from = Vector2(0, 0)
-	gt.fill_to = Vector2(0, 1)
-	gt.width = 4
-	gt.height = 24
-	var fade: TextureRect = TextureRect.new()
-	fade.texture = gt
-	fade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	fade.stretch_mode = TextureRect.STRETCH_SCALE
-	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	fill.add_child(fade)
-	return card
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	v.add_child(title)
+	var line: Label = Label.new()
+	line.text = LauncherCore.first_bullet(String(sec["md"]))
+	line.add_theme_font_size_override("font_size", 12)
+	line.add_theme_color_override("font_color", t.text_dim)
+	line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	v.add_child(line)
+	var hot: Callable = func() -> void:
+		title.add_theme_color_override("font_color", t.accent_hi if b.is_hovered() or b.has_focus() else t.text)
+	b.mouse_entered.connect(hot)
+	b.mouse_exited.connect(hot)
+	b.focus_entered.connect(hot)
+	b.focus_exited.connect(hot)
+	hot.call()
+	b.pressed.connect(func() -> void: _open_note(index))
+	return b
 
 
 ## Patch notes page, scrolled to section `index`.
@@ -848,9 +960,11 @@ func _refresh_chip() -> void:
 		return
 	var t: UiKitTokens = UiKit.tokens()
 	var in_now: bool = _login != null and _login.is_logged_in()
-	_chip_name.text = (_login_name if _login_name != "" else _user_edit.text).to_upper() if in_now else "GUEST"
-	_chip_btn.text = "LOG OUT" if in_now else "LOG IN"
-	_chip_ring.color = t.ok if in_now else t.text_dim
+	_chip_name.text = (_login_name if _login_name != "" else _user_edit.text) if in_now else "Guest"
+	_chip_btn.text = "Log out" if in_now else "Log in"
+	_chip_avatar.texture = UiKit.portrait_texture("sable") if in_now else null
+	_chip_avatar.ring = t.accent if in_now else t.line_strong
+	_chip_avatar.ring_width = 2.0 if in_now else 1.0
 
 
 func _on_chip_pressed() -> void:

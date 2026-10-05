@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cybergram launcher</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B1015}
+a{color:#C2A267}a:hover{color:#EAD7A8}
+button{font-family:inherit}
+.rail:hover{color:#ECE6D6}
+.cta:hover{filter:brightness(1.08)}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; position: relative; overflow: hidden; background: #0B1015; color: #ECE6D6; font-family: 'IBM Plex Sans', sans-serif">
+
+  <!-- key art: three heroes, right -->
+  <div style="position: absolute; left: 700px; top: 80px; width: 560px; height: 560px; border-radius: 50%; background: radial-gradient(closest-side, rgba(194,162,103,0.14), rgba(194,162,103,0))"></div>
+  <img src="/_blob/ad8588ebbb0d8c0ba39364db6581c1a7" alt="Brannoc" style="position: absolute; left: 640px; top: 120px; height: 470px; opacity: 0.55">
+  <img src="/_blob/910bc5f9881015ac6700595a205e407b" alt="Sable" style="position: absolute; left: 960px; top: 110px; height: 480px; opacity: 0.55">
+  <img src="/_blob/70f14ba3df878e26fb5fee0b27d0c717" alt="Vesper Loom" style="position: absolute; left: 770px; top: 60px; height: 560px">
+
+  <!-- rail -->
+  <nav style="position: absolute; left: 0; top: 0; width: 76px; height: 720px; box-sizing: border-box; border-right: 1px solid #1E272D; background: #080C10; display: flex; flex-direction: column; align-items: center; padding-top: 22px; gap: 8px; z-index: 2">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-label="Cybergram" style="margin-bottom: 18px"><path d="M17 1l16 16-16 16L1 17z" fill="none" stroke="#C2A267" stroke-width="1.5"></path><text x="17" y="21.5" text-anchor="middle" font-family="Chakra Petch, sans-serif" font-weight="700" font-size="12" fill="#EAD7A8">CG</text></svg>
+    <sc-for list="{{rail}}" as="r" hint-placeholder-count="3">
+      <button class="rail" aria-label="{{r.label}}" style="width: 76px; height: 64px; background: none; border: 0; cursor: pointer; color: {{r.color}}; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+        <span style="position: absolute; left: 0; top: 14px; width: 2px; height: 36px; background: {{r.bar}}"></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="{{r.icon}}"></path></svg>
+        <span style="font-size: 10px; letter-spacing: 0.14em">{{r.label}}</span>
+      </button>
+    </sc-for>
+  </nav>
+
+  <!-- top right -->
+  <div style="position: absolute; right: 28px; top: 22px; display: flex; align-items: center; gap: 22px; z-index: 2">
+    <div style="font-size: 13px; color: #4FB8B0">● Server online · 5 players</div>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: #111A20; box-shadow: 0 0 0 2px #C2A267"><img src="/_blob/910bc5f9881015ac6700595a205e407b" alt="" style="width: 80px; margin-left: -24px; margin-top: -12px"></div>
+      <div style="font-size: 14px; font-weight: 500">Neo</div>
+    </div>
+  </div>
+
+  <!-- copy -->
+  <div style="position: absolute; left: 124px; top: 104px; width: 500px; z-index: 2">
+    <div style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: 0.32em; color: #9AA3A8">CYBERGRAM</div>
+    <div style="margin-top: 26px; font-size: 12px; letter-spacing: 0.24em; font-weight: 600; color: #C2A267">PATCH 0.8</div>
+    <h1 style="margin: 8px 0 14px; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 48px; line-height: 1.02; letter-spacing: 0.02em">The client update</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #9AA3A8; max-width: 440px">A new main menu, a hero select where your team locks in together, and a launcher that updates and starts the game in one click.</p>
+    <a href="#" style="display: inline-block; margin-top: 14px; font-size: 14px; text-decoration: none">Read patch notes →</a>
+
+    <div style="margin-top: 40px; display: flex; flex-direction: column">
+      <sc-for list="{{news}}" as="n" hint-placeholder-count="3">
+        <a href="#" style="display: flex; gap: 20px; padding: 14px 0; border-top: 1px solid #1E272D; text-decoration: none">
+          <span style="width: 64px; flex: none; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6C757A; padding-top: 2px">{{n.date}}</span>
+          <span><span style="display: block; font-size: 14px; color: #ECE6D6; font-weight: 500">{{n.title}}</span><span style="display: block; font-size: 12px; color: #9AA3A8; margin-top: 2px">{{n.line}}</span></span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- play bar -->
+  <div style="position: absolute; left: 76px; right: 0; bottom: 0; height: 112px; border-top: 1px solid #1E272D; background: rgba(8,12,16,0.96); z-index: 2; display: flex; align-items: center; padding: 0 48px; gap: 28px">
+    <button class="cta" onClick="{{press}}" style="position: relative; width: 300px; height: 64px; border: 0; padding: 0; background: {{btnBg}}; cursor: pointer; overflow: hidden; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)">
+      <span style="position: absolute; left: 0; top: 0; bottom: 0; width: {{fill}}; background: #C2A267"></span>
+      <span style="position: relative; display: block; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: 0.26em; color: {{btnFg}}">{{label}}</span>
+    </button>
+    <div style="line-height: 1.45">
+      <div style="font-size: 14px; font-weight: 500">{{status}}</div>
+      <div style="font-size: 12px; color: #9AA3A8; font-family: 'IBM Plex Mono', monospace">{{detail}}</div>
+    </div>
+    <div style="flex: 1"></div>
+    <div style="font-size: 12px; color: #6C757A; text-align: right; line-height: 1.6">Installed 0.7.0 · Launcher 1.0<br><a href="#" style="color: #9AA3A8">Verify files</a></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { phase: 'update', progress: 0 };
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  start() {
+    this.setState({ phase: 'updating', progress: 0 });
+    clearInterval(this.timer);
+    this.timer = setInterval(() => {
+      const p = Math.min(100, this.state.progress + 4);
+      if (p >= 100) { clearInterval(this.timer); this.setState({ phase: 'play', progress: 100 }); }
+      else this.setState({ progress: p });
+    }, 120);
+  }
+  renderVals() {
+    const s = this.state;
+    const mb = (38.2 * s.progress / 100).toFixed(1);
+    const icons = {
+      home: 'M4 11l8-7 8 7M6 10v10h12V10',
+      notes: 'M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5',
+      gear: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1',
+    };
+    const ui = {
+      update: { label: 'UPDATE', status: 'Update to 0.8.0 available', detail: '38.2 MB · signed by the official server', btnBg: '#C2A267', btnFg: '#0B1015', fill: '0%' },
+      updating: { label: s.progress + '%', status: 'Updating to 0.8.0…', detail: mb + ' / 38.2 MB · 6.4 MB/s', btnBg: '#2A3238', btnFg: '#ECE6D6', fill: s.progress + '%' },
+      play: { label: 'PLAY', status: 'Cybergram 0.8.0 is ready', detail: 'Signed in as Neo', btnBg: '#C2A267', btnFg: '#0B1015', fill: '0%' },
+    }[s.phase];
+    return {
+      ...ui,
+      press: () => { if (s.phase === 'update') this.start(); else if (s.phase === 'play') this.setState({ phase: 'update', progress: 0 }); },
+      rail: [
+        { label: 'HOME', icon: icons.home, color: '#ECE6D6', bar: '#C2A267' },
+        { label: 'NOTES', icon: icons.notes, color: '#9AA3A8', bar: 'transparent' },
+        { label: 'SETTINGS', icon: icons.gear, color: '#9AA3A8', bar: 'transparent' },
+      ],
+      news: [
+        { date: '05 OCT', title: 'Hero select', line: 'Lock in with your team, see every skill before you pick.' },
+        { date: '05 OCT', title: 'Forks that work as designed', line: 'Reveal, bleed, hijack, blocking walls and recasts.' },
+        { date: '04 OCT', title: 'Gamepad support', line: 'Full controller play and rebinding.' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

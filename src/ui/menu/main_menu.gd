@@ -54,13 +54,21 @@ var _profile_screen: ProfileScreen
 var _import_dialog: ConfirmationDialog
 ## Kit shell (design/ux/ui-kit.md §8.1).
 var _root: Control
+## The content area left of the social rail, under the top bar.
+var _content: Control
+## Detail of the selected mode (PLAY overlay).
+var _mode_portrait: TextureRect
+var _mode_name: Label
+var _mode_desc: Label
+var _mode_rows: Array[Dictionary] = []
 var _bg: ColorRect
 var _nav: HBoxContainer
 var _quick: Array[Button] = []
 var _showcase: HeroShowcase
-var _tiles: HBoxContainer
-var _roster: HBoxContainer
-var _modes: UiCard
+var _tiles: Control
+var _roster: Control
+var _roster_grid: HBoxContainer
+var _modes: Control
 var _mode_buttons: Array[Button] = []
 var _mode: int = 0
 var _confirm: Button
@@ -80,13 +88,28 @@ const NAV_KEYS: Array[String] = ["HUD_NAV_HOME", "HUD_NAV_HEROES", "HUD_NAV_PROF
 const MODES: Array = [["HUD_MODE_ONLINE", "HUD_MODE_ONLINE_DESC"], ["HUD_MODE_BOTS", "HUD_MODE_BOTS_DESC"],
 	["HUD_MODE_PRACTICE", "HUD_MODE_PRACTICE_DESC"], ["HUD_MODE_TUTORIAL", "HUD_MODE_TUTORIAL_DESC"],
 	["HUD_MODE_COURSE", "HUD_MODE_COURSE_DESC"]]
+## PLAY overlay rows (index = MODE_*): [name, meta line, detail, CTA, portrait stem].
+const MODE_INFO: Array = [
+	["HUD_MODE_NAME_ONLINE", "HUD_MODE_META_ONLINE", "HUD_MODE_LONG_ONLINE", "HUD_MODE_CTA_ONLINE", "vesper_loom"],
+	["HUD_MODE_NAME_BOTS", "HUD_MODE_META_BOTS", "HUD_MODE_LONG_BOTS", "HUD_MODE_CTA_START", "brannoc"],
+	["HUD_MODE_NAME_PRACTICE", "HUD_MODE_META_PRACTICE", "HUD_MODE_LONG_PRACTICE", "HUD_MODE_CTA_PRACTICE",
+		"ryker_vance"],
+	["HUD_MODE_NAME_TUTORIAL", "HUD_MODE_META_TUTORIAL", "HUD_MODE_LONG_TUTORIAL", "HUD_MODE_CTA_TUTORIAL",
+		"liora_vale"],
+	["HUD_MODE_NAME_COURSE", "HUD_MODE_META_COURSE", "HUD_MODE_COURSE_DESC", "HUD_MODE_CTA_START", "sable"]]
+## Top-bar tabs (index = Nav): CAREER opens the profile; settings is the gear.
+const NAV_TAB_KEYS: Array[String] = ["HUD_NAV_HOME", "HUD_NAV_HEROES", "HUD_NAV_CAREER"]
+## Patch strip items: HUD_PATCH_<n>_TITLE / _SUB (built, so the key scanner
+## does not read a prefix as a key).
+const PATCH_ITEMS := 3
+## The mockup's reference resolution: the shell is laid out at this size and scaled.
+const REF_SIZE := Vector2(1440, 810)
 const MODE_ONLINE := 0
 const MODE_BOTS := 1
 const MODE_PRACTICE := 2
 const MODE_TUTORIAL := 3
 const MODE_COURSE := 4
 ## Height of the tile row under the hero banner.
-const TILE_H := 148
 
 
 func _ready() -> void:
@@ -99,46 +122,39 @@ func _ready() -> void:
 	_root = Control.new()
 	_root.name = "Shell"
 	_root.theme = UiKit.theme()
-	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
+	get_viewport().size_changed.connect(_fit_stage)
+	_fit_stage()
 	_bg = UiKit.background()
 	_root.add_child(_bg)
-	_build_top_bar()
-	# Body: content (left) + social sidebar (right).
-	var body := MarginContainer.new()
-	body.set_anchors_preset(Control.PRESET_FULL_RECT)
-	body.add_theme_constant_override("margin_top", t.top_bar_height + t.space_l)
-	body.add_theme_constant_override("margin_left", t.space_l)
-	body.add_theme_constant_override("margin_right", t.space_l)
-	body.add_theme_constant_override("margin_bottom", t.space_l)
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(body)
-	var split := HBoxContainer.new()
-	split.add_theme_constant_override("separation", t.space_l)
-	split.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(split)
-	var content := Control.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	split.add_child(content)
-	_build_home(content)
-	_build_modes(content)
+	# Content area (left of the social rail, under the top bar).
+	_content = Control.new()
+	_content.name = "Content"
+	_content.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_content.offset_top = t.top_bar_height
+	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_content)
+	_build_home(_content)
+	_build_modes(_content)
 	_center = CenterContainer.new()
 	_center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content.add_child(_center)
+	_content.add_child(_center)
 	_settings = SettingsPanel.new()
 	_settings.visible = false
 	_settings.back_pressed.connect(func() -> void: _go(Nav.HOME))
 	_settings.changed.connect(func() -> void: UiKit.refresh_background(_bg))
 	_center.add_child(_settings)
 	_friends = FriendsPanel.new()
-	_friends.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_friends.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	_friends.offset_top = t.top_bar_height
+	_friends.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_friends.join_requested.connect(func(id: String) -> void: _open_lobby(online_server(), id))
 	_friends.login_requested.connect(func() -> void: _with_session(Callable()))
 	_friends.collapsed_changed.connect(func(_c: bool) -> void: _sync_lobby_margins())
-	split.add_child(_friends)
+	_root.add_child(_friends)
+	_build_top_bar()
 	_lobby_box = MarginContainer.new()
 	_lobby_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_lobby_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -156,47 +172,63 @@ func _ready() -> void:
 		pass  # signed in by the launcher: connected, OP_RESUME sent
 	elif session_token != "" and session_server != "":
 		_connect(session_server)  # still logged in (memory): friends panel online
-	_play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
+	# Keyboard / gamepad navigation starts at PLAY on the first nav input
+	# (_unhandled_input), so a mouse user never sees a focus ring at start.
 
 
-## Top bar: PLAY (far left), nav tabs (centre), account chip + quick buttons (right).
+## Scales the shell so the 1440x810 reference layout (design/ux/mockups/v0.9)
+## fills the window: height drives the scale, the width follows the aspect.
+func _fit_stage() -> void:
+	var vp := get_viewport().get_visible_rect().size
+	if vp.y <= 0.0:
+		return
+	var s := vp.y / REF_SIZE.y
+	_root.scale = Vector2(s, s)
+	_root.position = Vector2.ZERO
+	_root.size = Vector2(vp.x / s, REF_SIZE.y)
+
+
+## Top bar: brass PLAY, the CYBERGRAM wordmark and a divider, HOME / HEROES /
+## CAREER text tabs, then the account (avatar, name, status), settings, quit.
 func _build_top_bar() -> void:
 	var t := UiKit.tokens()
 	var bar := PanelContainer.new()
+	bar.name = "TopBar"
 	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	bar.custom_minimum_size.y = t.top_bar_height
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(t.bg_deep, 0.88)
-	sb.border_color = Color(t.gold, 0.28)
+	sb.bg_color = Color(t.bg, 0.94)
+	sb.border_color = t.line
 	sb.border_width_bottom = 1
-	sb.content_margin_left = t.space_l
-	sb.content_margin_right = t.space_m
-	sb.shadow_color = Color(0, 0, 0, 0.4)
-	sb.shadow_size = 8
+	sb.content_margin_left = 28
+	sb.content_margin_right = 28
 	bar.add_theme_stylebox_override("panel", sb)
 	_root.add_child(bar)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", t.space_l)
+	row.add_theme_constant_override("separation", 28)
 	bar.add_child(row)
-	_play = UiKit.button(tr("HUD_MENU_PLAY"), _open_modes, &"play", 46)
-	_play.custom_minimum_size.x = 168
+	_play = UiKit.button(tr("HUD_MENU_PLAY"), _open_modes, &"play", 44)
+	_play.custom_minimum_size.x = 136
 	_play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_play)
-	var mark := UiKit.label("CYBERGRAM", &"heading", t.text_dim)
-	mark.add_theme_font_size_override("font_size", 13)
+	var mark := Label.new()
+	mark.text = "CYBERGRAM"
+	mark.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(14, 0.34)))
+	mark.add_theme_font_size_override("font_size", 14)
+	mark.add_theme_color_override("font_color", t.text_dim)
 	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(mark)
 	var sep := VSeparator.new()
-	sep.custom_minimum_size.y = 28
+	sep.custom_minimum_size = Vector2(1, 28)
 	sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(sep)
 	var labels: Array = []
-	for k in NAV_KEYS:
+	for k in NAV_TAB_KEYS:
 		labels.append(tr(k))
 	_nav = UiKit.tab_bar(labels, func(i: int) -> void: _go(i), Nav.HOME, true)
-	_nav.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_nav.add_theme_constant_override("separation", 6)
 	for b: Button in _nav.get_children():
-		b.custom_minimum_size.y = t.top_bar_height - 16
+		b.custom_minimum_size.y = t.top_bar_height
 	row.add_child(_nav)
 	var fill := Control.new()
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -205,206 +237,312 @@ func _build_top_bar() -> void:
 	_chip = Button.new()
 	_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	UiKit.style_button(_chip, &"ghost")
-	UiSfx.attach(_chip)
+	var bare := StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		_chip.add_theme_stylebox_override(st, bare)
 	_chip.pressed.connect(func() -> void:
 		if session().is_empty():
 			_with_session(Callable())
 		else:
 			_go(Nav.PROFILE))
 	row.add_child(_chip)
-	var gear := UiKit.icon_button(&"gear", func() -> void: _go(Nav.SETTINGS), tr("HUD_QUICK_SETTINGS"), 36)
+	var icons := HBoxContainer.new()
+	icons.add_theme_constant_override("separation", 4)
+	row.add_child(icons)
+	var gear := UiKit.icon_button(&"gear", func() -> void: _go(Nav.SETTINGS), tr("HUD_QUICK_SETTINGS"), 44)
 	gear.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(gear)
-	var quit := UiKit.icon_button(&"close", _confirm_quit, tr("HUD_QUICK_QUIT"), 36)
+	icons.add_child(gear)
+	var quit := UiKit.icon_button(&"close", _confirm_quit, tr("HUD_QUICK_QUIT"), 44)
 	quit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(quit)
+	icons.add_child(quit)
 	_quick = [gear, quit]
 
 
-## HOME page: hero banner, status line, then news / event tiles (or the
-## hero roster on the HEROES tab).
+## HOME page (_col): the hero showcase and the patch strip; the HEROES tab
+## swaps them for the roster of tall portraits.
 func _build_home(content: Control) -> void:
 	var t := UiKit.tokens()
-	_col = VBoxContainer.new()
+	_col = VBoxContainer.new()  # kept as the page root (tests, capture scenes)
 	_col.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_col.add_theme_constant_override("separation", t.space_m)
+	_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	content.add_child(_col)
+	var page := Control.new()
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_col.add_child(page)
 	_showcase = HeroShowcase.new()
 	_showcase.heroes = _heroes
 	_showcase.selected = _hero_index
 	_showcase.with_model = DisplayServer.get_name() != "headless"  # no 3D stage in headless runs
-	_showcase.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_showcase.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_showcase.hero_changed.connect(func(i: int) -> void:
 		_hero_index = i
+		_sync_roster()
 		_save_settings())
-	_col.add_child(_showcase)
-	var tag := UiKit.label(tr("HUD_MENU_TAGLINE") % _version(), &"caption", t.text_off)
-	tag.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	tag.position = Vector2(t.space_xl, t.space_l)
-	_showcase.add_child(tag)
-	# Status line (why the last online session ended, connection errors):
-	# top right of the banner.
-	_status = UiKit.label(notice, &"small", HudPalette.LUMEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	page.add_child(_showcase)
+	# Status line (why the last online session ended, connection errors).
+	_status = UiKit.label(notice, &"small", t.warn, HORIZONTAL_ALIGNMENT_RIGHT)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_status.offset_left = -440
 	_status.offset_right = -t.space_xl
 	_status.offset_top = t.space_l
 	_status.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_showcase.add_child(_status)
-	_tiles = HBoxContainer.new()
-	_tiles.custom_minimum_size.y = TILE_H
-	_tiles.add_theme_constant_override("separation", t.space_m)
-	_col.add_child(_tiles)
-	var news := UiKit.card(tr("HUD_NEWS_TITLE") % _version(), 12)
-	news.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	news.size_flags_stretch_ratio = 1.6
-	for k in ["HUD_NEWS_1", "HUD_NEWS_2", "HUD_NEWS_3"]:
-		var l := UiKit.label("•  " + tr(k), &"small", t.text_dim)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		news.body.add_child(l)
-	news.body.add_theme_constant_override("separation", 4)
-	_tiles.add_child(news)
-	_tiles.add_child(_tile(MODE_PRACTICE))
-	_tiles.add_child(_tile(MODE_TUTORIAL))
-	_roster = HBoxContainer.new()
-	_roster.custom_minimum_size.y = TILE_H
-	_roster.add_theme_constant_override("separation", t.space_s)
+	page.add_child(_status)
+	# Patch strip: three hairline-topped links.
+	_tiles = VBoxContainer.new()
+	_tiles.position = Vector2(64, 568)
+	_tiles.size = Vector2(520, 100)
+	_tiles.add_theme_constant_override("separation", 12)
+	page.add_child(_tiles)
+	var short_version := _version().get_slice(".", 0) + "." + _version().get_slice(".", 1)
+	var head := UiKit.eyebrow(tr("HUD_PATCH_TITLE") % short_version, t.text_dim, 12)
+	_tiles.add_child(head)
+	var grid := HBoxContainer.new()
+	grid.add_theme_constant_override("separation", 20)
+	_tiles.add_child(grid)
+	for n in PATCH_ITEMS:
+		var k := "HUD" + "_PATCH_%d" % (n + 1)
+		var item := VBoxContainer.new()
+		item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		item.add_theme_constant_override("separation", 4)
+		item.add_child(UiKit.hairline(true))
+		item.add_child(UiKit.spacer(8))
+		var a := Label.new()
+		a.text = tr(k + "_TITLE")
+		a.add_theme_font_override("font", UiKit.body_font(500))
+		a.add_theme_font_size_override("font_size", 14)
+		a.add_theme_color_override("font_color", t.text)
+		item.add_child(a)
+		var b := Label.new()
+		b.text = tr(k + "_SUB")
+		b.add_theme_font_size_override("font_size", 12)
+		b.add_theme_color_override("font_color", t.text_dim)
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		item.add_child(b)
+		grid.add_child(item)
+	_build_roster(page)
+
+
+## HEROES page: eyebrow, title and one tall portrait card per hero.
+func _build_roster(page: Control) -> void:
+	var t := UiKit.tokens()
+	_roster = Control.new()
+	_roster.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_roster.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_roster.visible = false
-	_col.add_child(_roster)
+	page.add_child(_roster)
+	var head := VBoxContainer.new()
+	head.position = Vector2(64, 44)
+	head.add_theme_constant_override("separation", 10)
+	_roster.add_child(head)
+	head.add_child(UiKit.eyebrow(tr("HUD_HEROES_EYEBROW") % _heroes.size()))
+	var title := Label.new()
+	title.text = tr("HUD_NAV_HEROES")
+	title.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(40, 0.04)))
+	title.add_theme_font_size_override("font_size", 40)
+	head.add_child(title)
+	_roster_grid = HBoxContainer.new()
+	_roster_grid.position = Vector2(40, 158)
+	_roster_grid.size = Vector2(1090, 440)
+	_roster_grid.add_theme_constant_override("separation", 8)
+	_roster.add_child(_roster_grid)
 	for i in _heroes.size():
 		var h: Dictionary = _heroes[i]
 		var b := Button.new()
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.toggle_mode = true
-		UiKit.swatch_button(b, t.panel)
-		UiSfx.attach(b)
-		var v := VBoxContainer.new()
-		v.set_anchors_preset(Control.PRESET_FULL_RECT)
-		v.alignment = BoxContainer.ALIGNMENT_CENTER
-		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_theme_constant_override("separation", 4)
-		var badge := HeroBadge.make(int(h.index), 56)
-		badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		v.add_child(badge)
-		var nm := UiKit.label(str(h.name), &"small", t.text, HORIZONTAL_ALIGNMENT_CENTER)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size.y = 440
+		b.tooltip_text = str(h.name)
+		var empty := StyleBoxEmpty.new()
+		for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+			b.add_theme_stylebox_override(st, empty)
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())  # focus = brass name
+		var well := Control.new()
+		well.clip_contents = true
+		well.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		well.custom_minimum_size.y = 380
+		well.size.y = 380
+		well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(well)
+		var img := TextureRect.new()
+		img.texture = UiKit.portrait_texture(str(h.stem))
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		img.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		img.offset_left = -151
+		img.offset_right = 151
+		img.offset_top = 10
+		img.offset_bottom = 430
+		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(img)
+		var rule := UiKit.hairline(true)
+		rule.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		rule.offset_top = 379
+		rule.offset_bottom = 380
+		b.add_child(rule)
+		var nm := Label.new()
+		nm.text = str(h.name)
+		nm.uppercase = true
+		nm.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(17, 0.06)))
+		nm.add_theme_font_size_override("font_size", 17)
+		nm.add_theme_color_override("font_color", t.text)
 		nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		v.add_child(nm)
-		var role := UiKit.label(tr(HeroShowcase.ROLE_KEYS.get(str(h.stem), "HUD_ROLE_SOLDIER")), &"caption",
-			t.text_off, HORIZONTAL_ALIGNMENT_CENTER)
-		role.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		v.add_child(role)
-		b.add_child(v)
+		nm.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		nm.offset_top = 392
+		nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(nm)
+		var role := Label.new()
+		role.text = tr(LobbyPhase.role_short_key(LobbyPhase.role_key(str(h.stem))))
+		role.add_theme_font_size_override("font_size", 13)
+		role.add_theme_color_override("font_color", t.text_dim)
+		role.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		role.offset_top = 418
+		role.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(role)
+		var hot := func() -> void:
+			var on := b.is_hovered() or b.has_focus() or b.button_pressed
+			nm.add_theme_color_override("font_color", t.accent_hi if on else t.text)
+		b.mouse_entered.connect(hot)
+		b.mouse_exited.connect(hot)
+		b.focus_entered.connect(hot)
+		b.focus_exited.connect(hot)
+		b.draw.connect(hot)
+		UiSfx.attach(b)
 		b.pressed.connect(func() -> void:
 			_showcase.select(i)
-			_sync_roster())
-		_roster.add_child(b)
+			_go(Nav.HOME))
+		_roster_grid.add_child(b)
 
 
-## An event tile under the banner that launches mode `m` directly.
-func _tile(m: int) -> Button:
-	var t := UiKit.tokens()
-	var b := Button.new()
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UiKit.style_button(b, &"secondary")
-	UiSfx.attach(b)
-	var v := VBoxContainer.new()
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.offset_left = 16
-	v.offset_top = 14
-	v.offset_right = -16
-	v.offset_bottom = -14
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_theme_constant_override("separation", 6)
-	var head := HBoxContainer.new()
-	head.add_child(UiIcon.make(&"play", 14, t.gold))
-	var title := UiKit.label(tr(MODES[m][0]), &"heading")
-	title.add_theme_font_size_override("font_size", t.size_small + 1)
-	head.add_child(title)
-	head.add_theme_constant_override("separation", 8)
-	v.add_child(head)
-	var d := UiKit.label(tr(MODES[m][1]), &"small", t.text_dim)
-	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	d.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(d)
-	b.add_child(v)
-	b.pressed.connect(func() -> void: _launch_mode(m))
-	return b
-
-
-## PLAY -> mode select (LoL-style queue picker with CONFIRM).
+## PLAY -> mode select: a dark overlay over the content with the big text
+## mode list (diamond marker), the selected mode's detail, BACK and the CTA.
 func _build_modes(content: Control) -> void:
 	var t := UiKit.tokens()
-	_modes = UiKit.card(tr("HUD_MODE_TITLE"), t.space_xl)
+	_modes = Panel.new()
+	_modes.name = "Modes"
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.027, 0.039, 0.051, 0.94)
+	_modes.add_theme_stylebox_override("panel", sb)
 	_modes.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_modes.visible = false
 	content.add_child(_modes)
-	var row := HBoxContainer.new()
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", t.space_l)
-	_modes.body.add_child(row)
+	var eb := UiKit.eyebrow(tr("HUD_MODE_EYEBROW"))
+	eb.position = Vector2(64, 48)
+	_modes.add_child(eb)
+	var list := VBoxContainer.new()
+	list.position = Vector2(48, 96)
+	list.size = Vector2(500, 0)
+	list.custom_minimum_size.x = 500
+	list.add_theme_constant_override("separation", 0)
+	_modes.add_child(list)
 	var group := ButtonGroup.new()
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.size_flags_stretch_ratio = 1.4
-	grid.add_theme_constant_override("h_separation", t.space_m)
-	grid.add_theme_constant_override("v_separation", t.space_m)
 	for m in MODES.size():
 		var b := Button.new()
 		b.toggle_mode = true
 		b.button_group = group
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		b.custom_minimum_size.y = 96
-		UiKit.style_button(b, &"secondary")
-		var pressed := b.get_theme_stylebox("pressed") as UiBevelBox
-		pressed.fill = Color(t.accent, 0.22)
-		pressed.fill_hover = pressed.fill
-		pressed.border = t.accent_hi
-		pressed.border_hover = t.accent_hi
-		pressed.glow = Color(t.accent, 0.8)
-		pressed.glow_rest = 0.6
+		b.custom_minimum_size = Vector2(500, 100)
+		var row_sb := UiKit.underline_box(t.line)
+		for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+			b.add_theme_stylebox_override(st, row_sb)
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())  # focus = selection (marker)
+		var marker := UiIcon.make(&"diamond", 12, t.accent)
+		marker.position = Vector2(16, 32)
+		b.add_child(marker)
+		var nm := Label.new()
+		nm.text = tr(MODE_INFO[m][0])
+		nm.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(32, 0.04)))
+		nm.add_theme_font_size_override("font_size", 32)
+		nm.position = Vector2(44, 12)
+		nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(nm)
+		var meta := Label.new()
+		meta.text = tr(MODE_INFO[m][1])
+		meta.add_theme_font_size_override("font_size", 13)
+		meta.add_theme_color_override("font_color", t.text_dim)
+		meta.position = Vector2(44, 62)
+		meta.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(meta)
+		_mode_rows.append({"button": b, "marker": marker, "name": nm})
+		var hot := func() -> void: _paint_mode_rows()
+		b.mouse_entered.connect(hot)
+		b.mouse_exited.connect(hot)
+		b.focus_entered.connect(func() -> void:
+			b.button_pressed = true)
+		b.focus_exited.connect(hot)
+		b.toggled.connect(func(on: bool) -> void:
+			if on:
+				_select_mode(m))
+		b.pressed.connect(func() -> void: _select_mode(m))
 		UiSfx.attach(b)
-		var v := VBoxContainer.new()
-		v.set_anchors_preset(Control.PRESET_FULL_RECT)
-		v.offset_left = 18
-		v.offset_top = 14
-		v.offset_right = -18
-		v.offset_bottom = -14
-		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_theme_constant_override("separation", 6)
-		var title := UiKit.label(tr(MODES[m][0]), &"title" if m == MODE_ONLINE else &"heading")
-		v.add_child(title)
-		var d := UiKit.label(tr(MODES[m][1]), &"small", t.text_dim)
-		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		v.add_child(d)
-		b.add_child(v)
-		var glyph := UiIcon.make([&"friends", &"play", &"target", &"check", &"up"][m],
-			72.0 if m == MODE_ONLINE else 44.0, Color(t.accent_hi, 0.35))
-		glyph.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		glyph.offset_left = -glyph.custom_minimum_size.x - 18
-		glyph.offset_top = -glyph.custom_minimum_size.y - 16
-		glyph.offset_right = -18
-		glyph.offset_bottom = -16
-		b.add_child(glyph)
-		b.pressed.connect(func() -> void: _mode = m)
+		b.gui_input.connect(func(ev: InputEvent) -> void:
+			if ev is InputEventMouseButton and (ev as InputEventMouseButton).double_click:
+				_launch_mode(m))
 		_mode_buttons.append(b)
-		if m == MODE_ONLINE:
-			b.size_flags_stretch_ratio = 1.0
-			row.add_child(b)
-			row.add_child(grid)
-		else:
-			grid.add_child(b)
+		list.add_child(b)
+	var detail := VBoxContainer.new()
+	detail.position = Vector2(620, 108)
+	detail.custom_minimum_size.x = 470
+	detail.size.x = 470
+	detail.add_theme_constant_override("separation", 0)
+	_modes.add_child(detail)
+	_mode_portrait = TextureRect.new()
+	_mode_portrait.custom_minimum_size = Vector2(470, 360)
+	_mode_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_mode_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	detail.add_child(_mode_portrait)
+	detail.add_child(UiKit.hairline(true))
+	detail.add_child(UiKit.spacer(18))
+	_mode_name = Label.new()
+	_mode_name.add_theme_font_override("font", UiKit.display_font(600, UiKit.track(22, 0.05)))
+	_mode_name.add_theme_font_size_override("font_size", 22)
+	detail.add_child(_mode_name)
+	detail.add_child(UiKit.spacer(8))
+	_mode_desc = Label.new()
+	_mode_desc.add_theme_font_size_override("font_size", 15)
+	_mode_desc.add_theme_constant_override("line_spacing", 7)
+	_mode_desc.add_theme_color_override("font_color", t.text_dim)
+	_mode_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mode_desc.custom_minimum_size.x = 470
+	detail.add_child(_mode_desc)
 	var foot := HBoxContainer.new()
+	foot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	foot.offset_right = -70
+	foot.offset_bottom = -48
+	foot.offset_top = -96
+	foot.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	foot.alignment = BoxContainer.ALIGNMENT_END
-	foot.add_theme_constant_override("separation", t.space_m)
-	_modes.body.add_child(UiKit.spacer(t.space_s))
-	_modes.body.add_child(foot)
-	foot.add_child(UiKit.button(tr("HUD_MODE_BACK"), func() -> void: _go(Nav.HOME), &"ghost", 44))
-	_confirm = UiKit.button(tr("HUD_MODE_CONFIRM"), func() -> void: _launch_mode(_mode), &"primary", 48)
-	_confirm.custom_minimum_size.x = 220
+	foot.add_theme_constant_override("separation", 16)
+	_modes.add_child(foot)
+	var back := UiKit.button(tr("HUD_MODE_BACK"), func() -> void: _go(Nav.HOME), &"secondary", 48)
+	back.custom_minimum_size.x = 104
+	foot.add_child(back)
+	_confirm = UiKit.button(tr(MODE_INFO[0][3]), func() -> void: _launch_mode(_mode), &"primary", 48)
+	_confirm.custom_minimum_size.x = 196
 	foot.add_child(_confirm)
+	_select_mode(_mode)
+
+
+## Shows mode `m` in the detail column and on the CTA.
+func _select_mode(m: int) -> void:
+	_mode = m
+	_mode_portrait.texture = UiKit.portrait_texture(str(MODE_INFO[m][4]))
+	_mode_name.text = tr(MODE_INFO[m][0])
+	_mode_desc.text = tr(MODE_INFO[m][2])
+	_confirm.text = tr(MODE_INFO[m][3])
+	_paint_mode_rows()
+
+
+func _paint_mode_rows() -> void:
+	var t := UiKit.tokens()
+	for i in _mode_rows.size():
+		var r: Dictionary = _mode_rows[i]
+		var b := r.button as Button
+		var sel := i == _mode
+		(r.marker as Control).modulate.a = 1.0 if sel else 0.0
+		var hot := b.is_hovered() or b.has_focus()
+		(r.name as Label).add_theme_color_override("font_color", t.text if sel or hot else t.text_dim)
 
 
 func _open_modes() -> void:
@@ -412,8 +550,9 @@ func _open_modes() -> void:
 		return
 	_hide_pages()
 	_modes.visible = true
-	UiKit.transition_in(_modes)
+	UiKit.transition_in(_modes, Vector2.ZERO)
 	_mode_buttons[_mode].set_pressed_no_signal(true)
+	_select_mode(_mode)
 	_mode_buttons[_mode].grab_focus.call_deferred()
 
 
@@ -456,11 +595,13 @@ func _go(i: int) -> void:
 	_hide_pages()
 	_col.visible = _login == null and _lobby == null
 	_tiles.visible = i == Nav.HOME
+	_showcase.visible = i == Nav.HOME
+	_status.visible = i == Nav.HOME
 	_roster.visible = i == Nav.HEROES
 	_sync_roster()
-	UiKit.transition_in(_col)
+	UiKit.transition_in(_col, Vector2.ZERO)
 	if i == Nav.HEROES:
-		_showcase.focus_badge.call_deferred()
+		_roster_grid.get_child(clampi(_showcase.selected, 0, _roster_grid.get_child_count() - 1)).grab_focus.call_deferred()
 	else:
 		_play.grab_focus.call_deferred()
 
@@ -471,8 +612,12 @@ func _set_nav(i: int) -> void:
 
 
 func _sync_roster() -> void:
-	for k in _roster.get_child_count():
-		(_roster.get_child(k) as Button).set_pressed_no_signal(k == _showcase.selected)
+	if _roster_grid == null:
+		return
+	for k in _roster_grid.get_child_count():
+		var b := _roster_grid.get_child(k) as Button
+		b.set_pressed_no_signal(k == _showcase.selected)
+		b.queue_redraw()
 
 
 func _close_profile_only() -> void:
@@ -488,14 +633,19 @@ func _sync_shell() -> void:
 	_play.disabled = busy
 	for b: Button in _nav.get_children():
 		b.disabled = busy
+	# Covered by the full-screen lobby: keep focus from wandering under it.
+	_root.get_node("TopBar").visible = not busy
+	_friends.visible = not busy
+	_content.visible = not busy
 
 
 func _sync_lobby_margins() -> void:
 	var t := UiKit.tokens()
-	_lobby_box.add_theme_constant_override("margin_left", t.space_l)
-	_lobby_box.add_theme_constant_override("margin_top", t.top_bar_height + t.space_l)
-	_lobby_box.add_theme_constant_override("margin_right", _friends.dock_width() + t.space_l * 2)
-	_lobby_box.add_theme_constant_override("margin_bottom", t.space_l)
+	# The lobby owns the whole screen (design/ux/mockups/v0.9 Lobby.dc.html).
+	for side in ["left", "top", "right", "bottom"]:
+		_lobby_box.add_theme_constant_override("margin_" + side, 0)
+	_content.offset_right = -_friends.dock_width()
+	_friends.offset_left = -_friends.dock_width()
 
 
 func _confirm_quit() -> void:
@@ -504,11 +654,24 @@ func _confirm_quit() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if get_viewport().gui_get_focus_owner() == null and _is_nav_input(event) and _play.is_visible_in_tree() \
+			and _lobby == null and _login == null:
+		get_viewport().set_input_as_handled()
+		_play.grab_focus()
+		return
 	if _lobby != null or _login != null or not event.is_action_pressed("ui_cancel"):
 		return
 	if _modes.visible or _settings.visible or _roster.visible or _profile_screen != null:
 		get_viewport().set_input_as_handled()
 		_go(Nav.HOME)
+
+
+## True for a keyboard / gamepad navigation press (arrows, Tab, Enter, D-pad, A).
+static func _is_nav_input(event: InputEvent) -> bool:
+	for a in ["ui_left", "ui_right", "ui_up", "ui_down", "ui_focus_next", "ui_accept"]:
+		if event.is_action_pressed(a):
+			return true
+	return false
 
 
 ## The logged-in session ({} = none).
@@ -524,35 +687,44 @@ func _refresh_chip() -> void:
 		c.queue_free()
 	var s := session()
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.position = Vector2(8, 4)
-	var ring := t.text_off
+	row.position = Vector2(0, 0)
 	var name_text := tr("HUD_MENU_NOT_LOGGED_IN")
 	var sub := tr("HUD_FRIENDS_LOGIN")
-	var em := EmblemIcon.make(0, 0, 30.0)
+	var sub_col := t.accent_hi
+	var em := EmblemIcon.make(0, 0, 38.0)
+	em.ring = t.line_strong
+	em.dim = true
 	if not s.is_empty():
 		var guest := int(s.get("guest", 1)) != 0
-		ring = t.text_dim if guest else t.accent_hi
 		name_text = str(s.get("display_name", ""))
-		sub = tr("HUD_ACCOUNT_GUEST_LINE") if guest else "#" + PlayerProfile.tag_of(str(s.get("id", "")))
-		em = EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 30.0)
-	else:
-		em.modulate = Color(1, 1, 1, 0.35)
-	row.add_child(UiKit.avatar(em, ring, 40.0))
+		sub = tr("HUD_ACCOUNT_GUEST_LINE") if guest else tr("HUD_MENU_STATUS_ONLINE")
+		sub_col = t.text_dim if guest else t.ok
+		em = EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 38.0)
+		em.ring = t.accent
+		em.ring_width = 2.0
+	em.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(em)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", -2)
+	v.add_theme_constant_override("separation", 0)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var nl := UiKit.label(name_text, &"body", t.text if not s.is_empty() else t.text_dim)
-	if not s.is_empty():
-		nl.add_theme_color_override("font_color", PlayerProfile.accent_of(int(s.get("accent", 0))).lerp(t.text, 0.5))
+	var nl := Label.new()
+	nl.text = name_text
+	nl.add_theme_font_override("font", UiKit.body_font(600))
+	nl.add_theme_font_size_override("font_size", 15)
+	nl.add_theme_color_override("font_color", t.text if not s.is_empty() else t.text_dim)
 	v.add_child(nl)
-	v.add_child(UiKit.label(sub, &"caption", t.text_off if not s.is_empty() else t.accent_hi))
+	var sl := Label.new()
+	sl.text = sub
+	sl.add_theme_font_size_override("font_size", 12)
+	sl.add_theme_color_override("font_color", sub_col)
+	v.add_child(sl)
 	row.add_child(v)
 	_chip.add_child(row)
 	var fit := func() -> void:
-		_chip.custom_minimum_size = row.get_combined_minimum_size() + Vector2(20, 8)
+		_chip.custom_minimum_size = row.get_combined_minimum_size() + Vector2(4, 4)
 	row.minimum_size_changed.connect(fit)
 	fit.call()
 	var account := not s.is_empty() and int(s.get("guest", 1)) == 0
@@ -849,6 +1021,7 @@ func _close_profile() -> void:
 	_set_nav(Nav.HOME)
 	_hide_pages()
 	_tiles.visible = true
+	_showcase.visible = true
 	_roster.visible = false
 	_col.visible = _lobby == null and _login == null
 	_play.grab_focus.call_deferred()

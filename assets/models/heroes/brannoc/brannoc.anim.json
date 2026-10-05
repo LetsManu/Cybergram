@@ -1,0 +1,30 @@
+{
+ "clips": {
+  "death": {
+   "frames": 65,
+   "speed": 0.0,
+   "trial": "90_16"
+  },
+  "jump": {
+   "frames": 16,
+   "speed": 0.0,
+   "trial": "16_01"
+  },
+  "run": {
+   "frames": 25,
+   "speed": 3.618,
+   "trial": "16_35"
+  },
+  "run_back": {
+   "frames": 36,
+   "speed": 1.45,
+   "trial": "16_15"
+  },
+  "walk": {
+   "frames": 36,
+   "speed": 1.45,
+   "trial": "16_15"
+  }
+ },
+ "credit": "The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217."
+}
