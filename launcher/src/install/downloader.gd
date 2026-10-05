@@ -40,6 +40,9 @@ var _budget: float = 0.0
 var _last_io: int = 0
 var _started: int = 0
 var _redirects: int = 0
+## Response headers, captured on the first poll that has them (HTTPClient
+## drops them once an empty body is finished).
+var _hdr: Dictionary = {}
 
 
 ## Splits "http(s)://host[:port]/path". Returns {} when the URL is unusable.
@@ -102,6 +105,7 @@ func _open(url_: String, part_path_: String, expected: int) -> void:
 		return
 	active = true
 	_requested = false
+	_hdr = {}
 	_budget = 0.0
 	_started = Time.get_ticks_msec()
 	_last_io = _started
@@ -122,6 +126,8 @@ func _process(delta: float) -> void:
 	if not active or _client == null:
 		return
 	_client.poll()
+	if _requested and _hdr.is_empty() and _client.has_response():
+		_hdr = _client.get_response_headers_as_dictionary()
 	var st: HTTPClient.Status = _client.get_status()
 	var now: int = Time.get_ticks_msec()
 	match st:
@@ -162,8 +168,10 @@ func _open_body() -> bool:
 	var code: int = _client.get_response_code()
 	var length: int = _client.get_response_body_length()
 	if code in [301, 302, 303, 307, 308]:
-		var loc: String = String(_client.get_response_headers_as_dictionary().get("Location",
-			_client.get_response_headers_as_dictionary().get("location", "")))
+		var loc: String = ""
+		for k: Variant in _hdr:
+			if String(k).to_lower() == "location":
+				loc = String(_hdr[k]).strip_edges()
 		_redirects += 1
 		if loc == "" or _redirects > MAX_REDIRECTS or not (loc.begins_with("https://") or loc.begins_with("http://")):
 			_finish(false, "bad redirect (HTTP %d)" % code)
