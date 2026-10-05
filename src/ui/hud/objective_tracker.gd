@@ -5,10 +5,17 @@ extends HudWidget
 ## verb (HOLD / PLANT / BREACH), hardpoint name, progress bar + %, state text
 ## (CAPTURING / ENEMY CAPTURING / CONTESTED / OVERTIME / LOCKED / HELD) and the
 ## distance when outside. Presence counts are not replicated yet (deviation).
+## v0.12 (hud-v0.12.md §2): no box; a 3 px left rule in the owner's colour, the
+## task glyph (shape = task, fill = ownership), the verb in caps 22, the
+## hardpoint + "in zone" / distance muted, a 4 px progress bar, the state in caps
+## (CONTESTED pulses, static with reduce motion / effects 0) and the %. Idle:
+## collapses to the glyph, verb and place.
 
 const VERB_KEYS: Array[String] = ["HUD_TASK_HOLD", "HUD_TASK_PLANT", "HUD_TASK_BREACH"]
-const W: float = 316.0
-const H: float = 92.0
+const W: float = 366.0
+const H: float = 86.0
+
+var _t: float = 0.0
 
 
 func _draw() -> void:
@@ -33,41 +40,46 @@ func _draw() -> void:
 	var def := defs[idx]
 	var team := ctx.own_team()
 	var x := size.x - W
-	panel(Rect2(x, 0.0, W, H))
-	var icon_c := Vector2(x + 24.0, 24.0)
-	var col := ctx.team_color(st.owner)
-	match def.task:
-		HardpointDef.TaskKind.PLANT:
-			draw_rect(Rect2(icon_c - Vector2(9, 9), Vector2(18, 18)), col)
-		HardpointDef.TaskKind.BREACH:
-			draw_colored_polygon(PackedVector2Array([icon_c + Vector2(0, -10), icon_c + Vector2(10, 8), icon_c + Vector2(-10, 8)]), col)
-		_:
-			draw_circle(icon_c, 10.0, col)
-	draw_arc(icon_c, 12.0, 0.0, TAU, 24, Color(1, 1, 1, 0.7), 1.5, true)
-	text(tr(VERB_KEYS[clampi(def.task, 0, 2)]), Vector2(x + 44.0, 30.0), 18, HudPalette.TEXT, ctx.font_display)
-	var verb_w := text_width(tr(VERB_KEYS[clampi(def.task, 0, 2)]), 18, ctx.font_display)
-	text(def.display_name, Vector2(x + 54.0 + verb_w, 30.0), 16, HudPalette.TEXT_DIM, ctx.font_body, HORIZONTAL_ALIGNMENT_LEFT,
-		W - 64.0 - verb_w)
-	var br := Rect2(x + 14.0, 44.0, W - 80.0, 10.0)
-	bar(br, st.progress, ctx.team_color(st.capturing_team))
-	text("%d%%" % floori(st.progress * 100.0), Vector2(br.end.x + 8.0, 55.0), 16, HudPalette.TEXT, ctx.font_numbers)
+	var collapsed := ctx.idle_k > 0.5
+	var rule_col := ctx.team_color(st.owner) if st.owner >= 0 and st.owner <= 1 else HudPalette.IVORY
+	draw_rect(Rect2(x, 0.0, 3.0, 36.0 if collapsed else H), rule_col)
+	var gx := x + 30.0
+	task_chip(Vector2(gx, 18.0), 21.0, def.task, ownership(st.owner, team), ctx.team_color(st.owner), false)
+	var verb := tr(VERB_KEYS[clampi(def.task, 0, 2)])
+	caps(verb, Vector2(gx + 24.0, 26.0), 22, HudPalette.IVORY, 0.2)
+	var lanes := c.map_def.lanes.size() if c.map_def != null else 1
+	var where := FrontStrip.tag_of(def.id, lanes)  # short tag (C-MID) as on the front strip
+	where += " · " + (tr("HUD_IN_ZONE") if dist <= 0.0 else tr("HUD_DISTANCE_M") % ceili(dist))
+	var vw := caps_width(verb, 22, 0.2)
+	text(where, Vector2(gx + 36.0 + vw, 25.0), 18, HudPalette.MUTED, ctx.font_body, HORIZONTAL_ALIGNMENT_RIGHT,
+		size.x - (gx + 36.0 + vw))
+	if collapsed:
+		return
+	var cap_col := ctx.team_color(st.capturing_team) if st.capturing_team >= 0 else HudPalette.IVORY
+	bar(Rect2(x + 21.0, 44.0, W - 21.0, 4.0), st.progress, cap_col)
 	var state := ""
-	var scol := HudPalette.TEXT
+	var scol := HudPalette.IVORY
 	if st.locked[team]:
 		state = tr("HUD_STATE_LOCKED")
-		scol = HudPalette.TEXT_OFF
+		scol = HudPalette.DIM
 	elif st.contested:
 		state = tr("HUD_STATE_CONTESTED")
-		scol = HudPalette.WARN
+		scol = Color(HudPalette.IVORY, pulse(_t, 1.2, 0.45))
 	elif st.overtime:
 		state = tr("HUD_STATE_OVERTIME")
-		scol = HudPalette.WARN
+		scol = HudPalette.WARN_UI
 	elif st.progress > 0.0:
 		state = tr("HUD_STATE_CAPTURING") if st.capturing_team == team else tr("HUD_STATE_ENEMY_CAPTURING")
-		scol = ctx.team_color(st.capturing_team).lightened(0.3)
 	elif st.owner == team:
 		state = tr("HUD_STATE_HELD")
-	text(state, Vector2(x + 14.0, 80.0), 15, scol, ctx.font_display)
-	if dist > 0.0:
-		text(tr("HUD_DISTANCE_M") % ceili(dist), Vector2(x, 80.0), 14, HudPalette.TEXT_DIM, ctx.font_body,
-			HORIZONTAL_ALIGNMENT_RIGHT, W - 14.0)
+	var sx := x + 21.0
+	if state != "":
+		caps(state, Vector2(sx, 76.0), 16, scol, 0.2)
+		sx += caps_width(state, 16, 0.2) + 15.0
+	if st.progress > 0.0 or state == "":
+		text("%d%%" % floori(st.progress * 100.0), Vector2(sx, 76.0), 18, HudPalette.IVORY, ctx.font_numbers)
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	super(delta)

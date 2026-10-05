@@ -24,6 +24,9 @@ class Hero:
 	var is_bot: bool = false
 	## W11-V1: SnapshotData.EntityState.fork_bits (Fork / Mastery of the 3 basic skills).
 	var fork_bits: int = 0
+	## W19-HUD: HeroDef id (EntityState.hero_index via ContentDB) for faces / hero names.
+	var hero_id: StringName = &""
+	var hero_index: int = -1
 
 
 var own_id: int = 0
@@ -48,6 +51,9 @@ func apply_entities(entities: Array, own_id_: int, own_team_: int) -> void:
 		h.max_hp = e.max_hp
 		h.dead = e.dead
 		h.fork_bits = e.fork_bits
+		if h.hero_id == &"" or h.hero_index != e.hero_index:
+			h.hero_index = e.hero_index
+			h.hero_id = ContentDB.shared().id_at(ContentDB.HERO, e.hero_index) if ContentDB.shared() != null else &""
 		seen[e.net_id] = true
 	for id in heroes.keys():
 		if not seen.has(id):
@@ -114,5 +120,6 @@ func rows() -> Array:
 		r.is_self = id == own_id
 		r.is_bot = h.is_bot
 		r.fork_bits = h.fork_bits
+		r.hero_id = h.hero_id
 		out.append(r)
 	return out

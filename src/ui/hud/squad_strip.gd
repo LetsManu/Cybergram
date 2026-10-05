@@ -1,18 +1,18 @@
 class_name SquadStrip
 extends HudWidget
-## Squad strip (design/ux/hud.md §4.6; wardlings-and-economy.md §8), bottom
-## left above the vitals panel: one slot per squad slot (min 3): slot number,
-## variant letters (Pk = Picket, the only slice variant), HP bar and the state
-## badge — letters, never colour only: F Follow, H Hold, A Attack, C Capture,
-## ! in combat, R returning, D dissolving (death hold). Empty slots show "--".
-## Shown only while the squad has members (hud.md §2).
+## Squad strip (design/ux/hud.md §4.6; wardlings-and-economy.md §8; v0.12 look,
+## design/ux/hud-v0.12.md §2), bottom left above the vitals: "SQUAD" caps over
+## the current command (FOLLOW …), then one 45 px pip per squad slot (min 3):
+## an ally chevron, a 3 px HP line and the slot number + state letter in mono —
+## letters, never colour only: F Follow, H Hold, A Attack, C Capture, ! in
+## combat (warn), R returning, D dissolving. Empty slots: a hollow chevron at
+## 30%. Shown only while the squad has members (hud.md §2). Idle: 42%.
 
-const SLOT_W: float = 66.0
-const SLOT_H: float = 42.0
-const GAP: float = 6.0
+const PIP_W: float = 45.0
+const H: float = 60.0
 const MIN_SLOTS: int = 3
 const COMMAND_LETTER := {0: "-", 1: "F", 2: "H", 3: "A", 4: "C"}
-const EDGE := Color(1.0, 0.86, 0.25)
+const COMMAND_KEYS := {1: "HUD_CMD_FOLLOW", 2: "HUD_CMD_HOLD", 3: "HUD_CMD_ATTACK", 4: "HUD_CMD_CAPTURE"}
 
 
 func _draw() -> void:
@@ -22,25 +22,32 @@ func _draw() -> void:
 	var pips := c.wardlings.own_squad
 	if pips.is_empty():
 		return
+	var a := idle_a(0.42)
 	var n := maxi(MIN_SLOTS, pips.size())
-	var y := size.y - SLOT_H
-	text(tr("HUD_SQUAD"), Vector2(0.0, y - 6.0), 14, EDGE, ctx.font_display)
+	var y := size.y - H
+	caps(tr("HUD_SQUAD"), Vector2(0.0, y + 22.0), 16, Color(HudPalette.MUTED, a), 0.22)
+	var first: WardlingPresenter.SquadPip = pips[0]
+	caps(tr(COMMAND_KEYS.get(first.command, "HUD_SQUAD")), Vector2(0.0, y + 49.0), 18, Color(HudPalette.IVORY, a), 0.2)
+	var hw := maxf(caps_width(tr("HUD_SQUAD"), 16), caps_width(tr(COMMAND_KEYS.get(first.command, "HUD_SQUAD")), 18, 0.2))
+	var x0 := hw + 21.0
+	var col := ctx.team_color(ctx.own_team())
 	for i in n:
-		var r := Rect2(Vector2(i * (SLOT_W + GAP), y), Vector2(SLOT_W, SLOT_H))
-		panel(r)
+		var cx := x0 + i * (PIP_W + 3.0) + PIP_W * 0.5
+		var gc := Vector2(cx, y + 14.0)
+		var hp_r := Rect2(cx - 18.0, y + 27.0, 36.0, 3.0)
 		if i >= pips.size():
-			text("%d --" % (i + 1), r.position + Vector2(7.0, 18.0), 14, HudPalette.TEXT_OFF, ctx.font_display)
+			chevron_line(gc, 9.0, Color(col, 0.3 * a))
+			draw_rect(hp_r, Color(HudPalette.IVORY, 0.18 * 0.3 * a))
+			text_c(str(i + 1), Vector2(cx, y + 45.0), 15, Color(HudPalette.MUTED, a), ctx.font_mono)
 			continue
 		var p: WardlingPresenter.SquadPip = pips[i]
-		draw_rect(r, EDGE, false, 1.5)
-		text("%d %s" % [i + 1, tr("HUD_VARIANT_PICKET")], r.position + Vector2(7.0, 18.0), 14, HudPalette.TEXT,
-			ctx.font_display)
+		chevron(gc, 9.0, Color(col, a))
+		bar(hp_r, p.hp_frac, Color(HudPalette.IVORY if p.hp_frac > 0.35 else HudPalette.damage_color(ctx.settings.colorblind), a),
+			Color(HudPalette.IVORY, 0.18 * a))
 		var badge := badge_of(p)
 		var normal: bool = badge == COMMAND_LETTER.get(p.command, "-")
-		text(badge, r.position + Vector2(SLOT_W - 17.0, 19.0), 17, EDGE if normal else HudPalette.DANGER.lightened(0.2),
-			ctx.font_numbers)
-		var b := Rect2(r.position + Vector2(7.0, SLOT_H - 14.0), Vector2(SLOT_W - 14.0, 7.0))
-		bar(b, p.hp_frac, HudPalette.HP if p.hp_frac > 0.35 else HudPalette.DANGER, Color(0.15, 0.15, 0.18))
+		text_c("%d%s" % [i + 1, badge], Vector2(cx, y + 45.0), 15,
+			Color(HudPalette.MUTED if normal else HudPalette.WARN_UI, a), ctx.font_mono)
 
 
 ## State badge letter for one pip.
