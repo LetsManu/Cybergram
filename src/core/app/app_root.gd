@@ -62,8 +62,8 @@ func _start(cfg: AppConfig, args: PackedStringArray, headless: bool) -> void:
 		session.connect("match_built", func() -> void: _add_plugins(cfg, session))
 	else:
 		_add_plugins(cfg, session)
-	if launch.mode == LaunchConfig.Mode.DEDICATED:
-		return
+	if launch.mode == LaunchConfig.Mode.DEDICATED or launch.mm_script != "":
+		return  # W17B: the scripted matchmaking client is headless, no overlays
 	for scene in cfg.overlay_scenes:
 		var overlay := scene.instantiate()
 		overlay.set("session", session)

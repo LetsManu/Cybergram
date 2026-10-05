@@ -129,9 +129,14 @@ func report_abandon(account_id: String) -> void:
 
 ## The match ended. `players`: [{account, team, kills, deaths, assists, ...}]
 ## (ids and numbers only), `abandons`: account ids that left for good.
-func report_result(winner_team: int, players: Array, abandons: Array = []) -> void:
-	_queue_report(HostChannelCodec.OP_RESULT, {"match_id": match_id(), "winner": winner_team,
-		"players": players, "abandons": abandons})
+## `extra` (W17B): more result fields, e.g. {duration_s, remake: true,
+## remake_absent: [ids]} (a passed remake vote: winner -1, no rating change).
+func report_result(winner_team: int, players: Array, abandons: Array = [], extra: Dictionary = {}) -> void:
+	var payload := {"match_id": match_id(), "winner": winner_team, "players": players, "abandons": abandons}
+	for k in extra:
+		if not payload.has(k):
+			payload[k] = extra[k]
+	_queue_report(HostChannelCodec.OP_RESULT, payload)
 
 
 ## The match cannot count (internal error, nobody connected ...).

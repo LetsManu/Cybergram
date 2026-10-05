@@ -13,7 +13,10 @@ extends RefCounted
 ##              Dead bots are preferred movers (they respawn anyway).
 ## The move itself is plain navigation: the shortest navmesh route between two
 ## lanes' Outer/Mid rows runs through the Undercroft flank tunnels, so a bot
-## re-assigned mid-push flanks rather than walking back to the HQ.
+## re-assigned mid-push flanks rather than walking back to the HQ. On Shardline
+## Front (W18-GEO) the between-lane jungle is on the bots' nav layers too
+## (BotNavigator.NAV_LAYERS), so an Inner/Outer re-assignment rotates through
+## its alleys whenever that path is shorter; no planner logic is needed.
 
 ## Lane indices on a 3-lane map (MapDef order North, Center, South).
 const OPEN_ORDER: Array[int] = [1, 0, 2]

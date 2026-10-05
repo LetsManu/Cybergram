@@ -9,18 +9,18 @@ behind a VPS relay. Setup basics (image, accounts, TLS, update host) are in
 
 | `CYBERGRAM_MODE` | What runs | Ports |
 |---|---|---|
-| `single` (default) | One process: the lobby and one match on UDP 7777, as before. | 7777/udp, 8080/tcp |
-| `front` (phase B) | The front (accounts, parties, queues) on UDP 7777, plus one headless process per match on the match port range. | 7777/udp, 7800-7809/udp, 8080/tcp |
+| `single` | One process: the lobby and one match on UDP 7777, as before. | 7777/udp, 8080/tcp |
+| `front` (default since v0.13) | The front (accounts, parties, queues) on UDP 7777, plus one headless process per match on the match port range. | 7777/udp, 7800-7809/udp, 8080/tcp |
 
-Stay on `single` until a release notes that front mode is wired (phase B). In
-front mode a match crash ends only that match: it is voided (no rating change)
+Front mode is the default from v0.13 (queues, draft, ratings). `single` stays
+selectable as the rollback. In front mode a match crash ends only that match: it is voided (no rating change)
 and its players are re-queued.
 
 ## Environment variables
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `CYBERGRAM_MODE` | `single` | `single` or `front`. |
+| `CYBERGRAM_MODE` | `front` | `front` or `single`. |
 | `CYBERGRAM_PUBLIC_HOST` | empty | The address **clients** are told to connect to: a domain or the public IP of the VPS or relay. Empty means the address the client already used. It is separate from the bind address, so NAT, relays and tunnels work. |
 | `CYBERGRAM_BIND_HOST` | `*` | The address match processes bind. |
 | `CYBERGRAM_MATCH_PORTS` | `7800-7809` | The UDP port range, one port per concurrent match. It must match the compose port mapping and the firewall. |
@@ -30,9 +30,68 @@ and its players are re-queued.
 | `CYBERGRAM_BUILD_VERSION` | `dev` | The build tag of the match processes. |
 | `CYBERGRAM_DRAIN_MAX_S` | `3600` (compose: `2340`) | The longest graceful drain. Keep it below `stop_grace_period`. |
 | `CYBERGRAM_TICKET_KEYS` / `CYBERGRAM_TICKET_KEYS_FILE` | random | Join ticket keys as `kid:hex` (32+ bytes); the first is active. Without them a random key is used, which is fine on one host. Never logged. |
+| `CYBERGRAM_IMAGE_TAG` | `latest` | (compose and `auto_update.sh`) The image tag. Pin e.g. `v0.13.0` to stop following `latest`. |
+| `CYBERGRAM_MOTD_FILE` | `/data/motd.txt` | Path inside the container of the launcher message of the day. |
 | `CYBERGRAM_TLS_DIR` | `./tls` | (compose only) The host folder with `fullchain.pem` and `privkey.pem`. |
 
 No variable or path is NAS-specific. The same compose file runs on a VPS.
+
+## Upgrading to v0.13
+
+The owner's checklist, the same on the NAS today and on a VPS later. Your
+accounts stay in the `/data` volume; nothing is migrated.
+
+1. **Pull.** In the folder with `docker-compose.yml`: `docker compose pull`.
+2. **Add `.env`.** `cp .env.example .env` and set at least
+   `CYBERGRAM_PUBLIC_HOST` (DynDNS name or VPS domain) and, on the NAS,
+   `CYBERGRAM_TLS_DIR=/srv/cybergram/tls`.
+3. **Forward UDP 7800-7809** (router to NAS, or `ufw allow 7800:7809/udp` and the
+   provider panel on a VPS), next to the existing 7777/udp and 8080/tcp.
+4. **Generate the ticket key** and put it in `.env`:
+   `echo "k1:$(openssl rand -hex 32)"` gives the line to paste after
+   `CYBERGRAM_TICKET_KEYS=`. Without it a random key is made at each start,
+   which works on one host. Keep `.env` private (it is git-ignored).
+5. **Start.** `docker compose up -d`, then `docker ps` shows `healthy` after
+   about a minute. In front mode the logs show `[hosting]` lines.
+6. **Review reports** (owner tool): `docker exec cybergram /opt/review_reports.sh list`.
+
+**Roll back to single mode** (the pre-v0.13 server): set `CYBERGRAM_MODE=single`
+in `.env` and run `docker compose up -d`. Ratings and history stay on disk and
+are used again when you return to `front`. To go back to the old build too, pin
+`CYBERGRAM_IMAGE_TAG=v0.12.0` (see below).
+
+## Automatic updates
+
+`tools/server/auto_update.sh` pulls the image every 12 minutes, compares it with
+the running container and, if it is new, waits until no match is running (the
+front's health file), at most `CYBERGRAM_UPDATE_MAX_WAIT_S` (default 1800 s).
+Then it runs `docker compose up -d`: the old container gets SIGTERM and drains
+(see "Draining for a patch"). Each update adds one line (time, old -> new image
+id) to `/var/log/cybergram-update.log` (or `~/.cybergram-update.log`), trimmed
+to `CYBERGRAM_UPDATE_LOG_MAX_BYTES` (64 KiB). Nothing about players is logged.
+
+Setup with systemd (VPS, or a NAS that has it):
+
+```
+sudo mkdir -p /opt/cybergram-server && sudo cp tools/server/{auto_update.sh,docker-compose.yml,.env} /opt/cybergram-server/
+sudo cp tools/server/cybergram-update.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now cybergram-update.timer
+```
+
+Edit `ExecStart` in the service if you used another folder. Without systemd
+(e.g. a Synology Task Scheduler or cron), run
+`*/12 * * * * /opt/cybergram-server/auto_update.sh` as a user that may run
+docker. Set `CYBERGRAM_COMPOSE_CMD=docker-compose` if you only have the old
+command.
+
+**Pinning and rollback.** Set `CYBERGRAM_IMAGE_TAG=v0.13.0` in `.env`: the script
+then follows only that tag and ignores newer `latest` images. To roll back, pin
+the older tag; the next run (or `docker compose up -d`) switches to it, again
+waiting for running matches. Remove the pin (`latest`) to follow releases.
+Note: auto-update is not a substitute for reading the release notes. If you
+want to approve each release, pin and change the tag by hand.
+
+Test: `tools/ci/auto_update_test.sh` (fake docker CLI).
 
 ## Capacity and memory (measured 2026-10-05)
 

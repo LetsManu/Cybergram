@@ -42,7 +42,7 @@ address so a match ticket without a host resolves to it.
 | `ready_check(deadline)` | Local seconds (`clock()`); details in `last_ready`: `{match, queue, humans, accepted, you_accepted}`. Re-sent as others accept. |
 | `ready_result(result)` | `{outcome: RR_GO / RR_REQUEUED / RR_REMOVED / RR_LOCKED / RR_VOIDED, locked}`. |
 | `draft_state(state)` / `aram_state(state)` | `{mode, turn, turn_team, seconds, deadline, you, seats, rerolls, bench, swap_from}`. Seat: `{id, team, lane (byte, see LANES), hero, flags (SEAT_BOT/AUTO/PICKING/YOU/PICKED), name}`. Enemy seats have no id and no name. |
-| `match_assigned(host, port, ticket)` | Start the game client: `--connect host:port --ticket <ticket>` (or set `ClientSession.ticket` before `connect_to_server()`). `last_assigned` also has `match`, `team`, `hero`. |
+| `match_assigned(host, port, ticket)` | Start the game client: `--connect host:port --ticket <ticket>` (or set `ClientSession.ticket` before `connect_to_server()`). `last_assigned` also has `match`, `team`, `hero` (HERO index: pass it as `--hero`) and `map` (the game's `--map` name). |
 | `rating_update(info)` | `{tracks: [{track, track_id, rating (-1 = calibrating), games_left, band (medal index, 255 none), division}]}`. Medal names: `MatchmakingRulesDef.medal_bands`, Iron to Master. |
 | `lockout(info)` | `{seconds, until, ranked, reason (LK_DECLINE / LK_LEAVE)}`. |
 | `remake_prompt(info)` | `{state (RV_*), yes, needed, seconds, deadline, team}`. |

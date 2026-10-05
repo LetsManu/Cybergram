@@ -43,6 +43,18 @@ var stats_log_enabled: bool = false
 ## W16-NET: records of state objects shared by every client this tick.
 var _record_cache: Dictionary = {}
 var _record_cache_tick: int = -1
+## v17 match process (W17B): checks a Hello join ticket, returns
+## {result: JoinTicketVerifier.Result, account}. Invalid Callable = no tickets
+## (single mode, offline): Hello works as before.
+var ticket_verifier: Callable
+## v17 match process: account id -> slot token / ContentDB hero index from the
+## match setup (the server, not the client, decides the hero).
+var account_tokens: Dictionary = {}
+var account_heroes: Dictionary = {}
+## v17 match process: peer -> account id of a ticket-verified player.
+var peer_accounts: Dictionary = {}
+## v17 match process: MM_REQ packets (remake vote) go here: f(peer, data).
+var mm_handler: Callable
 ## v17: the match mood seed sent in every Welcome (client ambience). The
 ## session sets it once per match (random; matchmade: from the setup).
 var mood_seed: int = 0
@@ -90,7 +102,8 @@ func drop(peer_id: int) -> void:
 	var c: ClientConnection = clients.get(peer_id)
 	clients.erase(peer_id)
 	accounts.on_disconnect(peer_id)
-	token_names.erase(hello_token.get(peer_id, 0))
+	if not ticket_verifier.is_valid():
+		token_names.erase(hello_token.get(peer_id, 0))  # matchmade tokens stay for a reconnect
 	hello_token.erase(peer_id)
 	hello_hero.erase(peer_id)
 	if c != null and names.has(c.own_net_id):
@@ -188,8 +201,17 @@ func _handle(pkt: Transport.Packet) -> void:
 			elif hello.protocol_version != MsgType.PROTOCOL_VERSION:
 				reject(pkt.from_peer, MsgType.REJECT_PROTOCOL_MISMATCH)
 			elif not clients.has(pkt.from_peer):
-				hello_hero[pkt.from_peer] = hello.hero_index
-				hello_token[pkt.from_peer] = hello.token
+				if ticket_verifier.is_valid():
+					var acc := _verify_ticket(str(hello.ticket))
+					if acc == "":
+						reject(pkt.from_peer, MsgType.REJECT_BAD_TICKET)
+						return
+					peer_accounts[pkt.from_peer] = acc
+					hello_hero[pkt.from_peer] = int(account_heroes.get(acc, hello.hero_index))
+					hello_token[pkt.from_peer] = int(account_tokens[acc])
+				else:
+					hello_hero[pkt.from_peer] = hello.hero_index
+					hello_token[pkt.from_peer] = hello.token
 				client_joined.emit(pkt.from_peer)
 		MsgType.LOBBY_JOIN:
 			# A lobby client while the match runs: tell it to join right away
@@ -198,7 +220,9 @@ func _handle(pkt: Transport.Packet) -> void:
 			var j := LobbyCodec.decode_join(pkt.data)
 			if j.is_empty():
 				return
-			if j.get("legacy", false) or j.protocol_version != MsgType.PROTOCOL_VERSION:
+			if ticket_verifier.is_valid():
+				reject(pkt.from_peer, MsgType.REJECT_BAD_TICKET)  # matchmade: tickets only
+			elif j.get("legacy", false) or j.protocol_version != MsgType.PROTOCOL_VERSION:
 				reject(pkt.from_peer, MsgType.REJECT_PROTOCOL_MISMATCH)
 			elif accounts.identity(pkt.from_peer).is_empty():
 				reject(pkt.from_peer, MsgType.REJECT_NOT_LOGGED_IN)
@@ -211,6 +235,9 @@ func _handle(pkt: Transport.Packet) -> void:
 				transport.send(pkt.from_peer, Transport.CH_CONTROL, LobbyCodec.encode_start(token, 255, j.hero_index))
 		MsgType.ACCOUNT_REQ:
 			accounts.handle(transport, pkt.from_peer, pkt.data)
+		MsgType.MM_REQ:
+			if mm_handler.is_valid() and clients.has(pkt.from_peer):
+				mm_handler.call(pkt.from_peer, pkt.data)
 		MsgType.LOBBY_PICK, MsgType.LOBBY_TEAM, MsgType.LOBBY_CHAT_SEND:
 			pass  # a lobby client that has not seen the match start yet
 		MsgType.INPUT_BATCH:
@@ -226,6 +253,20 @@ func _handle(pkt: Transport.Packet) -> void:
 				c.inputs.push(cmd)
 		_:
 			_violation(pkt.from_peer)
+
+
+## The account of a valid ticket for an account on this match's roster, or "".
+func _verify_ticket(ticket: String) -> String:
+	if ticket == "":
+		return ""
+	var r: Dictionary = ticket_verifier.call(ticket)
+	var acc := str(r.get("account", ""))
+	if int(r.get("result", -1)) != JoinTicketVerifier.Result.OK or not account_tokens.has(acc):
+		return ""
+	for p in peer_accounts:
+		if peer_accounts[p] == acc and clients.has(p):
+			return ""  # already connected on another peer
+	return acc
 
 
 func _violation(peer_id: int) -> void:

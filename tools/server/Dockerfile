@@ -15,9 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends busybox-static 
 RUN useradd --system --create-home cybergram
 COPY game/ /opt/cybergram/
 COPY updates/ /opt/cybergram-updates/
-COPY entrypoint.sh healthcheck.sh /opt/
-RUN chmod +x /opt/cybergram/Cybergram.x86_64 /opt/entrypoint.sh /opt/healthcheck.sh \
-    && mkdir -p /data/accounts /data/tls && chown -R cybergram:cybergram /data \
+COPY entrypoint.sh healthcheck.sh review_reports.sh review_reports.gd /opt/
+RUN chmod +x /opt/cybergram/Cybergram.x86_64 /opt/entrypoint.sh /opt/healthcheck.sh /opt/review_reports.sh \
+    && mkdir -p /data/accounts /data/ratings /data/reports /data/tls && chown -R cybergram:cybergram /data \
     && chown cybergram:cybergram /opt/cybergram-updates
 # Accounts (one JSON store, written atomically) and the TLS certificate for
 # encrypted login live in the /data volume. Without a certificate the server
@@ -26,11 +26,13 @@ ENV CYBERGRAM_DATA_DIR=/data/accounts \
     CYBERGRAM_TLS_CERT=/data/tls/fullchain.pem \
     CYBERGRAM_TLS_KEY=/data/tls/privkey.pem \
     CYBERGRAM_STATUS_FILE=/opt/cybergram-updates/status.json \
-    CYBERGRAM_MODE=single \
+    CYBERGRAM_MODE=front \
     CYBERGRAM_MATCH_PORTS=7800-7809 \
     CYBERGRAM_MAX_MATCHES=0 \
-    CYBERGRAM_PUBLIC_HOST=""
-# Hosting (W17, docs/HOSTING.md): CYBERGRAM_MODE=single keeps one process on
+    CYBERGRAM_PUBLIC_HOST="" \
+    CYBERGRAM_RATINGS_DIR=/data/ratings \
+    CYBERGRAM_REPORTS_DIR=/data/reports
+# Hosting (W17, docs/HOSTING.md): CYBERGRAM_MODE=front keeps one process on
 # 7777; front (phase B) runs one process per match on CYBERGRAM_MATCH_PORTS.
 # CYBERGRAM_PUBLIC_HOST is the address handed to clients (empty = the address
 # they used to reach the server); CYBERGRAM_MAX_MATCHES=0 means 2 per core.

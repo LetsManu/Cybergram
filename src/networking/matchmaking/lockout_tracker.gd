@@ -61,6 +61,15 @@ func sweep(now: float) -> void:
 			_state.erase(id)
 
 
+## Forgets an account completely (account deletion, retention).
+func erase(account_id: String) -> void:
+	_state.erase(account_id)
+
+
+func ids() -> Array:
+	return _state.keys()
+
+
 func to_dict() -> Dictionary:
 	return _state.duplicate(true)
 

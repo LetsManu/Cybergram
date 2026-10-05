@@ -87,7 +87,7 @@ const EVT_SCHEMA := {
 	EV_PICK_STATE: [["mode", "b"], ["turn", "b"], ["turn_team", "b"], ["seconds", "u"], ["you", "b"],
 		["seats", "S"], ["rerolls", "b"], ["bench", "H"], ["swap_from", "H"]],
 	EV_MATCH_ASSIGNED: [["host", "s"], ["port", "u"], ["ticket", "T"], ["match", "s"], ["team", "b"],
-		["hero", "u"]],
+		["hero", "u"], ["map", "s"]],
 	EV_RANKED_INFO: [["tracks", "R"]],
 	## lockout seconds left, ranked-only (1) or all queues (0), reason LK_*.
 	EV_LOCKOUT: [["seconds", "u"], ["ranked", "b"], ["reason", "b"]],

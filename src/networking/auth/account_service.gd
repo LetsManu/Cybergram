@@ -62,6 +62,10 @@ var crash_store: CrashReportStore
 var parties: PartyService
 var _crash_up: Dictionary = {}  # peer -> {total, next, buf: PackedByteArray, started}
 
+## W17B: an account was deleted (by its owner or by the inactivity sweep);
+## other stores (ratings, reports, match history, lockouts) erase it too.
+signal account_deleted(account_id: String)
+
 
 ## Process-wide service (guest-only until configure_shared()).
 static func shared() -> AccountService:
@@ -173,6 +177,8 @@ func step(delta: float) -> void:
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
 			print("[accounts] retention: deleted %d inactive account(s)" % swept.size())
+		for id in swept:
+			account_deleted.emit(str(id))
 		if crash_store != null:
 			var n := crash_store.sweep(int(Time.get_unix_time_from_system()))
 			if n > 0:
@@ -537,6 +543,7 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 		return
 	if op == AccountCodec.OP_DELETE_ACCOUNT:
 		store.delete_cascade(a.id)
+		account_deleted.emit(str(a.id))
 		launch_tokens.revoke_account(a.id)
 		parties.forget(a.id)
 		for tok in sessions.keys():
