@@ -23,6 +23,22 @@ UI fit (v0.9 premium-dark): ground ink `#0B1015`, brass accent `#C2A267`, text i
 `#ECE6D6`. Hero portraits sit on ink, so every hero needs one light value block (bone, gold,
 chrome) in the upper third and the rim light; no hero uses ink-black as a large area.
 
+### 1.1 Owner direction (2026-10-05) — "shell" look and masks
+
+- **No visible faces.** Every hero wears a stylised mask or helmet that is part of the
+  silhouette: Ryker tactical helmet + visor + balaclava; Vesper ornate porcelain commander
+  mask with marionette hinge lines; Brannoc heavy closed helm; Liora smooth medic visor with
+  the halo ring; Sable hood with a blank/slit mask; Juniper goggles + rebreather; Hex cat-ear
+  hood with a screen face showing a glyph. Emissive eye slits / visor glow are encouraged.
+- **Borderlands-style ink:** thick inverted-hull outline (2.8-3.2 px near, never below 60%
+  at range), inner contour ink where the surface turns away (`inner_line`), hard 2-band cel
+  (terminator smoothing 0.004) + a narrow highlight band, and object-space triplanar diagonal
+  hatching **in the shadow band only**, faded out by 14 m so it never shimmers at 30 m.
+- **Bold, saturated base colours**, brighter than the v1 pilot: shader saturation x1.08 on top
+  of the palette; shadow value 0.62.
+- Screen-space crease lines (depth/normal edge post-process) are feasible but would apply to
+  the whole frame (environment included); deferred to art-director / technical-director.
+
 ## 2. Proportions
 
 - ~7.5 heads, slightly heroic: shoulders 2.1 heads wide (male) / 1.8 (female), hands and

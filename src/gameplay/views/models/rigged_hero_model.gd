@@ -25,7 +25,7 @@ const SKILL_SLOTS: int = 4
 ## Seconds the death clip plays before HeroView hides the body.
 const DEATH_HOLD_S: float = 2.0
 ## Outline widths per team (match ModelMaterials: Concord thin, Syndicate thick).
-const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 2.0, ModelPalette.TEAM_SYNDICATE: 2.4}
+const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 2.8, ModelPalette.TEAM_SYNDICATE: 3.2}
 
 ## Beyond this camera distance (m) the inverted hull is dropped (outline LOD):
 ## the hull pass is the largest per-hero cost (pilot perf note in the art bible).

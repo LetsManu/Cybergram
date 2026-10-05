@@ -6,7 +6,7 @@ shader_type spatial;
 render_mode unshaded, cull_front, shadows_disabled, depth_draw_opaque, fog_disabled;
 
 uniform vec3 outline_color : source_color = vec3(0.035, 0.04, 0.055);
-uniform float width_px = 2.2;
+uniform float width_px = 3.0;
 uniform float full_width_until_m = 25.0;
 instance uniform float flash = 0.0;
 instance uniform float fade = 1.0;
@@ -17,7 +17,7 @@ void vertex() {
 	vec2 dir = (PROJECTION_MATRIX * vec4(n_view, 0.0)).xy;
 	float len = length(dir);
 	if (len > 1e-5) {
-		float f = clamp(full_width_until_m / max(clip.w, 0.01), 0.45, 1.0);
+		float f = clamp(full_width_until_m / max(clip.w, 0.01), 0.6, 1.0);
 		clip.xy += dir / len * width_px * f * 2.0 / VIEWPORT_SIZE * clip.w;
 	}
 	POSITION = clip;

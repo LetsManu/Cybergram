@@ -9,24 +9,37 @@ render_mode diffuse_lambert, specular_disabled, cull_back;
 
 uniform vec3 team_color : source_color = vec3(0.18, 0.525, 1.0);
 uniform vec3 shadow_tint : source_color = vec3(0.52, 0.52, 0.70);
-uniform float shadow_value = 0.68;
+uniform float shadow_value = 0.62;
 uniform float highlight_boost = 0.18;
 uniform float band_lo = 0.05;
 uniform float band_hi = 0.72;
-uniform float band_softness = 0.008;
+uniform float band_softness = 0.004;
 uniform float shadow_tint_mix = 0.35;
 uniform float rim_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float team_rim_mix : hint_range(0.0, 1.0) = 0.4;
 uniform float emission_energy = 2.2;
 uniform float chrome_glint = 0.5;
+// Borderlands-style ink (owner direction 2026-10-05): saturation boost, inner
+// contour ink at grazing angles, and hand-drawn hatching in the shadow band only.
+uniform float saturation = 1.08;
+uniform float inner_line = 0.24;
+uniform vec3 ink_color : source_color = vec3(0.035, 0.04, 0.055);
+uniform float hatch_density = 70.0;
+uniform float hatch_strength = 0.55;
+uniform float hatch_fade_m = 14.0;
 // 0..1 white hit flash, 1..0 stealth / visibility fade (screen-door dither).
 instance uniform float flash = 0.0;
 instance uniform float fade = 1.0;
 
 varying flat float v_ch;
+varying vec3 v_obj;
+varying vec3 v_onrm;
+varying float v_hatch;
 
 void vertex() {
 	v_ch = floor(UV.x * 8.0);
+	v_obj = VERTEX;
+	v_onrm = NORMAL;
 }
 
 float bayer4(vec2 p) {
@@ -51,7 +64,22 @@ void fragment() {
 		emit = alb * emission_energy;
 		alb *= 0.4;
 	}
-	ALBEDO = min(alb, vec3(0.82));
+	float l = dot(alb, vec3(0.299, 0.587, 0.114));
+	alb = max(mix(vec3(l), alb, saturation), vec3(0.0));
+	// Inner contour ink where the surface turns away (creases, limb edges).
+	float ndv = dot(NORMAL, VIEW);
+	float ink = (ch == 2 || ch == 3) ? 0.0 : 1.0 - smoothstep(inner_line - 0.03, inner_line, ndv);
+	alb = mix(alb, ink_color, ink);
+	// Triplanar diagonal hatch (object space), faded with distance; applied in light().
+	vec3 w = abs(normalize(v_onrm));
+	vec3 q = v_obj * hatch_density;
+	float hx = abs(fract(q.y + q.z) - 0.5);
+	float hy = abs(fract(q.x + q.z) - 0.5);
+	float hz = abs(fract(q.x + q.y) - 0.5);
+	float h = (hx * w.x + hy * w.y + hz * w.z) / max(w.x + w.y + w.z, 1e-4);
+	float dist = length(VERTEX);
+	v_hatch = (1.0 - smoothstep(0.12, 0.2, h)) * (1.0 - smoothstep(hatch_fade_m * 0.6, hatch_fade_m, dist));
+	ALBEDO = min(alb, vec3(0.88));
 	// Chrome: hard sky band from the view normal.
 	if (ch == 5) {
 		float up = NORMAL.y * 0.8 + NORMAL.x * 0.2;
@@ -71,6 +99,7 @@ void light() {
 	// Two clear tones (shadow / lit) plus a narrow highlight band.
 	vec3 sh = mix(vec3(shadow_value), shadow_tint * shadow_value * 1.25, shadow_tint_mix);
 	sh = mix(sh, vec3(shadow_value + 0.1, shadow_value + 0.03, shadow_value - 0.02), soft);
+	sh *= 1.0 - v_hatch * hatch_strength * (1.0 - soft * 0.5);
 	vec3 shade = mix(sh, vec3(1.0), b1) + vec3(highlight_boost) * b2;
 	vec3 lc = LIGHT_COLOR / PI;
 	DIFFUSE_LIGHT += ALBEDO * lc * shade * (LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION);

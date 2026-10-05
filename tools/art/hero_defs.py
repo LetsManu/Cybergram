@@ -39,7 +39,7 @@ def closed_boots(h, col, trim, k):
         size = hi - lo
         h.box("Foot_" + s, (c.x, c.y + 0.008, lo.z + size.z * 0.5 + 0.004), (size.x + 0.03, size.y + 0.035,
               size.z + 0.02), col, bevel=0.55, taper=(0.92, 0.75))
-        h.box("Foot_" + s, (c.x, c.y + 0.004, lo.z + 0.008), (size.x + 0.036, size.y + 0.042, 0.018), trim, bevel=0.4)
+        h.box("Foot_" + s, (c.x, c.y + 0.008, lo.z + 0.008), (size.x + 0.034, size.y + 0.038, 0.014), trim, bevel=0.4)
 
 
 def toon_face(h, k, brow_col, lip_col, white=None):
@@ -86,7 +86,7 @@ def ryker_cuts(h):
 
 def ryker_regions(h, c, bone, n):
     if bone in ("Head", "Neck") and h.side("Neck", 0.35, c) > 0:
-        return "skin", "skin"
+        return "suit", "flat"  # balaclava: no visible face (owner direction)
     if bone.startswith("Hand") or (bone.startswith("LowerArm") and h.side(bone, 0.80, c) > 0):
         return "rubber", "flat"
     if bone == "LowerArm_R" and h.side(bone, 0.12, c) > 0:
@@ -133,7 +133,9 @@ def ryker_parts(h):
     h.sphere("Head", hcen + Vector((0, 0, 0.012)), rad * 1.03, "bone", seg=(16, 10),
              clip=[((0, 0, 0.55), (0, 0, -1)), ((0.28, 0, 0), (1, 0, 0)), ((-0.28, 0, 0), (-1, 0, 0))])
     h.box("Head", (0, front + 0.012, eye_z + 0.004), (hr.x * 2.05, 0.05, 0.042), "team", "team_emit", bevel=0.4)
-    h.box("Head", (0, front - 0.004, eye_z - 0.055), (hr.x * 1.6, 0.06, 0.07), "suit", taper=(1.1, 1.0), bevel=0.4)
+    h.box("Head", (0, front - 0.004, eye_z - 0.055), (hr.x * 1.75, 0.07, 0.085), "suit", taper=(1.1, 1.0), bevel=0.4)
+    for sx in (-1, 1):
+        h.box("Head", (sx * 0.032, front + 0.025, eye_z - 0.06), (0.018, 0.02, 0.05), "team", "team_emit", bevel=0.3)
     h.box("Head", (0, front + 0.02, eye_z - 0.075), (0.05, 0.03, 0.03), "rubber", bevel=0.3)
     for s in (-1, 1):
         h.cyl("Head", (s * hr.x * 1.05, hc.y, eye_z), (s * hr.x * 1.28, hc.y, eye_z), 0.03, 0.026, "suit", seg=10)
@@ -246,7 +248,7 @@ def vesper_cuts(h):
 
 def vesper_regions(h, c, bone, n):
     if bone in ("Head", "Neck") and h.side("Neck", 0.2, c) > 0:
-        return "skin", "skin"
+        return "ink", "flat"  # hood under the mask (owner direction: no visible faces)
     if bone.startswith("Hand"):
         return ("chrome", "chrome") if h.side(bone, 0.95, c) > 0 else ("ink", "flat")
     if bone.startswith("LowerArm"):
@@ -282,8 +284,21 @@ def vesper_parts(h):
     hc = (lo + hi) / 2
     hr = (hi - lo) / 2
     eye_z = (h.eye("L").z + h.eye("R").z) / 2
-    toon_face(h, k, "brow", "lip", "white")
     closed_boots(h, "plum", "gold", k)
+    # Ornate commander mask, marionette motif: porcelain face shell, hinge lines
+    # from the mouth corners, gold crest, violet eye slits.
+    mc = Vector((0, hc.y + hr.y * 0.15, hc.z - 0.012))
+    h.sphere("Head", mc, Vector((hr.x * 1.06, hr.y * 0.98, hr.z * 1.04)), "white", seg=(18, 12),
+             clip=[((0, -0.05, 0), (0, -1, 0))])
+    fz = hi.y + 0.004
+    for sx in (-1, 1):
+        h.box("Head", (sx * 0.034 * k, fz, eye_z + 0.002), (0.034 * k, 0.012, 0.009 * k), "violet", "emit",
+              rot=(0, sx * 12, 0), bevel=0.3)
+        h.box("Head", (sx * 0.024 * k, fz - 0.006, eye_z - 0.075 * k), (0.006, 0.01, 0.05 * k), "gold", bevel=0.2)
+        h.box("Head", (sx * 0.052 * k, fz - 0.016, eye_z + 0.03 * k), (0.03 * k, 0.012, 0.006), "gold",
+              rot=(0, -sx * 20, 0), bevel=0.2)
+    h.box("Head", (0, fz - 0.004, eye_z + 0.045 * k), (0.014 * k, 0.014, 0.05 * k), "gold", taper=(0.3, 1.0), bevel=0.3)
+    h.box("Head", (0, fz, eye_z - 0.055 * k), (0.03 * k, 0.01, 0.005), "plum", bevel=0.3)
     # Sharp A-line bob: skull cap cut open at the face, bottom slanted (longer at the front).
     bc = Vector((0, hc.y - 0.006, hc.z + 0.01))
     h.sphere("Head", bc, Vector((hr.x * 1.18, hr.y * 1.12, hr.z * 1.1)), "hair", seg=(18, 12),
@@ -391,7 +406,7 @@ HEROES = {
         "targets": {"caucasian-male-young": 0.5, "african-male-young": 0.25, "asian-male-young": 0.25,
                     "universal-male-young-maxmuscle-averageweight": 0.75,
                     "male-young-maxmuscle-averageweight-idealproportions": 0.8},
-        "palette": {"olive": "#6A7A5C", "bone": "#CFC4A6", "suit": "#4C5361", "rubber": "#383B44",
+        "palette": {"olive": "#678048", "bone": "#EAD49C", "suit": "#3E4F6A", "rubber": "#2F333E",
                     "chrome": "#C9D4E2", "skin": "#C98F6B", "eye": "#15151A", "tape": "#F2EFE6",
                     "trim": "#4A5640", "team": TEAM, "brow": "#2A2220", "lip": "#8E4A3E"},
         "cuts": ryker_cuts,
@@ -419,9 +434,9 @@ HEROES = {
                     "universal-female-young-averagemuscle-minweight": 0.8,
                     "universal-female-young-maxmuscle-minweight": 0.2,
                     "female-young-averagemuscle-minweight-idealproportions": 1.0},
-        "palette": {"plum": "#7A3A92", "gold": "#E0AC48", "ink": "#3E2E4C", "chrome": "#C9D4E2",
+        "palette": {"plum": "#7C3A9E", "gold": "#F2B437", "ink": "#3A2A5A", "chrome": "#C9D4E2",
                     "violet": "#B07CFF", "skin": "#E9B994", "eye": "#1A1220", "hair": "#2E2238",
-                    "trim": "#3E1D4B", "team": TEAM, "brow": "#2E2238", "lip": "#A24A5E", "white": "#F4EFE6"},
+                    "trim": "#3E1D4B", "team": TEAM, "brow": "#2E2238", "lip": "#A24A5E", "white": "#F2ECE0"},
         "cuts": vesper_cuts,
         "regions": vesper_regions,
         "shells": [
