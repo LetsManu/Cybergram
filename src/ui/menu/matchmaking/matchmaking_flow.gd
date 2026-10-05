@@ -4,7 +4,10 @@ extends Control
 ## client style). Owns one page at a time and routes the client's signals:
 ##   PLAY (queue) --match_found--> READY CHECK popup over PLAY
 ##     --ready_result go--> DRAFT (5v5) or ALL RANDOM (3v3) --match_assigned-->
-##   LOADING (ticket) --> start_requested(--connect host:port --ticket t --hero h)
+##   LOADING (ticket) --> `session.join_matchmade(host, port, ticket, hero, map)`
+##   when the flow runs inside a GameSession, else start_requested(--connect
+##   host:port --ticket t --hero h --map m), which AppRoot turns into the same
+##   GameSession client path (_setup_remote_client with the ticket).
 ##   connection_lost --> LOADING with RECONNECT; post_match --> POST-MATCH;
 ##   Custom --> CUSTOM LOBBY.
 ## `client` is MatchmakingFakeClient (tests, previews) or MmClientAdapter
@@ -30,6 +33,9 @@ var hold_on_assigned: bool = false
 var with_model: bool = DisplayServer.get_name() != "headless"
 ## [{id, name}] for custom-lobby invites.
 var friends: Array = []
+## A running GameSession (has join_matchmade): the match is joined in place.
+## null (the main menu): start_requested carries the launch args instead.
+var session: Node
 var rules: MatchmakingRulesDef
 
 var page: Control
@@ -77,7 +83,7 @@ func _process(delta: float) -> void:
 	if _handoff >= 0.0:
 		_handoff -= delta
 		if _handoff < 0.0:
-			start_requested.emit(match_args(assigned, _my_hero()))
+			_hand_over()
 
 
 # --- pages ----------------------------------------------------------------------
@@ -261,6 +267,17 @@ func _my_hero() -> StringName:
 	return StringName(MmView.seat(_last_pick.get("seats", []), str(_last_pick.get("me", ""))).get("hero", &""))
 
 
+## Joins the assigned match: in place through the session, or by launch args.
+func _hand_over() -> void:
+	var hero := _my_hero()
+	if session != null and session.has_method("join_matchmade"):
+		var idx := int(assigned.get("hero_index", MmView.hero_index(hero)))
+		session.call("join_matchmade", str(assigned.get("host", "")), int(assigned.get("port", 0)),
+			str(assigned.get("ticket", "")), idx, String(assigned.get("map", &"")))
+		return
+	start_requested.emit(match_args(assigned, hero))
+
+
 ## The game client's launch args for a MATCH_ASSIGNED.
 static func match_args(info: Dictionary, hero: StringName) -> PackedStringArray:
 	var args := PackedStringArray(["--connect", "%s:%d" % [str(info.get("host", "")), int(info.get("port", 0))],
@@ -268,4 +285,6 @@ static func match_args(info: Dictionary, hero: StringName) -> PackedStringArray:
 	var e := MmView.hero_entry(hero)
 	if not e.is_empty():
 		args.append_array(["--hero", str(e.stem)])
+	if String(info.get("map", &"")) != "":
+		args.append_array(["--map", String(info.map)])
 	return args

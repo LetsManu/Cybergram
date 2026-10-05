@@ -282,3 +282,31 @@ func test_profile_panel_calibration() -> void:
 	assert_str(p._ranked_line.text).is_equal("Calibrating 3/10")
 	assert_bool(p._pips.visible).is_true()
 	assert_bool(p._progress.visible).is_false()
+
+
+class FakeSession extends Node:
+	var joined: Array = []
+	func join_matchmade(host: String, port: int, ticket: String, hero_index: int, map_name: String) -> void:
+		joined.append([host, port, ticket, hero_index, map_name])
+
+
+func test_flow_joins_in_place_through_session() -> void:
+	var f := _flow()
+	f.hold_on_assigned = false
+	var s: FakeSession = auto_free(FakeSession.new())
+	f.session = s
+	_to_pick(MmView.Q_ARAM)
+	fake.step(fake.rules.all_random_s + 0.1)
+	assert_str(String(f.page_name)).is_equal("loading")
+	f._process(MatchmakingFlow.HANDOFF_S + 0.1)
+	assert_int(s.joined.size()).is_equal(1)
+	assert_str(s.joined[0][2]).starts_with("fake-ticket-")
+	assert_int(s.joined[0][3]).is_greater(0)
+	assert_str(s.joined[0][4]).is_equal("slice")
+
+
+func test_match_args_carry_map() -> void:
+	var a := MatchmakingFlow.match_args({"host": "h", "port": 7801, "ticket": "t", "map": &"slice"}, &"hero_hex")
+	assert_array(Array(a)).is_equal(["--connect", "h:7801", "--ticket", "t", "--hero", "hex", "--map", "slice"])
+	assert_str(String(MmClientAdapter.map_of("", MmView.Q_ARAM))).is_equal("slice")
+	assert_str(String(MmClientAdapter.map_of("shardline_front", MmView.Q_ARAM))).is_equal("shardline_front")

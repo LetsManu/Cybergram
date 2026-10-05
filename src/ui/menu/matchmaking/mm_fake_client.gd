@@ -87,6 +87,7 @@ var _outgoing: Array = []
 var _match_id: int = 1000
 var _remake: Dictionary = {}
 var _custom: Dictionary = {}
+var _my_hero: StringName = &""
 
 
 func _init(rules_: MatchmakingRulesDef = null) -> void:
@@ -453,6 +454,10 @@ func _step_pick() -> void:
 
 func _emit_pick() -> void:
 	if _draft != null:
+		_my_hero = StringName(_draft.picks.get(ME, _my_hero))
+	elif _aram != null:
+		_my_hero = StringName(_aram.hero_of.get(ME, _my_hero))
+	if _draft != null:
 		var seats: Array = []
 		var pickers := _draft.current_pickers()
 		for t in 2:
@@ -484,6 +489,7 @@ func _emit_pick() -> void:
 func _assigned_info() -> Dictionary:
 	return {"match_id": _match_id, "host": "127.0.0.1", "port": rules.match_port_first,
 		"ticket": "fake-ticket-%d-%d" % [_match_id, int(now * 1000.0)], "queue": queue,
+		"hero": _my_hero, "hero_index": MmView.hero_index(_my_hero),
 		"map": &"slice" if queue == MmView.Q_ARAM else &"shardline_front"}
 
 

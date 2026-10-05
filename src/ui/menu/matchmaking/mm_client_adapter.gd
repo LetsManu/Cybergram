@@ -57,7 +57,8 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 		_outgoing.clear()
 		var a := mm.last_assigned
 		match_assigned.emit({"match_id": str(a.get("match", "")), "host": host, "port": port, "ticket": ticket,
-			"queue": _queue(), "hero": hero_id(int(a.get("hero", 0)))}))
+			"queue": _queue(), "hero": hero_id(int(a.get("hero", 0))), "hero_index": int(a.get("hero", 0)),
+			"map": map_of(str(a.get("map", "")), _queue())}))
 	mm.remake_prompt.connect(func(d: Dictionary) -> void:
 		if int(d.get("state", 0)) != MatchmakingCodec.RV_OPEN:
 			_remake_voted = false
@@ -182,6 +183,13 @@ static func queue_id(index: int) -> StringName:
 
 static func lane_id(b: int) -> StringName:
 	return MatchmakingCodec.LANES[b] if b >= 0 and b < MatchmakingCodec.LANES.size() else &""
+
+
+## The match's map id: the server's, else the queue's map (3v3 = slice).
+static func map_of(server_map: String, queue: StringName) -> StringName:
+	if server_map != "":
+		return StringName(server_map)
+	return &"slice" if queue == MmView.Q_ARAM else &"shardline_front"
 
 
 static func error_key(code: int) -> String:
