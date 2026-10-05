@@ -63,7 +63,7 @@ func _draw() -> void:
 		if reloading:
 			state = tr("HUD_RELOADING")
 		elif dry:
-			state = tr("HUD_DRY")
+			state = ctx.prompt("HUD_DRY", &"reload", "R")
 		if state != "":
 			caps(state, Vector2(x, big_y), 16, HudPalette.WARN_UI, 0.22)
 		elif low:

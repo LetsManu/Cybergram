@@ -94,6 +94,13 @@ func key_label(action: StringName, fallback: String) -> String:
 	return t
 
 
+## Translated prompt `tr_key` with its "[%s]" filled by the key chip text of
+## `action` (current binding, or pad glyph while a pad is in use).
+func prompt(tr_key: String, action: StringName, fallback: String) -> String:
+	var fmt := tr(tr_key)
+	return fmt % key_label(action, fallback) if "%s" in fmt else fmt
+
+
 ## Compact pad glyph text for a chip ("D-Pad Up" -> "D↑").
 static func short_pad(t: String) -> String:
 	match t:
