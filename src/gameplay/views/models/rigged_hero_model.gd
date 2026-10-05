@@ -255,21 +255,25 @@ static func cast_clip(slot: int) -> StringName:
 func set_team(team_: int, enemy_outline: bool = false) -> void:
 	team = team_
 	_enemy_outline = enemy_outline
-	var m := material(team_, enemy_outline, _far)
+	var m := material(team_, enemy_outline, _far, key)
 	for mi in _meshes:
 		mi.material_override = m
 	set_meta(&"team_tint", ModelPalette.team_color(team))
 
 
-## One shared toon + hull material per (team, enemy_outline); `far` = no hull.
-static func material(team_: int, enemy_outline: bool = false, far: bool = false) -> ShaderMaterial:
-	var k := "%d|%s|%s" % [team_, enemy_outline, far]
+## One shared toon + hull material per (hero, team, enemy_outline); `far` = no hull.
+## `model_key` binds the hero's baked W14 texture set when it exists
+## (assets/models/heroes/<key>/<key>_albedo|_normal|_mask.png), else flat colours.
+static func material(team_: int, enemy_outline: bool = false, far: bool = false,
+		model_key: StringName = &"") -> ShaderMaterial:
+	var k := "%s|%d|%s|%s" % [model_key, team_, enemy_outline, far]
 	if _materials.has(k):
 		return _materials[k]
 	var tc := ModelPalette.team_color(team_)
 	var m := ShaderMaterial.new()
 	m.shader = load(TOON_SHADER)
 	m.set_shader_parameter("team_color", tc)
+	_bind_maps(m, model_key)
 	var o := ShaderMaterial.new()
 	o.shader = load(OUTLINE_SHADER)
 	o.set_shader_parameter("outline_color", tc if enemy_outline else Color("#090A0E"))
@@ -278,6 +282,19 @@ static func material(team_: int, enemy_outline: bool = false, far: bool = false)
 		m.next_pass = o
 	_materials[k] = m
 	return m
+
+
+## Binds the baked albedo / normal / mask maps of `model_key` (W14), if present.
+static func _bind_maps(m: ShaderMaterial, model_key: StringName) -> void:
+	if model_key == &"":
+		return
+	var base := "res://assets/models/heroes/%s/%s_" % [model_key, model_key]
+	if not ResourceLoader.exists(base + "albedo.png"):
+		return
+	m.set_shader_parameter("use_maps", 1.0)
+	m.set_shader_parameter("albedo_map", load(base + "albedo.png"))
+	m.set_shader_parameter("normal_map", load(base + "normal.png"))
+	m.set_shader_parameter("mask_map", load(base + "mask.png"))
 
 
 func set_motion(velocity_world: Vector3, crouching: bool, pitch: float) -> void:

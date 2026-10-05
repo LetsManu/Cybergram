@@ -4,6 +4,9 @@
 // 3-tone cel ramp (shadow / mid / lit), lit-side rim tinted by the team, one
 // shared material per team; per-instance hit flash and stealth fade are
 // instance uniforms (no material duplication). Outline = next_pass hull.
+// W14 texture set (use_maps = 1): baked hand-painted albedo, tangent normal map
+// and a packed mask (R AO, G spec/glint, B emissive, A team); the channel id
+// then lives in COLOR.a. Without maps the W13 flat vertex-colour path is used.
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled, cull_back;
 
@@ -27,6 +30,17 @@ uniform vec3 ink_color : source_color = vec3(0.035, 0.04, 0.055);
 uniform float hatch_density = 42.0;
 uniform float hatch_strength = 0.32;
 uniform float hatch_fade_m = 14.0;
+// W14 texture set + hard metal specular band (one material per hero and team).
+uniform float use_maps = 0.0;
+uniform sampler2D albedo_map : hint_default_white, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2D normal_map : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2D mask_map : hint_default_white, filter_linear_mipmap, repeat_disable;
+uniform float normal_strength = 0.9;
+uniform float ao_strength = 0.35;
+uniform float team_value_boost = 1.25;
+uniform float spec_threshold = 0.9;
+uniform float spec_strength = 0.45;
+uniform float map_emission = 1.6;
 // 0..1 white hit flash, 1..0 stealth / visibility fade (screen-door dither).
 instance uniform float flash = 0.0;
 instance uniform float fade = 1.0;
@@ -35,9 +49,10 @@ varying flat float v_ch;
 varying vec3 v_obj;
 varying vec3 v_onrm;
 varying float v_hatch;
+varying float v_spec;
 
 void vertex() {
-	v_ch = floor(UV.x * 8.0);
+	v_ch = use_maps > 0.5 ? floor(COLOR.a * 8.0) : floor(UV.x * 8.0);
 	v_obj = VERTEX;
 	v_onrm = NORMAL;
 }
@@ -57,12 +72,35 @@ void fragment() {
 	int ch = int(v_ch + 0.5);
 	vec3 alb = COLOR.rgb;
 	vec3 emit = vec3(0.0);
-	if (ch == 1 || ch == 3) {
-		alb = team_color;
-	}
-	if (ch == 2 || ch == 3) {
-		emit = alb * emission_energy;
-		alb *= 0.4;
+	float ao = 1.0;
+	v_spec = 0.0;
+	if (use_maps > 0.5) {
+		vec3 tex = texture(albedo_map, UV).rgb;
+		vec4 msk = texture(mask_map, UV);
+		ao = mix(1.0, msk.r, ao_strength);
+		v_spec = msk.g;
+		// Team faces carry a neutral value map: keep its painted shading, take the hue.
+		float val = dot(tex, vec3(0.333));
+		vec3 team_alb = team_color * clamp(val * team_value_boost / max(dot(COLOR.rgb, vec3(0.333)), 0.2), 0.35, 1.3);
+		alb = mix(tex, team_alb, msk.a);
+		if (ch == 2 || ch == 3) {
+			emit = alb * emission_energy;
+			alb *= 0.4;
+		} else {
+			emit = alb * msk.b * map_emission;
+		}
+		alb *= ao;  // AO is also painted into the albedo; this only deepens crevices
+		vec3 nm = texture(normal_map, UV).rgb;
+		NORMAL_MAP = nm;
+		NORMAL_MAP_DEPTH = normal_strength;
+	} else {
+		if (ch == 1 || ch == 3) {
+			alb = team_color;
+		}
+		if (ch == 2 || ch == 3) {
+			emit = alb * emission_energy;
+			alb *= 0.4;
+		}
 	}
 	float l = dot(alb, vec3(0.299, 0.587, 0.114));
 	alb = max(mix(vec3(l), alb, saturation), vec3(0.0));
@@ -110,5 +148,11 @@ void light() {
 	if (ch == 5) {
 		vec3 h = normalize(LIGHT + VIEW);
 		SPECULAR_LIGHT += lc * step(0.96, dot(NORMAL, h)) * 0.5 * b1;
+	}
+	// W14: crisp isotropic highlight band on metal (mask G), hard-stepped like the cel ramp.
+	if (v_spec > 0.05) {
+		vec3 hv = normalize(LIGHT + VIEW);
+		float s = smoothstep(spec_threshold - 0.01, spec_threshold + 0.01, dot(NORMAL, hv));
+		SPECULAR_LIGHT += lc * s * v_spec * spec_strength * b1 * (LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION);
 	}
 }

@@ -604,7 +604,7 @@ def reset_scene():
 
 
 # W14: body decimation budget x2.4 (~20-30k tris in view); `--lowpoly` keeps the W13 budget.
-HD_DECIMATE_SCALE = 1.9
+HD_DECIMATE_SCALE = 1.5
 
 
 def build(key):
@@ -620,6 +620,8 @@ def build(key):
     h = Hero(hd)
     h.build_body()
     h.paint_body()
+    if not lowpoly:
+        hero_hd.smooth_shells(h)
     weapon_rest = hero_anims.weapon_rest(h)
     h.weapon_rest = weapon_rest
     h.begin_parts()

@@ -33,6 +33,7 @@ from mathutils.kdtree import KDTree
 METAL = {"chrome": 1.0, "iron": 0.85, "brass": 0.95, "gold": 1.0, "hd_metal": 0.9, "hd_gun": 0.75,
          "hd_buckle": 1.0, "trim": 0.6, "screen": 0.7, "mask": 0.5}
 CLOTH = {"hoodie", "legs", "trousers", "suit", "tape", "sneaker", "hair", "hd_strap", "hd_cloth"}
+NONMETAL = {"rubber", "bone", "ivory", "wood", "sneaker", "skin", "lip", "brow", "eye", "hair", "hd_strap", "soot", "ink"}
 KIND_BODY, KIND_SHELL, KIND_PART, KIND_WEAPON, KIND_SOFT = 0, 1, 2, 3, 4
 
 # Per-hero detail kit (all optional; defaults in DEFAULT). Angles: 0 = front, +90 = hero's left.
@@ -397,7 +398,7 @@ def _classify(h, ob):
     c = cfg(h)
     cloth_names = set(CLOTH) | set(c.get("cloth_names", ()))
     names = {tuple(round(x, 3) for x in rgba[:3]): n for rgba, n in h.names.items()}
-    anames = ("hd_metal", "hd_cloth", "hd_skin", "hd_emit", "hd_team")
+    anames = ("hd_metal", "hd_cloth", "hd_skin", "hd_emit", "hd_team", "hd_hard")
     for n in anames:  # create first: adding attributes invalidates fetched .data
         me.attributes.new(n, "FLOAT", "FACE")
     attrs = {n: me.attributes[n] for n in anames}
@@ -405,21 +406,25 @@ def _classify(h, ob):
     col = me.color_attributes["Color"].data
     kind = me.attributes["hd_kind"].data if "hd_kind" in me.attributes else None
     cloth_vg = ob.vertex_groups.new(name="hd_clothvg")
-    cloth_v = set()
+    hard_vg = ob.vertex_groups.new(name="hd_hardvg")
+    cloth_v, hard_v = set(), set()
     for p in me.polygons:
         li = p.loop_start
         ch = int(uvl[li].uv[0] * 8)
         rgb = tuple(round(x, 3) for x in col[li].color[:3])
         name = names.get(rgb, "")
         kd = kind[p.index].value if kind else 0
-        metal = METAL.get(name, 0.55 if kd in (KIND_SHELL, KIND_PART, KIND_WEAPON) else 0.0)
+        metal = METAL.get(name, 0.15 if kd in (KIND_SHELL, KIND_PART, KIND_WEAPON) else 0.0)
         cl = 1.0 if (name in cloth_names or kd in (KIND_BODY, KIND_SOFT)) and ch != CH["skin"] and name not in METAL else 0.0
-        if name in cloth_names:
+        if name in cloth_names or name in NONMETAL:
             metal = 0.0
         if ch == CH["chrome"]:
             metal = 1.0
         vals = {"hd_metal": metal, "hd_cloth": cl, "hd_skin": float(ch == CH["skin"]),
-                "hd_emit": float(ch in (CH["emit"], CH["team_emit"])), "hd_team": float(ch in (CH["team"], CH["team_emit"]))}
+                "hd_emit": float(ch in (CH["emit"], CH["team_emit"])), "hd_team": float(ch in (CH["team"], CH["team_emit"])),
+                "hd_hard": float(kd in (KIND_SHELL, KIND_PART, KIND_WEAPON) and cl < 0.5)}
+        if kd in (KIND_PART, KIND_WEAPON) and cl < 0.5:
+            hard_v.update(p.vertices)
         for n, v in vals.items():
             attrs[n].data[p.index].value = v
         if cl > 0.5:
@@ -428,6 +433,7 @@ def _classify(h, ob):
             cc = col[i].color
             col[i].color = (cc[0], cc[1], cc[2], (ch + 0.5) / 8.0)
     cloth_vg.add(list(cloth_v), 1.0, "REPLACE")
+    hard_vg.add(list(hard_v), 1.0, "REPLACE")
     print("hd: cloth verts %d / %d, groups %s" % (len(cloth_v), len(me.vertices), [g.name for g in ob.vertex_groups][-3:]))
 
 
@@ -534,6 +540,7 @@ def _high(ob):
     bv = hi.modifiers.new("b", "BEVEL")
     bv.width, bv.segments, bv.limit_method, bv.angle_limit = 0.0035, 3, "ANGLE", math.radians(35)
     bv.use_clamp_overlap = True
+    bv.vertex_group = "hd_hardvg"  # chamfers on hard parts only; organic shells keep their shape
     sd = hi.modifiers.new("s", "SUBSURF")
     sd.subdivision_type, sd.levels, sd.render_levels = "SIMPLE", 1, 1
     tex = bpy.data.textures.new("folds", "CLOUDS")
@@ -565,7 +572,7 @@ def _detail_bump(nt, out):
     dome.inputs[1].default_value, dome.inputs[2].default_value = 0.0, 0.12
     dome.inputs[3].default_value, dome.inputs[4].default_value = 1.0, 0.0
     nt.links.new(riv.outputs["Distance"], dome.inputs[0])
-    hard = _math(nt, "MULTIPLY", _attr(nt, "hd_metal"), 1.0)
+    hard = _math(nt, "MULTIPLY", _attr(nt, "hd_hard"), 1.0)
     hard_h = _math(nt, "ADD", _math(nt, "MULTIPLY", groove.outputs[0], 1.0), _math(nt, "MULTIPLY", dome.outputs[0], 0.6))
     seam = nt.nodes.new("ShaderNodeTexVoronoi")
     seam.feature = "DISTANCE_TO_EDGE"
@@ -690,7 +697,7 @@ def composite(h, out_dir, size, col, mat, et, aoe, P, N, nrm, ob=None):
     from PIL import ImageFilter
     ao_im = Image.fromarray((np.clip(aoe[..., 0], 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.0))
     ao = np.sqrt(np.asarray(ao_im, dtype=np.float32) / 255.0)
-    edge = np.clip(aoe[..., 1] / 0.05, 0, 1)
+    edge = np.clip((aoe[..., 1] - 0.08) / 0.2, 0, 1)
     convex = np.clip((aoe[..., 2] - 0.5) * 6 + 0.5, 0, 1)
     p3 = P[..., :3]
     z = p3[..., 2] / H
@@ -701,23 +708,26 @@ def composite(h, out_dir, size, col, mat, et, aoe, P, N, nrm, ob=None):
     weave = 0.96 + 0.06 * _fbm(p3 * 90.0, 2)
     alb = base * (grad * stroke * np.where(cloth > 0.5, weave, 1.0))[..., None]
     alb *= (0.55 + 0.45 * ao + skin * (1 - ao) * 0.2)[..., None]
-    hl = edge * convex * (0.38 * hard + 0.14 * cloth + 0.05 * skin)
+    hl = edge * convex * (0.32 * hard + 0.10 * cloth)
     alb = alb + (1.0 - alb) * hl[..., None]
     wn_ = _fbm(p3 * 16.0, 4)
-    wear = np.clip((wn_ - 0.56) * 8, 0, 1) * np.clip(edge * 3.0, 0, 1) * metal
+    wear = np.clip((wn_ - 0.6) * 8, 0, 1) * edge * np.clip(metal * 1.5, 0, 1)
     scr = (np.abs(np.sin(p3[..., 0] * 61 + p3[..., 2] * 23 + _fbm(p3 * 5.0, 2) * 9)) < 0.05) * \
           (_fbm(p3 * 7.0 + 3.0, 2) > 0.58) * metal
     steel = np.array([0.80, 0.82, 0.85])
-    alb = alb + (steel - alb) * (np.clip(wear * 0.75 + scr * 0.18, 0, 1))[..., None]
+    alb = alb + (steel - alb) * (np.clip(wear * 0.55 + scr * 0.12, 0, 1))[..., None]
     alb = np.where(emit[..., None] > 0.5, base * (0.9 + 0.1 * stroke[..., None]), alb)
     alb = np.clip(alb, 0, 1)
     spec = np.clip(metal * (0.55 + 0.45 * edge) + wear * 0.4, 0, 1)
     mask = np.stack([ao, spec, emit, team], axis=-1)
 
     def save(a, path, sz, mode):
-        im = Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8), mode)
-        if im.size[0] != sz:
-            im = im.resize((sz, sz), Image.LANCZOS)
+        u8 = (np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8)
+        # Per-channel resize: PIL premultiplies RGBA by alpha when resampling.
+        bands = [Image.fromarray(u8[..., i], "L") for i in range(u8.shape[-1])]
+        if bands[0].size[0] != sz:
+            bands = [b.resize((sz, sz), Image.LANCZOS) for b in bands]
+        im = Image.merge(mode, bands)
         im.save(path, optimize=True)
         return os.path.getsize(path)
 
@@ -731,10 +741,33 @@ def composite(h, out_dir, size, col, mat, et, aoe, P, N, nrm, ob=None):
         return sizes
     # The bake attributes / helper group are not exported.
     me = ob.data
-    for n in ("hd_metal", "hd_cloth", "hd_skin", "hd_emit", "hd_team", "hd_kind"):
+    for n in ("hd_metal", "hd_cloth", "hd_skin", "hd_emit", "hd_team", "hd_hard", "hd_kind"):
         if n in me.attributes:
             me.attributes.remove(me.attributes[n])
-    if "hd_clothvg" in ob.vertex_groups:
-        ob.vertex_groups.remove(ob.vertex_groups["hd_clothvg"])
+    for vg in ("hd_clothvg", "hd_hardvg"):
+        if vg in ob.vertex_groups:
+            ob.vertex_groups.remove(ob.vertex_groups[vg])
     ob.data.materials.clear()
     return sizes
+
+
+def smooth_shells(h, iters=8):
+    """Relaxes the armour shells (hd_kind 1) and the body surface normals so the
+    higher HD poly budget does not carry anatomical bumps into the 2-band cel ramp."""
+    me = h.body.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    kl = bm.faces.layers.int.get("hd_kind")
+    shell_v = list({v for f in bm.faces if f[kl] == 1 for v in f.verts})
+    for _ in range(iters):
+        old = {v: (v.co.copy(), v.normal.copy()) for v in shell_v}
+        bmesh.ops.smooth_vert(bm, verts=shell_v, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        for v in shell_v:  # volume preserving: undo the inward (shrinking) part of the move
+            co, n = old[v]
+            s = (v.co - co).dot(n)
+            if s < 0:
+                v.co -= n * s
+        bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
