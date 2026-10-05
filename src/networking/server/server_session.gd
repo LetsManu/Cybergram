@@ -43,6 +43,9 @@ var stats_log_enabled: bool = false
 ## W16-NET: records of state objects shared by every client this tick.
 var _record_cache: Dictionary = {}
 var _record_cache_tick: int = -1
+## v17: the match mood seed sent in every Welcome (client ambience). The
+## session sets it once per match (random; matchmade: from the setup).
+var mood_seed: int = 0
 ## Microseconds spent encoding snapshots (benchmark).
 var encode_usec: int = 0
 var _stats_window_tick: int = -1
@@ -71,7 +74,7 @@ func accept(peer_id: int, own_net_id: int, server_tick: int) -> void:
 	c.encoder = SnapshotEncoder.new(net.delta_baseline_ticks, net.snapshot_budget_bytes)
 	c.encoder.prioritiser = WardlingPrioritiser.new(net)
 	clients[peer_id] = c
-	_send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz))
+	_send(peer_id, Transport.CH_CONTROL, ControlCodec.encode_welcome(own_net_id, server_tick, net.tick_rate_hz, mood_seed))
 	var who: Dictionary = token_names.get(hello_token.get(peer_id, 0), {})
 	if not who.is_empty():
 		names[own_net_id] = {"name": who.name, "accent": who.accent, "id": who.id}

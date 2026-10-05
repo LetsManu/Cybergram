@@ -13,6 +13,12 @@ extends RefCounted
 ##                                                -> ONLINE dedicated server (UDP), slice 3v3,
 ##                                                  bots fill the slots humans do not
 ##   godot --path . -- --connect 1.2.3.4[:7777]  -> CLIENT: join that server (no local server)
+##   ... -- --connect host:7801 --ticket cgt1...  -> CLIENT: join a matchmade match process (W17B)
+##   godot --headless --path . -- --server --front --port 7777
+##                                                -> W17B FRONT: accounts, parties, queues, picks;
+##                                                  spawns one match process per match
+##   ... -- --server --port 7801 --host-boot <file>  -> W17B match process (started by the front;
+##                                                  --match-host also marks one)
 ##   godot --path . -- --open-lobby 1.2.3.4[:7777] -> menu opened straight into that server's lobby
 ##   ... -- --server --quit-after-ticks 900      -> soak run that exits
 ##   godot --path . -- --map slice               -> load assets/data/match/map_<name>.tres (or map_<name>_lane.tres)
@@ -122,6 +128,16 @@ var no_lobby: bool = false
 var open_lobby: String = ""
 ## Testing: the lobby screen presses Ready by itself.
 var auto_ready: bool = false
+## W17B: CLIENT join ticket for a matchmade match process (from MATCH_ASSIGNED).
+var ticket: String = ""
+## W17B: DEDICATED front (control plane): accounts, parties, queues, picks and
+## the match supervisor; no match runs in this process (CYBERGRAM_MODE=front).
+var front: bool = false
+## W17B: DEDICATED match process started by a MatchSupervisor (--host-boot
+## <file>, or --match-host): no lobby; the match setup comes from the front.
+var match_host: bool = false
+## W17B: the supervisor's boot file (owner-only, deleted on read).
+var host_boot: String = ""
 
 
 ## `--map test_course` selects the movement test course (no MapDef).
@@ -149,6 +165,22 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.token = clampi(args[i].to_int(), 0, 65535)
 			"--auto-ready":
 				c.auto_ready = true
+			"--ticket":
+				if i + 1 < args.size():
+					i += 1
+					c.ticket = args[i].left(255)
+			"--front":
+				c.front = true
+				c.mode = Mode.DEDICATED
+			"--match-host":
+				c.match_host = true
+				c.mode = Mode.DEDICATED
+			"--host-boot":
+				if i + 1 < args.size():
+					i += 1
+					c.host_boot = args[i]
+					c.match_host = true
+					c.mode = Mode.DEDICATED
 			"--open-lobby":
 				if i + 1 < args.size():
 					i += 1
