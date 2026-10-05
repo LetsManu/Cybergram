@@ -59,3 +59,16 @@ func test_prompts_show_pad_glyph_while_a_pad_is_active() -> void:
 func test_prompt_strings_take_the_key_as_a_parameter() -> void:
 	for k: String in ["HUD_ARMORY_PROMPT", "HUD_DRY"]:
 		assert_str(tr(k)).contains("[%s]")
+
+
+func test_armory_toggles_on_the_interact_action_not_a_fixed_f() -> void:
+	# The prompt names Interact, so Interact (whatever it is bound to) must toggle.
+	var panel: ArmoryPanel = auto_free(ArmoryPanel.new())
+	Input.action_press(&"interact")
+	var first := panel._toggle_edge()
+	var held := panel._toggle_edge()
+	Input.action_release(&"interact")
+	var released := panel._toggle_edge()
+	assert_bool(first).is_true()
+	assert_bool(held).is_false()
+	assert_bool(released).is_false()
