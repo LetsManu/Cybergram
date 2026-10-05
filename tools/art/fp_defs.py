@@ -174,6 +174,9 @@ HEROES.update({
                     grip=(0.14, 0.18, -0.225), scale=1.3),
 })
 HEROES["brannoc"]["reload_roll"] = 25.0
+HEROES["brannoc"]["reload_lift"] = 0.0  # the big gun stays low; the drum swings up-left with the hand
+HEROES["brannoc"]["reload_hand"] = (0.0, 0.08, 0.09)
+HEROES["brannoc"]["mag"]["eject"] = (-0.16, 0.04, 0.06)
 HEROES.update({
     "hex": _two("hex", "glitchcaster_w16", _w.HEX_PAL,
                 _right((0, -0.01, -0.045), (0.032, 0.042, 0.095), -15),
@@ -224,3 +227,7 @@ def _medic_cross(add):
     hand = add.b("Hand")
     for size in ((0.034, 0.011, 0.005), (0.011, 0.034, 0.005)):
         add.box(hand, Vector((0.0, 0.05, 0.02)) * s, Vector(size) * s, "sage", "flat")
+
+# Ryker: the right hand sits up and in so it reads under the bulky receiver.
+HEROES["ryker"]["grip"] = (0.135, 0.2, -0.14)
+HEROES["ryker"]["weapon_rot"] = (-1.0, -40.0, 8.0)  # canted: the grip hand faces the eye

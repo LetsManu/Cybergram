@@ -184,13 +184,15 @@ def _reload_mag(c, t):
     # raise the gun into view and roll it onto its right flank: the mag well faces
     # the eye and the off hand works it from the left, on screen
     roll = c.fd.get("reload_roll", 78.0)  # big guns (Brannoc's drum) roll less or they fill the view
-    tilt = (-0.08 * a, 0.03 * a, 0.09 * a, 12 * a, roll * a, 12 * a)
+    lift = c.fd.get("reload_lift", 0.09)  # how far the gun rises into view
+    tilt = (-0.08 * a, 0.03 * a, lift * a, 12 * a, roll * a, 12 * a)
     W = c.W(tilt[0], tilt[1], tilt[2] + 0.01 * slap, tilt[3] + 3 * slap, tilt[4], tilt[5])
     out = env(t, 0.15, 0.3) * (1 - env(t, 0.42, 0.62))
     mag = Matrix.Translation(ej * out)
     dorsal = (side * 0.8 + Vector((-0.6, 0.0, 0.0))).normalized()
     fingers = (-side + Vector((0.0, 0.35, 0.0))).normalized()
-    at = mat(rig.mag_c + side * 0.08 + Vector((-0.05, -0.03, 0.0)), fingers, dorsal)
+    hand = Vector(c.fd.get("reload_hand", (0.0, 0.0, 0.0)))  # per-hero lift of the working hand (weapon space)
+    at = mat(rig.mag_c + side * 0.08 + Vector((-0.05, -0.03, 0.0)) + hand, fingers, dorsal)
     away = Matrix.Translation(ej * 0.55) @ at  # stays in view: the swap reads on screen
     Lw = blend(away, Matrix.Translation(ej * out) @ at, env(t, 0.3, 0.6))
     wL = env(t, 0.12, 0.3) - env(t, 0.72, 0.9)
