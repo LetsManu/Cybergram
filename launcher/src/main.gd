@@ -18,6 +18,7 @@ extends Control
 ##   --self-updated         set by the restart after a self-update (skips another one)
 ##   --settings <file>      launcher settings file (default user://launcher_settings.cfg)
 ##   --no-launch            window mode: never start the game (screenshots)
+##   --auto-update          window mode: start the update at once when one is offered (screenshots)
 ##   --show-login           window mode: open the sign-in dialog at start (screenshots)
 
 ## Width of the left sidebar (ui-kit.md: 72-88 px).
@@ -40,6 +41,7 @@ var _guest_btn: Button
 var _guest_only: bool = false
 var _login_name: String = ""
 var _repairing: bool = false
+var _auto_update: bool = false
 var _last_frac: float = -1.0
 var _last_progress: String = ""
 var _play_version: Label
@@ -85,6 +87,7 @@ func _ready() -> void:
 	_close_on_launch = bool(cfg.get_value("launcher", "close_on_launch", true))
 	_game_server = String(cfg.get_value("launcher", "game_server", _game_server))
 	_no_launch = args.has("no-launch")
+	_auto_update = args.has("auto-update")
 	_settings = LauncherSettings.new(String(args.get("settings", "user://launcher_settings.cfg"))).load_file()
 	var root: String = OS.get_executable_path().get_base_dir()
 	if _settings.install_root != "":
@@ -259,7 +262,7 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 			if key in ["config", "install-root", "update-to", "settings", "move-install-to", "launcher-dir", "launcher-version"] and i + 1 < all.size():
 				out[key] = all[i + 1]
 				i += 1
-			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated", "show-login"]:
+			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated", "show-login", "auto-update"]:
 				out[key] = true
 		i += 1
 	return out
@@ -292,6 +295,9 @@ func _on_state(s: Updater.State, msg: String) -> void:
 		Updater.State.UPDATE_AVAILABLE:
 			_button.show_idle("INSTALL" if _updater.installed_version() == "" else "UPDATE")
 			_skip.visible = _updater.installed_version() != ""
+			if _auto_update:
+				_auto_update = false
+				_updater.start_update()
 		Updater.State.OFFLINE_READY:
 			_button.show_idle("PLAY (OFFLINE)")
 		Updater.State.OFFLINE_NONE:
