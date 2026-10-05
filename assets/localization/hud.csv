@@ -982,3 +982,9 @@ HUD_NET_ERR_QUEUE_TIMEOUT,"The server did not answer the queue request. Please t
 HUD_ARMORY_SIGN,ARMORY
 HUD_ARMORY_WAYPOINT,ARMORY
 HUD_SHOP_OFF_PAD_DIR,Return to your Armory pad to buy - %s
+HUD_SET_VOL_MUSIC,Music
+HUD_SET_VOL_VOICE,Announcer
+HUD_SET_VOL_AMBIENT,Ambience
+HUD_SET_AUDIO_MIX,Mix
+HUD_SET_NIGHT_MODE,Night mode (fewer loud peaks)
+HUD_SET_REDUCE_MUSIC,Reduce music in matches (cues only)

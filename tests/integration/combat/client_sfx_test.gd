@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## Placeholder combat sounds: the synthesized streams are valid, and an own
 ## shot on the client plays the 2D gunshot (pellets of one shot play once).
+## W21-A1: the shot is now the weapon's AudioEventDef played by ClientSfx.events.
 
 
 func test_synth_streams_have_the_expected_length() -> void:
@@ -19,13 +20,13 @@ func test_own_shot_plays_the_gunshot_once_per_shot() -> void:
 		link.create_endpoint(2), ScriptedInputSource.new(CombatFixtures.idle_input()), CombatFixtures.vesper())
 	client.session.own_net_id = 5
 	var plays := [0]
-	# W10-W5: the own weapon's bank voice (generic gunshot if it has none).
-	var voice := client.sfx.bank.weapon_voice(client.hero_def.weapon.sfx_voice)
-	var expected: AudioStream = voice.get("stream", client.sfx.gunshot)
+	# W21-A1: the own weapon's shot event (rendered variants, else the synth fallback).
+	var shots := client.sfx.events.bank.streams_for(StringName("weapon_%s_shot_own" % client.hero_def.weapon.sfx_voice))
+	assert_bool(shots.is_empty()).is_false()
 	# Three pellets of one shotgun shot arrive in the same tick.
 	for i in 3:
 		client.shot_received.emit(GameEvent.shot(5, Vector3(0, 1, -10)))
-	for p in client.sfx.get_children():
-		if p is AudioStreamPlayer and (p as AudioStreamPlayer).stream == expected:
+	for p in client.sfx.events.get_children():
+		if p is AudioStreamPlayer and shots.has((p as AudioStreamPlayer).stream):
 			plays[0] += 1
 	assert_int(plays[0]).is_equal(1)
