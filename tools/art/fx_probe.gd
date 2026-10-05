@@ -8,6 +8,7 @@ var _m: RiggedHeroModel
 var _mode := "ik"
 var _out := "/tmp/probe"
 var _cam: Camera3D
+var _fx: FxDirector
 
 
 func _arg(k: String, d: String) -> String:
@@ -70,6 +71,12 @@ func _initialize() -> void:
 	_cam.look_at_from_position(cp, Vector3(0, 0.9, 0))
 	if _mode == "hit":
 		_m.rotation.y = 0.0
+	if _mode == "fx":
+		_m.visible = false
+		_fx = FxDirector.new()
+		stage.add_child(_fx)
+		cp = Vector3(0.0, 1.4, 5.0)
+		_cam.look_at_from_position(cp, Vector3(0, 1.2, 0))
 	root.size = Vector2i(640, 480)
 
 
@@ -78,6 +85,24 @@ func _process(_d: float) -> bool:
 	if _mode == "run" and _frame % 4 == 0:
 		_m.set_motion(_m.global_transform.basis * Vector3(0, 0, -6.0), false, 0.0)
 	var shots := {20: 0, 30: 1, 36: 2, 44: 3}
+	if _mode == "fx":
+		if _frame % 10 == 2 and _frame < 50:
+			var k := (_frame / 10) % 4
+			_fx.flash(Vector3(-2.4, 1.2, 0), Color(1.0, 0.82, 0.35), 0.8, 0.3, false, 2.0, 5.0)  # muzzle
+			_fx.flash(Vector3(-0.8, 1.2, 0), Color(1.0, 0.42, 0.2), 1.0, 0.3, false, 1.8, 6.0)  # hit star
+			_fx.burst(Vector3(-0.8, 1.2, 0), Vector3.UP, Color(1.0, 0.7, 0.5), 8, 5.0, 0.5, 70.0)
+			_fx.flash(Vector3(1.0, 1.2, 0), Color(0.18, 0.525, 1.0), 2.2, 0.5, true, 1.8)  # kill ring
+			_fx.flash(Vector3(1.0, 1.2, 0), Color.WHITE, 2.0, 0.5, false, 2.0, 8.0)  # cel explosion
+			_fx.flash(Vector3(1.0, 1.2, 0), Color(0.18, 0.525, 1.0), 3.0, 0.5, false, 1.6, 12.0)
+			var dome := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.5
+			sm.height = 1.0
+			dome.mesh = sm
+			dome.material_override = ToonFx.cel(Color(0.3, 0.9, 0.5), 0.3, 1.3)
+			dome.position = Vector3(2.8, 1.2, 0)
+			root.get_child(root.get_child_count() - 1).add_child(dome) if k == 0 else null
+		shots = {4: 0, 7: 1, 12: 2, 17: 3}
 	if _mode == "hit":
 		if _frame == 23:
 			_m.flinch(1.0, Vector3(3, 1, 0))  # big hit from the hero right (screen left): stagger
