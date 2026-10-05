@@ -154,6 +154,7 @@ func _build_match() -> void:
 			print("[server] peer %d disconnected" % id))
 		print("[server] online: listening on UDP %d (max %d clients)" % [launch_config.port, launch_config.max_clients])
 	server.setup(net_config, movement, map_scene, server_transport, player_hero, match_rules)
+	server.session.stats_log_enabled = dedicated  # W16-NET per-client [net] lines
 	server.setup_objectives(map_def)
 	_setup_match()
 	_apply_debug_capture()
@@ -459,20 +460,51 @@ func step_tick() -> void:
 		get_tree().quit()
 
 
-## One-line diagnostics for the debug overlay.
+## One-line diagnostics for the debug overlay (works in CLIENT mode too, where
+## there is no local server).
 func debug_text() -> String:
 	var p := net_sim if net_sim != null else NetSimProfile.new()
-	var t := "tick %d | net-sim %d ms +%d jitter, %.0f%% loss" % [
-		server.tick, p.one_way_latency_ms, p.jitter_ms, p.loss * 100.0]
+	var tick := server.tick if server != null and is_instance_valid(server) else \
+		(client.session.latest_snapshot_tick if client != null else 0)
+	var t := "tick %d" % tick
+	if remote == null:
+		t += " | net-sim %d ms +%d jitter, %.0f%% loss" % [p.one_way_latency_ms, p.jitter_ms, p.loss * 100.0]
 	if client != null and client.predictor != null:
 		var pr := client.predictor
 		t += "\nseq %d acked %d | pred err %.4f m (max %.4f) | corrections %d | remotes %d" % [
-			pr.latest_seq, server.session.clients.get(LOCAL_CLIENT_PEER).inputs.last_processed_seq,
+			pr.latest_seq, client.session.last_acked_seq,
 			pr.last_error_m, pr.max_error_m, pr.corrections, client.view_count()]
-	var own := server.hero(client.session.own_net_id) if client != null else null
+	var own := server.hero(client.session.own_net_id) if client != null and server != null else null
 	if own != null:
 		t += "\nhero %s | kills %d deaths %d" % [own.combat.def.display_name, own.combat.kills, own.combat.deaths]
 	return t
+
+
+## W16-NET: the client's link figures for the net graph ({} without a client).
+## Keys: ping_ms (-1 unknown), loss_pct, jitter_ms, jitter_p95_ms, interp_ms,
+## interp_ticks, kbps_in, kbps_snap, kbps_out, snap_avg, snap_max, sizes, budget, mode.
+func net_stats() -> Dictionary:
+	if client == null or client.session == null:
+		return {}
+	var st := client.session.stats
+	var ping := -1
+	var mode := "UDP"
+	if remote != null:
+		ping = remote.rtt_ms()
+		mode = "UDP DTLS" if remote.is_secure else "UDP"
+	else:
+		var p := net_sim if net_sim != null else NetSimProfile.new()
+		ping = p.one_way_latency_ms * 2
+		mode = "loopback (sim)" if p.one_way_latency_ms > 0 or p.loss > 0.0 else "loopback"
+	var interp := client.interp_delay_ticks()
+	return {
+		"ping_ms": ping, "loss_pct": st.loss_pct(), "jitter_ms": st.jitter_mean_ms(),
+		"jitter_p95_ms": st.jitter_p95_ms(), "interp_ticks": interp,
+		"interp_ms": interp * 1000.0 / net_config.tick_rate_hz,
+		"kbps_in": st.kbps_in(), "kbps_snap": st.kbps_snapshots(), "kbps_out": st.kbps_out(),
+		"snap_avg": st.snapshot_avg_bytes(), "snap_max": st.snapshot_max_bytes(), "sizes": st.sizes(),
+		"budget": net_config.snapshot_budget_bytes, "mode": mode,
+	}
 
 
 ## CLIENT mode: a ClientWorld joined to a remote dedicated server over UDP.
@@ -481,6 +513,10 @@ func _setup_remote_client() -> void:
 	remote = ENetTransport.connect_to(lc.connect_address, lc.port,
 		AuthConfig.from_os().client_tls_for(lc.connect_address))  # L1: DTLS like the lobby link
 	print("[client] connecting to %s:%d" % [lc.connect_address, lc.port])
+	if net_sim != null and OS.is_debug_build() and (net_sim.one_way_latency_ms > 0 or net_sim.jitter_ms > 0 or net_sim.loss > 0.0):
+		remote.debug_conditioner = NetSimConditioner.new(net_sim)  # W16-NET debug loss / jitter injector
+		print("[client] debug net-sim on received packets: %d ms +%d jitter, %.0f%% loss" % [
+			net_sim.one_way_latency_ms, net_sim.jitter_ms, net_sim.loss * 100.0])
 	client = ClientWorld.new()
 	client.hello_token = lc.token
 	add_child(client)
@@ -507,7 +543,26 @@ func _setup_remote_client() -> void:
 const REMOTE_TIMEOUT_TICKS: int = 30 * 8
 
 
+## W16-NET: headless CLIENT runs (smoke tests) print the link figures every 10 s.
+var _client_log_ticks: int = 0
+
+
+func _log_client_net() -> void:
+	if DisplayServer.get_name() != "headless":
+		return
+	_client_log_ticks += 1
+	if _client_log_ticks % roundi(net_config.stats_log_interval_s * net_config.tick_rate_hz) != 0:
+		return
+	var n := net_stats()
+	if n.is_empty():
+		return
+	print("[client-net] ping=%dms loss=%.1f%% jitter=%.1fms p95=%.1fms interp=%.0fms snap avg=%dB max=%dB in=%.2fkB/s out=%.2fkB/s misses=%d malformed=%d" % [
+		n.ping_ms, n.loss_pct, n.jitter_ms, n.jitter_p95_ms, n.interp_ms, roundi(n.snap_avg), n.snap_max,
+		n.kbps_snap, n.kbps_out, client.session.stats.baseline_misses, client.session.malformed_packets])
+
+
 func _watch_remote() -> void:
+	_log_client_net()
 	if remote.error_text != "" and remote_status == "":
 		remote_status = remote.error_text
 	if not client.session.is_welcomed:

@@ -368,6 +368,8 @@ Individual nodes do **not** use `_physics_process` for sim logic. `TickRunner` c
 
 ### 8.5 Snapshots, delta compression, bandwidth
 
+> Implemented in protocol 16 (W16-NET): see `docs/architecture/netcode-w16.md` for the as-built layout (velocity i16 at 1/128 m/s and group change masks instead of per-field varints) and the before/after numbers.
+
 - `BaselineStore` per client keeps the last 32 sent snapshots. Each snapshot is delta-encoded against the **newest snapshot the client acked**, or sent in full if none or if it is too old.
 - Per entity: `net_id:u16`, `changed_mask` (varint), then only changed fields. Quantisation (in `NetConfig`): position `i16×3` at 1/32 m relative to the map origin (±1024 m), velocity `i8×3` at 0.25 m/s, yaw u8 (Wardlings) / u16 (heroes), HP as u16 (heroes) / u8 % (Wardlings), state enums packed in bits.
 - Entity create/destroy is part of the snapshot (a create record carries kind and def index). Despawn is also sent as a reliable `Event` so it is never missed.

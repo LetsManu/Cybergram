@@ -51,6 +51,12 @@ func peer_address(_peer: int) -> String:
 	return ""
 
 
+## W16-NET link statistics for `peer`: {rtt_ms, rtt_var_ms, loss_pct} from the
+## transport's own measurements ({} when the transport has none, e.g. loopback).
+func peer_stats(_peer: int) -> Dictionary:
+	return {}
+
+
 func poll() -> void:
 	push_error("Transport.poll is abstract")
 
