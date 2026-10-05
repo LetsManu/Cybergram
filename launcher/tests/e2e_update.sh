@@ -102,12 +102,14 @@ echo "launcher cfg shipped" > "$tmp/lw/launcher.cfg"; echo "launcher cfg shipped
 echo "NEW LAUNCHER EXE" > "$tmp/lw/CybergramLauncher.exe"
 printf '#!/bin/sh\necho new launcher\n' > "$tmp/ll/CybergramLauncher.x86_64"
 "$here/tools/make_update_feed.sh" v0.5.0 "$tmp/win" "$tmp/lin" "$tmp/notes.md" "$tmp/host" "$tmp/lw" "$tmp/ll" > /dev/null
-jq -e '.launcher.version == "0.5.0" and (.launcher.platforms.linux.sha256|length)==64 and (.launcher.platforms.windows.file|endswith(".zip"))' "$tmp/host/version.json" > /dev/null && ok "feed has launcher section" || bad "launcher section"
+# The launcher section carries the launcher's own version (launcher/project.godot), not the game's.
+lver="$(sed -n 's/^config\/version="\(.*\)"/\1/p' "$here/project.godot")"
+jq -e --arg lv "$lver" '.launcher.version == $lv and (.launcher.platforms.linux.sha256|length)==64 and (.launcher.platforms.windows.file|endswith(".zip"))' "$tmp/host/version.json" > /dev/null && ok "feed has launcher section" || bad "launcher section"
 [[ -f "$tmp/host/CybergramLauncher-v0.5.0-linux-x86_64.zip" ]] && ok "launcher zip served" || bad "launcher zip missing"
 mkdir -p "$tmp/ldir"
 printf '#!/bin/sh\necho old launcher\n' > "$tmp/ldir/CybergramLauncher.x86_64"; chmod +x "$tmp/ldir/CybergramLauncher.x86_64"
 echo "user edited cfg" > "$tmp/ldir/launcher.cfg"
-expect_exit 11 "launcher already current" run --self-update --launcher-dir "$tmp/ldir" --launcher-version 0.5.0 --install-root "$tmp/install"
+expect_exit 11 "launcher already current" run --self-update --launcher-dir "$tmp/ldir" --launcher-version "$lver" --install-root "$tmp/install"
 expect_exit 0 "self-update applies" run --self-update --launcher-dir "$tmp/ldir" --launcher-version 0.4.0 --install-root "$tmp/install"
 [[ "$("$tmp/ldir/CybergramLauncher.x86_64")" == "new launcher" ]] && ok "new launcher in place and executable" || bad "launcher not replaced"
 [[ "$(cat "$tmp/ldir/launcher.cfg")" == "user edited cfg" ]] && ok "launcher.cfg preserved" || bad "launcher.cfg overwritten"

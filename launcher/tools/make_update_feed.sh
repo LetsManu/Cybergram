@@ -86,7 +86,11 @@ fi
 if [[ $# -eq 7 ]]; then
   lw="$(pack windows "$6" CybergramLauncher)"
   ln="$(pack linux "$7" CybergramLauncher)"
-  jq --arg v "$ver" \
+  # The launcher has its own version (launcher/project.godot), not the game's:
+  # comparing against the game version meant 1.0.0 never saw an update.
+  lv="$(sed -n 's/^config\/version="\(.*\)"/\1/p' "$(dirname "$0")/../project.godot")"
+  [[ -n "$lv" ]] || { echo "launcher version not found in launcher/project.godot" >&2; exit 1; }
+  jq --arg v "$lv" \
     --arg wf "$lw" --argjson ws "$(stat -c%s "$out/$lw")" --arg wh "$(sha256sum "$out/$lw" | cut -d' ' -f1)" \
     --arg lf "$ln" --argjson ls "$(stat -c%s "$out/$ln")" --arg lh "$(sha256sum "$out/$ln" | cut -d' ' -f1)" \
     '.launcher = {version:$v, platforms:{
