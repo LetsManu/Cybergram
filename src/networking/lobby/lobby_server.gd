@@ -229,7 +229,7 @@ func _on_join(peer: int, j: Dictionary) -> void:
 		p.emblem = j.emblem
 		p.accent = j.accent
 		p.hero_index = hero
-		p.team = _team_for_joiner(str(j.get("party_id", "")))
+		p.team = _team_for_joiner(str(j.get("party_id", "")), str(j.id))
 		players.append(p)
 		print("[lobby] %s joined (peer %d, team %d, hero %d), %d in lobby" % [
 			_who(p), peer, p.team, p.hero_index, players.size()])
@@ -326,9 +326,14 @@ func _seat_of_id(id: String) -> Player:
 	return null
 
 
-func _team_for_joiner(party_id: String) -> int:
-	if party_id != "":
-		var friend := _seat_of_id(party_id)
+## `party_id`: a friend named by the client; else (W15) any seated member of
+## the joiner's server-side party (AccountService.parties).
+func _team_for_joiner(party_id: String, joiner_id: String = "") -> int:
+	var wanted: Array = [party_id] if party_id != "" else []
+	if joiner_id != "" and accounts.parties != null:
+		wanted.append_array(accounts.parties.mates_of(joiner_id))
+	for id in wanted:
+		var friend := _seat_of_id(str(id))
 		if friend != null and team_count(friend.team) < team_size:
 			return friend.team
 	return 0 if team_count(0) <= team_count(1) else 1

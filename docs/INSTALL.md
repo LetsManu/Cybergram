@@ -20,7 +20,8 @@ Run the setup. It installs to `%LOCALAPPDATA%\Cybergram`:
 
 ```
 CybergramLauncher.exe, launcher.cfg      (launcher, at the root)
-game\Cybergram.exe ...                   (the game, where the launcher expects it)
+game\Cybergram.exe, game\Cybergram.pck  (the game, where the launcher expects it)
+game\packs\maps.pck, heroes_hd.pck      (content packs, see "Content packs and Lite install")
 Uninstall.exe
 ```
 
@@ -96,3 +97,67 @@ installer/smoke_appimage.sh  build/installers/Cybergram-<ver>-x86_64.AppImage <v
 ```
 
 appimagetool 1.9.1 is downloaded by `installer/fetch_appimagetool.sh`, pinned by URL and SHA-256.
+
+## Content packs and Lite install
+
+The game is exported as the executable plus `Cybergram.pck` (core) and content
+packs in `game/packs/`: `maps.pck` (required) and `heroes_hd.pck`, the
+**HD hero textures** (optional). Language packs (`lang_<code>.pck`) are
+supported but none exist yet; English is built in. The game mounts every pack
+at start (`src/core/boot/content_packs.gd`); without the HD pack heroes use
+their flat team colours.
+
+**Lite install** skips the HD hero textures: a smaller download for weaker PCs.
+- Windows setup: untick "HD hero textures" on the components page.
+- Linux tar: `./install.sh --lite`.
+- Launcher: Settings > Content > "Lite install", or the per-pack switches.
+  Switching a pack off deletes its files; switching it on downloads them.
+The choice is stored in `content.cfg` next to the `game` folder.
+
+## Updates
+
+The launcher reads the signed `version.json` (ECDSA P-256, `version.json.sig`).
+Each platform lists every file with `path`, `size`, `sha256` and its pack
+`group`; the files are served once each as `blobs/<sha256>`.
+- **Per-file (delta) updates:** only files whose sha256 differs are fetched.
+  Each one is checked against the signed list, staged in `game.stage/`, then
+  renamed in; on any error every replaced file is put back (`game.undo/`).
+- **Full package:** the zip is still used for a first install, for installs
+  older than 0.11 (no `game/installed_manifest.json` yet) and as a fallback
+  when the host has no blobs.
+- **Pause / resume:** "Pause download" in the play bar. A paused or interrupted
+  file continues where it stopped (HTTP Range), also after a restart.
+- **Speed limit:** Settings > Storage > Download speed.
+- **Repair** (Settings > Verify / Repair) re-downloads only broken files.
+
+### Pre-loading the next patch
+
+The feed may carry a `next` block (version, file list, `activate_at` in ISO UTC).
+The launcher downloads it in the background into `preload/`, shows
+"Pre-loaded 0.x.y, ready at <local time>", and switches to it on the first
+launch or check at or after that time, even offline. To publish one, build the
+feed with:
+
+```
+NEXT_VERSION=v0.12.0 NEXT_WIN_DIR=<win build> NEXT_LIN_DIR=<linux build> \
+NEXT_ACTIVATE_AT=2026-11-01T18:00:00Z launcher/tools/make_update_feed.sh <current args>
+```
+
+## Install management (launcher Settings)
+
+- **Install folder:** "Install folder..." moves the game, its content choice and
+  any pre-load to another folder or drive.
+- **Storage:** space the game uses and the free space on that drive.
+- **Uninstall game:** removes the game and its downloads. Choose whether to keep
+  your settings. The launcher stays. To remove it too, use Windows Settings >
+  Apps, `uninstall.sh` (Linux tar), or delete the AppImage file.
+
+## AppImage self-update
+
+The AppImage embeds the update information
+`gh-releases-zsync|LetsManu|Cybergram|latest|Cybergram-*-x86_64.AppImage.zsync`,
+and each release publishes the matching `.zsync`, so AppImageUpdate works.
+The launcher also updates itself: when the signed feed lists a newer launcher
+with an `appimage` entry (URL and sha256), it downloads the AppImage, checks the
+sha256, writes `<name>.new`, makes it executable, renames it over `$APPIMAGE`
+and restarts.

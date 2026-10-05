@@ -69,6 +69,24 @@ jobs:
           $GODOT --headless --path . --export-release "Linux" build/linux/Cybergram.x86_64
           ls -la build/linux
 
+      - name: Export content packs
+        run: |
+          # W15-UPD: the game exports as exe + Cybergram.pck (core); maps and the
+          # optional HD hero textures ship as packs/<name>.pck (export_presets.cfg).
+          mkdir -p build/packs
+          $GODOT --headless --path . --export-pack "Pack maps" build/packs/maps.pck
+          $GODOT --headless --path . --export-pack "Pack heroes_hd" build/packs/heroes_hd.pck
+          for d in build/windows build/linux; do
+            test -s "$d/Cybergram.pck" || { echo "::error::$d has no Cybergram.pck (embed_pck must be off)"; exit 1; }
+            mkdir -p "$d/packs" && cp build/packs/*.pck "$d/packs/"
+          done
+          # The split is real: HD textures and maps only in their packs.
+          ! grep -aq "ryker_albedo.png" build/linux/Cybergram.pck
+          grep -aq "ryker_albedo.png" build/packs/heroes_hd.pck
+          ! grep -aq "shardline_front.tscn" build/linux/Cybergram.pck
+          grep -aq "shardline_front.tscn" build/packs/maps.pck
+          ls -la build/packs build/linux
+
       - name: Export launcher
         env:
           RELEASE_TAG: ${{ inputs.release_version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
@@ -94,6 +112,7 @@ jobs:
           fi
           # The launcher reuses the game's login protocol scripts (copies in launcher/src/shared).
           launcher/tools/sync_shared.sh
+          launcher/tools/sync_notes.sh
           # The launcher compares its own version with the feed's launcher section.
           if [[ -n "$RELEASE_TAG" ]]; then
             sed -i "s|^config/version=.*|config/version=\"${RELEASE_TAG#v}\"|" launcher/project.godot
@@ -119,7 +138,14 @@ jobs:
       - name: Launcher tests
         run: |
           $GODOT --headless --path launcher -s tests/test_core.gd
+          $GODOT --headless --path launcher -s tests/test_upd.gd
+          $GODOT --headless --path launcher -s tests/test_ux.gd
+          $GODOT --headless --path launcher -s tests/test_online.gd
           GODOT=$GODOT launcher/tests/e2e_update.sh
+          # Delta updates, pause/resume (Range), pre-load, packs, Lite, AppImage self-update.
+          GODOT=$GODOT launcher/tests/e2e_upd.sh
+          # Launch-token sign-in against DTLS and plain headless servers (needs openssl).
+          GODOT=$GODOT launcher/tests/online_e2e.sh
 
       - name: Smoke-test the exported dedicated server
         run: |
@@ -129,6 +155,14 @@ jobs:
           echo "$out" | grep -q "online: listening on UDP 7777"
           echo "$out" | grep -q "quit after 90 ticks"
           ! echo "$out" | grep -q "SCRIPT ERROR"
+          echo "$out" | grep -q "content: mounted heroes_hd, maps"
+          # Lite: without the optional HD pack the game still boots.
+          mv build/linux/packs/heroes_hd.pck build/heroes_hd.pck.aside
+          lite=$(timeout 60 build/linux/Cybergram.x86_64 --headless -- --server --port 7779 --no-lobby --quit-after-ticks 30 2>&1) || true
+          mv build/heroes_hd.pck.aside build/linux/packs/heroes_hd.pck
+          echo "$lite" | grep -q "content: mounted maps"
+          echo "$lite" | grep -q "quit after 30 ticks"
+          ! echo "$lite" | grep -q "SCRIPT ERROR"
           # Default mode: the lobby opens and waits for players.
           lob=$(timeout 30 build/linux/Cybergram.x86_64 --headless -- --server --port 7778 --quit-after-ticks 30 2>&1) || true
           echo "$lob" | tail -5
@@ -152,7 +186,8 @@ jobs:
           if [[ -n "$RELEASE_TAG" ]]; then VER="${RELEASE_TAG#v}"
           else VER="$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)-dev"; fi
           echo "INSTALLER_VERSION=$VER" >> "$GITHUB_ENV"
-          sudo apt-get update -qq && sudo apt-get install -y -qq nsis
+          # zsync: appimagetool writes the AppImage's .zsync (self-update via gh-releases-zsync).
+          sudo apt-get update -qq && sudo apt-get install -y -qq nsis zsync
           # appimagetool is pinned (URL + sha256) in installer/fetch_appimagetool.sh
           mkdir -p build/installers
           installer/build_windows.sh "$VER" build/launcher-windows build/windows build/installers
@@ -169,7 +204,8 @@ jobs:
           # Linux tar: install into a temp HOME, check files + .desktop, uninstall.
           installer/smoke_linux_tar.sh "build/installers/CybergramInstaller-$VER-linux-x86_64.tar.gz"
           # AppImage: extract, run the launcher --check-only against a local feed, check the first-run copy.
-          installer/smoke_appimage.sh "build/installers/Cybergram-$VER-x86_64.AppImage" "$VER"
+          REQUIRE_PACKS=1 installer/smoke_appimage.sh "build/installers/Cybergram-$VER-x86_64.AppImage" "$VER"
+          test -s "build/installers/Cybergram-$VER-x86_64.AppImage.zsync"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -223,7 +259,7 @@ jobs:
           # Installers (main download) sit next to the portable zips/tarballs.
           mv Cybergram-Installers/* .
           chmod +x Cybergram-*-x86_64.AppImage
-          sha256sum CybergramSetup-*.exe Cybergram-*-x86_64.AppImage CybergramInstaller-*.tar.gz \
+          sha256sum CybergramSetup-*.exe Cybergram-*-x86_64.AppImage Cybergram-*-x86_64.AppImage.zsync CybergramInstaller-*.tar.gz \
             Cybergram-*.zip Cybergram-*.tar.gz CybergramLauncher-windows.zip CybergramLauncher-linux.tar.gz > SHA256SUMS.txt
           ls -la
 
@@ -250,6 +286,7 @@ jobs:
           files: |
             dist/CybergramSetup-*.exe
             dist/Cybergram-*-x86_64.AppImage
+            dist/Cybergram-*-x86_64.AppImage.zsync
             dist/CybergramInstaller-*.tar.gz
             dist/Cybergram-*.zip
             dist/Cybergram-*.tar.gz
@@ -292,6 +329,11 @@ jobs:
           name: CybergramLauncher-Linux
           path: build-launcher-linux
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cybergram-Installers
+          path: build-installers
+
       - name: Bake the update feed (launcher downloads)
         env:
           FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}
@@ -305,6 +347,13 @@ jobs:
           else
             echo "::warning::FEED_SIGNING_KEY secret is not set: version.json is published UNSIGNED."
           fi
+          # W15-UPD: per-file blobs + groups are always written. The AppImage is
+          # listed with its sha256 and fetched from the GitHub release (not copied
+          # into the image). Pre-load: set NEXT_VERSION / NEXT_WIN_DIR /
+          # NEXT_LIN_DIR / NEXT_ACTIVATE_AT (see launcher/tools/make_update_feed.sh).
+          APPIMAGE_FILE="$(ls build-installers/Cybergram-*-x86_64.AppImage | head -1)"
+          export APPIMAGE_FILE
+          export APPIMAGE_URL="https://github.com/${{ github.repository }}/releases/download/$VERSION/$(basename "$APPIMAGE_FILE")"
           launcher/tools/make_update_feed.sh "$VERSION" build-windows tools/server/game "$notes" tools/server/updates \
             build-launcher-windows build-launcher-linux
           cat tools/server/updates/version.json | head -c 600
@@ -328,6 +377,13 @@ jobs:
           docker run -d --name upd -p 8080:8080 $IMAGE:$VERSION > /dev/null
           for _ in $(seq 1 20); do curl -sf localhost:8080/version.json -o /tmp/v.json && break; sleep 1; done
           jq -e ".version" /tmp/v.json
+          # Delta blobs are served (one per file, named by sha256).
+          b=$(jq -r '.platforms.linux.files[0].sha256' /tmp/v.json)
+          curl -sf "localhost:8080/blobs/$b" -o /dev/null
+          # Resume support of the update host (busybox httpd ranges); advisory only:
+          # the launcher restarts a file from zero when Range is ignored.
+          curl -s -o /dev/null -w '%{http_code}\n' -r 0-9 "localhost:8080/blobs/$b" | grep -q 206 \
+            || echo "::warning::update host ignores HTTP Range: paused downloads restart from zero"
           docker rm -f upd > /dev/null
 
       - name: Push to GitHub Container Registry

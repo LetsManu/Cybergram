@@ -90,6 +90,22 @@ var _dialog: FileDialog
 var _confirm: ConfirmationDialog
 var _launcher_notice: String = ""
 var _pending_root: String = ""
+# --- W15-UX ---
+var _ux: LauncherUx
+var _args: Dictionary = {}
+# --- end W15-UX ---
+# --- W15-UPD ---
+var _upd: UpdCli
+# --- end W15-UPD ---
+# --- W15-ONLINE ---
+var _launch_pending: bool = false
+var _rail: OnlineRail
+var _online_settings_row: HBoxContainer
+var _support: SupportCard
+var _privacy: PrivacyCard
+var _prefs: OnlinePrefs
+var _crash: CrashReporter
+# --- end W15-ONLINE ---
 
 
 func _ready() -> void:
@@ -102,8 +118,18 @@ func _ready() -> void:
 	_close_on_launch = bool(cfg.get_value("launcher", "close_on_launch", true))
 	_game_server = String(cfg.get_value("launcher", "game_server", _game_server))
 	_no_launch = args.has("no-launch")
+	_args = args  # W15-UX
 	_auto_update = args.has("auto-update")
 	_settings = LauncherSettings.new(String(args.get("settings", "user://launcher_settings.cfg"))).load_file()
+	# --- W15-UX ---
+	_ux = LauncherUx.new()
+	add_child(_ux)
+	_ux.setup(_settings, String(args.get("game-userdir", "")))
+	# --- end W15-UX ---
+	# --- W15-ONLINE ---
+	_prefs = OnlinePrefs.new(String(args.get("settings", "user://launcher_settings.cfg")).get_base_dir()
+		.path_join("launcher_privacy.cfg")).load_file()
+	# --- end W15-ONLINE ---
 	var root: String = OS.get_executable_path().get_base_dir()
 	if _settings.install_root != "":
 		root = _settings.install_root
@@ -135,6 +161,12 @@ func _ready() -> void:
 	_updater = Updater.new()
 	add_child(_updater)
 	_updater.setup(root, url)
+	# --- W15-UPD ---
+	_upd = UpdCli.attach(self, _updater, OS.get_cmdline_user_args() + OS.get_cmdline_args(),
+		String(args.get("settings", "user://launcher_settings.cfg")), _headless_mode != "")
+	if _upd.mode != "":
+		_headless_mode = "upd"
+	# --- end W15-UPD ---
 	if args.has("move-install-to"):
 		var merr: String = _updater.move_install(String(args["move-install-to"]))
 		print("LAUNCHER: move %s" % ("ok" if merr == "" else "failed: " + merr))
@@ -159,8 +191,29 @@ func _ready() -> void:
 		_login.login_result.connect(_on_login_result)
 		_user_edit.text = _settings.username
 		_login.open(_game_server)
+		# --- W15-ONLINE ---
+		_rail = OnlineRail.new()
+		add_child(_rail)
+		move_child(_rail, _login_modal.get_index())  # under the dialogs
+		_rail.setup(_probe, url, _login)
+		# The first page was shown before the rail existed: match its visibility to that page.
+		_rail.visible = _pages.has("home") and (_pages["home"] as Control).visible
+		_sync_top_status()
+		_crash = CrashReporter.new()
+		_crash.prefs = _prefs
+		_crash.login = _login
+		_crash.server = _game_server
+		_crash.launcher_version = _own_version
+		_crash.game_version = func() -> String: return _updater.installed_version()
+		_crash.ui_parent = self
+		_crash.game_exited.connect(_on_game_exited)
+		add_child(_crash)
+		# --- end W15-ONLINE ---
 		if args.has("show-login"):
 			_open_login()
+		# --- W15-UPD ---
+		_upd.after_ui(_show_page)
+		# --- end W15-UPD ---
 
 
 ## Manifest arrived: replace the launcher first if the feed has a newer one.
@@ -175,6 +228,10 @@ func _on_manifest() -> void:
 		return
 	_self_done = true
 	if LauncherCore.is_appimage(OS.get_environment("APPIMAGE")):
+		# --- W15-UPD ---
+		if _upd.start_appimage_update(entry, LauncherCore.base_url(_version_url)):
+			return
+		# --- end W15-UPD ---
 		# The AppImage is a single read-only file and the feed only carries the bare
 		# launcher, so it cannot be swapped in place: tell the player instead.
 		print("LAUNCHER: self-update: launcher %s is available (AppImage: download the new AppImage)" % entry["version"])
@@ -276,6 +333,15 @@ func _on_login_result(ok: bool, message: String, display_name: String) -> void:
 		_close_login()
 
 
+# --- W15-ONLINE ---
+## Home shows the server status in the online rail, so the top-bar line hides there.
+func _sync_top_status() -> void:
+	if _server_label == null:
+		return
+	_server_label.visible = _rail == null or not _rail.visible
+# --- end W15-ONLINE ---
+
+
 func _on_probed(info: Dictionary) -> void:
 	if _server_label == null:
 		return
@@ -284,6 +350,7 @@ func _on_probed(info: Dictionary) -> void:
 	var c: Color = t.ok if info.get("reachable", false) else t.danger
 	_server_dot.color = c
 	_server_label.add_theme_color_override("font_color", c)
+	_sync_top_status()  # W15-ONLINE
 
 
 func _parse_args(all: PackedStringArray) -> Dictionary:
@@ -294,6 +361,9 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 		if a.begins_with("--") and a.length() > 2:
 			var key: String = a.substr(2)
 			if key in ["config", "install-root", "update-to", "settings", "move-install-to", "launcher-dir", "launcher-version"] and i + 1 < all.size():
+				out[key] = all[i + 1]
+				i += 1
+			elif key in ["game-userdir", "page"] and i + 1 < all.size():  # W15-UX
 				out[key] = all[i + 1]
 				i += 1
 			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated", "show-login", "auto-update"]:
@@ -347,10 +417,18 @@ func _on_state(s: Updater.State, msg: String) -> void:
 		Updater.State.ERROR:
 			_button.show_idle("RETRY")
 			_skip.visible = _updater.installed_version() != ""
+	# --- W15-UPD ---
+	_repair.disabled = _repair.disabled or s == Updater.State.PAUSED
+	_verify_link.disabled = _repair.disabled
+	# --- end W15-UPD ---
 	_refresh_news()
 
 
 func _headless_state(s: Updater.State, msg: String) -> void:
+	# --- W15-UPD ---
+	if _upd.handles(s):
+		return
+	# --- end W15-UPD ---
 	print("LAUNCHER: [%s] %s" % [Updater.State.keys()[s], msg])
 	if _headless_mode == "selfupdate":
 		if s in [Updater.State.OFFLINE_READY, Updater.State.OFFLINE_NONE, Updater.State.ERROR]:
@@ -403,6 +481,10 @@ func _refresh_busy() -> void:
 
 
 func _on_button() -> void:
+	# --- W15-UPD ---
+	if _upd.on_button():
+		return
+	# --- end W15-UPD ---
 	match _updater.state:
 		Updater.State.UP_TO_DATE, Updater.State.OFFLINE_READY:
 			_play()
@@ -417,17 +499,47 @@ func _play() -> void:
 	if _no_launch:
 		_status.text = "(--no-launch) would start the game now"
 		return
-	var signed_in: bool = _login != null and _login.hand_over_env()
-	var started: bool = _updater.launch_game()
+	# --- W15-ONLINE ---
+	# Sign in once: ask for a single-use launch token, then start the game with it.
+	if _login != null and _login.is_logged_in():
+		if _launch_pending:
+			return
+		_launch_pending = true
+		_status.text = "Signing the game in..."
+		_login.launch_ready.connect(func(h: Dictionary) -> void:
+			_launch_pending = false
+			_play_with(h), CONNECT_ONE_SHOT)
+		_login.request_launch()
+		return
+	_play_with({})
+
+
+## Starts the game; `handoff` = the launch token hand-over ({} = not signed in).
+func _play_with(handoff: Dictionary) -> void:
+	var signed_in: bool = LauncherLogin.hand_over_env(handoff)
+	OS.set_environment(LaunchHandoff.ENV_PRESENCE, "1" if _prefs.discord_presence else "0")
+	# --- end W15-ONLINE ---
+	# --- W15-UX --- (LauncherUx starts the process so it can watch it and apply the launch behaviour)
+	var started: bool = _ux.launch(_updater.game_exe_path())
+	# --- end W15-UX ---
+	# --- W15-ONLINE ---
+	if started:
+		_crash.watch(int(_ux.get("_pid")))  # exit code -> crash prompt (not in "close" mode: the launcher is gone)
 	if signed_in:
 		LauncherLogin.clear_env()
 	if not started:
 		_status.text = "Could not start the game. Try reinstalling (delete the game folder)."
 		return
-	if _close_on_launch:
-		get_tree().quit()
-	else:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
+	# W15-UX: close / minimise / stay is now handled in LauncherUx.launch (Settings).
+
+
+# --- W15-ONLINE ---
+func _on_game_exited(code: int) -> void:
+	if not CrashReporter.is_crash(code):
+		return
+	_ux.restore()
+	_status.text = "The game closed unexpectedly (code %d)." % code
+# --- end W15-ONLINE ---
 
 
 ## Player picked a folder: offer to move an existing install into it.
@@ -492,6 +604,11 @@ func _build_ui() -> void:
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_art)
 	# Key art: three heroes on the right (mockup positions, right-anchored).
+	# --- W15-UX --- live key art (videos over the portraits)
+	var key_art: KeyArt = KeyArt.new()
+	key_art.reduce_motion = KeyArt.motion_reduced(_ux.game_dir)
+	_art.add_child(key_art)
+	# --- end W15-UX ---
 	for a in [["brannoc", 640, 120, 470, 0.55], ["sable", 960, 110, 480, 0.55], ["vesper_loom", 770, 60, 560, 1.0]]:
 		var img: TextureRect = TextureRect.new()
 		img.texture = UiKit.portrait_texture(String(a[0]))
@@ -506,6 +623,7 @@ func _build_ui() -> void:
 		img.offset_bottom = float(a[2]) + h
 		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_art.add_child(img)
+		key_art.add_layer(img, String(a[0]), 0.5 + float(a[4]) * 0.5)  # W15-UX
 	var stack: Control = Control.new()
 	stack.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stack.offset_left = RAIL_W
@@ -515,6 +633,12 @@ func _build_ui() -> void:
 	_pages["home"] = _build_home()
 	_pages["notes"] = _build_notes()
 	_pages["settings"] = _build_settings()
+	# --- W15-UX --- the notes page with version history and hero block
+	var old_notes: Control = _pages["notes"]  # kept hidden: the old code still fills it
+	old_notes.visible = false
+	_pages["notes"] = _ux.build_notes_page()
+	_pages["notes"].add_child(old_notes)
+	# --- end W15-UX ---
 	for key in _pages:
 		var p: Control = _pages[key]
 		p.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -523,6 +647,15 @@ func _build_ui() -> void:
 	add_child(_build_top_bar())
 	add_child(_build_play_panel())
 	_show_page("home")
+	# --- W15-UX ---
+	if _args.has("page") and String(_args["page"]) in ["syscheck", "launchsetting"]:
+		_show_page("settings")
+		_ux.show_card(_pages["settings"], String(_args["page"]))
+	elif _args.has("page"):
+		_show_page(String(_args["page"]))
+	else:
+		_ux.first_run.call_deferred(self)
+	# --- end W15-UX ---
 
 	_dialog = FileDialog.new()
 	_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
@@ -632,6 +765,11 @@ func _show_page(key: String) -> void:
 		(_pages[k] as Control).visible = k == key
 	if _art != null:
 		_art.visible = key == "home"
+	# --- W15-ONLINE ---
+	if _rail != null:
+		_rail.visible = key == "home"  # the rail sits over the key art, not over other pages
+	_sync_top_status()
+	# --- end W15-ONLINE ---
 	if _nav.has(key):
 		(_nav[key] as Button).button_pressed = true
 	UiKit.transition_in(_pages[key], Vector2.ZERO)
@@ -791,7 +929,35 @@ func _build_settings() -> Control:
 	_version_label = UiKit.label("", &"small", t.text_dim)
 	about.body.add_child(_version_label)
 	about.body.add_child(UiKit.label("Launcher %s" % _own_version, &"small", t.text_off))
-	return margin
+	# --- W15-UPD ---
+	col.add_child(UpdPanels.create(self, _updater, _upd))
+	# --- end W15-UPD ---
+	# --- W15-UX --- Game, launch behaviour, system check, pinned hero
+	for ux_card in _ux.build_settings_cards():
+		col.add_child(ux_card)
+	# --- end W15-UX ---
+	# --- W15-ONLINE ---
+	_online_settings_row = HBoxContainer.new()
+	_online_settings_row.add_theme_constant_override("separation", 12)
+	col.add_child(_online_settings_row)
+	_support = SupportCard.new()
+	_support.launcher_version = _own_version
+	_support.game_version = func() -> String: return _updater.installed_version()
+	_support.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_online_settings_row.add_child(_support)
+	_privacy = PrivacyCard.new()
+	_privacy.prefs = _prefs
+	_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_online_settings_row.add_child(_privacy)
+	# --- end W15-ONLINE ---
+	col.move_child(about, col.get_child_count() - 1)  # About stays last
+	# --- W15-UX ---
+	var ux_scroll: ScrollContainer = ScrollContainer.new()
+	ux_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ux_scroll.add_child(margin)
+	return ux_scroll
+	# --- end W15-UX ---
 
 
 ## The play bar (bottom, right of the rail): the chamfered button that fills
@@ -860,6 +1026,9 @@ func _build_play_panel() -> Control:
 			_updater.verify_and_repair())
 	_verify_link.add_theme_font_size_override("font_size", 12)
 	links.add_child(_verify_link)
+	# --- W15-UPD ---
+	_upd.add_play_links(links, _link, _button, _detail, _status)
+	# --- end W15-UPD ---
 	return strip
 
 
@@ -874,6 +1043,7 @@ func _refresh_news() -> void:
 	_notes_cards.clear()
 	var md: String = _updater.latest_notes_md
 	var ver: String = _updater.latest_version
+	_ux.on_notes(ver, md)  # W15-UX
 	_patch_label.text = ("PATCH " + ver.get_slice(".", 0) + "." + ver.get_slice(".", 1)) if ver != "" else ""
 	if md == "":
 		_notes_box.add_child(UiKit.label("Patch notes appear here once the update server answers.", &"body", t.text_off))
@@ -954,6 +1124,12 @@ func _news_card(sec: Dictionary, index: int) -> Control:
 
 ## Patch notes page, scrolled to section `index`.
 func _open_note(index: int) -> void:
+	# --- W15-UX ---
+	if _ux.notes_page != null:
+		_show_page("notes")
+		_ux.notes_page.focus_section(index)
+		return
+	# --- end W15-UX ---
 	_show_page("notes")
 	await get_tree().process_frame
 	await get_tree().process_frame

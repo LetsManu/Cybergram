@@ -28,6 +28,8 @@ static var session_server: String = ""
 ## The held token is a guest session (may be resumed over plain UDP). An
 ## account token is only ever sent on a DTLS link (W11-Q1 SEC-001).
 static var session_guest: bool = false
+## W15: the next OP_PARTY answer decides whether to open the lobby (launcher start).
+var _party_check := false
 ## Where the legacy profile is looked for (tests override).
 static var legacy_profile_path: String = "user://profile.cfg"
 
@@ -165,6 +167,7 @@ func _ready() -> void:
 	_sync_lobby_margins()
 	GameSettings.shared().apply_display()
 	_refresh_chip()
+	GamePresence.show_state(GamePresence.State.IN_LAUNCHER)  # W15: Discord presence (opt-in)
 	if AppRoot.rejoin_address != "":
 		var addr := AppRoot.rejoin_address
 		AppRoot.rejoin_address = ""
@@ -757,24 +760,31 @@ func _with_session(then: Callable, addr: String = "") -> void:
 		_show_login()
 
 
-## Launcher hand-over: the launcher logged in and passed the session in the
-## environment (CYBERGRAM_SESSION_TOKEN / CYBERGRAM_SESSION_SERVER), not on the
-## command line. Read once, then cleared so nothing inherits it. Connects and
-## resumes the session; false when the launcher gave nothing.
+## W15: true when an OP_PARTY result shows a party with someone else in it.
+static func should_join_party(d: Dictionary) -> bool:
+	var n := 0
+	for e: Dictionary in d.get("members", []):
+		if int(e.kind) == AccountCodec.PARTY_LEADER or int(e.kind) == AccountCodec.PARTY_MEMBER:
+			n += 1
+	return n >= 2
+
+
+## Launcher hand-over (W15 "sign in once"): the launcher passed a single-use
+## launch token in the environment (LaunchHandoff, never the command line);
+## it is read once and unset. Connects and redeems it (OP_REDEEM) on an
+## encrypted link only; when anything fails the normal login screen shows.
+## False when the launcher gave nothing.
 func _resume_from_launcher() -> bool:
-	var token := OS.get_environment("CYBERGRAM_SESSION_TOKEN")
-	var server := OS.get_environment("CYBERGRAM_SESSION_SERVER")
-	OS.unset_environment("CYBERGRAM_SESSION_TOKEN")
-	OS.unset_environment("CYBERGRAM_SESSION_SERVER")
-	if token == "" or server == "":
+	var h := LaunchHandoff.take_from_os()
+	if h.is_empty():
 		return false
-	session_token = token
-	session_server = server
-	session_guest = false  # the launcher only hands over account sessions
-	if not _connect(server):
+	if not _connect(str(h.server)):
 		return false
-	if not _send_resume():
+	if _enet == null or not _enet.is_secure:
+		push_warning("[net] not redeeming the launch token over an unencrypted link")
 		_show_login()
+		return true
+	_online.request(AccountCodec.OP_REDEEM, {"ver": MsgType.PROTOCOL_VERSION, "token": h.token, "id": h.account})
 	return true
 
 
@@ -881,12 +891,22 @@ func _on_account(d: Dictionary) -> void:
 			_offer_legacy_import()
 		else:
 			_delete_legacy_files(false)
+		if op == AccountCodec.OP_REDEEM:
+			# W15: signed in by the launcher; join the party's lobby if there is one.
+			_party_check = true
+			_online.request(AccountCodec.OP_PARTY)
 		_run_then()
 		return
 	match op:
 		AccountCodec.OP_RESUME:
 			session_token = ""
 			_show_login()  # the session expired: log in again
+		AccountCodec.OP_REDEEM:
+			_show_login()  # W15: the launch token failed: the normal login
+		AccountCodec.OP_PARTY:
+			if _party_check and ok and should_join_party(d):
+				_open_lobby(_server)  # the server seats the party together
+			_party_check = false
 		AccountCodec.OP_REGISTER, AccountCodec.OP_LOGIN, AccountCodec.OP_GUEST:
 			if _login != null:
 				_login.show_error(_error_text(d.code))
@@ -1080,10 +1100,12 @@ func _show_lobby(addr: String, party_id: String) -> void:
 		lobby.friend_ids.append(str(e.id))
 	lobby.start_requested.connect(func(args: PackedStringArray) -> void:
 		_disconnect()  # the match opens its own connection; the session token stays in memory
+		GamePresence.show_state(GamePresence.State.IN_MATCH, "Online")  # W15
 		start_requested.emit(args))
 	lobby.cancelled.connect(func(reason: String) -> void:
 		lobby.queue_free()
 		_lobby = null
+		GamePresence.show_state(GamePresence.State.IN_LAUNCHER)  # W15
 		_go(Nav.HOME)
 		_status.text = reason
 		# Leaving frees the seat: reconnect and resume the session for the friends panel.
@@ -1096,6 +1118,7 @@ func _show_lobby(addr: String, party_id: String) -> void:
 		_play.grab_focus.call_deferred())
 	# Account answers keep reaching _on_account through the shared client.
 	_lobby_box.add_child(lobby)
+	GamePresence.show_state(GamePresence.State.IN_LOBBY)  # W15
 	_friends.allow_join = false
 	_refresh_chip()
 
@@ -1114,6 +1137,7 @@ func _tutorial() -> void:
 
 func _start(args: PackedStringArray) -> void:
 	_save_settings()
+	GamePresence.show_state(GamePresence.State.IN_MATCH, GamePresence.mode_of(args))  # W15
 	start_requested.emit(args)
 
 

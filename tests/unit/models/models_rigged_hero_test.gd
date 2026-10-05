@@ -76,6 +76,33 @@ func test_rigged_team_material_shared_per_team() -> void:
 	assert_object(c._meshes[0].material_override).is_same(ma)
 
 
+## W15: each hero binds its own three maps (albedo, normal, mask) from its folder.
+func test_bind_maps_binds_each_heroes_own_textures() -> void:
+	for key in [&"ryker", &"vesper"]:
+		var m := ShaderMaterial.new()
+		RiggedHeroModel._bind_maps(m, key)
+		assert_float(float(m.get_shader_parameter("use_maps"))).is_equal(1.0)
+		for kind in ["albedo", "normal", "mask"]:
+			var t := m.get_shader_parameter(kind + "_map") as Texture2D
+			assert_object(t).is_not_null()
+			assert_str(t.resource_path).is_equal(
+				"res://assets/models/heroes/%s/%s_%s.png" % [key, key, kind])
+
+
+## W15: without the optional "HD hero textures" pack the maps do not exist and
+## the material falls back to the no-maps W13 path instead of binding nulls.
+func test_bind_maps_falls_back_without_hd_textures() -> void:
+	var m := ShaderMaterial.new()
+	m.set_shader_parameter("use_maps", 1.0)
+	var ok := RiggedHeroModel.bind_maps_from(m, "res://assets/models/heroes/no_such_hero/no_such_hero_")
+	assert_bool(ok).is_false()
+	assert_float(float(m.get_shader_parameter("use_maps"))).is_equal(0.0)
+	assert_object(m.get_shader_parameter("albedo_map")).is_null()
+	var e := ShaderMaterial.new()
+	RiggedHeroModel._bind_maps(e, &"")
+	assert_float(float(e.get_shader_parameter("use_maps"))).is_equal(0.0)
+
+
 # --- animation state mapping ----------------------------------------------
 func test_map_state_idle_and_locomotion_directions() -> void:
 	var s := RiggedHeroModel.map_state(Vector3.ZERO, false, true, 0.0, false)

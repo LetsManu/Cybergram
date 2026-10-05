@@ -25,6 +25,30 @@ func test_build_has_no_names_or_ids() -> void:
 		assert_bool(key in ["online", "in_lobby", "in_match", "max_players", "updated"]).is_true()
 
 
+func test_build_motd_only_when_set() -> void:
+	var d: Dictionary = JSON.parse_string(LobbyStatusWriter.build(1, false, 0, 1, "Patch day!"))
+	assert_str(str(d["motd"])).is_equal("Patch day!")
+
+
+func test_motd_is_plain_capped_text() -> void:
+	var raw := "  Hello\n\tworld\u202e[b]x[/b]\u0007 " + "y".repeat(500)
+	var m := LobbyStatusWriter.sanitize_motd(raw, 40)
+	assert_int(m.length()).is_equal(40)
+	assert_str(m).starts_with("Hello world[b]x[/b] y")
+	assert_bool(m.contains("\n") or m.contains("\u202e") or m.contains("\u0007")).is_false()
+
+
+func test_motd_read_from_file() -> void:
+	var p := _tmp() + ".motd"
+	var f := FileAccess.open(p, FileAccess.WRITE)
+	f.store_string("Server maintenance\nat 18:00 CET")
+	f.close()
+	var w := LobbyStatusWriter.new("", p)
+	assert_str(w.read_motd()).is_equal("Server maintenance at 18:00 CET")
+	DirAccess.remove_absolute(p)
+	assert_str(LobbyStatusWriter.new("", "/nonexistent/motd.txt").read_motd()).is_equal("")
+
+
 func test_disabled_without_path_writes_nothing() -> void:
 	var w := LobbyStatusWriter.new("")
 	if w.enabled():
