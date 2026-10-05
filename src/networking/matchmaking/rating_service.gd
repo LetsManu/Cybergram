@@ -102,7 +102,7 @@ func ranked_display(account_id: String) -> Dictionary:
 
 
 ## Medal band of a visible rating: {band: int, name: String, division: int
-## (1 = lowest), label: "Circuit III"}. Divisions split a band into steps
+## (1 = lowest), label: "Silver III"}. Divisions split a band into steps
 ## of rules.medal_division_span, clamped to the band's division count.
 func medal_for(rating: float) -> Dictionary:
 	var idx := 0

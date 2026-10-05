@@ -149,9 +149,13 @@ func test_dodge_penalty() -> void:
 
 func test_medal_bands() -> void:
 	var svc := RatingService.new(MemoryRatingStore.new(), _rules())
-	assert_str(svc.medal_for(0).label).is_equal("Static I")
-	assert_str(svc.medal_for(1099).label).is_equal("Static V")  # clamped to the band
-	assert_str(svc.medal_for(1300).label).is_equal("Circuit I")
-	assert_str(svc.medal_for(1385).label).is_equal("Circuit III")
-	assert_str(svc.medal_for(2600).label).is_equal("Prime Signal")
+	assert_str(svc.medal_for(0).label).is_equal("Iron I")
+	assert_str(svc.medal_for(1099).label).is_equal("Iron V")  # clamped to the band
+	assert_str(svc.medal_for(1300).label).is_equal("Silver I")
+	assert_str(svc.medal_for(1385).label).is_equal("Silver III")
+	assert_str(svc.medal_for(2600).label).is_equal("Master")
 	assert_int(svc.medal_for(1500).band).is_equal(3)
+	var names: Array = []
+	for b in MatchmakingRulesDef.load_default().medal_bands:
+		names.append(b.name)
+	assert_array(names).is_equal(["Iron", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"])

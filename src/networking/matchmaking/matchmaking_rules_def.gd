@@ -85,16 +85,16 @@ const BOT_PREFIX := "bot:"
 ## Ranked pick-phase dodge: rating points lost. Safe range 0-30.
 @export_range(0.0, 30.0) var dodge_rating_penalty: float = 5.0
 ## Medal bands for the visible ranked number, ascending by min rating.
-## Each entry {name: String, min: float, divisions: int}. Names are
-## PLACEHOLDERS awaiting owner approval.
+## Each entry {name: String, min: float, divisions: int}. Names: classic
+## metals, lowest to highest (owner decision 2026-10-05).
 @export var medal_bands: Array[Dictionary] = [
-	{"name": "Static", "min": 0.0, "divisions": 5},
-	{"name": "Copper Trace", "min": 1100.0, "divisions": 5},
-	{"name": "Circuit", "min": 1300.0, "divisions": 5},
-	{"name": "Relay", "min": 1500.0, "divisions": 5},
-	{"name": "Overclock", "min": 1700.0, "divisions": 5},
-	{"name": "Shardbreaker", "min": 1900.0, "divisions": 5},
-	{"name": "Prime Signal", "min": 2100.0, "divisions": 1},
+	{"name": "Iron", "min": 0.0, "divisions": 5},
+	{"name": "Bronze", "min": 1100.0, "divisions": 5},
+	{"name": "Silver", "min": 1300.0, "divisions": 5},
+	{"name": "Gold", "min": 1500.0, "divisions": 5},
+	{"name": "Platinum", "min": 1700.0, "divisions": 5},
+	{"name": "Diamond", "min": 1900.0, "divisions": 5},
+	{"name": "Master", "min": 2100.0, "divisions": 1},
 ]
 ## Rating span of one medal division (bands split into equal steps). Safe
 ## range 20-100.
@@ -118,8 +118,6 @@ const BOT_PREFIX := "bot:"
 @export_range(60.0, 300.0) var remake_window_s: float = 180.0
 ## A started remake vote stays open this long (s). Safe range 15-60.
 @export_range(10.0, 90.0) var remake_vote_s: float = 30.0
-## Share of eligible voters who must vote yes (rounded up). Safe 0.5-1.0.
-@export_range(0.5, 1.0) var remake_vote_fraction: float = 0.8
 ## Report categories (ids; the client localises them).
 @export var report_categories: Array[StringName] = [&"cheating", &"griefing", &"abusive_chat", &"afk", &"offensive_name"]
 ## Reports are deleted this many days after they were filed (PRIVACY.md).
@@ -212,6 +210,9 @@ func validate() -> PackedStringArray:
 		if float(b.get("min", 0.0)) <= last:
 			out.append("medal_bands not ascending")
 		last = float(b.get("min", 0.0))
+	for i in medal_bands.size():
+		if String(medal_bands[i].get("name", "")) == "":
+			out.append("medal band %d has no name" % i)
 	if search_window_base > search_window_max:
 		out.append("search_window_base > search_window_max")
 	if match_port_last < match_port_first:

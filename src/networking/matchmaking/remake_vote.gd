@@ -5,13 +5,17 @@ extends RefCounted
 ## - When: until rules.remake_window_s after the match started (~3 min).
 ## - Who votes: the team's connected human players (absent seats and bots
 ##   never vote). The starter votes yes.
-## - Threshold: ceil(rules.remake_vote_fraction * eligible voters) yes votes
-##   (default 0.8: 4 of 4, 3 of 3, 2 of 2 left in practice).
+## - Threshold: ALL present (owner decision 2026-10-05): every connected
+##   human teammate, as counted when the vote starts, must vote yes. One
+##   "no" fails it.
 ## - The vote stays open rules.remake_vote_s; it fails when it times out or
 ##   when enough "no" votes make the threshold unreachable.
 ## - One vote per absence: after a failed vote, a new one needs a new absent
 ##   player (no vote spam).
 ## - PASSED means the match is void: RatingService.apply_result(voided=true).
+##   The seats absent when it passed (absent_at_pass) caused the remake and
+##   each gets a LEAVE strike (strike_absent(), escalating ranked lockout,
+##   owner decision 2026-10-05). Bots are never struck.
 ## Time is injected.
 
 enum State { IDLE, OPEN, PASSED, FAILED }
@@ -27,6 +31,8 @@ var _votes: Dictionary = {}       # seat -> bool
 var _voters: Array = []           # frozen at start
 var _absences_used: int = 0
 var _absences_seen: int = 0
+## Human seats absent at the moment the vote passed (set once, on PASSED).
+var absent_at_pass: Array = []
 
 
 func _init(team_: Array, match_start_: float, rules: MatchmakingRulesDef) -> void:
@@ -51,10 +57,20 @@ func eligible_voters() -> Array:
 	return team.filter(func(s: String) -> bool: return not _absent.has(s) and not MatchmakingRulesDef.is_bot(s))
 
 
-## Yes votes needed for the open (or a new) vote.
+## Yes votes needed for the open (or a new) vote: all present voters.
 func needed() -> int:
-	var n := _voters.size() if state == State.OPEN else eligible_voters().size()
-	return maxi(1, ceili(_rules.remake_vote_fraction * n - 0.000001))
+	return maxi(1, _voters.size() if state == State.OPEN else eligible_voters().size())
+
+
+## Gives every account in `absent_ids` a LEAVE strike (bots skipped).
+## Returns {account id: lockout seconds}. The front calls it with the match
+## result's remake_absent (= absent_at_pass of the passed vote).
+static func strike_absent(lockouts: LockoutTracker, absent_ids: Array, now: float) -> Dictionary:
+	var out := {}
+	for id in absent_ids:
+		if not MatchmakingRulesDef.is_bot(String(id)):
+			out[id] = lockouts.record(String(id), LockoutTracker.Kind.LEAVE, now)
+	return out
 
 
 func start(seat: String, now: float) -> Err:
@@ -104,5 +120,7 @@ func _settle() -> void:
 	var no := _votes.size() - yes
 	if yes >= needed():
 		state = State.PASSED
+		absent_at_pass = team.filter(func(x: String) -> bool:
+			return _absent.has(x) and not MatchmakingRulesDef.is_bot(x))
 	elif _voters.size() - no < needed():
 		state = State.FAILED

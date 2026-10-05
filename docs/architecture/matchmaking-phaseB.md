@@ -94,7 +94,7 @@ Other hooks:
 
 **Setup** (the "Megapacket", front to match process):
 `{match_id, queue, map_id, rated, teams: [[{id, lane, hero, bot}]], rules
-snapshot (remake_window_s, remake_vote_s, remake_vote_fraction), build}`.
+snapshot (remake_window_s, remake_vote_s), build}`.
 Bots carry `MatchmakingRulesDef.BOT_PREFIX` ids and must be shown labelled.
 Each human gets a one-time HMAC join ticket bound to `(account, match_id)`.
 
@@ -104,7 +104,7 @@ a seat that has not connected by the start, or that leaves, and
 `mark_present()` on reconnect.
 
 **Result** (match process to front, local channel):
-`{match_id, winner (0/1), voided, leavers: [ids], duration_s, stats}`.
+`{match_id, winner (0/1), voided, leavers: [ids], remake_absent: [ids], duration_s, stats}`.
 
 The front then does:
 
@@ -112,8 +112,10 @@ The front then does:
   The track is `rules.queue(q).rating_track`. Pass `voided=true` for a remake or
   a match-process crash. Unrated bot matches return `{}` by themselves.
 - For each leaver (not on a void): `LockoutTracker.record(id, LEAVE, now)`.
-  Decision for the owner: should a leaver who caused a remake also get a strike?
-  My recommendation is yes.
+  On a void by remake, the result carries `remake_absent` (the passed
+  vote's `RemakeVote.absent_at_pass`); the front calls
+  `RemakeVote.strike_absent(lockouts, remake_absent, now)`, which gives each
+  a LEAVE strike. A match-process crash strikes nobody.
 - Push `RANKED_INFO` to the ranked players, and open post-match reports and
   honour for this `match_id`. Keep the participant list for as long as reports
   are accepted (suggestion: 10 min).
@@ -144,13 +146,13 @@ The front then does:
 - `match_port_first/last` and `max_concurrent_matches` are in the rules def as
   defaults. `CYBERGRAM_MATCH_PORTS` overrides them (supervisor, phase B).
 
-## 7. Open owner decisions
+## 7. Owner decisions (2026-10-05)
 
-1. Medal names (placeholders: Static, Copper Trace, Circuit, Relay, Overclock,
-   Shardbreaker, Prime Signal).
-2. 5v5 lane slots: currently North, Center, South, Flex, Flex. This is an
-   assumption, because the map design does not fix lanes per player.
-3. Leaver rule: the leaver loses the game plus 15 points, and losing teammates
-   lose 50 %. Bot matches are unrated (`rate_bot_matches = false`).
-4. Remake threshold: 0.8 of the connected teammates, rounded up (in practice
-   all of them).
+1. Medal names: classic metals, lowest to highest: Iron, Bronze, Silver,
+   Gold, Platinum, Diamond, Master.
+2. 5v5 lane slots: North, Center, South, Flex, Flex (confirmed).
+3. Leaver rule as built (loss + 15, losing teammates lose 50 %); bot-filled
+   matches stay unrated. A player whose absence caused a passed remake gets a
+   LEAVE strike (escalating ranked lockout), see section 4.
+4. Remake threshold: every connected human teammate must vote yes (no
+   fraction knob).
