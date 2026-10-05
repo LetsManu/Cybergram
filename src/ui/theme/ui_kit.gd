@@ -322,7 +322,6 @@ static func icon_button(kind: StringName, on_press: Callable, tooltip := "", sid
 	b.tooltip_text = tooltip
 	style_button(b, &"ghost")
 	var icon := UiIcon.make(kind, side * 0.5, t.text_dim)
-	icon.set_anchors_preset(Control.PRESET_CENTER)
 	icon.position = Vector2(side, side) * 0.25
 	icon.size = Vector2(side, side) * 0.5
 	b.add_child(icon)
@@ -334,6 +333,24 @@ static func icon_button(kind: StringName, on_press: Callable, tooltip := "", sid
 	if on_press.is_valid():
 		b.pressed.connect(on_press)
 	return b
+
+
+## An avatar: `icon` (e.g. an EmblemIcon) centred inside a status ring of
+## `ring` colour (account chip, friend rows, launcher). `side` px square.
+static func avatar(icon: Control, ring: Color, side: float = 44.0) -> Control:
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(side, side)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var r := UiIcon.make(&"ring", side, ring)
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.add_child(r)
+	var inner := side * 0.72
+	icon.position = Vector2.ONE * (side - inner) * 0.5
+	icon.size = Vector2(inner, inner)
+	icon.custom_minimum_size = Vector2(inner, inner)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+	return box
 
 
 ## A tab (toggle) button: dim text, bright text with an accent underline when

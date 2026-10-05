@@ -34,20 +34,36 @@ static var legacy_profile_path: String = "user://profile.cfg"
 ## Shown under the buttons (e.g. why the last online session ended).
 var notice: String = ""
 
-var _hero: OptionButton
+## Index into HeroCatalog.entries() of the picked hero.
+var _hero_index: int = 0
 var _heroes: Array = []
 var _status: Label
 var _settings: SettingsPanel
+## Overlay screens (login, profile, settings) are centred here.
 var _center: CenterContainer
+## The HOME page (hero banner + tiles); hidden while an overlay is open.
 var _col: VBoxContainer
+## The top-bar PLAY button (opens the mode select).
 var _play: Button
-var _chip: PanelContainer
+var _chip: Button
 var _friends: FriendsPanel
 var _lobby_box: MarginContainer
 var _lobby: LobbyScreen
 var _login: LoginScreen
 var _profile_screen: ProfileScreen
 var _import_dialog: ConfirmationDialog
+## Kit shell (design/ux/ui-kit.md §8.1).
+var _root: Control
+var _bg: ColorRect
+var _nav: HBoxContainer
+var _quick: Array[Button] = []
+var _showcase: HeroShowcase
+var _tiles: HBoxContainer
+var _roster: HBoxContainer
+var _modes: UiCard
+var _mode_buttons: Array[Button] = []
+var _mode: int = 0
+var _confirm: Button
 ## The online connection (null = offline).
 var _enet: ENetTransport
 var _online: LobbyClient
@@ -57,67 +73,77 @@ var _then: Callable
 var _link_up: bool = false  # the server link completed its handshake
 var _auto_guest_sent: bool = false
 
+## Nav tabs of the top bar.
+enum Nav { HOME, HEROES, PROFILE, SETTINGS }
+const NAV_KEYS: Array[String] = ["HUD_NAV_HOME", "HUD_NAV_HEROES", "HUD_NAV_PROFILE", "HUD_NAV_SETTINGS"]
+## Mode-select cards: [title key, description key]; index order = MODE_*.
+const MODES: Array = [["HUD_MODE_ONLINE", "HUD_MODE_ONLINE_DESC"], ["HUD_MODE_BOTS", "HUD_MODE_BOTS_DESC"],
+	["HUD_MODE_PRACTICE", "HUD_MODE_PRACTICE_DESC"], ["HUD_MODE_TUTORIAL", "HUD_MODE_TUTORIAL_DESC"],
+	["HUD_MODE_COURSE", "HUD_MODE_COURSE_DESC"]]
+const MODE_ONLINE := 0
+const MODE_BOTS := 1
+const MODE_PRACTICE := 2
+const MODE_TUTORIAL := 3
+const MODE_COURSE := 4
+## Height of the tile row under the hero banner.
+const TILE_H := 148
+
 
 func _ready() -> void:
 	HudStrings.ensure_loaded()  # shared UI string table (hud.csv)
 	layer = 50
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var bg := ColorRect.new()
-	bg.color = Color(0.035, 0.04, 0.08)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	var glow := ColorRect.new()
-	glow.color = Color(HudPalette.NEUTRAL, 0.12)
-	glow.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	glow.custom_minimum_size.y = 6
-	add_child(glow)
-	var center := CenterContainer.new()
-	_center = center
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var col := VBoxContainer.new()
-	_col = col
-	col.custom_minimum_size = Vector2(440, 0)
-	col.add_theme_constant_override("separation", 12)
-	center.add_child(col)
-
-	col.add_child(MenuStyle.label("CYBERGRAM", 64, HudPalette.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
-	col.add_child(MenuStyle.label(tr("HUD_MENU_TAGLINE") % _version(), 16, HudPalette.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
-	col.add_child(MenuStyle.spacer(18))
-	col.add_child(MenuStyle.label(tr("HUD_MENU_HERO"), 14, HudPalette.TEXT_DIM))
-	_hero = OptionButton.new()
+	var t := UiKit.tokens()
 	_heroes = HeroCatalog.entries()
-	for h: Dictionary in _heroes:
-		_hero.add_item(str(h.name))
-	_hero.custom_minimum_size.y = 40
-	col.add_child(_hero)
-	col.add_child(MenuStyle.spacer(6))
-	_play = MenuStyle.button(tr("HUD_MENU_PLAY_BOTS"), _play_bots, true)
-	col.add_child(_play)
-	col.add_child(MenuStyle.spacer(6))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_PLAY_ONLINE"), _join, true))
-	col.add_child(MenuStyle.spacer(6))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_TEST_COURSE"), _course, false, 44))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_PRACTICE"), _practice, false, 44))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_TUTORIAL"), _tutorial, false, 44))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_PROFILE"), func() -> void: _with_session(_show_profile), false, 44))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_SETTINGS"), func() -> void:
-		col.visible = false
-		_settings.visible = true
-		_settings.focus_first(), false, 44))
-	col.add_child(MenuStyle.button(tr("HUD_MENU_QUIT"), func() -> void: get_tree().quit(), false, 44))
-	_status = MenuStyle.label(notice, 14, HudPalette.LUMEN, HORIZONTAL_ALIGNMENT_CENTER)
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col.add_child(_status)
 	_load_settings()
+	_root = Control.new()
+	_root.name = "Shell"
+	_root.theme = UiKit.theme()
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_root)
+	_bg = UiKit.background()
+	_root.add_child(_bg)
+	_build_top_bar()
+	# Body: content (left) + social sidebar (right).
+	var body := MarginContainer.new()
+	body.set_anchors_preset(Control.PRESET_FULL_RECT)
+	body.add_theme_constant_override("margin_top", t.top_bar_height + t.space_l)
+	body.add_theme_constant_override("margin_left", t.space_l)
+	body.add_theme_constant_override("margin_right", t.space_l)
+	body.add_theme_constant_override("margin_bottom", t.space_l)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(body)
+	var split := HBoxContainer.new()
+	split.add_theme_constant_override("separation", t.space_l)
+	split.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(split)
+	var content := Control.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	split.add_child(content)
+	_build_home(content)
+	_build_modes(content)
+	_center = CenterContainer.new()
+	_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(_center)
 	_settings = SettingsPanel.new()
 	_settings.visible = false
-	_settings.back_pressed.connect(func() -> void:
-		_settings.visible = false
-		col.visible = true
-		_play.grab_focus())
-	center.add_child(_settings)
-	_build_social()
+	_settings.back_pressed.connect(func() -> void: _go(Nav.HOME))
+	_settings.changed.connect(func() -> void: UiKit.refresh_background(_bg))
+	_center.add_child(_settings)
+	_friends = FriendsPanel.new()
+	_friends.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_friends.join_requested.connect(func(id: String) -> void: _open_lobby(online_server(), id))
+	_friends.login_requested.connect(func() -> void: _with_session(Callable()))
+	_friends.collapsed_changed.connect(func(_c: bool) -> void: _sync_lobby_margins())
+	split.add_child(_friends)
+	_lobby_box = MarginContainer.new()
+	_lobby_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lobby_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_lobby_box)
+	_sync_lobby_margins()
 	GameSettings.shared().apply_display()
 	_refresh_chip()
 	if AppRoot.rejoin_address != "":
@@ -133,29 +159,348 @@ func _ready() -> void:
 	_play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
 
 
-func _build_social() -> void:
-	_chip = MenuStyle.panel_container(HudPalette.PANEL_STRONG, 8)
-	_chip.position = Vector2(16, 16)
-	add_child(_chip)
-	var dock := MarginContainer.new()
-	dock.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	dock.offset_left = -312
-	dock.add_theme_constant_override("margin_top", 16)
-	dock.add_theme_constant_override("margin_bottom", 22)
-	dock.add_theme_constant_override("margin_right", 16)
-	add_child(dock)
-	_friends = FriendsPanel.new()
-	_friends.join_requested.connect(func(id: String) -> void: _open_lobby(online_server(), id))
-	_friends.login_requested.connect(func() -> void: _with_session(Callable()))
-	dock.add_child(_friends)
-	_lobby_box = MarginContainer.new()
-	_lobby_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_lobby_box.add_theme_constant_override("margin_left", 24)
-	_lobby_box.add_theme_constant_override("margin_top", 16)
-	_lobby_box.add_theme_constant_override("margin_right", 320)
-	_lobby_box.add_theme_constant_override("margin_bottom", 16)
-	_lobby_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_lobby_box)
+## Top bar: PLAY (far left), nav tabs (centre), account chip + quick buttons (right).
+func _build_top_bar() -> void:
+	var t := UiKit.tokens()
+	var bar := PanelContainer.new()
+	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	bar.custom_minimum_size.y = t.top_bar_height
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(t.bg_deep, 0.88)
+	sb.border_color = Color(t.gold, 0.28)
+	sb.border_width_bottom = 1
+	sb.content_margin_left = t.space_l
+	sb.content_margin_right = t.space_m
+	sb.shadow_color = Color(0, 0, 0, 0.4)
+	sb.shadow_size = 8
+	bar.add_theme_stylebox_override("panel", sb)
+	_root.add_child(bar)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", t.space_l)
+	bar.add_child(row)
+	_play = UiKit.button(tr("HUD_MENU_PLAY"), _open_modes, &"play", 46)
+	_play.custom_minimum_size.x = 168
+	_play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_play)
+	var mark := UiKit.label("CYBERGRAM", &"heading", t.text_dim)
+	mark.add_theme_font_size_override("font_size", 13)
+	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(mark)
+	var sep := VSeparator.new()
+	sep.custom_minimum_size.y = 28
+	sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(sep)
+	var labels: Array = []
+	for k in NAV_KEYS:
+		labels.append(tr(k))
+	_nav = UiKit.tab_bar(labels, func(i: int) -> void: _go(i), Nav.HOME, true)
+	_nav.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for b: Button in _nav.get_children():
+		b.custom_minimum_size.y = t.top_bar_height - 16
+	row.add_child(_nav)
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(fill)
+	_chip = Button.new()
+	_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UiKit.style_button(_chip, &"ghost")
+	UiSfx.attach(_chip)
+	_chip.pressed.connect(func() -> void:
+		if session().is_empty():
+			_with_session(Callable())
+		else:
+			_go(Nav.PROFILE))
+	row.add_child(_chip)
+	var gear := UiKit.icon_button(&"gear", func() -> void: _go(Nav.SETTINGS), tr("HUD_QUICK_SETTINGS"), 36)
+	gear.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(gear)
+	var quit := UiKit.icon_button(&"close", _confirm_quit, tr("HUD_QUICK_QUIT"), 36)
+	quit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(quit)
+	_quick = [gear, quit]
+
+
+## HOME page: hero banner, status line, then news / event tiles (or the
+## hero roster on the HEROES tab).
+func _build_home(content: Control) -> void:
+	var t := UiKit.tokens()
+	_col = VBoxContainer.new()
+	_col.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_col.add_theme_constant_override("separation", t.space_m)
+	content.add_child(_col)
+	_showcase = HeroShowcase.new()
+	_showcase.heroes = _heroes
+	_showcase.selected = _hero_index
+	_showcase.with_model = not OS.get_cmdline_user_args().has("--no-menu-model")
+	_showcase.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_showcase.hero_changed.connect(func(i: int) -> void:
+		_hero_index = i
+		_save_settings())
+	_col.add_child(_showcase)
+	var tag := UiKit.label(tr("HUD_MENU_TAGLINE") % _version(), &"caption", t.text_off)
+	tag.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	tag.position = Vector2(t.space_xl, t.space_l)
+	_showcase.add_child(tag)
+	# Status line (why the last online session ended, connection errors):
+	# top right of the banner.
+	_status = UiKit.label(notice, &"small", HudPalette.LUMEN, HORIZONTAL_ALIGNMENT_RIGHT)
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_status.offset_left = -440
+	_status.offset_right = -t.space_xl
+	_status.offset_top = t.space_l
+	_status.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_showcase.add_child(_status)
+	_tiles = HBoxContainer.new()
+	_tiles.custom_minimum_size.y = TILE_H
+	_tiles.add_theme_constant_override("separation", t.space_m)
+	_col.add_child(_tiles)
+	var news := UiKit.card(tr("HUD_NEWS_TITLE") % _version(), 12)
+	news.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	news.size_flags_stretch_ratio = 1.6
+	for k in ["HUD_NEWS_1", "HUD_NEWS_2", "HUD_NEWS_3"]:
+		var l := UiKit.label("•  " + tr(k), &"small", t.text_dim)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		news.body.add_child(l)
+	news.body.add_theme_constant_override("separation", 4)
+	_tiles.add_child(news)
+	_tiles.add_child(_tile(MODE_PRACTICE))
+	_tiles.add_child(_tile(MODE_TUTORIAL))
+	_roster = HBoxContainer.new()
+	_roster.custom_minimum_size.y = TILE_H
+	_roster.add_theme_constant_override("separation", t.space_s)
+	_roster.visible = false
+	_col.add_child(_roster)
+	for i in _heroes.size():
+		var h: Dictionary = _heroes[i]
+		var b := Button.new()
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.toggle_mode = true
+		UiKit.swatch_button(b, t.panel)
+		UiSfx.attach(b)
+		var v := VBoxContainer.new()
+		v.set_anchors_preset(Control.PRESET_FULL_RECT)
+		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_theme_constant_override("separation", 4)
+		var badge := HeroBadge.make(int(h.index), 56)
+		badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		v.add_child(badge)
+		var nm := UiKit.label(str(h.name), &"small", t.text, HORIZONTAL_ALIGNMENT_CENTER)
+		nm.clip_text = true
+		v.add_child(nm)
+		var role := UiKit.label(tr(HeroShowcase.ROLE_KEYS.get(str(h.stem), "HUD_ROLE_SOLDIER")), &"caption",
+			t.text_off, HORIZONTAL_ALIGNMENT_CENTER)
+		role.clip_text = true
+		v.add_child(role)
+		b.add_child(v)
+		b.pressed.connect(func() -> void:
+			_showcase.select(i)
+			_sync_roster())
+		_roster.add_child(b)
+
+
+## An event tile under the banner that launches mode `m` directly.
+func _tile(m: int) -> Button:
+	var t := UiKit.tokens()
+	var b := Button.new()
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiKit.style_button(b, &"secondary")
+	UiSfx.attach(b)
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.offset_left = 16
+	v.offset_top = 14
+	v.offset_right = -16
+	v.offset_bottom = -14
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_theme_constant_override("separation", 6)
+	var head := HBoxContainer.new()
+	head.add_child(UiIcon.make(&"play", 14, t.gold))
+	var title := UiKit.label(tr(MODES[m][0]), &"heading")
+	title.add_theme_font_size_override("font_size", t.size_small + 1)
+	head.add_child(title)
+	head.add_theme_constant_override("separation", 8)
+	v.add_child(head)
+	var d := UiKit.label(tr(MODES[m][1]), &"small", t.text_dim)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(d)
+	b.add_child(v)
+	b.pressed.connect(func() -> void: _launch_mode(m))
+	return b
+
+
+## PLAY -> mode select (LoL-style queue picker with CONFIRM).
+func _build_modes(content: Control) -> void:
+	var t := UiKit.tokens()
+	_modes = UiKit.card(tr("HUD_MODE_TITLE"), t.space_xl)
+	_modes.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_modes.visible = false
+	content.add_child(_modes)
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", t.space_l)
+	_modes.body.add_child(row)
+	var group := ButtonGroup.new()
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.size_flags_stretch_ratio = 1.4
+	grid.add_theme_constant_override("h_separation", t.space_m)
+	grid.add_theme_constant_override("v_separation", t.space_m)
+	for m in MODES.size():
+		var b := Button.new()
+		b.toggle_mode = true
+		b.button_group = group
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size.y = 96
+		UiKit.style_button(b, &"secondary")
+		var pressed := b.get_theme_stylebox("pressed") as UiBevelBox
+		pressed.fill = Color(t.accent, 0.22)
+		pressed.fill_hover = pressed.fill
+		pressed.border = t.accent_hi
+		pressed.border_hover = t.accent_hi
+		pressed.glow = Color(t.accent, 0.8)
+		pressed.glow_rest = 0.6
+		UiSfx.attach(b)
+		var v := VBoxContainer.new()
+		v.set_anchors_preset(Control.PRESET_FULL_RECT)
+		v.offset_left = 18
+		v.offset_top = 14
+		v.offset_right = -18
+		v.offset_bottom = -14
+		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_theme_constant_override("separation", 6)
+		var title := UiKit.label(tr(MODES[m][0]), &"title" if m == MODE_ONLINE else &"heading")
+		v.add_child(title)
+		var d := UiKit.label(tr(MODES[m][1]), &"small", t.text_dim)
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(d)
+		b.add_child(v)
+		b.pressed.connect(func() -> void: _mode = m)
+		_mode_buttons.append(b)
+		if m == MODE_ONLINE:
+			b.size_flags_stretch_ratio = 1.0
+			row.add_child(b)
+			row.add_child(grid)
+		else:
+			grid.add_child(b)
+	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_END
+	foot.add_theme_constant_override("separation", t.space_m)
+	_modes.body.add_child(UiKit.spacer(t.space_s))
+	_modes.body.add_child(foot)
+	foot.add_child(UiKit.button(tr("HUD_MODE_BACK"), func() -> void: _go(Nav.HOME), &"ghost", 44))
+	_confirm = UiKit.button(tr("HUD_MODE_CONFIRM"), func() -> void: _launch_mode(_mode), &"primary", 48)
+	_confirm.custom_minimum_size.x = 220
+	foot.add_child(_confirm)
+
+
+func _open_modes() -> void:
+	if _lobby != null:
+		return
+	_hide_pages()
+	_modes.visible = true
+	UiKit.transition_in(_modes)
+	_mode_buttons[_mode].set_pressed_no_signal(true)
+	_mode_buttons[_mode].grab_focus.call_deferred()
+
+
+func _launch_mode(m: int) -> void:
+	match m:
+		MODE_ONLINE:
+			_join()
+		MODE_BOTS:
+			_play_bots()
+		MODE_PRACTICE:
+			_practice()
+		MODE_TUTORIAL:
+			_tutorial()
+		_:
+			_course()
+
+
+## Hides every content page (home, modes, settings); overlays stay.
+func _hide_pages() -> void:
+	_col.visible = false
+	_modes.visible = false
+	_settings.visible = false
+
+
+## Top-bar navigation.
+func _go(i: int) -> void:
+	_set_nav(i)
+	match i:
+		Nav.PROFILE:
+			_with_session(_show_profile)
+			return
+		Nav.SETTINGS:
+			_close_profile_only()
+			_hide_pages()
+			_settings.visible = true
+			UiKit.transition_in(_settings)
+			_settings.focus_first()
+			return
+	_close_profile_only()
+	_hide_pages()
+	_col.visible = _login == null and _lobby == null
+	_tiles.visible = i == Nav.HOME
+	_roster.visible = i == Nav.HEROES
+	_sync_roster()
+	UiKit.transition_in(_col)
+	if i == Nav.HEROES:
+		_showcase.focus_badge.call_deferred()
+	else:
+		_play.grab_focus.call_deferred()
+
+
+func _set_nav(i: int) -> void:
+	for k in _nav.get_child_count():
+		(_nav.get_child(k) as Button).set_pressed_no_signal(k == i)
+
+
+func _sync_roster() -> void:
+	for k in _roster.get_child_count():
+		(_roster.get_child(k) as Button).set_pressed_no_signal(k == _showcase.selected)
+
+
+func _close_profile_only() -> void:
+	if _profile_screen != null:
+		_profile_screen.queue_free()
+		_profile_screen = null
+
+
+## While the lobby is open the shell's PLAY and nav are locked (the lobby owns
+## the screen, LoL champ-select style); the chip and quick buttons stay.
+func _sync_shell() -> void:
+	var busy := _lobby != null
+	_play.disabled = busy
+	for b: Button in _nav.get_children():
+		b.disabled = busy
+
+
+func _sync_lobby_margins() -> void:
+	var t := UiKit.tokens()
+	_lobby_box.add_theme_constant_override("margin_left", t.space_l)
+	_lobby_box.add_theme_constant_override("margin_top", t.top_bar_height + t.space_l)
+	_lobby_box.add_theme_constant_override("margin_right", _friends.dock_width() + t.space_l * 2)
+	_lobby_box.add_theme_constant_override("margin_bottom", t.space_l)
+
+
+func _confirm_quit() -> void:
+	UiKit.modal(_root, tr("HUD_QUIT_TITLE"), tr("HUD_QUIT_BODY"), tr("HUD_MENU_QUIT"),
+		func() -> void: get_tree().quit(), tr("HUD_MODE_BACK"), func() -> void: _play.grab_focus(), true)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _lobby != null or _login != null or not event.is_action_pressed("ui_cancel"):
+		return
+	if _modes.visible or _settings.visible or _roster.visible or _profile_screen != null:
+		get_viewport().set_input_as_handled()
+		_go(Nav.HOME)
 
 
 ## The logged-in session ({} = none).
@@ -164,32 +509,44 @@ func session() -> Dictionary:
 
 
 func _refresh_chip() -> void:
-	_chip.visible = _lobby == null
+	var t := UiKit.tokens()
+	_sync_shell()
 	for c in _chip.get_children():
 		_chip.remove_child(c)
 		c.queue_free()
 	var s := session()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	if s.is_empty():
-		row.add_child(MenuStyle.label(tr("HUD_MENU_NOT_LOGGED_IN"), 14, HudPalette.TEXT_DIM))
-		var login := MenuStyle.button(tr("HUD_FRIENDS_LOGIN"), func() -> void: _with_session(Callable()), false, 30)
-		login.add_theme_font_size_override("font_size", 12)
-		row.add_child(login)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.position = Vector2(8, 4)
+	var ring := t.text_off
+	var name_text := tr("HUD_MENU_NOT_LOGGED_IN")
+	var sub := tr("HUD_FRIENDS_LOGIN")
+	var em := EmblemIcon.make(0, 0, 30.0)
+	if not s.is_empty():
+		var guest := int(s.get("guest", 1)) != 0
+		ring = t.text_dim if guest else t.accent_hi
+		name_text = str(s.get("display_name", ""))
+		sub = tr("HUD_ACCOUNT_GUEST_LINE") if guest else "#" + PlayerProfile.tag_of(str(s.get("id", "")))
+		em = EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 30.0)
 	else:
-		row.add_child(EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 44.0))
-		var v := VBoxContainer.new()
-		v.add_theme_constant_override("separation", 0)
-		v.add_child(MenuStyle.label(str(s.get("display_name", "")), 18,
-			PlayerProfile.accent_of(int(s.get("accent", 0))).lerp(HudPalette.TEXT, 0.4)))
-		var sub := tr("HUD_ACCOUNT_GUEST_LINE") if int(s.get("guest", 1)) != 0 else "#" + PlayerProfile.tag_of(str(s.get("id", "")))
-		v.add_child(MenuStyle.label(sub, 12, HudPalette.TEXT_OFF))
-		row.add_child(v)
-		var edit := MenuStyle.button(tr("HUD_MENU_PROFILE_EDIT"), func() -> void: _with_session(_show_profile), false, 30)
-		edit.add_theme_font_size_override("font_size", 12)
-		edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(edit)
+		em.modulate = Color(1, 1, 1, 0.35)
+	row.add_child(UiKit.avatar(em, ring, 40.0))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", -2)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var nl := UiKit.label(name_text, &"body", t.text if not s.is_empty() else t.text_dim)
+	if not s.is_empty():
+		nl.add_theme_color_override("font_color", PlayerProfile.accent_of(int(s.get("accent", 0))).lerp(t.text, 0.5))
+	v.add_child(nl)
+	v.add_child(UiKit.label(sub, &"caption", t.text_off if not s.is_empty() else t.accent_hi))
+	row.add_child(v)
 	_chip.add_child(row)
+	var fit := func() -> void:
+		_chip.custom_minimum_size = row.get_combined_minimum_size() + Vector2(20, 8)
+	row.minimum_size_changed.connect(fit)
+	fit.call()
 	var account := not s.is_empty() and int(s.get("guest", 1)) == 0
 	_friends.set_session(account, _request if not s.is_empty() else Callable())
 
@@ -388,7 +745,7 @@ func _auto_guest() -> void:
 func _show_login() -> void:
 	if _login != null:
 		return
-	_col.visible = false
+	_hide_pages()
 	_login = LoginScreen.new()
 	var hp := _server.rsplit(":", true, 1)
 	var secure := _enet != null and _enet.is_secure
@@ -411,6 +768,7 @@ func _show_login() -> void:
 		_close_login()
 		_then = Callable())
 	_center.add_child(_login)
+	UiKit.transition_in(_login)
 	if hp.size() > 0 and not secure:
 		_login.show_error(tr("HUD_LOGIN_NO_TLS"))
 
@@ -419,7 +777,7 @@ func _close_login() -> void:
 	if _login != null:
 		_login.queue_free()
 		_login = null
-	_col.visible = _lobby == null and _profile_screen == null
+	_col.visible = _lobby == null and _profile_screen == null and not _settings.visible and not _modes.visible
 
 
 ## Pre-accounts local profile: offer once to import it, then delete the files.
@@ -462,18 +820,24 @@ func _save_username(u: String) -> void:
 func _show_profile() -> void:
 	if _profile_screen != null or _online == null:
 		return
-	_col.visible = false
+	_hide_pages()
+	_set_nav(Nav.PROFILE)
 	_profile_screen = ProfileScreen.new()
 	_profile_screen.session = _online.session
 	_profile_screen.requested.connect(_request)
 	_profile_screen.closed.connect(_close_profile)
 	_center.add_child(_profile_screen)
+	UiKit.transition_in(_profile_screen)
 
 
 func _close_profile() -> void:
 	if _profile_screen != null:
 		_profile_screen.queue_free()
 		_profile_screen = null
+	_set_nav(Nav.HOME)
+	_hide_pages()
+	_tiles.visible = true
+	_roster.visible = false
 	_col.visible = _lobby == null and _login == null
 	_play.grab_focus.call_deferred()
 
@@ -506,7 +870,8 @@ func _show_lobby(addr: String, party_id: String) -> void:
 	if _lobby != null or _online == null:
 		return
 	_save_settings()
-	_col.visible = false
+	_close_profile_only()
+	_hide_pages()
 	var lobby := LobbyScreen.new()
 	_lobby = lobby
 	lobby.address = addr
@@ -524,7 +889,7 @@ func _show_lobby(addr: String, party_id: String) -> void:
 	lobby.cancelled.connect(func(reason: String) -> void:
 		lobby.queue_free()
 		_lobby = null
-		_col.visible = true
+		_go(Nav.HOME)
 		_status.text = reason
 		# Leaving frees the seat: reconnect and resume the session for the friends panel.
 		_disconnect()
@@ -560,7 +925,7 @@ func _start(args: PackedStringArray) -> void:
 func _hero_id() -> String:
 	if _heroes.is_empty():
 		return DEFAULT_HERO
-	return str(_heroes[clampi(_hero.selected, 0, _heroes.size() - 1)].stem)
+	return str(_heroes[clampi(_hero_index, 0, _heroes.size() - 1)].stem)
 
 
 func _load_settings() -> void:
@@ -570,7 +935,7 @@ func _load_settings() -> void:
 		want = str(cfg.get_value("menu", "hero_id", DEFAULT_HERO))
 	for i in _heroes.size():
 		if _heroes[i].stem == want:
-			_hero.selected = i
+			_hero_index = i
 
 
 func _save_settings() -> void:

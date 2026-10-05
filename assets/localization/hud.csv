@@ -597,3 +597,7 @@ HUD_FRIENDS_GROUP_OFFLINE,OFFLINE
 HUD_FRIENDS_COLLAPSE,Hide friends
 HUD_FRIENDS_EXPAND,Show friends
 HUD_HEROES_HINT,"Your pick for Vs Bots, Practice and the lobby."
+HUD_FRIENDS_GROUP_REQUESTS,REQUESTS
+HUD_FRIENDS_GROUP_OTHER,PENDING / BLOCKED
+HUD_QUIT_TITLE,Quit Cybergram?
+HUD_QUIT_BODY,"You can come back any time; your settings are saved."
