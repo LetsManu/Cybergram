@@ -164,6 +164,38 @@ static func status_text(info: Dictionary) -> String:
 		info["online"], info["in_lobby"], info["in_match"]]
 
 
+## "12.3 / 80.0 MB  -  4.2 MB/s" (speed omitted when unknown or total unknown).
+static func progress_text(got: int, total: int, bytes_per_s: float) -> String:
+	var s: String = "%.1f / %.1f MB" % [got / 1048576.0, total / 1048576.0] if total > 0 else "%.1f MB" % (got / 1048576.0)
+	if bytes_per_s > 1024.0:
+		s += "  -  %.1f MB/s" % (bytes_per_s / 1048576.0)
+	return s
+
+
+## Splits release notes markdown for the news cards: `headline` (first "# "
+## line), `intro` (text before the first "## "), `sections` = [{title, md}].
+static func split_notes(md: String) -> Dictionary:
+	var out: Dictionary = {"headline": "", "intro": "", "sections": []}
+	var intro: PackedStringArray = PackedStringArray()
+	var cur: Dictionary = {}
+	for raw in md.replace("\r", "").split("\n"):
+		var l: String = raw.strip_edges(true, false)
+		if l.begins_with("## "):
+			if not cur.is_empty():
+				out["sections"].append(cur)
+			cur = {"title": l.substr(3).strip_edges(), "md": ""}
+		elif l.begins_with("# ") and out["headline"] == "":
+			out["headline"] = l.substr(2).strip_edges()
+		elif cur.is_empty():
+			intro.append(raw)
+		else:
+			cur["md"] += raw + "\n"
+	if not cur.is_empty():
+		out["sections"].append(cur)
+	out["intro"] = "\n".join(intro).strip_edges()
+	return out
+
+
 ## Base URL (with trailing slash) that the manifest's file names hang off.
 static func base_url(version_url: String) -> String:
 	var cut: int = version_url.rfind("/")
@@ -181,11 +213,11 @@ static func markdown_to_bbcode(md: String) -> String:
 		if stripped.begins_with("### "):
 			out.append("[b]%s[/b]" % _inline(stripped.substr(4)))
 		elif stripped.begins_with("## "):
-			out.append("[font_size=20][color=#2fd6ff][b]%s[/b][/color][/font_size]" % _inline(stripped.substr(3)))
+			out.append("[font_size=20][color=#b794ff][b]%s[/b][/color][/font_size]" % _inline(stripped.substr(3)))
 		elif stripped.begins_with("# "):
-			out.append("[font_size=26][color=#2fd6ff][b]%s[/b][/color][/font_size]" % _inline(stripped.substr(2)))
+			out.append("[font_size=26][color=#b794ff][b]%s[/b][/color][/font_size]" % _inline(stripped.substr(2)))
 		elif stripped.begins_with("- ") or stripped.begins_with("* "):
-			out.append("  [color=#ff4fa3]•[/color] %s" % _inline(stripped.substr(2)))
+			out.append("  [color=#8e5cff]•[/color] %s" % _inline(stripped.substr(2)))
 		elif stripped != "" and prev_flow:
 			# Hard-wrapped markdown: join continuation lines into the paragraph.
 			out[out.size() - 1] += " " + _inline(stripped)

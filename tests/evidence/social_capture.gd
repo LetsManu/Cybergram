@@ -2,7 +2,7 @@ extends Node
 ## Evidence capture for chunk L1 (tools/ci/capture_scene.sh): the main menu
 ## with the friends panel, the create-account screen, the full lobby with
 ## players (a real LobbyServer + bot clients on loopback, guest sessions) and
-## the account screen. Pick with `-- --view menu|login|lobby|profile`.
+## the account screen. Pick with `-- --view menu|login|lobby|lobby_locked|lobby_final|profile|modes|heroes|settings|collapsed|quit`.
 ## Display data for the friends panel is a fixture (no server needed).
 
 const DT := 1.0 / 60.0
@@ -35,11 +35,26 @@ func _ready() -> void:
 			await get_tree().process_frame
 			ls.set_mode(LoginScreen.Mode.REGISTER)
 			ls.fill_register("neo_runner", "correct horse", "Neo", true, false)
-		"lobby":
+		"lobby", "lobby_locked", "lobby_final":
 			_start_lobby()
 		"profile":
 			_fake_session()
 			_menu._show_profile()
+		"modes":
+			_fake_session()
+			_menu._open_modes()
+		"heroes":
+			_fake_session()
+			_menu._go(MainMenu.Nav.HEROES)
+		"settings":
+			_fake_session()
+			_menu._go(MainMenu.Nav.SETTINGS)
+		"collapsed":
+			_fake_session()
+			_menu._friends.set_collapsed(true)
+		"quit":
+			_fake_session()
+			_menu._confirm_quit()
 		_:
 			_fake_session()
 
@@ -74,7 +89,7 @@ func _start_lobby() -> void:
 	var me := LobbyClient.new(_link.create_endpoint(2))
 	me.request(AccountCodec.OP_GUEST, {"ver": MsgType.PROTOCOL_VERSION, "display_name": "Neo", "emblem": 3,
 		"accent": 1, "flags": AccountCodec.FLAG_PRIVACY})
-	var bots := [["Trinity", 1, 7, &"hero_brannoc", true], ["Morpheus", 11, 4, &"hero_vesper_loom", false],
+	var bots := [["Trinity", 1, 7, &"hero_brannoc", true], ["Morpheus", 11, 4, &"hero_vesper_loom", _view == "lobby_final"],
 		["Switch", 2, 2, &"hero_brannoc", true]]
 	for k in bots.size():
 		var b := LobbyClient.new(_link.create_endpoint(3 + k))
@@ -118,6 +133,9 @@ func _process(delta: float) -> void:
 		for b in _bots:
 			if b.get_meta("ready"):
 				b.pick(b.get_meta("hero"), true)
+	if _view != "lobby" and _t > 0.9 and _menu._lobby != null and not _menu._lobby.has_meta("locked"):
+		_menu._lobby.set_meta("locked", true)
+		(_menu._lobby as LobbyScreen)._lock_btn.button_pressed = true
 	if _t > 0.6 and not _bots[2].has_meta("talked"):
 		_bots[2].set_meta("talked", true)
 		_bots[2].say("ready when you are")

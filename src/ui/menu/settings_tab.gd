@@ -32,8 +32,9 @@ func _find_focusable(n: Node) -> Control:
 func section(text: String) -> void:
 	var l := Label.new()
 	l.text = text.to_upper()
-	l.add_theme_font_size_override("font_size", 13)
-	l.add_theme_color_override("font_color", SettingsTheme.ACCENT.lightened(0.35))
+	l.add_theme_font_size_override("font_size", UiKit.tokens().size_caption + 1)
+	l.add_theme_font_override("font", UiKit.display_font(600, 2))
+	l.add_theme_color_override("font_color", UiKit.tokens().gold)
 	var box := MarginContainer.new()
 	box.add_theme_constant_override("margin_top", 8)
 	box.add_child(l)
