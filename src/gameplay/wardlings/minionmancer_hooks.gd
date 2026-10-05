@@ -118,13 +118,15 @@ static func command_vanguard_attack(ww: WardlingWorld, wave: VanguardWave, targe
 
 
 ## Rally Beacon double-tap: Hold Here at `point`, or Go Capture hardpoint
-## `hp_index` (lane 0) when the beacon stands in its zone.
+## `hp_index` (map-wide index, any lane) when the beacon stands in its zone.
 static func order_at(ww: WardlingWorld, owner: HeroBody, point: Vector3, hp_index: int) -> bool:
 	var sq := ww.squad_of(owner.net_id)
 	if sq == null:
 		return false
 	if hp_index >= 0 and ww.map_def != null:
-		var hp: HardpointDef = ww.map_def.lanes[0].hardpoints[hp_index]
+		var hp: HardpointDef = ww.map_def.hardpoint_global(hp_index)
+		if hp == null:
+			return false
 		sq.issue(Squad.CMD_CAPTURE, ww.server.tick, hp.position, 0, hp_index)
 		sq.capture_radius = hp.zone_radius
 		ww.squad_command_issued.emit(owner.net_id, Squad.CMD_CAPTURE)

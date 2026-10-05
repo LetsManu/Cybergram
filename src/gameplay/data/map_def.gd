@@ -39,6 +39,31 @@ func hq(team: int) -> HqDef:
 	return null
 
 
+## Hardpoint by its map-wide index (lane-major: lane 0's, then lane 1's ...;
+## the snapshot / ObjectiveSystem.all order). Null if out of range.
+func hardpoint_global(index: int) -> HardpointDef:
+	var i := index
+	for lane in lanes:
+		if i < 0:
+			return null
+		if i < lane.hardpoints.size():
+			return lane.hardpoints[i]
+		i -= lane.hardpoints.size()
+	return null
+
+
+## Vector2i(lane, index in lane) of a map-wide hardpoint index, or (-1, -1).
+func lane_slot(index: int) -> Vector2i:
+	var i := index
+	for li in lanes.size():
+		if i < 0:
+			break
+		if i < lanes[li].hardpoints.size():
+			return Vector2i(li, i)
+		i -= lanes[li].hardpoints.size()
+	return Vector2i(-1, -1)
+
+
 ## Index of the lane that holds hardpoint `hp_id`, or -1.
 func lane_of(hp_id: StringName) -> int:
 	for i in lanes.size():

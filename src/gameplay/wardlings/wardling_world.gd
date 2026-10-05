@@ -305,13 +305,14 @@ func issue_command(h: HeroBody, cmd: InputCommand) -> bool:
 		Squad.CMD_CAPTURE:
 			if map_def == null or map_def.lanes.is_empty():
 				return false
-			var hps := map_def.lanes[0].hardpoints
-			if cmd.squad_target < 0 or cmd.squad_target >= hps.size():
+			# squad_target: map-wide hardpoint index (W14: any lane's hardpoint).
+			var at := map_def.lane_slot(cmd.squad_target)
+			if at.x < 0:
 				return false
-			if server.objectives != null and hardpoint_owner(0, cmd.squad_target) != sq.team \
-					and not server.objectives.eligible(0, cmd.squad_target, sq.team):
+			if server.objectives != null and hardpoint_owner(at.x, at.y) != sq.team \
+					and not server.objectives.eligible(at.x, at.y, sq.team):
 				return false  # Locked (C3); own hardpoints are defended instead
-			var hp: HardpointDef = hps[cmd.squad_target]
+			var hp: HardpointDef = map_def.lanes[at.x].hardpoints[at.y]
 			sq.issue(Squad.CMD_CAPTURE, server.tick, hp.position, 0, cmd.squad_target)
 			sq.capture_radius = hp.zone_radius
 		_:
@@ -372,7 +373,7 @@ func debug_spawn(n: int) -> void:
 		var wave := VanguardWave.new(_next_wave_id, team, 0, server.tick)
 		_next_wave_id += 1
 		var ahead := -1.0 if team == MapDef.TEAM_CONCORD else 1.0
-		var base := hq.lane_gate + Vector3(0.0, 0.0, ahead * (6.0 + float(k >> 1) * 5.0))
+		var base := hq.gate_for_lane(0) + Vector3(0.0, 0.0, ahead * (6.0 + float(k >> 1) * 5.0))
 		for i in mini(4, n - made):
 			if _mint(picket, team, base + _block_offset(i, ahead), 0, null, wave) == null:
 				return
@@ -483,7 +484,7 @@ func _vanguard_rules(t: int) -> void:
 				waves.erase(old)
 			var ahead := -1.0 if team == MapDef.TEAM_CONCORD else 1.0
 			for i in n:
-				_mint(picket, team, hq.lane_gate + _block_offset(i + alive, ahead), 0, null, wave)
+				_mint(picket, team, hq.gate_for_lane(lane) + _block_offset(i + alive, ahead), 0, null, wave)
 			waves.append(wave)
 			_current_wave[key] = wave
 			vanguard_wave_spawned.emit(team, lane, n)

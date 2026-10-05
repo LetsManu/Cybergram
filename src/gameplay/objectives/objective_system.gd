@@ -49,6 +49,11 @@ func _init(map: MapDef, match_rules: MatchRulesDef) -> void:
 	_refresh_eligibility()
 
 
+## Map-wide index of `h` (lane-major, as MapDef.hardpoint_global), or -1.
+func global_index(h: HardpointSim) -> int:
+	return all.find(h)
+
+
 func find(id: StringName) -> HardpointSim:
 	for h in all:
 		if h.def.id == id:
