@@ -170,13 +170,13 @@ func _build_tree() -> void:
 	for p in [[&"idle", Vector2.ZERO], [&"walk", Vector2(0, _clip_speed[&"walk"] / RUN_SPEED)], [&"run", Vector2(0, rv)],
 			[&"run_back", Vector2(0, -_clip_speed[&"run_back"] / RUN_SPEED)], [&"strafe_l", Vector2(-rv, 0)],
 			[&"strafe_r", Vector2(rv, 0)]]:
-		loco.add_blend_point(_clip_node(p[0]), p[1])
+		loco.add_blend_point(_clip_node(p[0]), p[1], -1, p[0])  # named: 4.7 warns about unnamed points
 	bt.add_node(&"loco_bs", loco)
 	bt.add_node(&"loco", AnimationNodeTimeScale.new())
 	bt.connect_node(&"loco", 0, &"loco_bs")
 	var crouch := AnimationNodeBlendSpace1D.new()
-	crouch.add_blend_point(_clip_node(&"crouch_idle"), 0.0)
-	crouch.add_blend_point(_clip_node(&"crouch_walk"), 1.0)
+	crouch.add_blend_point(_clip_node(&"crouch_idle"), 0.0, -1, &"crouch_idle")
+	crouch.add_blend_point(_clip_node(&"crouch_walk"), 1.0, -1, &"crouch_walk")
 	bt.add_node(&"crouch", crouch)
 	var cmix := AnimationNodeBlend2.new()
 	bt.add_node(&"crouch_mix", cmix)
@@ -191,9 +191,9 @@ func _build_tree() -> void:
 	bt.connect_node(&"air", 0, &"crouch_mix")
 	bt.connect_node(&"air", 1, &"jump")
 	var aim := AnimationNodeBlendSpace1D.new()
-	aim.add_blend_point(_clip_node(&"aim_down"), -1.0)
-	aim.add_blend_point(_clip_node(&"aim_mid"), 0.0)
-	aim.add_blend_point(_clip_node(&"aim_up"), 1.0)
+	aim.add_blend_point(_clip_node(&"aim_down"), -1.0, -1, &"aim_down")
+	aim.add_blend_point(_clip_node(&"aim_mid"), 0.0, -1, &"aim_mid")
+	aim.add_blend_point(_clip_node(&"aim_up"), 1.0, -1, &"aim_up")
 	bt.add_node(&"aim", aim)
 	var upper := AnimationNodeBlend2.new()
 	_filter(upper, UPPER_BONES)

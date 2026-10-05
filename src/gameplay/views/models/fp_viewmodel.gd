@@ -177,9 +177,9 @@ func _build_tree() -> void:
 		return
 	var bt := AnimationNodeBlendTree.new()
 	var loco := AnimationNodeBlendSpace1D.new()
-	loco.add_blend_point(_clip(&"idle"), 0.0)
-	loco.add_blend_point(_clip(&"walk"), WALK_POINT)
-	loco.add_blend_point(_clip(&"sprint"), 1.0)
+	loco.add_blend_point(_clip(&"idle"), 0.0, -1, &"idle")
+	loco.add_blend_point(_clip(&"walk"), WALK_POINT, -1, &"walk")
+	loco.add_blend_point(_clip(&"sprint"), 1.0, -1, &"sprint")
 	bt.add_node(&"loco_bs", loco)
 	bt.add_node(&"loco", AnimationNodeTimeScale.new())
 	bt.connect_node(&"loco", 0, &"loco_bs")

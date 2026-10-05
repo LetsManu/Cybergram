@@ -136,6 +136,58 @@ func _init() -> void:
 	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old")), "cleanup removes .old")
 	LauncherCore.remove_tree(sb)
 
+	# W21-U2: a stuck .old (non-empty directory, like a locked file) must not block the swap.
+	LauncherCore.remove_tree(sb)
+	DirAccess.make_dir_recursive_absolute(sb.path_join("new"))
+	DirAccess.make_dir_recursive_absolute(sb.path_join("live/L.x86_64.old"))
+	for pair in [["new/L.x86_64", "NEW2"], ["live/L.x86_64", "OLD2"], ["live/L.x86_64.old/stuck.txt", "x"]]:
+		var wf2: FileAccess = FileAccess.open(sb.path_join(pair[0]), FileAccess.WRITE)
+		wf2.store_string(pair[1])
+		wf2.close()
+	_check(SelfUpdater.apply_update(sb.path_join("new"), sb.path_join("live")) == "", "apply_update with an undeletable .old")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW2", "exe replaced despite stuck .old")
+	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old.1")), "stuck dir was removed (Linux)")
+	# A leftover that cannot be deleted at all (locked file): unique name instead.
+	LauncherCore.remove_tree(sb)
+	DirAccess.make_dir_recursive_absolute(sb.path_join("new"))
+	DirAccess.make_dir_recursive_absolute(sb.path_join("live"))
+	for pair in [["new/L.x86_64", "NEW3"], ["live/L.x86_64", "OLD3"], ["live/L.x86_64.old", "LOCKED"]]:
+		var wf3: FileAccess = FileAccess.open(sb.path_join(pair[0]), FileAccess.WRITE)
+		wf3.store_string(pair[1])
+		wf3.close()
+	var locked: String = sb.path_join("live/L.x86_64.old")
+	var refuse: Callable = func(p: String) -> bool: return p != locked
+	_check(SelfUpdater.apply_update(sb.path_join("new"), sb.path_join("live"), refuse) == "", "apply_update with a locked .old")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW3", "exe replaced despite locked .old")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64.old.1")) == "OLD3", "old exe went to a unique name")
+	_check(SelfUpdater.cleanup_old(sb.path_join("live")) == 0, "cleanup removes every leftover")
+	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old.1")) and not DirAccess.dir_exists_absolute(sb.path_join("live/L.x86_64.old")), "no .old* left")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW3", "cleanup keeps the live exe")
+	LauncherCore.remove_tree(sb)
+	_check(SelfUpdater.is_leftover("a.exe.old") and SelfUpdater.is_leftover("a.exe.old.3"), "leftover: .old and .old.<n>")
+	_check(not SelfUpdater.is_leftover("my.old.notes.txt") and not SelfUpdater.is_leftover("a.old.bak") and not SelfUpdater.is_leftover("gold"), "leftover: strict pattern")
+	var now: int = 1000000
+	_check(SelfUpdater.may_attempt("1.5.0", "", 0, now), "attempt: no failure recorded")
+	_check(not SelfUpdater.may_attempt("1.5.0", "1.5.0", now - 60, now), "attempt: same version failed a minute ago")
+	_check(SelfUpdater.may_attempt("1.5.0", "1.5.0", now - 90000, now), "attempt: cooldown over")
+	_check(SelfUpdater.may_attempt("1.6.0", "1.5.0", now - 60, now), "attempt: other version")
+	var lset: LauncherSettings = LauncherSettings.new(sp)
+	lset.self_update_failed_version = "1.5.0"
+	lset.self_update_failed_at = 123
+	lset.save_file()
+	var lset2: LauncherSettings = LauncherSettings.new(sp).load_file()
+	_check(lset2.self_update_failed_version == "1.5.0" and lset2.self_update_failed_at == 123, "failed self-update persisted")
+	DirAccess.remove_absolute(sp)
+	# The version make_update_feed.sh advertises is read from project.godot with the same
+	# pattern the launcher export uses (ProjectSettings): they must agree.
+	var pg: String = FileAccess.get_file_as_string("res://project.godot")
+	var rx: RegEx = RegEx.create_from_string("(?m)^config/version=\"(.*)\"")
+	var mt: RegExMatch = rx.search(pg)
+	_check(mt != null and mt.get_string(1) == String(ProjectSettings.get_setting("application/config/version", "")),
+		"launcher project.godot version == the version the launcher reports")
+	_check(mt != null and LauncherCore.launcher_update_for(lau, "linux", mt.get_string(1)).is_empty() == (LauncherCore.compare_versions(mt.get_string(1), "1.2.0") >= 0),
+		"launcher never self-updates to a version that is not strictly newer")
+
 	# Feed signature (W11-Q1 SEC-010). Fixtures: an ECDSA P-256 test key (the
 	# private half is not in the repo) and its signature over feed_version.json.
 	var fx: String = "res://tests/fixtures/"

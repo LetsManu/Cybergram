@@ -80,6 +80,8 @@ func _bind() -> void:
 func _process(delta: float) -> void:
 	if drive_client and client != null and client.has_method("step"):
 		client.call("step", delta)
+	if client != null and client.has_method("tick"):
+		client.call("tick", delta)
 	if _handoff >= 0.0:
 		_handoff -= delta
 		if _handoff < 0.0:

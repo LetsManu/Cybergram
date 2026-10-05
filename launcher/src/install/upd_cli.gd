@@ -231,6 +231,7 @@ func set_speed_limit(kib: int) -> void:
 func start_appimage_update(entry: Dictionary, base_url: String) -> bool:
 	if not entry.has("appimage"):
 		return false
+	_appimage_version = String(entry["version"])
 	var target: String = OS.get_environment("APPIMAGE")
 	print("LAUNCHER: self-update (AppImage) -> %s" % entry["version"])
 	if _status != null:
@@ -243,8 +244,15 @@ func start_appimage_update(entry: Dictionary, base_url: String) -> bool:
 	return true
 
 
+## W21-U2: emitted when the AppImage replacement ends (main.gd keeps the retry cooldown).
+signal appimage_finished(ok: bool, version: String)
+
+var _appimage_version: String = ""
+
+
 func _on_appimage_done(ok: bool, message: String, target: String) -> void:
 	print("LAUNCHER: self-update: %s" % message)
+	appimage_finished.emit(ok, _appimage_version)
 	if headless:
 		_quit(0 if ok else 1)
 		return
