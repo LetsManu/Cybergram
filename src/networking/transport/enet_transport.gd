@@ -114,6 +114,15 @@ func peer_address(peer: int) -> String:
 	return p.get_remote_address() if p != null else ""
 
 
+## Client: round-trip time to the server in ms (ENet's smoothed estimate from
+## its own reliable pings; -1 until the link is up). W15 status widget.
+func rtt_ms() -> int:
+	var p: ENetPacketPeer = _peer_of.get(SERVER_PEER)
+	if _is_server or not _connected or p == null:
+		return -1
+	return int(p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+
+
 func poll() -> void:
 	while true:
 		var ev: Array = _host.service(0)

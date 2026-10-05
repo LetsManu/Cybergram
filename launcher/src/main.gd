@@ -90,6 +90,9 @@ var _dialog: FileDialog
 var _confirm: ConfirmationDialog
 var _launcher_notice: String = ""
 var _pending_root: String = ""
+# --- W15-ONLINE ---
+var _launch_pending: bool = false
+# --- end W15-ONLINE ---
 
 
 func _ready() -> void:
@@ -417,10 +420,28 @@ func _play() -> void:
 	if _no_launch:
 		_status.text = "(--no-launch) would start the game now"
 		return
-	var signed_in: bool = _login != null and _login.hand_over_env()
+	# --- W15-ONLINE ---
+	# Sign in once: ask for a single-use launch token, then start the game with it.
+	if _login != null and _login.is_logged_in():
+		if _launch_pending:
+			return
+		_launch_pending = true
+		_status.text = "Signing the game in..."
+		_login.launch_ready.connect(func(h: Dictionary) -> void:
+			_launch_pending = false
+			_play_with(h), CONNECT_ONE_SHOT)
+		_login.request_launch()
+		return
+	_play_with({})
+
+
+## Starts the game; `handoff` = the launch token hand-over ({} = not signed in).
+func _play_with(handoff: Dictionary) -> void:
+	var signed_in: bool = LauncherLogin.hand_over_env(handoff)
 	var started: bool = _updater.launch_game()
 	if signed_in:
 		LauncherLogin.clear_env()
+	# --- end W15-ONLINE ---
 	if not started:
 		_status.text = "Could not start the game. Try reinstalling (delete the game folder)."
 		return

@@ -7,7 +7,8 @@ extends RefCounted
 ## bytes) and returns {} on any mismatch. Reliable, ch0, on request only.
 ## Field types: u = u16, b = u8, s = str8 (<= 64 B), p = password str8
 ## (<= 128 B), i = player id (16 B), t = session token (32 B), L = str16 JSON
-## (<= 60000 B), F = friends list.
+## (<= 60000 B), F = friends list, C = u16 length + raw bytes (<= CHUNK_MAX),
+## P = party list (v15).
 ## Passwords only travel on a DTLS link (the server refuses them otherwise).
 
 const OP_REGISTER: int = 1
@@ -26,6 +27,17 @@ const OP_FRIEND_REMOVE: int = 13
 const OP_BLOCK: int = 14
 const OP_UNBLOCK: int = 15
 const OP_FRIENDS: int = 16
+## v15: launcher sign-in hand-over (single-use launch token, DTLS only).
+const OP_LAUNCH_TOKEN: int = 17   ## logged in: ask for a launch token for the game
+const OP_REDEEM: int = 18         ## the game: trade the launch token for its own session
+## v15: opt-in crash report, sent in chunks (DTLS only, any session or none).
+const OP_CRASH_CHUNK: int = 19
+## v15: party (leader + members, friends only; memory only on the server).
+const OP_PARTY: int = 20          ## own party state + invites
+const OP_PARTY_INVITE: int = 21   ## invite a friend (by id)
+const OP_PARTY_ACCEPT: int = 22   ## accept the invite of `id` (the inviter)
+const OP_PARTY_DECLINE: int = 23  ## decline the invite of `id`
+const OP_PARTY_LEAVE: int = 24    ## leave the party (a leader hands over)
 
 ## Request fields per op.
 const REQ_SCHEMA := {
@@ -46,6 +58,14 @@ const REQ_SCHEMA := {
 	OP_BLOCK: [["id", "i"]],
 	OP_UNBLOCK: [["id", "i"]],
 	OP_FRIENDS: [],
+	OP_LAUNCH_TOKEN: [],
+	OP_REDEEM: [["ver", "u"], ["token", "t"], ["id", "i"]],
+	OP_CRASH_CHUNK: [["seq", "u"], ["total", "u"], ["data", "C"]],
+	OP_PARTY: [],
+	OP_PARTY_INVITE: [["id", "i"]],
+	OP_PARTY_ACCEPT: [["id", "i"]],
+	OP_PARTY_DECLINE: [["id", "i"]],
+	OP_PARTY_LEAVE: [],
 }
 const SESSION_FIELDS := [["token", "t"], ["id", "i"], ["username", "s"], ["display_name", "s"], ["emblem", "b"],
 	["accent", "b"], ["favourite_hero", "s"], ["guest", "b"]]
@@ -58,6 +78,10 @@ const RES_SCHEMA := {
 	OP_UPDATE_PROFILE: [["display_name", "s"], ["emblem", "b"], ["accent", "b"], ["favourite_hero", "s"]],
 	OP_EXPORT: [["json", "L"]],
 	OP_FRIENDS: [["friends", "F"]],
+	OP_LAUNCH_TOKEN: [["token", "t"], ["ttl", "u"]],
+	OP_REDEEM: SESSION_FIELDS,
+	OP_CRASH_CHUNK: [["seq", "u"]],
+	OP_PARTY: [["party", "i"], ["leader", "i"], ["members", "P"]],
 }
 
 ## REGISTER / GUEST flags.
@@ -85,7 +109,8 @@ const E_SESSION: int = 16
 const E_STORE: int = 17
 const E_GUEST: int = 18          ## not available to guests
 const E_GUESTS_OFF: int = 19     ## this server needs an account (no guests)
-const CODE_COUNT: int = 20
+const E_RATE: int = 20           ## v15: too many reports / requests from this address or account
+const CODE_COUNT: int = 21
 
 ## Friend relations in the FRIENDS list.
 const REL_FRIEND: int = 0
@@ -93,11 +118,19 @@ const REL_INCOMING: int = 1
 const REL_OUTGOING: int = 2
 const REL_BLOCKED: int = 3
 
+## Party list entry kinds (v15).
+const PARTY_LEADER: int = 0
+const PARTY_MEMBER: int = 1
+const PARTY_INVITE_IN: int = 2   ## someone invited me (id = the inviter)
+const PARTY_INVITE_OUT: int = 3  ## I (or my party) invited this friend
+
 const STR_MAX: int = 64
 const PASSWORD_MAX_BYTES: int = 128
 const JSON_MAX: int = 60000
 const TOKEN_BYTES: int = 32
 const MAX_LIST: int = 255
+## Largest raw chunk in a "C" field (keeps a request under LobbyCodec.MAX_C2S_BYTES).
+const CHUNK_MAX: int = 1024
 
 
 static func encode_request(op: int, fields: Dictionary) -> PackedByteArray:
@@ -182,6 +215,24 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 					raw = PackedByteArray()
 				w.u16(raw.size())
 				w.b.append_array(raw)
+			"C":
+				var raw: PackedByteArray = v if v is PackedByteArray else PackedByteArray()
+				if raw.size() > CHUNK_MAX:
+					raw = raw.slice(0, CHUNK_MAX)
+				w.u16(raw.size())
+				w.b.append_array(raw)
+			"P":
+				var l: Array = v if v is Array else []
+				var n := mini(l.size(), MAX_LIST)
+				w.u8(n)
+				for k in n:
+					var e: Dictionary = l[k]
+					w.id(str(e.get("id", "")))
+					w.u8(int(e.get("kind", 0)))
+					w.u8(int(e.get("status", 0)))
+					w.str8(str(e.get("display_name", "")), STR_MAX)
+					w.u8(int(e.get("emblem", 0)))
+					w.u8(int(e.get("accent", 0)))
 			"F":
 				var l: Array = v if v is Array else []
 				var n := mini(l.size(), MAX_LIST)
@@ -226,6 +277,19 @@ static func _read(r: LobbyCodec.Reader, schema: Array) -> Dictionary:
 				if not LobbyCodec.is_valid_utf8(raw):
 					return {}
 				d[field[0]] = raw.get_string_from_utf8()
+			"C":
+				var n := r.u16()
+				if not r.ok or n > CHUNK_MAX or not r._need(n):
+					return {}
+				r.pos += n
+				d[field[0]] = r.b.slice(r.pos - n, r.pos)
+			"P":
+				var n := r.u8()
+				var l: Array = []
+				for k in n:
+					l.append({"id": r.id(), "kind": r.u8(), "status": r.u8(), "display_name": r.str8(STR_MAX),
+						"emblem": r.u8(), "accent": r.u8()})
+				d[field[0]] = l
 			"F":
 				var n := r.u8()
 				var l: Array = []

@@ -52,6 +52,10 @@ var _now: float = 0.0
 var _since_sweep: float = 0.0
 var _since_purge: float = 0.0
 var _crypto := Crypto.new()
+## W15 tuning (launch tokens, crash reports, parties).
+var online: OnlineRulesDef
+## W15: single-use launcher -> game sign-in tokens (hashes only).
+var launch_tokens: LaunchTokenStore
 
 
 ## Process-wide service (guest-only until configure_shared()).
@@ -80,6 +84,8 @@ func _init(store_: AccountStore, rules_: AuthRulesDef, secure_: bool, registry_:
 	registry = registry_ if registry_ != null else PresenceRegistry.shared()
 	rl_account = LoginRateLimiter.new(rules.max_failures_per_account, rules.failure_window_s, rules.lockout_s)
 	rl_peer = LoginRateLimiter.new(rules.max_failures_per_peer, rules.failure_window_s, rules.lockout_s)
+	online = OnlineRulesDef.load_default()
+	launch_tokens = LaunchTokenStore.new(online.launch_token_ttl_s, online.launch_tokens_max)
 	if store != null:
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
@@ -143,6 +149,7 @@ func step(delta: float) -> void:
 		_since_purge = 0.0
 		rl_account.purge(_now)
 		rl_peer.purge(_now)
+		launch_tokens.purge(_now)
 	_since_sweep += delta
 	if _since_sweep >= SWEEP_EVERY_S and store != null:
 		_since_sweep = 0.0
@@ -169,6 +176,8 @@ func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
 			_resume(t, peer, r)
 		AccountCodec.OP_GUEST:
 			_guest(t, peer, r)
+		AccountCodec.OP_REDEEM:
+			_redeem(t, peer, r)
 		AccountCodec.OP_LOGOUT:
 			_logout(peer)
 			_reply(t, peer, op, AccountCodec.OK)
@@ -245,6 +254,44 @@ func _resume(t: Transport, peer: int, r: Dictionary) -> void:
 	s.peer = peer
 	peers[peer] = s.identity
 	_reply(t, peer, op, AccountCodec.OK, _session_fields(s.identity))
+
+
+## W15: the game trades the launcher's single-use launch token for its own
+## session. DTLS only (an account credential), bound to the account in `id`.
+## Every failure looks the same to the client (E_SESSION) and counts as a
+## failed login for the source address.
+func _redeem(t: Transport, peer: int, r: Dictionary) -> void:
+	var op := AccountCodec.OP_REDEEM
+	var code := _session_preconditions(r)
+	if code != AccountCodec.OK:
+		_reply(t, peer, op, code)
+		return
+	var pk := source_key(t, peer)
+	if rl_peer.is_locked(pk, _now):
+		_reply(t, peer, op, AccountCodec.E_LOCKED)
+		return
+	var res := launch_tokens.redeem(str(r.token), str(r.id), _now)
+	var a := store.get_by_id(str(r.id)) if res == LaunchTokenStore.Result.OK else {}
+	if a.is_empty():
+		rl_peer.fail(pk, _now)
+		print("[accounts] launch token refused on peer %d (%s)" % [peer,
+			LaunchTokenStore.Result.keys()[res].to_lower() if res != LaunchTokenStore.Result.OK else "no account"])
+		_reply(t, peer, op, AccountCodec.E_SESSION)
+		return
+	a.last_login_at = int(Time.get_unix_time_from_system())
+	store.put(a)
+	print("[accounts] launch token redeemed: account #%s (peer %d)" % [PlayerProfile.tag_of(a.id), peer])
+	_logout(peer)
+	_start_session(t, peer, op, _identity_of(a))
+
+
+## W15: a launch token for the logged-in account on `peer` (DTLS only; the
+## caller already checked: logged in, not a guest, secure service).
+func _issue_launch_token(t: Transport, peer: int, me: Dictionary) -> void:
+	var tok := launch_tokens.issue(str(me.id), _now)
+	print("[accounts] launch token issued: account #%s (peer %d)" % [PlayerProfile.tag_of(me.id), peer])
+	_reply(t, peer, AccountCodec.OP_LAUNCH_TOKEN, AccountCodec.OK,
+		{"token": tok, "ttl": int(online.launch_token_ttl_s)})
 
 
 func _guest(t: Transport, peer: int, r: Dictionary) -> void:
@@ -396,6 +443,7 @@ func _finish(job: PasswordHasher.Job) -> void:
 				_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.E_STORE)
 				return
 			end_other_sessions(a.id, peer)
+			launch_tokens.revoke_account(a.id)
 			_reply(t, peer, AccountCodec.OP_CHANGE_PASSWORD, AccountCodec.OK)
 
 
@@ -410,6 +458,7 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 		return
 	if op == AccountCodec.OP_DELETE_ACCOUNT:
 		store.delete_cascade(a.id)
+		launch_tokens.revoke_account(a.id)
 		for tok in sessions.keys():
 			if sessions[tok].identity.id == a.id:
 				sessions.erase(tok)
@@ -455,6 +504,8 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 				"uname": uname, "pk": pk})
 		AccountCodec.OP_EXPORT:
 			_reply(t, peer, op, AccountCodec.OK, {"json": export_json(me)})
+		AccountCodec.OP_LAUNCH_TOKEN:
+			_issue_launch_token(t, peer, me)
 		AccountCodec.OP_FRIENDS:
 			_reply(t, peer, op, AccountCodec.OK, {"friends": friends_list(me)})
 		AccountCodec.OP_FRIEND_REQUEST:

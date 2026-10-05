@@ -757,24 +757,22 @@ func _with_session(then: Callable, addr: String = "") -> void:
 		_show_login()
 
 
-## Launcher hand-over: the launcher logged in and passed the session in the
-## environment (CYBERGRAM_SESSION_TOKEN / CYBERGRAM_SESSION_SERVER), not on the
-## command line. Read once, then cleared so nothing inherits it. Connects and
-## resumes the session; false when the launcher gave nothing.
+## Launcher hand-over (W15 "sign in once"): the launcher passed a single-use
+## launch token in the environment (LaunchHandoff, never the command line);
+## it is read once and unset. Connects and redeems it (OP_REDEEM) on an
+## encrypted link only; when anything fails the normal login screen shows.
+## False when the launcher gave nothing.
 func _resume_from_launcher() -> bool:
-	var token := OS.get_environment("CYBERGRAM_SESSION_TOKEN")
-	var server := OS.get_environment("CYBERGRAM_SESSION_SERVER")
-	OS.unset_environment("CYBERGRAM_SESSION_TOKEN")
-	OS.unset_environment("CYBERGRAM_SESSION_SERVER")
-	if token == "" or server == "":
+	var h := LaunchHandoff.take_from_os()
+	if h.is_empty():
 		return false
-	session_token = token
-	session_server = server
-	session_guest = false  # the launcher only hands over account sessions
-	if not _connect(server):
+	if not _connect(str(h.server)):
 		return false
-	if not _send_resume():
+	if _enet == null or not _enet.is_secure:
+		push_warning("[net] not redeeming the launch token over an unencrypted link")
 		_show_login()
+		return true
+	_online.request(AccountCodec.OP_REDEEM, {"ver": MsgType.PROTOCOL_VERSION, "token": h.token, "id": h.account})
 	return true
 
 
@@ -887,6 +885,8 @@ func _on_account(d: Dictionary) -> void:
 		AccountCodec.OP_RESUME:
 			session_token = ""
 			_show_login()  # the session expired: log in again
+		AccountCodec.OP_REDEEM:
+			_show_login()  # W15: the launch token failed: the normal login
 		AccountCodec.OP_REGISTER, AccountCodec.OP_LOGIN, AccountCodec.OP_GUEST:
 			if _login != null:
 				_login.show_error(_error_text(d.code))
