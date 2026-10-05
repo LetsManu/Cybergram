@@ -696,6 +696,7 @@ func _start_front() -> void:
 		push_error("GameSession: %s" % _front_enet.error_text)
 		get_tree().quit(1)
 		return
+	match_pending = true  # no match in this process: AppRoot adds no sim plugins
 	var accounts := _open_accounts(auth, tls)
 	var rules := front_rules(MatchmakingRulesDef.load_default(), lc)
 	var base := auth.data_dir.get_base_dir()
@@ -752,7 +753,9 @@ static func front_rules(base: MatchmakingRulesDef, lc: LaunchConfig) -> Matchmak
 			var c := q.duplicate() as MatchQueueDef
 			if c.team_size == 5 and c.matchmade:
 				c.team_size = lc.mm_team_size
-				c.lane_slots = [] if lc.mm_team_size < 5 else c.lane_slots
+				if lc.mm_team_size < 5:
+					var none: Array[StringName] = []
+					c.lane_slots = none
 			qs.append(c)
 		r.queues = qs
 		var order := PackedInt32Array([1])
