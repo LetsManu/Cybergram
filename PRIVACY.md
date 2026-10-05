@@ -41,6 +41,12 @@ technically needed to send you game data. All of this is forgotten when you
 disconnect. After a short grace period (about a minute), your session can no
 longer be resumed.
 
+**After a failed login** (wrong password), the server keeps in memory the
+username that was tried, your network address and the time, to stop password
+guessing. This is deleted at the latest about 11 minutes later (a 5-minute
+window, a 5-minute lock if there were too many failures, then cleanup
+within a minute). It is never written to disk or to the logs.
+
 **Guests**, if the server allows them, have no account. The server keeps
 their display name, emblem and colour only while they are connected.
 

@@ -125,3 +125,17 @@ func test_sec006_account_files_owner_only() -> void:
 	var id := str(s.identity(2).id)
 	assert_int(FileAccess.get_unix_permissions(d.path_join(id + ".json")) & 0x1FF).is_equal(0x180)
 	assert_int(FileAccess.get_unix_permissions(d) & 0x1FF).is_equal(0x1C0)
+
+
+# SEC-002 privacy: failed-login entries (with the IP) are purged within minutes.
+func test_sec002_limiter_entries_purged_after_expiry() -> void:
+	var s := _service()
+	var t := FakeTransport.new()
+	t.addr = {2: "198.51.100.1", 3: "203.0.113.7"}
+	_register(s, t, 2)
+	_login(s, t, 3, "wrong guess")
+	assert_int(s.rl_peer.size()).is_greater(0)
+	for i in 12:
+		s.step(60.0)
+	assert_int(s.rl_peer.size()).is_equal(0)
+	assert_int(s.rl_account.size()).is_equal(0)

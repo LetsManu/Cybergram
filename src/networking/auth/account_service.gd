@@ -22,6 +22,8 @@ extends RefCounted
 ##   lobby = LobbyServer.new(enet, 3)   # uses AccountService.shared()
 
 const SWEEP_EVERY_S := 86400.0
+## Expired rate-limit entries (with IP addresses) are dropped this often.
+const PURGE_EVERY_S := 60.0
 ## Per-connection account request budget (token bucket).
 const REQ_BURST := 12.0
 const REQ_PER_S := 3.0
@@ -48,6 +50,7 @@ var _jobs_by_peer: Dictionary = {}  # peer -> true while a hash job runs
 var _req_budget: Dictionary = {}    # peer -> [tokens, last_s]
 var _now: float = 0.0
 var _since_sweep: float = 0.0
+var _since_purge: float = 0.0
 var _crypto := Crypto.new()
 
 
@@ -134,14 +137,18 @@ func step(delta: float) -> void:
 		var s: Dictionary = sessions[tok]
 		if s.peer < 0 and _now - float(s.detached_at) > rules.session_grace_s:
 			sessions.erase(tok)
+	_since_purge += delta
+	if _since_purge >= PURGE_EVERY_S:
+		# Failed-login entries hold an IP address: drop them once expired (PRIVACY.md).
+		_since_purge = 0.0
+		rl_account.purge(_now)
+		rl_peer.purge(_now)
 	_since_sweep += delta
 	if _since_sweep >= SWEEP_EVERY_S and store != null:
 		_since_sweep = 0.0
 		var swept := store.sweep_inactive(int(Time.get_unix_time_from_system()), rules.retention_days)
 		if not swept.is_empty():
 			print("[accounts] retention: deleted %d inactive account(s)" % swept.size())
-		rl_account.purge(_now)
-		rl_peer.purge(_now)
 
 
 ## Handles one ACCOUNT_REQ packet from `peer`, replying on `t`.
