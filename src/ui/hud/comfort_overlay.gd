@@ -4,8 +4,10 @@ extends CanvasLayer
 ##  - damage feedback: a direction indicator (arc on a ring around the centre
 ##    pointing at the attacker, following the view) and a red damage vignette,
 ##    both scaled by Screen effects intensity (DamageFeedbackModel). The attacker
-##    is found without a protocol change: SHOT events go to every client, so an
-##    HP drop is attributed to the other hero whose shot stopped at our body.
+##    is found without a protocol change (DamageAttribution): hero shots, mana
+##    bolts, ability areas / lines / projectiles, melee Wardlings and instant
+##    casts, all from events and snapshots the client already gets. Only true
+##    environment damage (fall, Sudden Death ring, Leyfall) shows the plain ring.
 ##  - the comfort vignette (soft edge darkening during fast / forced moves),
 ##  - the fixed centre dot, drawn at the exact screen centre UNDER the HUD
 ##    crosshair (this layer sits below HudRoot), also while dead or spectating.
@@ -32,7 +34,11 @@ var _vig: ColorRect
 var _dmg: ColorRect
 var _ring: _Ring
 var _prev_hp: int = -1
-var _shots: Array = []  # {src: int, pos: Vector3, t: float}
+var _shots: Array = []  # {src: int, impact: Vector3, t: float}
+var _bolts: Array = []  # {from, to, t}
+var _fx: Array = []  # enemy ability FX seen recently: {kind, team, pos, pos2, t}
+var _wardlings: Array = []  # latest snapshot: {pos, team, combat}
+var _casts: Array = []  # {src: int, pos: Vector3, t}
 var _pending: Array = []  # {amount: float, max_hp: float, t: float}
 var _hooked: Object
 var _dot: _Dot
@@ -186,6 +192,8 @@ func _damage_feedback(delta: float, client: Variant, gs: GameSettings) -> void:
 		if _hooked != client:
 			_hooked = client
 			client.shot_received.connect(_on_shot)
+			client.skill_cast_received.connect(_on_cast)
+			client.session.snapshot_received.connect(_on_snapshot)
 		var hp: int = client.combat.hp
 		if _prev_hp >= 0 and hp < _prev_hp and not client.is_dead():
 			_pending.append({"amount": float(_prev_hp - hp), "max_hp": float(client.combat.max_hp), "t": 0.0})
@@ -200,10 +208,11 @@ func _damage_feedback(delta: float, client: Variant, gs: GameSettings) -> void:
 		_ring.yaw = client.rig.rotation.y if client.rig != null else 0.0
 		_debug_damage(client, own)
 	_ring.active = client != null and client.body != null
-	for s in _shots:
-		s.t += delta
-	while not _shots.is_empty() and _shots[0].t > rules.shot_memory_s:
-		_shots.pop_front()
+	for list in [_shots, _bolts, _fx, _casts]:
+		for e in list:
+			e.t += delta
+		while not list.is_empty() and list[0].t > rules.shot_memory_s:
+			list.pop_front()
 	feedback.step(delta)
 	_ring.fx = fx
 	_ring.reduce = reduce
@@ -217,22 +226,63 @@ func _damage_feedback(delta: float, client: Variant, gs: GameSettings) -> void:
 
 
 func _on_shot(e: GameEvent) -> void:
-	_shots.append({"src": e.source_net_id, "pos": e.position, "t": 0.0})
+	_shots.append({"src": e.source_net_id, "impact": e.position, "t": 0.0})
 
 
-## Attacker position of the latest other-hero shot that stopped at our body, or
-## null (environment, Wardling, ability or self damage: non-directional).
-func _attacker_of(client: Variant, own: Vector3) -> Variant:
+func _on_cast(e: GameEvent) -> void:
+	_casts.append({"src": e.source_net_id, "pos": e.position, "t": 0.0})
+
+
+func _on_snapshot(s: SnapshotData) -> void:
+	for b in s.bolts:
+		_bolts.append({"from": b[0], "to": b[1], "t": 0.0})
+	for f in s.fx:
+		_fx.append({"kind": f.kind, "team": f.team, "pos": f.position, "pos2": f.position2, "t": 0.0})
+	_wardlings.clear()
+	for w in s.wardlings:
+		_wardlings.append({"pos": w.position, "team": w.team, "combat": ((w.state >> 3) & WardlingSim.FLAG_COMBAT) != 0})
+
+
+## Builds the DamageAttribution observations (enemy heroes only for shots / casts).
+func _observations(client: Variant) -> Dictionary:
 	var own_id: int = client.session.own_net_id
-	for i in range(_shots.size() - 1, -1, -1):
-		var s: Dictionary = _shots[i]
-		if s.src == own_id or s.src == 0:
-			continue
-		if (s.pos as Vector3).distance_to(own) <= rules.attribution_radius_m:
-			var at: Variant = client.hero_view_position(s.src)
-			if at != null:
-				return at
-	return null
+	var team: int = client.own_team()
+	var shots: Array = []
+	for sh in _shots:
+		var at: Variant = _enemy_pos(client, sh.src, own_id, team)
+		if at != null:
+			shots.append({"pos": at, "impact": sh.impact})
+	var casts: Array = []
+	for c in _casts:
+		if c.src != own_id and _is_enemy(client, c.src, team):
+			casts.append({"pos": c.pos})
+	var obs := {"shots": shots, "bolts": _bolts, "fx": _fx.duplicate(), "wardlings": _wardlings.duplicate(), "casts": casts}
+	var enemy := 1 - team
+	match debug_damage:  # evidence: synthetic sources placed relative to the view
+		"wardling-left":
+			obs.wardlings.append({"pos": DamageFeedbackModel.world_pos_at(_ring.own_pos, _ring.yaw, -PI * 0.5, 2.0),
+				"team": enemy, "combat": true})
+		"ability-back":
+			obs.fx.append({"kind": AbilityWorld.FX_CIRCLE, "team": enemy, "pos2": Vector3(5.0, 0.0, 0.0),
+				"pos": DamageFeedbackModel.world_pos_at(_ring.own_pos, _ring.yaw, PI, 3.0)})
+	return obs
+
+
+func _is_enemy(client: Variant, id: int, team: int) -> bool:
+	var v: Variant = client.view(id)
+	return v != null and v.team != team
+
+
+func _enemy_pos(client: Variant, id: int, own_id: int, team: int) -> Variant:
+	if id == own_id or id == 0 or not _is_enemy(client, id, team):
+		return null
+	return client.hero_view_position(id)
+
+
+## Attacker position of the source that did the damage, or null for environment.
+func _attacker_of(client: Variant, own: Vector3) -> Variant:
+	var r := DamageAttribution.resolve(own, client.own_team(), _observations(client), rules)
+	return r.pos if r.kind != DamageAttribution.Kind.NONE else null
 
 
 var _debug_t: float = 0.0
@@ -246,6 +296,9 @@ func _debug_damage(client: Variant, own: Vector3) -> void:
 		return
 	_debug_t = 0.35
 	var yaw: float = client.rig.rotation.y if client.rig != null else 0.0
+	if debug_damage in ["wardling-left", "ability-back"]:
+		_pending.append({"amount": 60.0, "max_hp": 250.0, "t": 0.0})
+		return
 	var rel := {"front": 0.0, "right": PI * 0.5, "back": PI, "left": -PI * 0.5}
 	if rel.has(debug_damage):
 		feedback.hit(60.0, 250.0, DamageFeedbackModel.world_pos_at(own, yaw, rel[debug_damage]))
