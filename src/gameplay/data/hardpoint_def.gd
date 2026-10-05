@@ -33,6 +33,13 @@ enum Tier { INNER, OUTER, MID }
 ## Barricade sockets, 15 m outside the zone edge on the main path:
 ## [0] = the side toward the Concord HQ, [1] = the side toward the Syndicate HQ.
 @export var barricade_sockets: PackedVector3Array = PackedVector3Array()
+## Held-hardpoint placements (C5, match-flow-and-map.md §3.5): the Garrison
+## posts (Sentinel stand points inside the zone) and the Supply Cache spot, both
+## on the floor. Empty / Vector3.INF on maps that do not place them (slice).
+@export var garrison_points: PackedVector3Array = PackedVector3Array()
+@export var supply_cache: Vector3 = Vector3.INF
+## Flank side doors that open inside this zone (§3.2 Undercroft), on the floor.
+@export var side_doors: PackedVector3Array = PackedVector3Array()
 
 
 ## Cradle where `team` takes Cells for this Plant node (Vector3.INF if none).
