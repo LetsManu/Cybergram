@@ -31,7 +31,8 @@ func start(entry: Dictionary, appimage_path: String, base_url: String, limit_bps
 	_dl.limit_bps = limit_bps
 	add_child(_dl)
 	_dl.finished.connect(_on_done)
-	_dl.start(base_url + String(ai["file"]), _target + ".part", int(ai.get("size", 0)))
+	var url: String = String(ai.get("url", ""))
+	_dl.start(url if url != "" else base_url + String(ai["file"]), _target + ".part", int(ai.get("size", 0)))
 
 
 func _on_done(ok: bool, err: String) -> void:

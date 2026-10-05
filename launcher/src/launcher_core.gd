@@ -405,6 +405,11 @@ static func launcher_update_for(launcher: Dictionary, platform: String, own_vers
 				and String((ai as Dictionary)["sha256"]).length() == 64:
 			out["appimage"] = {"file": af, "sha256": String((ai as Dictionary)["sha256"]).to_lower(),
 				"size": int((ai as Dictionary).get("size", 0))}
+			# Optional absolute https URL (e.g. the GitHub release asset); the
+			# sha256 from the signed feed is what makes it trustworthy.
+			var au: String = String((ai as Dictionary).get("url", ""))
+			if au.begins_with("https://"):
+				out["appimage"]["url"] = au
 	return out
 
 

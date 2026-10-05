@@ -11,6 +11,8 @@ signal finished(ok: bool, error: String)
 
 const CONNECT_TIMEOUT_MS: int = 10000
 const IDLE_TIMEOUT_MS: int = 30000
+## Redirects followed per download (GitHub release assets redirect once).
+const MAX_REDIRECTS: int = 5
 
 var url: String = ""
 var part_path: String = ""
@@ -37,6 +39,7 @@ var _requested: bool = false
 var _budget: float = 0.0
 var _last_io: int = 0
 var _started: int = 0
+var _redirects: int = 0
 
 
 ## Splits "http(s)://host[:port]/path". Returns {} when the URL is unusable.
@@ -60,6 +63,11 @@ static func split_url(u: String) -> Dictionary:
 
 ## Starts (or resumes) the download of `url_` into `part_path_`.
 func start(url_: String, part_path_: String, expected: int = 0) -> void:
+	_redirects = 0
+	_open(url_, part_path_, expected)
+
+
+func _open(url_: String, part_path_: String, expected: int) -> void:
 	stop()
 	url = url_
 	part_path = part_path_
@@ -131,6 +139,8 @@ func _process(delta: float) -> void:
 					_finish(false, "request failed (%s)" % error_string(err))
 			elif _file != null:
 				_complete()  # keep-alive: body done, connection back to idle
+			elif _client.has_response():
+				_open_body()  # a response without a body (redirect, error)
 		HTTPClient.STATUS_REQUESTING:
 			pass
 		HTTPClient.STATUS_BODY:
@@ -151,6 +161,16 @@ func _process(delta: float) -> void:
 func _open_body() -> bool:
 	var code: int = _client.get_response_code()
 	var length: int = _client.get_response_body_length()
+	if code in [301, 302, 303, 307, 308]:
+		var loc: String = String(_client.get_response_headers_as_dictionary().get("Location",
+			_client.get_response_headers_as_dictionary().get("location", "")))
+		_redirects += 1
+		if loc == "" or _redirects > MAX_REDIRECTS or not (loc.begins_with("https://") or loc.begins_with("http://")):
+			_finish(false, "bad redirect (HTTP %d)" % code)
+			return false
+		_open.call_deferred(loc, part_path, expected_size)
+		stop()
+		return false
 	if code == 416 and got > 0:
 		# Nothing left to send: the part is already complete (hash decides).
 		total = got

@@ -19,6 +19,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         rng = self.headers.get("Range")
         sys.stderr.write("GET %s range=%s\n" % (self.path, rng or "-"))
         sys.stderr.flush()
+        if self.path.startswith("/r/"):  # redirect test: /r/<x> -> /<x>
+            self.send_response(302)
+            self.send_header("Location", "http://%s%s" % (self.headers.get("Host"), self.path[2:]))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         path = self.translate_path(self.path)
         if not os.path.isfile(path):
             self.send_error(404)

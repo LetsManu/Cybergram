@@ -16,8 +16,10 @@
 #   NEXT_VERSION, NEXT_WIN_DIR, NEXT_LIN_DIR, NEXT_ACTIVATE_AT (ISO UTC, e.g.
 #     2026-10-12T18:00:00Z): adds a "next" block the launcher pre-loads and
 #     activates at that time; its files go to blobs/ too.
-#   APPIMAGE_FILE: the new Cybergram-<v>-x86_64.AppImage; copied to <out> and
-#     listed as launcher.platforms.linux.appimage {file,size,sha256} (needs args 6+7).
+#   APPIMAGE_FILE: the new Cybergram-<v>-x86_64.AppImage; listed as
+#     launcher.platforms.linux.appimage {file,size,sha256[,url]} (needs args 6+7).
+#     Copied to <out> unless APPIMAGE_URL (absolute https, e.g. the GitHub
+#     release asset) says where the launcher downloads it from instead.
 # Usage: make_update_feed.sh <version> <windows_dir> <linux_dir> <notes.md> <out_dir> [<launcher_windows_dir> <launcher_linux_dir>]
 # Needs: zip, jq, sha256sum. Used by the release workflow and the e2e test.
 set -euo pipefail
@@ -95,9 +97,10 @@ if [[ $# -eq 7 ]]; then
   if [[ -n "${APPIMAGE_FILE:-}" ]]; then
     ai="$(basename "$APPIMAGE_FILE")"
     [[ "$ai" == *.AppImage ]] || { echo "APPIMAGE_FILE must end in .AppImage" >&2; exit 2; }
-    [[ "$(readlink -f "$APPIMAGE_FILE")" == "$out/$ai" ]] || cp "$APPIMAGE_FILE" "$out/$ai"
-    jq --arg f "$ai" --argjson s "$(stat -c%s "$out/$ai")" --arg h "$(sha256sum "$out/$ai" | cut -d' ' -f1)" \
-      '.launcher.platforms.linux.appimage = {file:$f,size:$s,sha256:$h}' \
+    if [[ -z "${APPIMAGE_URL:-}" && "$(readlink -f "$APPIMAGE_FILE")" != "$out/$ai" ]]; then cp "$APPIMAGE_FILE" "$out/$ai"; fi
+    jq --arg f "$ai" --argjson s "$(stat -c%s "$APPIMAGE_FILE")" --arg h "$(sha256sum "$APPIMAGE_FILE" | cut -d' ' -f1)" \
+      --arg u "${APPIMAGE_URL:-}" \
+      '.launcher.platforms.linux.appimage = ({file:$f,size:$s,sha256:$h} + (if $u != "" then {url:$u} else {} end))' \
       "$out/version.json" > "$out/version.json.tmp" && mv "$out/version.json.tmp" "$out/version.json"
     echo "AppImage listed ($ai)"
   fi
