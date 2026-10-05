@@ -53,12 +53,16 @@ var _overlay: StandardMaterial3D
 ## or hit overlay is shown at all (sparks stay: they are small world particles).
 ## Injectable for tests; null = the process-wide settings.
 var settings: GameSettings
+## Debug (evidence, `--debug-hitflash`): re-fire a hit flash on the first remote
+## hero plus a big flash in front of the camera every frame.
+var debug_hitflash: bool = false
 
 
 func _ready() -> void:
 	if GfxQuality.is_headless():
 		set_process(false)
 		return
+	debug_hitflash = OS.get_cmdline_user_args().has("--debug-hitflash")
 	_lvl = GfxQuality.level()
 	_k = GfxQuality.particle_scale(_lvl)
 	_reduce = UiKit.reduce_motion()
@@ -310,7 +314,25 @@ func _on_respawn(v: Node3D) -> void:
 	pulse_light(p + Vector3(0.0, 1.0, 0.0), c, 2.0, 8.0, 0.4)
 
 
+func _debug_fire_hit() -> void:
+	var views: Dictionary = client.call("remote_views")
+	var rig: Variant = client.get("rig")
+	if views.is_empty() or rig == null:
+		return
+	var id: int = views.keys()[0]
+	var e := GameEvent.new()
+	e.target_net_id = id
+	e.source_net_id = _own_id()
+	e.position = (views[id] as Node3D).global_position + Vector3(0.0, 1.2, 0.0)
+	_on_hit(e)
+	var cam := (rig as Object).get("camera") as Camera3D
+	if cam != null:
+		flash(cam.global_position - cam.global_transform.basis.z * 1.2, Color.WHITE, 3.0, 0.2, false, 2.0, 8.0)
+
+
 func _process(delta: float) -> void:
+	if debug_hitflash and client != null and client.has_method("remote_views"):
+		_debug_fire_hit()
 	for i in FLASH_POOL:
 		if _flash_age[i] == INF:
 			continue
