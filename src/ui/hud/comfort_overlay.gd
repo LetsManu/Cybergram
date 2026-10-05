@@ -225,7 +225,10 @@ func _damage_feedback(delta: float, client: Variant, gs: GameSettings) -> void:
 			p.t += delta
 		while not _pending.is_empty() and _pending[0].t >= rules.attribution_delay_s:
 			var p: Dictionary = _pending.pop_front()
-			feedback.hit(p.amount, p.max_hp, _attacker_of(client, own))
+			var src: Variant = _attacker_of(client, own)
+			if src == null:
+				src = SuddenDeathView.safe_point(client, own)  # W16-SDWATER: ring damage points back to safety
+			feedback.hit(p.amount, p.max_hp, src)
 		_ring.own_pos = own
 		_ring.yaw = client.rig.rotation.y if client.rig != null else 0.0
 		_debug_damage(client, own)
