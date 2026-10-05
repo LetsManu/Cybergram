@@ -64,6 +64,11 @@ var vsync: bool = true
 var fps_cap_index: int = 5
 ## Quality preset 0..3 (Quality), default High. Chunk G1 reads this field.
 var graphics_quality: int = Quality.HIGH
+## W18-LIFE World ambience (Video tab): background life level 0 Low, 1 Medium,
+## 2 High. The graphics quality caps it (AmbientComfort.level()).
+var ambient_level: int = 2
+## W18-LIFE: allow rain in matches whose weather rolls rain (else fog).
+var ambient_rain: bool = true
 ## Crosshair style (Crosshair) and colour index (CROSSHAIR_COLORS).
 var crosshair_style: int = Crosshair.CROSS_DOT
 var crosshair_color: int = 0
@@ -157,6 +162,8 @@ func read_config(cfg: ConfigFile) -> void:
 	vsync = cfg.get_value("display", "vsync", vsync)
 	fps_cap_index = clampi(int(cfg.get_value("display", "fps_cap_index", fps_cap_index)), 0, FPS_CAPS.size() - 1)
 	graphics_quality = clampi(int(cfg.get_value("display", "quality", graphics_quality)), Quality.LOW, Quality.ULTRA)
+	ambient_level = clampi(int(cfg.get_value("display", "ambient_level", ambient_level)), 0, 2)
+	ambient_rain = bool(cfg.get_value("display", "ambient_rain", ambient_rain))
 	tutorial_done = bool(cfg.get_value("tutorial", "done", tutorial_done))
 	reduce_motion = bool(cfg.get_value("accessibility", "reduce_motion", reduce_motion))
 	crosshair_style = clampi(int(cfg.get_value("crosshair", "style", crosshair_style)), 0, Crosshair.CIRCLE)
@@ -195,6 +202,8 @@ func write_config(cfg: ConfigFile) -> void:
 	cfg.set_value("display", "vsync", vsync)
 	cfg.set_value("display", "fps_cap_index", fps_cap_index)
 	cfg.set_value("display", "quality", graphics_quality)
+	cfg.set_value("display", "ambient_level", ambient_level)
+	cfg.set_value("display", "ambient_rain", ambient_rain)
 	cfg.set_value("crosshair", "style", crosshair_style)
 	cfg.set_value("crosshair", "color", crosshair_color)
 	cfg.set_value("crosshair", "dynamic", crosshair_dynamic)

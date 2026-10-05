@@ -46,6 +46,9 @@ func _ready() -> void:
 		return
 	apply_quality()
 	_build_dressing(GfxQuality.level())
+	# --- W18-LIFE ---
+	AmbientWorld.create_for(self, get_parent())  # null on server / headless
+	# --- end W18-LIFE ---
 
 
 func _process(delta: float) -> void:
