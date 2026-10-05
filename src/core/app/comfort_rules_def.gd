@@ -38,6 +38,39 @@ const DEFAULT_PATH := "res://assets/data/app/comfort_rules.tres"
 ## feedback when screen effects are reduced (gameplay info is kept, motion is not).
 @export_range(0.0, 1.0, 0.05) var static_alert_alpha: float = 0.5
 
+@export_group("Damage feedback")
+## Damage direction indicator: seconds it fades over (it follows the view).
+@export_range(0.2, 4.0, 0.05) var indicator_fade_s: float = 1.2
+## Alpha floor at 0% screen effects: the indicator is gameplay-critical, so it
+## stays visible, just static (a plain fade, no pulse).
+@export_range(0.2, 1.0, 0.05) var indicator_min_alpha: float = 0.7
+## A hit of this fraction of max HP (or more) counts as a "big hit" (strength 1).
+@export_range(0.05, 1.0, 0.05) var big_hit_hp_frac: float = 0.25
+## Smallest indicator strength (tiny hits still show).
+@export_range(0.0, 1.0, 0.05) var indicator_min_strength: float = 0.25
+## Ring radius as a fraction of the viewport height, arc half-width (degrees,
+## small / big hit) and line width (px, small / big hit).
+@export_range(0.05, 0.5, 0.01) var indicator_ring_radius: float = 0.2
+@export_range(5.0, 90.0, 1.0) var indicator_arc_half_deg_min: float = 14.0
+@export_range(5.0, 90.0, 1.0) var indicator_arc_half_deg_max: float = 30.0
+@export_range(1.0, 30.0, 0.5) var indicator_width_min_px: float = 5.0
+@export_range(1.0, 30.0, 0.5) var indicator_width_max_px: float = 11.0
+## Seconds of the initial pulse (extra brightness / width) at full effects.
+@export_range(0.02, 1.0, 0.01) var indicator_pulse_s: float = 0.18
+## A shot's impact within this distance (m) of the own body counts as the hit
+## that did the damage (attacker = the shooter); otherwise it is non-directional.
+@export_range(0.3, 6.0, 0.1) var attribution_radius_m: float = 2.2
+## Seconds the client waits for a SHOT event after an HP drop, and keeps shots.
+@export_range(0.0, 0.5, 0.01) var attribution_delay_s: float = 0.08
+@export_range(0.1, 2.0, 0.05) var shot_memory_s: float = 0.6
+## Damage vignette: edge alpha at a big hit and full effects, fade seconds,
+## inner radius; and the thin static tint used at 0% effects (alpha, inner radius).
+@export_range(0.0, 1.0, 0.05) var damage_vignette_max_alpha: float = 0.6
+@export_range(0.1, 3.0, 0.05) var damage_vignette_fade_s: float = 0.8
+@export_range(0.1, 1.0, 0.05) var damage_vignette_inner: float = 0.4
+@export_range(0.0, 1.0, 0.05) var damage_static_alpha: float = 0.3
+@export_range(0.1, 1.0, 0.05) var damage_static_inner: float = 0.88
+
 @export_group("Viewmodel")
 ## FOV the viewmodel offsets were authored at; other FOVs scale the offsets by
 ## tan(fov/2) / tan(ref/2) so the gun keeps its screen footprint.
