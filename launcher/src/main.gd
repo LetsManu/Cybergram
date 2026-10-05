@@ -92,6 +92,7 @@ var _launcher_notice: String = ""
 var _pending_root: String = ""
 # --- W15-ONLINE ---
 var _launch_pending: bool = false
+var _rail: OnlineRail
 # --- end W15-ONLINE ---
 
 
@@ -162,6 +163,12 @@ func _ready() -> void:
 		_login.login_result.connect(_on_login_result)
 		_user_edit.text = _settings.username
 		_login.open(_game_server)
+		# --- W15-ONLINE ---
+		_rail = OnlineRail.new()
+		add_child(_rail)
+		move_child(_rail, _login_modal.get_index())  # under the dialogs
+		_rail.setup(_probe, url, _login)
+		# --- end W15-ONLINE ---
 		if args.has("show-login"):
 			_open_login()
 

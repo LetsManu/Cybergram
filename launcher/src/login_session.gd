@@ -43,6 +43,8 @@ var _token: String = ""
 var _display_name: String = ""
 var _account_id: String = ""
 var _launch_wait: float = -1.0
+var _rtt: int = -1
+var _ping_sent_us: int = 0
 
 
 ## Connects to `address` ("host:port"). Hostnames try DTLS first and fall back
@@ -95,10 +97,22 @@ func request(op: int, fields: Dictionary = {}) -> bool:
 	return true
 
 
-## Round-trip time to the game server in ms (ENet's running average), or -1
-## while there is no link.
+## Round-trip time to the game server in ms: the last OP_PING probe answer
+## (falls back to ENet's running average before the first one), -1 while
+## there is no link.
 func rtt_ms() -> int:
-	return _enet.rtt_ms() if _enet != null and link_up else -1
+	if _enet == null or not link_up:
+		return -1
+	return _rtt if _rtt >= 0 else -1
+
+
+## Sends one RTT probe (OP_PING, no fields; the server answers at once). The
+## answer updates rtt_ms(). Works signed in or not, plain or encrypted.
+func ping() -> void:
+	if _client == null or not link_up or _ping_sent_us > 0:
+		return
+	_ping_sent_us = Time.get_ticks_usec()
+	_client.request(AccountCodec.OP_PING)
 
 
 ## Asks the server for a single-use launch token; `launch_ready` answers with
@@ -168,6 +182,11 @@ static func _host_of(address: String) -> String:
 
 func _on_account(d: Dictionary) -> void:
 	var op: int = int(d.get("op", 0))
+	if op == AccountCodec.OP_PING:
+		if _ping_sent_us > 0:
+			_rtt = int((Time.get_ticks_usec() - _ping_sent_us) / 1000)
+			_ping_sent_us = 0
+		return
 	if op == AccountCodec.OP_LAUNCH_TOKEN:
 		if _launch_wait < 0.0:
 			return  # timed out already
@@ -230,3 +249,5 @@ func close() -> void:
 	_token = ""
 	_display_name = ""
 	_account_id = ""
+	_rtt = -1
+	_ping_sent_us = 0

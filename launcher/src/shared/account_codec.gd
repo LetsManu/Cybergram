@@ -38,6 +38,8 @@ const OP_PARTY_INVITE: int = 21   ## invite a friend (by id)
 const OP_PARTY_ACCEPT: int = 22   ## accept the invite of `id` (the inviter)
 const OP_PARTY_DECLINE: int = 23  ## decline the invite of `id`
 const OP_PARTY_LEAVE: int = 24    ## leave the party (a leader hands over)
+## v15: RTT probe for the launcher's status widget (no fields, any session or none).
+const OP_PING: int = 25
 
 ## Request fields per op.
 const REQ_SCHEMA := {
@@ -66,6 +68,7 @@ const REQ_SCHEMA := {
 	OP_PARTY_ACCEPT: [["id", "i"]],
 	OP_PARTY_DECLINE: [["id", "i"]],
 	OP_PARTY_LEAVE: [],
+	OP_PING: [],
 }
 const SESSION_FIELDS := [["token", "t"], ["id", "i"], ["username", "s"], ["display_name", "s"], ["emblem", "b"],
 	["accent", "b"], ["favourite_hero", "s"], ["guest", "b"]]

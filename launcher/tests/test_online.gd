@@ -17,6 +17,7 @@ func _check(cond: bool, what: String) -> void:
 
 func _init() -> void:
 	_test_handoff()
+	_test_status()
 	print("launcher online tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)
 
@@ -39,3 +40,22 @@ func _test_handoff() -> void:
 	_check(login.rtt_ms() == -1, "rtt: -1 without a link")
 	_check(not login.request(AccountCodec.OP_FRIENDS), "request: refused when not logged in")
 	login.free()
+
+
+func _test_status() -> void:
+	var body: String = '{"online":7,"in_lobby":3,"in_match":4,"motd":"  Hello\\n\\tworld\\u202e!  "}'
+	_check(OnlineText.motd_of(body) == "Hello world!", "motd: plain, collapsed, bidi stripped")
+	_check(OnlineText.motd_of('{"online":1}') == "", "motd: absent")
+	_check(OnlineText.motd_of('{"motd":42}') == "", "motd: wrong type")
+	_check(OnlineText.motd_of("garbage") == "", "motd: garbage")
+	var long: String = '{"motd":"%s"}' % "x".repeat(900)
+	_check(OnlineText.motd_of(long).length() == OnlineText.MOTD_MAX_CHARS, "motd: capped")
+	_check(OnlineText.motd_of('{"motd":"[url=http://evil]click[/url]"}') == "[url=http://evil]click[/url]", "motd: markup stays inert text")
+	_check(OnlineText.state_word({"reachable": true}) == "ONLINE", "status: online")
+	_check(OnlineText.state_word({}) == "OFFLINE", "status: offline")
+	_check(OnlineText.players_line({"reachable": true, "has_counts": true, "online": 1}) == "1 player online", "status: singular")
+	_check(OnlineText.players_line({"reachable": true, "has_counts": true, "online": 7}) == "7 players online", "status: plural")
+	_check(OnlineText.ping_text(-1) == "\u2013 ms" and OnlineText.ping_text(23) == "23 ms", "ping text")
+	_check(OnlineText.ping_band(-1) == -1 and OnlineText.ping_band(20) == 0 and OnlineText.ping_band(100) == 1 \
+		and OnlineText.ping_band(400) == 2, "ping bands")
+	_check(LauncherStatusWidget.REFRESH_S == 30.0, "status refresh every 30 s")

@@ -178,6 +178,8 @@ func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
 			_guest(t, peer, r)
 		AccountCodec.OP_REDEEM:
 			_redeem(t, peer, r)
+		AccountCodec.OP_PING:
+			_reply(t, peer, op, AccountCodec.OK)  # W15 RTT probe: answered at once
 		AccountCodec.OP_LOGOUT:
 			_logout(peer)
 			_reply(t, peer, op, AccountCodec.OK)
