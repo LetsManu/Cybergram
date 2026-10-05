@@ -393,9 +393,11 @@ def brannoc_parts(h):
     skin = hero_hd.BodySkin(h)
     lx = 1.0 if h.jh("UpperLeg_L").x > 0 else -1.0
     # ---------------------------------------------------------------- heavy closed helm
-    W, D, Hh = hr.x * 2.55, hr.y * 2.45, hr.z * 2.3
-    hb = Vector((0, hc.y - 0.006, hc.z + 0.012))
-    h.box("Head", hb, (W, D, Hh), "teal", bevel=0.55, taper=(0.86, 0.9))                   # bucket
+    W, D, Hh = hr.x * 2.75, hr.y * 2.6, hr.z * 2.45
+    hb = Vector((0, hc.y - 0.006, hc.z + 0.016))
+    h.box("Head", hb, (W, D, Hh), "teal", bevel=0.3, taper=(0.88, 0.9))                    # bucket
+    h.sphere("Head", hb + Vector((0, 0, Hh * 0.42)), Vector((W * 0.47, D * 0.47, Hh * 0.2)), "teal", seg=(20, 8),
+             clip=[((0, 0, 0), (0, 0, -1))])                                                # domed crown
     fy = hb.y + D / 2                                                                       # front face plane
     # sculpted faceplate: two angled halves meeting in a prow ridge
     for sx in (-1, 1):
@@ -416,16 +418,15 @@ def brannoc_parts(h):
     h.box("Head", (0, fy + 0.052, zt + 0.03 * k), (W * 0.9, 0.012, 0.008 * k), "gold", rot=(-10, 0, 0), bevel=0.2)
     # cheek guards down to the jaw
     for sx in (-1, 1):
-        c = Vector((sx * W * 0.47, fy - 0.03 * k, hb.z - Hh * 0.22))
-        h.box("Head", c, (0.03 * k, D * 0.55, Hh * 0.6), "iron", rot=(0, sx * -8, sx * 12), bevel=0.4,
-              taper=(1.0, 0.8))
+        c = Vector((sx * W * 0.45, fy - D * 0.2, hb.z - Hh * 0.2))
+        h.box("Head", c, (0.024 * k, D * 0.42, Hh * 0.5), "iron", rot=(0, 0, -sx * 4), bevel=0.4, taper=(1.0, 0.85))
         for i in range(3):  # side breathing slats
-            h.box("Head", c + Vector((sx * 0.018 * k, 0.02 * k, -0.035 * k + i * 0.028 * k)),
-                  (0.008, 0.06 * k, 0.009 * k), "slit", rot=(0, sx * -8, sx * 12), bevel=0.2)
+            h.box("Head", c + Vector((sx * 0.012 * k, 0.01 * k, -0.03 * k + i * 0.026 * k)),
+                  (0.006, 0.05 * k, 0.008 * k), "slit", rot=(0, 0, -sx * 4), bevel=0.2)
     # crest ridge front -> back, gold capped
-    h.box("Head", (0, hb.y - 0.01, hb.z + Hh * 0.5), (0.04 * k, D * 0.95, 0.05 * k), "teal", bevel=0.5,
-          taper=(0.6, 1.0))
-    h.box("Head", (0, hb.y - 0.01, hb.z + Hh * 0.5 + 0.026 * k), (0.016 * k, D * 0.9, 0.01 * k), "gold", bevel=0.3)
+    h.box("Head", (0, hb.y - 0.01, hb.z + Hh * 0.6), (0.03 * k, D * 0.9, 0.05 * k), "teal", bevel=0.4,
+          taper=(0.7, 0.95))
+    h.box("Head", (0, hb.y - 0.01, hb.z + Hh * 0.6 + 0.026 * k), (0.012 * k, D * 0.85, 0.008 * k), "gold", bevel=0.3)
     # rivets: faceplate rim, brow, crest base
     for i in range(5):
         z = hb.z - Hh * 0.42 + i * Hh * 0.17
@@ -444,19 +445,21 @@ def brannoc_parts(h):
     for s in ("L", "R"):
         sh = h.jh("UpperArm_" + s)
         sg = 1.0 if sh.x > 0 else -1.0
-        for i, (w, d, z, col) in enumerate(((0.3, 0.3, 0.09, "teal"), (0.27, 0.28, 0.035, "iron"),
-                                          (0.24, 0.26, -0.02, "teal"))):
-            c = sh + Vector((sg * (0.03 + i * 0.015), 0, z)) * k
-            h.box("Clavicle_" + s, c, Vector((w, d, 0.07)) * k, col, rot=(0, sg * (16 + i * 8), 0), bevel=0.45,
-                  taper=(0.8, 0.85))
-            h.box("Clavicle_" + s, c + Vector((sg * 0.0, d * 0.5, -0.02)) * k, Vector((w * 0.92, 0.012, 0.014)) * k,
-                  "gold", rot=(0, sg * (16 + i * 8), 0), bevel=0.2)
-        top = sh + Vector((sg * 0.03, 0, 0.13)) * k
-        h.box("Clavicle_" + s, top + Vector((0, 0.06, 0)) * k, Vector((0.2, 0.02, 0.026)) * k, "team", "team",
-              rot=(0, sg * 16, 0), bevel=0.2)
+        tilt = (0, sg * 22, 0)
+        pc = sh + Vector((sg * 0.035, 0, 0.05)) * k
+        h.sphere("Clavicle_" + s, pc, Vector((0.17, 0.18, 0.13)) * k, "teal", seg=(18, 10), rot=tilt,
+                 clip=[((0, 0, -0.1), (0, 0, -1))])                                         # dome
+        h.sphere("Clavicle_" + s, pc + Vector((sg * 0.012, 0, -0.03)) * k, Vector((0.18, 0.19, 0.12)) * k, "iron",
+                 seg=(18, 10), rot=tilt, clip=[((0, 0, -0.35), (0, 0, -1)), ((0, 0, 0.05), (0, 0, 1))])   # tier 2
+        h.sphere("Clavicle_" + s, pc + Vector((sg * 0.024, 0, -0.07)) * k, Vector((0.19, 0.2, 0.11)) * k, "teal",
+                 seg=(18, 10), rot=tilt, clip=[((0, 0, -0.45), (0, 0, -1)), ((0, 0, -0.1), (0, 0, 1))])   # tier 3
+        h.sphere("Clavicle_" + s, pc + Vector((0, 0, 0.003)) * k, Vector((0.172, 0.182, 0.132)) * k, "gold",
+                 seg=(18, 10), rot=tilt, clip=[((0, 0, -0.1), (0, 0, -1)), ((0, 0, 0.02), (0, 0, 1))])    # trim
+        top = pc + Vector((0, 0, 0.115)) * k
+        h.box("Clavicle_" + s, top, Vector((0.05, 0.26, 0.03)) * k, "team", "team", rot=tilt, bevel=0.3)
         for j in range(3):
-            _bolt(h, "Clavicle_" + s, top + Vector((sg * (-0.06 + j * 0.06), -0.06, 0.012)) * k,
-                  Vector((sg * 0.28, 0, 0.96)), 0.009 * k)
+            _bolt(h, "Clavicle_" + s, top + Vector((sg * 0.06, -0.08 + j * 0.08, -0.012)) * k,
+                  Vector((sg * 0.37, 0, 0.93)), 0.009 * k)
     # ---------------------------------------------------------------- gauntlets
     for s in ("L", "R"):
         a, b = h.jh("LowerArm_" + s), h.jt("LowerArm_" + s)
