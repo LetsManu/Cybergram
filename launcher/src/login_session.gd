@@ -115,6 +115,19 @@ func ping() -> void:
 	_client.request(AccountCodec.OP_PING)
 
 
+## Sends a crash report (gzip bytes) in AccountCodec.CHUNK_MAX chunks. Only on
+## an encrypted link (signed in or not); the answer arrives as an
+## account_result with op OP_CRASH_CHUNK. False when nothing was sent.
+func send_crash_report(payload: PackedByteArray) -> bool:
+	if _client == null or not link_up or not secure or not _enet.is_secure or payload.is_empty():
+		return false
+	var n: int = ceili(float(payload.size()) / AccountCodec.CHUNK_MAX)
+	for i in n:
+		_client.request(AccountCodec.OP_CRASH_CHUNK, {"seq": i, "total": n,
+			"data": payload.slice(i * AccountCodec.CHUNK_MAX, (i + 1) * AccountCodec.CHUNK_MAX)})
+	return true
+
+
 ## Asks the server for a single-use launch token; `launch_ready` answers with
 ## the hand-over or {} (not logged in, not encrypted, refused, timed out).
 ## Never asks over a plain link: a launch token is an account credential.

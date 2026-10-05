@@ -23,3 +23,9 @@ static func apply(main: Node, state: String) -> void:
 			var sc: SupportCard = main.get("_support")
 			if sc != null:
 				sc.create(false)
+		"crash":
+			var cr: CrashReporter = main.get("_crash")
+			if cr != null:
+				cr.prompt(11, true)
+		"privacy":
+			main.call("_show_page", "settings")

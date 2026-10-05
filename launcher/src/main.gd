@@ -95,6 +95,9 @@ var _launch_pending: bool = false
 var _rail: OnlineRail
 var _online_settings_row: HBoxContainer
 var _support: SupportCard
+var _privacy: PrivacyCard
+var _prefs: OnlinePrefs
+var _crash: CrashReporter
 # --- end W15-ONLINE ---
 
 
@@ -110,6 +113,10 @@ func _ready() -> void:
 	_no_launch = args.has("no-launch")
 	_auto_update = args.has("auto-update")
 	_settings = LauncherSettings.new(String(args.get("settings", "user://launcher_settings.cfg"))).load_file()
+	# --- W15-ONLINE ---
+	_prefs = OnlinePrefs.new(String(args.get("settings", "user://launcher_settings.cfg")).get_base_dir()
+		.path_join("launcher_privacy.cfg")).load_file()
+	# --- end W15-ONLINE ---
 	var root: String = OS.get_executable_path().get_base_dir()
 	if _settings.install_root != "":
 		root = _settings.install_root
@@ -170,6 +177,15 @@ func _ready() -> void:
 		add_child(_rail)
 		move_child(_rail, _login_modal.get_index())  # under the dialogs
 		_rail.setup(_probe, url, _login)
+		_crash = CrashReporter.new()
+		_crash.prefs = _prefs
+		_crash.login = _login
+		_crash.server = _game_server
+		_crash.launcher_version = _own_version
+		_crash.game_version = func() -> String: return _updater.installed_version()
+		_crash.ui_parent = self
+		_crash.game_exited.connect(_on_game_exited)
+		add_child(_crash)
 		# --- end W15-ONLINE ---
 		if args.has("show-login"):
 			_open_login()
@@ -447,17 +463,32 @@ func _play() -> void:
 ## Starts the game; `handoff` = the launch token hand-over ({} = not signed in).
 func _play_with(handoff: Dictionary) -> void:
 	var signed_in: bool = LauncherLogin.hand_over_env(handoff)
-	var started: bool = _updater.launch_game()
+	OS.set_environment(LaunchHandoff.ENV_PRESENCE, "1" if _prefs.discord_presence else "0")
+	# The crash reporter starts the game itself to see its exit code.
+	var started: bool = _crash.launch(_updater.game_exe_path())
 	if signed_in:
 		LauncherLogin.clear_env()
-	# --- end W15-ONLINE ---
 	if not started:
 		_status.text = "Could not start the game. Try reinstalling (delete the game folder)."
 		return
+	# close_on_launch: the launcher stays minimised (no server link) while the
+	# game runs, quits after a normal exit and comes back after a crash.
 	if _close_on_launch:
-		get_tree().quit()
-	else:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
+		_login.close()
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
+
+
+func _on_game_exited(code: int) -> void:
+	if not CrashReporter.is_crash(code):
+		if _close_on_launch:
+			get_tree().quit()
+		return
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_move_to_foreground()
+	_status.text = "The game closed unexpectedly (code %d)." % code
+	if _close_on_launch and not _login.link_up:
+		_login.open(_game_server)
+	# --- end W15-ONLINE ---
 
 
 ## Player picked a folder: offer to move an existing install into it.
@@ -834,6 +865,10 @@ func _build_settings() -> Control:
 	_support.game_version = func() -> String: return _updater.installed_version()
 	_support.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_online_settings_row.add_child(_support)
+	_privacy = PrivacyCard.new()
+	_privacy.prefs = _prefs
+	_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_online_settings_row.add_child(_privacy)
 	# --- end W15-ONLINE ---
 	return margin
 
