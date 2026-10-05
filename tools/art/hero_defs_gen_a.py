@@ -610,13 +610,12 @@ HEX_SPEC = {"paint": {"head": "hoodie", "torso": "hoodie", "sleeves": "hoodie", 
                       "shins": "legs", "boots": "legs", "belt": "lime", "forearm": "hoodie"},
             "shorts_t": 0.55, "boot_t": 0.6, "glove_t": 0.95,
             "torso_shell": {"offset": 0.028, "color": "hoodie", "rim": "lime", "arms": True, "hips": True}}
-HEX_FACE = ["..........",
-            ".##....##.",
-            "#..#..#..#",
-            "..........",
-            "...#..#...",
-            "....##....",
-            ".........."]
+HEX_FACE = ["........",
+            ".##..##.",
+            ".##..##.",
+            "........",
+            ".#....#.",
+            "..####.."]
 
 
 def hex_parts(h):
@@ -766,7 +765,7 @@ def hex_post(c):
     lines[::4, :] = 0.35
     D.decal(c, lines, (0, hi[1], mid[2]), (0, 1, 0), (0, 0, 1), (sz[0] * 1.1, sz[2] * 1.1), scr, "#1F3A38",
             depth=0.08, face=0.2)
-    D.gloss(c, scr, 0.9)
+    D.gloss(c, scr, 0.35)  # low: the glint band must not wash out the pixel face
     shell = D.region(c, ["#DCDFEA"], zmin=z0)
     D.gloss(c, shell, 0.35)
     D.wear(c, shell, "#8A8FA0", 0.5, scale=60.0)
