@@ -11,6 +11,7 @@ mkdir -p "$d/files" "$d/game"
 cp "$launcher/CybergramLauncher.x86_64" "$launcher/launcher.cfg" "$d/files/"
 cp -r "$game"/. "$d/game/"
 printf '%s\n' "$ver" > "$d/game/installed_version.txt"
+"$here/../launcher/tools/write_manifest.sh" "$d/game"   # delta-update baseline (W15-UPD)
 cp "$here/linux/install.sh" "$here/linux/uninstall.sh" "$here/cybergram.png" "$d/"
 chmod +x "$d/install.sh" "$d/uninstall.sh" "$d/files/CybergramLauncher.x86_64" "$d/game/Cybergram.x86_64"
 tar -czf "$out/CybergramInstaller-$ver-linux-x86_64.tar.gz" -C "$work" "cybergram-$ver"

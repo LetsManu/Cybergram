@@ -4,6 +4,7 @@
 ;            -DGAME_DIR=<dir with the Windows game export> -DOUTFILE=CybergramSetup-0.9.0.exe cybergram.nsi
 ; Layout installed under %LOCALAPPDATA%\Cybergram (what the launcher expects):
 ;   CybergramLauncher.exe, launcher.cfg, game\Cybergram.exe ..., game\installed_version.txt
+;   game\Cybergram.pck + game\packs\*.pck (content packs; heroes_hd is optional = "Lite install")
 Unicode true
 !include "MUI2.nsh"
 
@@ -63,7 +64,12 @@ Section "Cybergram (launcher and game)" SecMain
   ; The game goes in game\ - the launcher updates it there.
   RMDir /r "$INSTDIR\game"
   SetOutPath "$INSTDIR\game"
-  File /r "${GAME_DIR}\*.*"
+  ; Everything except the optional HD hero textures (own section below).
+  File /r /x heroes_hd.pck "${GAME_DIR}\*.*"
+  ; Lite until the HD section (selected by default) runs and removes this again.
+  FileOpen $0 "$INSTDIR\content.cfg" w
+  FileWrite $0 '[content]$\r$\n$\r$\nskip=PackedStringArray("heroes_hd")$\r$\n'
+  FileClose $0
   FileOpen $0 "$INSTDIR\game\installed_version.txt" w
   FileWrite $0 "${VERSION}$\r$\n"
   FileClose $0
@@ -85,15 +91,25 @@ Section "Cybergram (launcher and game)" SecMain
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
 SectionEnd
 
+Section "HD hero textures" SecHD
+  ; Untick for a Lite install: a smaller download for weaker PCs. Can be switched
+  ; on later in the launcher (Settings > Content).
+  SetOutPath "$INSTDIR\game\packs"
+  File /nonfatal "${GAME_DIR}\packs\heroes_hd.pck"
+  Delete "$INSTDIR\content.cfg"
+SectionEnd
+
 Section /o "Desktop shortcut" SecDesktop
   CreateShortcut "$DESKTOP\Cybergram.lnk" "$INSTDIR\CybergramLauncher.exe" "" "$INSTDIR\cybergram.ico"
 SectionEnd
 
 LangString DESC_Main ${LANG_ENGLISH} "The Cybergram launcher and the game (required)."
 LangString DESC_Desktop ${LANG_ENGLISH} "Add a Cybergram shortcut to your desktop."
+LangString DESC_HD ${LANG_ENGLISH} "Detailed hero textures. Untick for a Lite install: a smaller download for weaker PCs."
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_Main)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} $(DESC_Desktop)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecHD} $(DESC_HD)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"

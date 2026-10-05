@@ -321,16 +321,34 @@ static func hull_material(team_: int, enemy_outline: bool = false) -> ShaderMate
 
 
 ## Binds the baked albedo / normal / mask maps of `model_key` (W14), if present.
+## Without them (the optional "HD hero textures" pack is not installed, W15) the
+## material keeps the no-maps W13 path (use_maps = 0, flat palette colours).
 static func _bind_maps(m: ShaderMaterial, model_key: StringName) -> void:
 	if model_key == &"":
+		m.set_shader_parameter("use_maps", 0.0)
 		return
-	var base := "res://assets/models/heroes/%s/%s_" % [model_key, model_key]
-	if not ResourceLoader.exists(base + "albedo.png"):
-		return
+	bind_maps_from(m, "res://assets/models/heroes/%s/%s_" % [model_key, model_key])
+
+
+## Binds `<base>albedo.png`, `<base>normal.png` and `<base>mask.png` when all
+## three exist and load; otherwise sets use_maps = 0 and clears the maps.
+## Returns true when the maps were bound.
+static func bind_maps_from(m: ShaderMaterial, base: String) -> bool:
+	var tex: Array[Texture2D] = []
+	for kind in ["albedo", "normal", "mask"]:
+		var p: String = base + kind + ".png"
+		var t: Texture2D = load(p) as Texture2D if ResourceLoader.exists(p) else null
+		if t == null:
+			m.set_shader_parameter("use_maps", 0.0)
+			for k in ["albedo_map", "normal_map", "mask_map"]:
+				m.set_shader_parameter(k, null)
+			return false
+		tex.append(t)
 	m.set_shader_parameter("use_maps", 1.0)
-	m.set_shader_parameter("albedo_map", load(base + "albedo.png"))
-	m.set_shader_parameter("normal_map", load(base + "normal.png"))
-	m.set_shader_parameter("mask_map", load(base + "mask.png"))
+	m.set_shader_parameter("albedo_map", tex[0])
+	m.set_shader_parameter("normal_map", tex[1])
+	m.set_shader_parameter("mask_map", tex[2])
+	return true
 
 
 func set_motion(velocity_world: Vector3, crouching: bool, pitch: float) -> void:

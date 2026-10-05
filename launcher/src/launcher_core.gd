@@ -108,6 +108,9 @@ static func parse_manifest(text: String) -> Dictionary:
 		"notes_md": String(d.get("notes_md", "")),
 		"platforms": plat_dict,
 		"launcher": d.get("launcher", {}) if typeof(d.get("launcher", {})) == TYPE_DICTIONARY else {},
+		# W15-UPD: per-file blobs folder and the optional pre-load block.
+		"blobs": String(d.get("blobs", "")) if typeof(d.get("blobs", "")) == TYPE_STRING else "",
+		"next": d.get("next", {}) if typeof(d.get("next", {})) == TYPE_DICTIONARY else {},
 	}
 
 
@@ -392,7 +395,22 @@ static func launcher_update_for(launcher: Dictionary, platform: String, own_vers
 	var v: String = String(launcher["version"]).trim_prefix("v")
 	if compare_versions(own_version, v) >= 0:
 		return {}
-	return {"version": v, "file": f, "sha256": e["sha256"], "exe": exe, "size": int(e.get("size", 0))}
+	var out: Dictionary = {"version": v, "file": f, "sha256": e["sha256"], "exe": exe, "size": int(e.get("size", 0))}
+	# W15-UPD: Linux entries may carry the new AppImage (file + sha256 + size).
+	var ai: Variant = e.get("appimage")
+	if typeof(ai) == TYPE_DICTIONARY and typeof((ai as Dictionary).get("file")) == TYPE_STRING \
+			and typeof((ai as Dictionary).get("sha256")) == TYPE_STRING:
+		var af: String = (ai as Dictionary)["file"]
+		if not af.contains("/") and not af.contains("\\") and not af.contains("..") and af.ends_with(".AppImage") \
+				and String((ai as Dictionary)["sha256"]).length() == 64:
+			out["appimage"] = {"file": af, "sha256": String((ai as Dictionary)["sha256"]).to_lower(),
+				"size": int((ai as Dictionary).get("size", 0))}
+			# Optional absolute https URL (e.g. the GitHub release asset); the
+			# sha256 from the signed feed is what makes it trustworthy.
+			var au: String = String((ai as Dictionary).get("url", ""))
+			if au.begins_with("https://"):
+				out["appimage"]["url"] = au
+	return out
 
 
 # --- AppImage (read-only bundle) support ------------------------------------
