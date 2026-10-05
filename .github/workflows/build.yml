@@ -170,6 +170,12 @@ jobs:
           echo "$lob" | grep -q "\[lobby\] quit after 30 ticks"
           ! echo "$lob" | grep -q "SCRIPT ERROR"
 
+      - name: Matchmaking e2e and auto-update tests
+        run: |
+          tools/ci/auto_update_test.sh
+          # PENDING until the front and scripted-client flags exist (prints PENDING, exits 0).
+          GAME=build/linux/Cybergram.x86_64 tools/ci/matchmaking_e2e.sh
+
       - name: Add play notes
         run: |
           for d in build/windows build/linux; do
@@ -385,6 +391,19 @@ jobs:
           curl -s -o /dev/null -w '%{http_code}\n' -r 0-9 "localhost:8080/blobs/$b" | grep -q 206 \
             || echo "::warning::update host ignores HTTP Range: paused downloads restart from zero"
           docker rm -f upd > /dev/null
+
+      - name: Smoke-test the container in front mode
+        run: |
+          # Front mode is the default. Skipped until the build knows --front.
+          if ! grep -q -- '--front' src/core/app/launch_config.gd; then echo "PENDING: no --front yet"; exit 0; fi
+          docker run -d --name front -e CYBERGRAM_MATCH_PORTS=7800-7801 $IMAGE:$VERSION > /dev/null
+          for _ in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' front)" = healthy ] && break; sleep 3
+          done
+          docker inspect -f '{{.State.Health.Status}}' front | grep -q healthy || { docker logs front | tail -30; exit 1; }
+          # UDP 7777 (hex 1E61) and the warm match port 7800 (hex 1E78) are bound.
+          docker exec front sh -c "grep -qi ':1E61 ' /proc/net/udp && grep -qi ':1E78 ' /proc/net/udp"
+          docker rm -f front > /dev/null
 
       - name: Push to GitHub Container Registry
         run: |
