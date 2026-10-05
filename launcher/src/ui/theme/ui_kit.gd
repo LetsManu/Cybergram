@@ -17,7 +17,15 @@ extends RefCounted
 
 ## Shared colours and metrics (the launcher loads the same file).
 const TOKENS_PATH := "res://assets/ui/ui_kit_tokens.tres"
-const DISPLAY_FONT_PATH := "res://assets/fonts/orbitron/Orbitron-Variable.ttf"
+const DISPLAY_FONT_PATH := "res://assets/fonts/chakrapetch/ChakraPetch-SemiBold.ttf"
+## Chakra Petch cuts by weight (static files; display_font() picks the nearest).
+const DISPLAY_FONT_FILES := {
+	500: "res://assets/fonts/chakrapetch/ChakraPetch-Medium.ttf",
+	600: "res://assets/fonts/chakrapetch/ChakraPetch-SemiBold.ttf",
+	700: "res://assets/fonts/chakrapetch/ChakraPetch-Bold.ttf"}
+## IBM Plex Sans (variable, body text) and IBM Plex Mono (numbers, keys).
+const BODY_FONT_PATH := "res://assets/fonts/ibmplexsans/IBMPlexSans-Variable.ttf"
+const MONO_FONT_PATH := "res://assets/fonts/ibmplexmono/IBMPlexMono-Medium.ttf"
 const BG_SHADER_PATH := "res://assets/shaders/canvas_ui_background.gdshader"
 ## Button styles accepted by button() / style_button().
 const KINDS: Array[StringName] = [&"primary", &"secondary", &"ghost", &"danger", &"play"]
@@ -125,24 +133,104 @@ static func transition_out(node: CanvasItem, then: Callable, ms: int = -1) -> vo
 
 # --- fonts, labels ----------------------------------------------------------
 
-## The display face (Orbitron) at `weight` (100-900) with `spacing` px
-## between glyphs; Godot's default font, emboldened, if it is missing.
+## The display face (Chakra Petch) at `weight` (500-700 cuts; below 550 =
+## Medium, 550-649 = SemiBold, else Bold) with `spacing` px between glyphs;
+## Godot's default font, emboldened, if it is missing.
 static func display_font(weight: int = 600, spacing: int = 2) -> Font:
-	var key := "%d/%d" % [weight, spacing]
+	var key := "d%d/%d" % [weight, spacing]
 	if _fonts.has(key):
 		return _fonts[key]
+	var cut := 500 if weight < 550 else (600 if weight < 650 else 700)
+	var path: String = DISPLAY_FONT_FILES[cut]
 	var fv := FontVariation.new()
-	var base := load(DISPLAY_FONT_PATH) as Font if ResourceLoader.exists(DISPLAY_FONT_PATH) else null
+	var base := load(path) as Font if ResourceLoader.exists(path) else null
 	if base != null:
 		fv.base_font = base
-		var ts := TextServerManager.get_primary_interface()
-		fv.variation_opentype = {ts.name_to_tag("wght"): weight}
 	else:
 		fv.base_font = ThemeDB.fallback_font
 		fv.variation_embolden = clampf((weight - 400) / 500.0, 0.0, 1.0)
 	fv.spacing_glyph = spacing
 	_fonts[key] = fv
 	return fv
+
+
+## The body face (IBM Plex Sans, variable) at `weight` (100-700).
+static func body_font(weight: int = 400) -> Font:
+	var key := "b%d" % weight
+	if _fonts.has(key):
+		return _fonts[key]
+	var fv := FontVariation.new()
+	var base := load(BODY_FONT_PATH) as Font if ResourceLoader.exists(BODY_FONT_PATH) else null
+	if base != null:
+		fv.base_font = base
+		var ts := TextServerManager.get_primary_interface()
+		fv.variation_opentype = {ts.name_to_tag("wght"): weight, ts.name_to_tag("wdth"): 100}
+	else:
+		fv.base_font = ThemeDB.fallback_font
+	_fonts[key] = fv
+	return fv
+
+
+## The mono face (IBM Plex Mono Medium): numbers, timers, key letters.
+static func mono_font(spacing: int = 0) -> Font:
+	var key := "m%d" % spacing
+	if _fonts.has(key):
+		return _fonts[key]
+	var fv := FontVariation.new()
+	var base := load(MONO_FONT_PATH) as Font if ResourceLoader.exists(MONO_FONT_PATH) else null
+	fv.base_font = base if base != null else ThemeDB.fallback_font
+	fv.spacing_glyph = spacing
+	_fonts[key] = fv
+	return fv
+
+
+## Letter spacing in px for a tracking of `em` at `size` px (the mockup's
+## `letter-spacing: .22em`).
+static func track(size: int, em: float) -> int:
+	return roundi(size * em)
+
+
+## An eyebrow: small brass caps in the display face, wide tracking.
+static func eyebrow(text: String, color := Color(0, 0, 0, 0), size: int = 13) -> Label:
+	var l := Label.new()
+	l.text = text.to_upper()
+	l.add_theme_font_override("font", display_font(600, track(size, 0.26)))
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color if color.a > 0.0 else tokens().accent)
+	return l
+
+
+## A key chip (Q / E / C / G): a 1 px dim-brass frame with a mono letter.
+static func key_chip(key: String, side: int = 28) -> PanelContainer:
+	var t := tokens()
+	var p := PanelContainer.new()
+	p.custom_minimum_size = Vector2(side, side)
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = t.accent_dim
+	sb.set_border_width_all(1)
+	sb.set_content_margin_all(0)
+	p.add_theme_stylebox_override("panel", sb)
+	var l := Label.new()
+	l.text = key
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_font_override("font", mono_font())
+	l.add_theme_font_size_override("font_size", 13)
+	l.add_theme_color_override("font_color", t.accent_hi)
+	p.add_child(l)
+	return p
+
+
+## A 1 px horizontal hairline (`strong` = the separator tone).
+static func hairline(strong := false) -> ColorRect:
+	var r := ColorRect.new()
+	r.color = tokens().line_strong if strong else tokens().line
+	r.custom_minimum_size.y = 1
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
 
 
 ## Font size of a text role (ROLES).
@@ -176,13 +264,13 @@ static func label(text: String, role: StringName = &"body", color := Color(0, 0,
 	l.add_theme_font_size_override("font_size", size_of(role))
 	match role:
 		&"display":
-			l.add_theme_font_override("font", display_font(800, 4))
+			l.add_theme_font_override("font", display_font(600, 1))
 		&"title":
-			l.add_theme_font_override("font", display_font(700, 2))
+			l.add_theme_font_override("font", display_font(600, 1))
 		&"heading":
 			l.add_theme_font_override("font", display_font(600, 1))
 		&"nav":
-			l.add_theme_font_override("font", display_font(600, 2))
+			l.add_theme_font_override("font", display_font(600, track(t.size_nav, 0.16)))
 	var def := t.text if role in [&"display", &"title", &"heading", &"body"] else t.text_dim
 	l.add_theme_color_override("font_color", color if color.a > 0.0 else def)
 	return l
@@ -202,13 +290,12 @@ static func panel_box(bg: Color, pad: int = 12, border := Color(0, 0, 0, 0)) -> 
 	return sb
 
 
-## Keyboard / gamepad focus ring (2 px accent_hi frame, outside the control).
+## Keyboard / gamepad focus ring (1 px pale-brass frame, outside the control).
 static func focus_box() -> StyleBoxFlat:
 	var f := StyleBoxFlat.new()
 	f.draw_center = false
 	f.border_color = tokens().accent_hi
-	f.set_border_width_all(2)
-	f.set_corner_radius_all(tokens().radius + 1)
+	f.set_border_width_all(1)
 	f.set_expand_margin_all(3)
 	return f
 
@@ -223,47 +310,40 @@ static func button_box(kind: StringName) -> UiBevelBox:
 	sb.content_margin_bottom = 6
 	match kind:
 		&"primary", &"play":
-			sb.fill = t.accent.darkened(0.08)
-			sb.fill_hover = t.accent.lightened(0.12)
-			sb.border = Color(t.gold, 0.75)
-			sb.border_hover = t.gold.lightened(0.2)
+			sb.fill = t.accent
+			sb.fill_hover = t.accent_hi
 			sb.bevel = t.bevel
-			sb.glow = Color(t.accent, 1.0)
-			sb.glow_rest = 0.55 if kind == &"play" else 0.25
-			sb.glow_size = 12.0 if kind == &"play" else 8.0
+			sb.content_margin_left = 28
+			sb.content_margin_right = 28
 		&"danger":
-			sb.fill = Color(t.danger, 0.16)
-			sb.fill_hover = Color(t.danger, 0.32)
-			sb.border = Color(t.danger, 0.6)
+			sb.fill = Color(t.danger, 0.0)
+			sb.fill_hover = Color(t.danger, 0.12)
+			sb.border = Color(t.danger, 0.7)
 			sb.border_hover = t.danger
-			sb.bevel = t.bevel * 0.6
-			sb.glow = Color(t.danger, 0.6)
 		&"ghost":
 			sb.fill = Color(t.text, 0.0)
-			sb.fill_hover = Color(t.text, 0.06)
-			sb.border = Color(0, 0, 0, 0)
-			sb.border_hover = Color(t.line_strong, 0.5)
+			sb.fill_hover = Color(t.text, 0.03)
+			sb.border = t.line
+			sb.border_hover = t.text_dim
 		_:
-			sb.fill = t.panel_raised
-			sb.fill_hover = t.panel_raised.lightened(0.06)
+			sb.fill = Color(t.text, 0.0)
+			sb.fill_hover = Color(t.text, 0.03)
 			sb.border = t.line_strong
-			sb.border_hover = t.accent_hi
-			sb.glow = Color(t.accent, 0.5)
-			sb.glow_size = 6.0
+			sb.border_hover = t.text_dim
 	return sb
 
 
 # --- buttons ----------------------------------------------------------------
 
-## A kit button. `kind`: primary (filled violet, beveled), secondary (raised
-## panel), ghost (text only), danger, play (the big glowing CTA). `height` 0
+## A kit button. `kind`: primary (brass chamfered, ink text), secondary and
+## ghost (hairline outline), danger (red hairline), play (the big brass CTA). `height` 0
 ## = the kind's default. Hover / click sounds through UiSfx.
 static func button(text: String, on_press: Callable = Callable(), kind: StringName = &"secondary",
 		height: int = 0) -> Button:
 	var b := Button.new()
 	b.text = text
 	var big := kind in [&"primary", &"play"]
-	b.custom_minimum_size.y = height if height > 0 else (64 if kind == &"play" else (48 if big else 40))
+	b.custom_minimum_size.y = height if height > 0 else (48 if big else 44)
 	style_button(b, kind)
 	_attach_sfx(b)
 	if on_press.is_valid():
@@ -291,18 +371,24 @@ static func style_button(b: BaseButton, kind: StringName = &"secondary") -> void
 	b.add_theme_stylebox_override("disabled", disabled)
 	b.add_theme_stylebox_override("focus", focus_box())
 	var big := kind in [&"primary", &"play"]
-	var fg := t.text if kind != &"ghost" else t.text_dim
-	b.add_theme_color_override("font_color", fg)
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
-	b.add_theme_color_override("font_focus_color", Color.WHITE)
-	b.add_theme_color_override("font_pressed_color", Color.WHITE if big else t.accent_hi)
-	b.add_theme_color_override("font_hover_pressed_color", Color.WHITE)
-	b.add_theme_color_override("font_disabled_color", t.text_off)
 	if big:
-		b.add_theme_font_override("font", display_font(800 if kind == &"play" else 700, 3 if kind == &"play" else 2))
-		b.add_theme_font_size_override("font_size", 24 if kind == &"play" else 17)
+		disabled.fill = Color(t.accent_dim, 0.6)
+		for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color",
+				"font_hover_pressed_color"]:
+			b.add_theme_color_override(c, t.bg)
+		b.add_theme_color_override("font_disabled_color", Color(t.bg, 0.7))
+		b.add_theme_font_override("font", display_font(700, track(18 if kind == &"play" else 16, 0.2)))
+		b.add_theme_font_size_override("font_size", 18 if kind == &"play" else 16)
 	else:
-		b.add_theme_font_size_override("font_size", t.size_small + 1)
+		var fg := t.danger if kind == &"danger" else t.text_dim
+		b.add_theme_color_override("font_color", fg)
+		b.add_theme_color_override("font_hover_color", t.text)
+		b.add_theme_color_override("font_focus_color", t.text)
+		b.add_theme_color_override("font_pressed_color", t.accent_hi)
+		b.add_theme_color_override("font_hover_pressed_color", t.accent_hi)
+		b.add_theme_color_override("font_disabled_color", t.text_off)
+		b.add_theme_font_override("font", display_font(600, track(15, 0.16)))
+		b.add_theme_font_size_override("font_size", 15)
 	var on := func() -> void:
 		if not b.disabled:
 			animate(b, sb, "hover", 1.0, t.motion_fast)
@@ -313,21 +399,6 @@ static func style_button(b: BaseButton, kind: StringName = &"secondary") -> void
 	b.focus_entered.connect(on)
 	b.mouse_exited.connect(off)
 	b.focus_exited.connect(off)
-	if kind == &"play":
-		b.tree_entered.connect(func() -> void: _pulse(b, sb), CONNECT_ONE_SHOT)
-
-
-## Looping glow pulse of the PLAY button (none under reduce motion).
-static func _pulse(b: Button, sb: UiBevelBox) -> void:
-	if reduce_motion() or not b.is_inside_tree():
-		return
-	var tw := b.create_tween().set_loops()
-	tw.tween_property(sb, "pulse", 1.5, 1.1).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(sb, "pulse", 1.0, 1.1).set_trans(Tween.TRANS_SINE)
-	tw.tween_callback(func() -> void:
-		if reduce_motion():  # the setting was turned on while the menu is open
-			tw.kill()
-			sb.pulse = 1.0)
 
 
 ## A flat swatch-style button tinted `bg` (colour pickers): kit frame, accent
@@ -358,6 +429,9 @@ static func icon_button(kind: StringName, on_press: Callable, tooltip := "", sid
 	b.custom_minimum_size = Vector2(side, side)
 	b.tooltip_text = tooltip
 	style_button(b, &"ghost")
+	var bare := StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, bare)
 	var icon := UiIcon.make(kind, side * 0.5, t.text_dim)
 	icon.position = Vector2(side, side) * 0.25
 	icon.size = Vector2(side, side) * 0.5
@@ -390,8 +464,8 @@ static func avatar(icon: Control, ring: Color, side: float = 44.0) -> Control:
 	return box
 
 
-## A tab (toggle) button: dim text, bright text with an accent underline when
-## selected. `nav` = the top-bar look (display face).
+## A tab (toggle) button: muted text, ivory text with a 2 px brass underline
+## when selected (no fill). `nav` = the top-bar look (display face).
 static func tab_button(text: String, nav := false) -> Button:
 	var t := tokens()
 	var b := Button.new()
@@ -404,11 +478,10 @@ static func tab_button(text: String, nav := false) -> Button:
 	idle.content_margin_right = 14
 	idle.border_color = Color(0, 0, 0, 0)
 	idle.border_width_bottom = 2
+	idle.content_margin_left = 16
+	idle.content_margin_right = 16
 	var hover := idle.duplicate() as StyleBoxFlat
-	hover.bg_color = Color(t.text, 0.04)
-	hover.border_color = Color(t.accent, 0.4)
 	var sel := idle.duplicate() as StyleBoxFlat
-	sel.bg_color = Color(t.accent, 0.10)
 	sel.border_color = t.accent
 	b.add_theme_stylebox_override("normal", idle)
 	b.add_theme_stylebox_override("hover", hover)
@@ -418,15 +491,16 @@ static func tab_button(text: String, nav := false) -> Button:
 	b.add_theme_stylebox_override("focus", focus_box())
 	b.add_theme_color_override("font_color", t.text_dim)
 	b.add_theme_color_override("font_hover_color", t.text)
-	b.add_theme_color_override("font_pressed_color", Color.WHITE)
-	b.add_theme_color_override("font_hover_pressed_color", Color.WHITE)
+	b.add_theme_color_override("font_pressed_color", t.text)
+	b.add_theme_color_override("font_hover_pressed_color", t.text)
 	b.add_theme_color_override("font_focus_color", t.text)
 	b.add_theme_color_override("font_disabled_color", t.text_off)
 	if nav:
-		b.add_theme_font_override("font", display_font(600, 2))
+		b.add_theme_font_override("font", display_font(600, track(t.size_nav, 0.16)))
 		b.add_theme_font_size_override("font_size", t.size_nav)
 	else:
-		b.add_theme_font_size_override("font_size", t.size_small + 1)
+		b.add_theme_font_override("font", display_font(600, track(13, 0.14)))
+		b.add_theme_font_size_override("font_size", 13)
 	_attach_sfx(b)
 	return b
 
@@ -447,24 +521,35 @@ static func tab_bar(labels: Array, on_select: Callable, selected: int = 0, nav :
 	return bar
 
 
-## Line edit in the kit look (sunken, accent frame on focus).
+## Line edit in the kit look (a hairline underline, brass on focus).
 static func line_edit(placeholder: String, max_len: int) -> LineEdit:
 	var t := tokens()
 	var e := LineEdit.new()
 	e.placeholder_text = placeholder
 	e.max_length = max_len
 	e.custom_minimum_size.y = 38
-	var sb := panel_box(t.panel_sunken, 8, t.line_strong)
-	sb.content_margin_left = 10
+	var sb := underline_box(t.line_strong)
 	e.add_theme_stylebox_override("normal", sb)
-	var f := sb.duplicate() as StyleBoxFlat
-	f.border_color = t.accent_hi
+	var f := underline_box(t.accent)
 	e.add_theme_stylebox_override("focus", f)
 	e.add_theme_color_override("font_color", t.text)
 	e.add_theme_color_override("font_placeholder_color", t.text_off)
 	e.add_theme_color_override("caret_color", t.accent_hi)
 	e.add_theme_color_override("selection_color", Color(t.accent, 0.45))
 	return e
+
+
+## Transparent box with only a 1 px bottom rule of `col` (inputs, rows).
+static func underline_box(col: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = col
+	sb.border_width_bottom = 1
+	sb.content_margin_left = 2
+	sb.content_margin_right = 2
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 8
+	return sb
 
 
 # --- containers -------------------------------------------------------------
@@ -475,39 +560,33 @@ static func card(title: String = "", pad: int = 16) -> UiCard:
 
 
 ## Styles `panel` as a kit screen (login, profile, settings, lobby, launcher
-## pages): layered card, a header strip with `title` (display face, brass
-## tick) and an optional `subtitle` on the right, then a padded body column,
+## pages): the rail surface with a hairline frame, a header with `title`
+## (display face) over a hairline and an optional `subtitle` on the right, then a padded body column,
 ## which is returned. Fades in when shown.
 static func screen_frame(panel: PanelContainer, title: String, subtitle: String = "", pad: int = 20) -> VBoxContainer:
 	var t := tokens()
-	var sb := panel_box(t.panel, 0, Color(t.gold, 0.3))
-	sb.shadow_color = Color(0, 0, 0, 0.5)
-	sb.shadow_size = 18
+	var sb := panel_box(t.panel, 0, t.line)
 	panel.add_theme_stylebox_override("panel", sb)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 0)
 	panel.add_child(outer)
 	var head := PanelContainer.new()
 	var hb := StyleBoxFlat.new()
-	hb.bg_color = t.panel_raised
+	hb.bg_color = Color(0, 0, 0, 0)
 	hb.border_color = t.line
 	hb.border_width_bottom = 1
 	hb.content_margin_left = pad
 	hb.content_margin_right = pad
-	hb.content_margin_top = 10
-	hb.content_margin_bottom = 10
+	hb.content_margin_top = 16
+	hb.content_margin_bottom = 14
 	head.add_theme_stylebox_override("panel", hb)
 	outer.add_child(head)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", t.space_m)
 	head.add_child(row)
-	var tick := ColorRect.new()
-	tick.color = t.gold
-	tick.custom_minimum_size = Vector2(3, 22)
-	tick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(tick)
 	var tl := label(title.to_upper(), &"title")
-	tl.add_theme_font_size_override("font_size", t.size_title - 4)
+	tl.add_theme_font_override("font", display_font(600, track(22, 0.08)))
+	tl.add_theme_font_size_override("font_size", 22)
 	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(tl)
 	if subtitle != "":
@@ -531,28 +610,42 @@ static func spacer(h: int) -> Control:
 	return c
 
 
-## The animated background (full-rect ColorRect + shader). Frozen under
-## reduce motion; its aspect follows the rect.
+## The menu background (full-rect ColorRect + shader): ground ink, hairline
+## arches and a warm spotlight laid out in 1440x810 reference px (move them
+## with set_background_layout()). Frozen under reduce motion.
 static func background() -> ColorRect:
 	var t := tokens()
 	var r := ColorRect.new()
 	r.name = "UiKitBackground"
-	r.color = t.bg_deep
+	r.color = t.bg
 	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	r.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var sh := load(BG_SHADER_PATH) as Shader if ResourceLoader.exists(BG_SHADER_PATH) else null
 	if sh != null:
 		var m := ShaderMaterial.new()
 		m.shader = sh
-		m.set_shader_parameter("glow", t.accent)
-		m.set_shader_parameter("grid", t.accent)
-		m.set_shader_parameter("glow2", t.gold)
+		m.set_shader_parameter("ink", t.bg)
+		m.set_shader_parameter("brass", t.accent)
 		m.set_shader_parameter("speed", 0.0 if reduce_motion() else t.bg_speed)
 		r.material = m
 		r.resized.connect(func() -> void:
 			if r.size.y > 0.0:
+				m.set_shader_parameter("rect_size", r.size)
 				m.set_shader_parameter("aspect", r.size.x / r.size.y))
 	return r
+
+
+## Moves the arches / spotlight of a background() (reference px at 1440x810).
+## `arches` false = spotlight only.
+static func set_background_layout(bg: ColorRect, arch_x: float, spot: Vector2, radius: float = 290.0,
+		arches := true) -> void:
+	var m := bg.material as ShaderMaterial
+	if m == null:
+		return
+	m.set_shader_parameter("arch_x", arch_x)
+	m.set_shader_parameter("spot_center", spot)
+	m.set_shader_parameter("spot_radius", radius)
+	m.set_shader_parameter("arches", 1.0 if arches else 0.0)
 
 
 ## Re-reads reduce motion into a background made by background().
@@ -588,8 +681,6 @@ static func toast(parent: Control, text: String, kind: StringName = &"info", sec
 	sb.content_margin_right = 16
 	sb.content_margin_top = 8
 	sb.content_margin_bottom = 8
-	sb.shadow_color = Color(0, 0, 0, 0.45)
-	sb.shadow_size = 10
 	p.add_theme_stylebox_override("panel", sb)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var l := label(text, &"body")
@@ -636,18 +727,19 @@ static func build_theme() -> Theme:
 	var t := tokens()
 	var th := Theme.new()
 	th.default_font_size = t.size_body
+	th.default_font = body_font(400)
 	var sec := button_box(&"secondary")
 	var sec_h := sec.duplicate() as UiBevelBox
 	sec_h.hover = 1.0
 	var press := button_box(&"secondary")
 	press.hover = 1.0
-	press.fill = Color(t.accent, 0.35)
+	press.fill = Color(t.accent, 0.12)
 	press.fill_hover = press.fill
 	press.border = t.accent
 	press.border_hover = t.accent_hi
 	var dis := button_box(&"secondary")
-	dis.fill = Color(t.panel_raised, 0.4)
-	dis.border = Color(t.line, 0.12)
+	dis.fill = Color(0, 0, 0, 0)
+	dis.border = t.line
 	dis.glow = Color(0, 0, 0, 0)
 	for cls in ["Button", "OptionButton", "MenuButton"]:
 		th.set_stylebox("normal", cls, sec)
@@ -656,11 +748,11 @@ static func build_theme() -> Theme:
 		th.set_stylebox("hover_pressed", cls, press)
 		th.set_stylebox("disabled", cls, dis)
 		th.set_stylebox("focus", cls, focus_box())
-		th.set_color("font_color", cls, t.text)
-		th.set_color("font_hover_color", cls, Color.WHITE)
-		th.set_color("font_pressed_color", cls, Color.WHITE)
-		th.set_color("font_hover_pressed_color", cls, Color.WHITE)
-		th.set_color("font_focus_color", cls, Color.WHITE)
+		th.set_color("font_color", cls, t.text_dim)
+		th.set_color("font_hover_color", cls, t.text)
+		th.set_color("font_pressed_color", cls, t.accent_hi)
+		th.set_color("font_hover_pressed_color", cls, t.accent_hi)
+		th.set_color("font_focus_color", cls, t.text)
 		th.set_color("font_disabled_color", cls, t.text_off)
 	th.set_icon("arrow", "OptionButton", _icon(&"chevron"))
 	for cls in ["CheckBox", "CheckButton"]:
@@ -700,28 +792,26 @@ static func build_theme() -> Theme:
 	th.set_icon("grabber", "HSlider", _icon(&"grabber"))
 	th.set_icon("grabber_highlight", "HSlider", _icon(&"grabber_hi"))
 	th.set_stylebox("focus", "HSlider", focus_box())
-	var le := panel_box(t.panel_sunken, 8, t.line_strong)
+	var le := underline_box(t.line_strong)
 	th.set_stylebox("normal", "LineEdit", le)
-	var lef := le.duplicate() as StyleBoxFlat
-	lef.border_color = t.accent_hi
+	var lef := underline_box(t.accent)
 	th.set_stylebox("focus", "LineEdit", lef)
 	th.set_color("font_color", "LineEdit", t.text)
 	th.set_color("font_placeholder_color", "LineEdit", t.text_off)
 	th.set_color("caret_color", "LineEdit", t.accent_hi)
+	th.set_color("selection_color", "LineEdit", Color(t.accent, 0.35))
 	th.set_color("font_color", "Label", t.text)
 	th.set_stylebox("panel", "PanelContainer", panel_box(t.panel, 12))
 	var pop := panel_box(t.panel_raised, 6, t.line_strong)
-	pop.shadow_color = Color(0, 0, 0, 0.5)
-	pop.shadow_size = 12
 	th.set_stylebox("panel", "PopupMenu", pop)
 	var pop_h := StyleBoxFlat.new()
-	pop_h.bg_color = Color(t.accent, 0.4)
+	pop_h.bg_color = Color(t.accent, 0.14)
 	pop_h.border_color = t.accent
 	pop_h.border_width_left = 2
 	pop_h.set_content_margin_all(6)
 	th.set_stylebox("hover", "PopupMenu", pop_h)
 	th.set_color("font_color", "PopupMenu", t.text)
-	th.set_color("font_hover_color", "PopupMenu", Color.WHITE)
+	th.set_color("font_hover_color", "PopupMenu", t.accent_hi)
 	th.set_constant("v_separation", "PopupMenu", 8)
 	th.set_stylebox("panel", "TooltipPanel", pop)
 	th.set_color("font_color", "TooltipLabel", t.text)
@@ -729,6 +819,11 @@ static func build_theme() -> Theme:
 	sep.color = t.line
 	sep.thickness = 1
 	th.set_stylebox("separator", "HSeparator", sep)
+	var vsep := StyleBoxLine.new()
+	vsep.color = t.line_strong
+	vsep.thickness = 1
+	vsep.vertical = true
+	th.set_stylebox("separator", "VSeparator", vsep)
 	for sc in ["VScrollBar", "HScrollBar"]:
 		var bar := StyleBoxFlat.new()
 		bar.bg_color = Color(t.text, 0.04)
@@ -738,12 +833,13 @@ static func build_theme() -> Theme:
 		grab.set_corner_radius_all(3)
 		grab.set_content_margin_all(3)
 		var grab_h := grab.duplicate() as StyleBoxFlat
-		grab_h.bg_color = Color(t.accent_hi, 0.7)
+		grab_h.bg_color = Color(t.accent, 0.7)
 		th.set_stylebox("scroll", sc, bar)
 		th.set_stylebox("grabber", sc, grab)
 		th.set_stylebox("grabber_highlight", sc, grab_h)
 		th.set_stylebox("grabber_pressed", sc, grab_h)
-	var pb_bg := panel_box(t.panel_sunken, 0, t.line)
+	var pb_bg := StyleBoxFlat.new()
+	pb_bg.bg_color = t.line
 	var pb_fill := StyleBoxFlat.new()
 	pb_fill.bg_color = t.accent
 	th.set_stylebox("background", "ProgressBar", pb_bg)

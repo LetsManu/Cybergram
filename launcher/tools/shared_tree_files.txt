@@ -10,6 +10,12 @@ src/ui/theme/ui_card.gd
 src/ui/theme/ui_icon.gd
 src/ui/theme/ui_modal.gd
 assets/ui/ui_kit_tokens.tres
-assets/fonts/orbitron/Orbitron-Variable.ttf
-assets/fonts/orbitron/OFL.txt
+assets/fonts/chakrapetch/ChakraPetch-Medium.ttf
+assets/fonts/chakrapetch/ChakraPetch-SemiBold.ttf
+assets/fonts/chakrapetch/ChakraPetch-Bold.ttf
+assets/fonts/chakrapetch/OFL.txt
+assets/fonts/ibmplexsans/IBMPlexSans-Variable.ttf
+assets/fonts/ibmplexsans/OFL.txt
+assets/fonts/ibmplexmono/IBMPlexMono-Medium.ttf
+assets/fonts/ibmplexmono/OFL.txt
 assets/shaders/canvas_ui_background.gdshader
