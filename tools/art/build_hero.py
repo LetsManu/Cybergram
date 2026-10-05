@@ -105,6 +105,7 @@ class Base:
         self.W = {b: (np.array([p[0] for p in l], int), np.array([p[1] for p in l])) for b, l in mhw.items()}
         cy = self.joint(self.sk["bones"]["spine05"]["head"])[1]
         self.V[:, 1] -= cy
+        self._widen(hero.get("widen"))
         self._scale_head(hero.get("head_scale", 1.0))
         self._curl_fingers()
 
@@ -130,6 +131,23 @@ class Base:
                     out.append(b)
                     changed = True
         return out
+
+    def _widen(self, spec):
+        """Broadens the upper body (x) above `frac` of the height, head excluded."""
+        if not spec:
+            return
+        f, frac = spec
+        H = self.hero["height"]
+        z0 = H * frac
+        t = np.clip((self.V[:, 2] - z0) / (0.12 * H), 0.0, 1.0)
+        t = t * t * (3 - 2 * t)
+        w = np.zeros(len(self.V))
+        for b in self._descendants("neck01"):
+            if b in self.W:
+                idx, ww = self.W[b]
+                w[idx] += ww
+        t *= 1.0 - np.clip(w, 0.0, 1.0)
+        self.V[:, 0] *= 1.0 + (f - 1.0) * t
 
     def _scale_head(self, k):
         if abs(k - 1.0) < 1e-4:

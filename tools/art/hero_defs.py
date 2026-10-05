@@ -453,3 +453,8 @@ HEROES = {
 }
 
 WEAPONS = {"breakline": breakline, "threadcaster": threadcaster}
+
+import hero_defs_more  # noqa: E402  (the other five heroes; imports helpers from this module)
+
+HEROES.update(hero_defs_more.HEROES)
+WEAPONS.update(hero_defs_more.WEAPONS)
