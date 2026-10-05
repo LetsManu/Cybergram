@@ -320,7 +320,7 @@ func _mounts_changed(p: SnapshotData.ProgressState) -> bool:
 ## Reload start / magazine out (after mag_out_delay_s) / done (only when rounds were added).
 func _reload_sounds(c: SnapshotData.OwnCombat) -> void:
 	var reloading := (c.ammo_flags & AmmoFeed.FLAG_RELOADING) != 0
-	var v := client.hero_def.weapon.sfx_voice if client.hero_def.weapon != null else &""
+	var v: StringName = client.hero_def.weapon.sfx_voice if client.hero_def.weapon != null else &""
 	if reloading and not _was_reloading:
 		_ammo_at_reload = c.ammo
 		_play_or_feel(StringName("weapon_%s_reload_start_own" % v), &"reload_start")
@@ -457,7 +457,7 @@ func _process(delta: float) -> void:
 	if _mag_out_left > 0.0:
 		_mag_out_left -= delta
 		if _mag_out_left <= 0.0 and _was_reloading:
-			var v := client.hero_def.weapon.sfx_voice if client.hero_def.weapon != null else &""
+			var v: StringName = client.hero_def.weapon.sfx_voice if client.hero_def.weapon != null else &""
 			events.play(StringName("weapon_%s_reload_mag_out_own" % v), OWN)
 	var st: MotorState = client.body.state
 	var dead: bool = client.is_dead()

@@ -316,25 +316,25 @@ static func ensure_buses() -> int:
 		AudioServer.set_bus_name(idx, bus_name)
 		AudioServer.set_bus_send(idx, entry[1])
 		if bus_name == BUS_MUSIC or bus_name == BUS_AMBIENT:
-			AudioServer.add_effect(idx, AudioEffectAmplify.new(), FX_CODE_DUCK)
+			AudioServer.add_bus_effect(idx, AudioEffectAmplify.new(), FX_CODE_DUCK)
 			var duck := AudioEffectCompressor.new()
 			duck.sidechain = BUS_VOICE
 			duck.threshold = DUCK_THRESHOLD_DB
 			duck.ratio = DUCK_RATIO_MUSIC if bus_name == BUS_MUSIC else DUCK_RATIO_AMBIENT
 			duck.attack_us = DUCK_ATTACK_US
 			duck.release_ms = DUCK_RELEASE_MS
-			AudioServer.add_effect(idx, duck)
+			AudioServer.add_bus_effect(idx, duck)
 		made += 1
 	var master := AudioServer.get_bus_index(&"Master")
 	if master >= 0 and not _has_effect(master, "AudioEffectHardLimiter"):
 		var night := AudioEffectCompressor.new()
 		night.threshold = NIGHT_THRESHOLD_DB
 		night.ratio = NIGHT_RATIO
-		AudioServer.add_effect(master, night, FX_MASTER_NIGHT)
+		AudioServer.add_bus_effect(master, night, FX_MASTER_NIGHT)
 		AudioServer.set_bus_effect_enabled(master, FX_MASTER_NIGHT, false)
 		var lim := AudioEffectHardLimiter.new()
 		lim.ceiling_db = LIMITER_CEILING_DB
-		AudioServer.add_effect(master, lim)
+		AudioServer.add_bus_effect(master, lim)
 	return made
 
 
