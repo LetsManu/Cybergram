@@ -8,7 +8,7 @@ extends Control
 ##   add_child(UiIcon.make(&"gear", 18.0, UiKit.tokens().text_dim))
 
 const KINDS: Array[StringName] = [&"gear", &"close", &"minus", &"left", &"right", &"up", &"down",
-	&"friends", &"play", &"check", &"ring", &"target"]
+	&"friends", &"play", &"check", &"ring", &"target", &"diamond", &"add_friend", &"search"]
 
 @export var kind: StringName = &"gear":
 	set(v):
@@ -33,15 +33,24 @@ func _draw() -> void:
 	var s := minf(size.x, size.y)
 	var c := size * 0.5
 	var r := s * 0.5
-	var w := maxf(1.5, s / 10.0)
+	var w := maxf(1.3, s / 15.0)  # the mockup's 1.6 px stroke on a 24 px glyph
 	match kind:
 		&"gear":
-			draw_arc(c, r * 0.42, 0.0, TAU, 20, color, w, true)
+			draw_arc(c, r * 0.27, 0.0, TAU, 24, color, w, true)
 			for k in 8:
-				var a := TAU * k / 8.0
-				var d := Vector2.from_angle(a)
-				draw_line(c + d * r * 0.62, c + d * r * 0.92, color, w * 1.4, true)
-			draw_arc(c, r * 0.7, 0.0, TAU, 24, color, w, true)
+				var d := Vector2.from_angle(TAU * k / 8.0)
+				draw_line(c + d * r * 0.62, c + d * r * 0.95, color, w, true)
+		&"diamond":
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r),
+				c + Vector2(-r, 0)]), color)
+		&"add_friend":
+			draw_arc(c + Vector2(-r * 0.17, -r * 0.33), r * 0.29, 0.0, TAU, 20, color, w, true)
+			draw_arc(c + Vector2(-r * 0.17, r * 0.75), r * 0.55, PI * 1.12, PI * 1.88, 16, color, w, true)
+			draw_line(c + Vector2(r * 0.58, -r * 0.33), c + Vector2(r * 0.58, r * 0.17), color, w, true)
+			draw_line(c + Vector2(r * 0.33, -r * 0.08), c + Vector2(r * 0.83, -r * 0.08), color, w, true)
+		&"search":
+			draw_arc(c + Vector2(-r * 0.08, -r * 0.08), r * 0.5, 0.0, TAU, 24, color, w, true)
+			draw_line(c + Vector2(r * 0.3, r * 0.3), c + Vector2(r * 0.67, r * 0.67), color, w, true)
 		&"close":
 			draw_line(c + Vector2(-r, -r) * 0.6, c + Vector2(r, r) * 0.6, color, w, true)
 			draw_line(c + Vector2(r, -r) * 0.6, c + Vector2(-r, r) * 0.6, color, w, true)

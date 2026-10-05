@@ -171,7 +171,8 @@ func _ready() -> void:
 		pass  # signed in by the launcher: connected, OP_RESUME sent
 	elif session_token != "" and session_server != "":
 		_connect(session_server)  # still logged in (memory): friends panel online
-	_play.grab_focus.call_deferred()  # keyboard / gamepad navigation starts here
+	# Keyboard / gamepad navigation starts at PLAY on the first nav input
+	# (_unhandled_input), so a mouse user never sees a focus ring at start.
 
 
 ## Scales the shell so the 1440x810 reference layout (design/ux/mockups/v0.9)
@@ -293,8 +294,8 @@ func _build_home(content: Control) -> void:
 	_tiles.size = Vector2(520, 100)
 	_tiles.add_theme_constant_override("separation", 12)
 	page.add_child(_tiles)
-	var head := UiKit.eyebrow(tr("HUD_PATCH_TITLE") % _version().get_slice(".", 0) + "." + _version().get_slice(".", 1),
-		t.text_dim, 12)
+	var short_version := _version().get_slice(".", 0) + "." + _version().get_slice(".", 1)
+	var head := UiKit.eyebrow(tr("HUD_PATCH_TITLE") % short_version, t.text_dim, 12)
 	_tiles.add_child(head)
 	var grid := HBoxContainer.new()
 	grid.add_theme_constant_override("separation", 20)
@@ -647,11 +648,24 @@ func _confirm_quit() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if get_viewport().gui_get_focus_owner() == null and _is_nav_input(event) and _play.is_visible_in_tree() \
+			and _lobby == null and _login == null:
+		get_viewport().set_input_as_handled()
+		_play.grab_focus()
+		return
 	if _lobby != null or _login != null or not event.is_action_pressed("ui_cancel"):
 		return
 	if _modes.visible or _settings.visible or _roster.visible or _profile_screen != null:
 		get_viewport().set_input_as_handled()
 		_go(Nav.HOME)
+
+
+## True for a keyboard / gamepad navigation press (arrows, Tab, Enter, D-pad, A).
+static func _is_nav_input(event: InputEvent) -> bool:
+	for a in ["ui_left", "ui_right", "ui_up", "ui_down", "ui_focus_next", "ui_accept"]:
+		if event.is_action_pressed(a):
+			return true
+	return false
 
 
 ## The logged-in session ({} = none).
@@ -667,35 +681,44 @@ func _refresh_chip() -> void:
 		c.queue_free()
 	var s := session()
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.position = Vector2(8, 4)
-	var ring := t.text_off
+	row.position = Vector2(0, 0)
 	var name_text := tr("HUD_MENU_NOT_LOGGED_IN")
 	var sub := tr("HUD_FRIENDS_LOGIN")
-	var em := EmblemIcon.make(0, 0, 30.0)
+	var sub_col := t.accent_hi
+	var em := EmblemIcon.make(0, 0, 38.0)
+	em.ring = t.line_strong
+	em.dim = true
 	if not s.is_empty():
 		var guest := int(s.get("guest", 1)) != 0
-		ring = t.text_dim if guest else t.accent_hi
 		name_text = str(s.get("display_name", ""))
-		sub = tr("HUD_ACCOUNT_GUEST_LINE") if guest else "#" + PlayerProfile.tag_of(str(s.get("id", "")))
-		em = EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 30.0)
-	else:
-		em.modulate = Color(1, 1, 1, 0.35)
-	row.add_child(UiKit.avatar(em, ring, 40.0))
+		sub = tr("HUD_ACCOUNT_GUEST_LINE") if guest else tr("HUD_MENU_STATUS_ONLINE")
+		sub_col = t.text_dim if guest else t.ok
+		em = EmblemIcon.make(int(s.get("emblem", 0)), int(s.get("accent", 0)), 38.0)
+		em.ring = t.accent
+		em.ring_width = 2.0
+	em.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(em)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", -2)
+	v.add_theme_constant_override("separation", 0)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var nl := UiKit.label(name_text, &"body", t.text if not s.is_empty() else t.text_dim)
-	if not s.is_empty():
-		nl.add_theme_color_override("font_color", PlayerProfile.accent_of(int(s.get("accent", 0))).lerp(t.text, 0.5))
+	var nl := Label.new()
+	nl.text = name_text
+	nl.add_theme_font_override("font", UiKit.body_font(600))
+	nl.add_theme_font_size_override("font_size", 15)
+	nl.add_theme_color_override("font_color", t.text if not s.is_empty() else t.text_dim)
 	v.add_child(nl)
-	v.add_child(UiKit.label(sub, &"caption", t.text_off if not s.is_empty() else t.accent_hi))
+	var sl := Label.new()
+	sl.text = sub
+	sl.add_theme_font_size_override("font_size", 12)
+	sl.add_theme_color_override("font_color", sub_col)
+	v.add_child(sl)
 	row.add_child(v)
 	_chip.add_child(row)
 	var fit := func() -> void:
-		_chip.custom_minimum_size = row.get_combined_minimum_size() + Vector2(20, 8)
+		_chip.custom_minimum_size = row.get_combined_minimum_size() + Vector2(4, 4)
 	row.minimum_size_changed.connect(fit)
 	fit.call()
 	var account := not s.is_empty() and int(s.get("guest", 1)) == 0
