@@ -5,7 +5,8 @@ extends Resource
 
 ## Fixed simulation rate for server and client prediction (ADR-0002: 30 Hz).
 @export_range(1, 240) var tick_rate_hz: int = 30
-## Remote entities render this many ticks behind the newest snapshot (100 ms).
+## Remote entities render this many ticks behind the newest snapshot (100 ms);
+## with adaptive_interp the starting value, then InterpDelayController decides.
 @export_range(0, 30) var interp_delay_ticks: int = 3
 ## Max ticks a remote entity may be extrapolated past its newest sample.
 @export_range(0, 10) var extrapolation_cap_ticks: int = 1
@@ -47,6 +48,17 @@ extends Resource
 @export_range(0.0, 180.0, 1.0) var relevance_view_half_angle_deg: float = 55.0
 ## W16-NET: other Wardlings are refreshed every N ticks (3 = 10 Hz at 30 Hz).
 @export_range(1, 30) var far_send_interval_ticks: int = 3
+## W16-NET adaptive interpolation (InterpDelayController): off = always
+## interp_delay_ticks; on = 1.5 ticks + p95 arrival jitter, within the bounds.
+@export var adaptive_interp: bool = true
+@export_range(1, 30) var interp_delay_min_ticks: int = 2
+@export_range(1, 30) var interp_delay_max_ticks: int = 5
+## Seconds the need must stay a tick lower before the delay drops (hysteresis).
+@export_range(0.0, 30.0, 0.1) var interp_decrease_hold_s: float = 2.0
+## How fast the applied delay moves to a new target (ticks per second).
+@export_range(0.1, 30.0, 0.1) var interp_slew_ticks_per_s: float = 2.0
+## Snapshot loss (%) at which one extra tick of delay is added.
+@export_range(0.0, 100.0, 0.5) var interp_loss_extra_tick_pct: float = 5.0
 ## W16-NET: seconds between the server's per-client [net] log lines.
 @export_range(1.0, 600.0, 0.5) var stats_log_interval_s: float = 10.0
 ## W16-NET: max [net] lines per interval (the rest are summarised in one line).

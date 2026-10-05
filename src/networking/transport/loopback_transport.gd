@@ -15,6 +15,11 @@ func _init(link: LoopbackLink, peer_id: int) -> void:
 	_peer_id = peer_id
 
 
+## Simulated link time in usec (deterministic clock for statistics).
+func now_usec() -> int:
+	return _link.now_usec
+
+
 func get_local_peer_id() -> int:
 	return _peer_id
 

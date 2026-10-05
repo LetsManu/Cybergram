@@ -42,6 +42,8 @@ func _init(t: Transport, net_config: NetConfig) -> void:
 	net = net_config
 	stats = ClientNetStats.new(net.tick_rate_hz, net.jitter_window_samples)
 	decoder = SnapshotDecoder.new(net.client_baseline_ticks)
+	if t is LoopbackTransport:
+		clock_usec = (t as LoopbackTransport).now_usec  # simulated time: deterministic jitter
 
 
 func connect_to_server() -> void:

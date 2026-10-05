@@ -669,8 +669,8 @@ class Reader:
 	var off: int = 0
 	var bad: bool = false
 
-	func _init(bytes: PackedByteArray, start: int = 0) -> void:
-		b = bytes
+	func _init(data: PackedByteArray, start: int = 0) -> void:
+		b = data
 		off = start
 
 	func need(n: int) -> bool:
