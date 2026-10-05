@@ -90,6 +90,10 @@ var _dialog: FileDialog
 var _confirm: ConfirmationDialog
 var _launcher_notice: String = ""
 var _pending_root: String = ""
+# --- W15-UX ---
+var _ux: LauncherUx
+var _args: Dictionary = {}
+# --- end W15-UX ---
 
 
 func _ready() -> void:
@@ -102,8 +106,14 @@ func _ready() -> void:
 	_close_on_launch = bool(cfg.get_value("launcher", "close_on_launch", true))
 	_game_server = String(cfg.get_value("launcher", "game_server", _game_server))
 	_no_launch = args.has("no-launch")
+	_args = args  # W15-UX
 	_auto_update = args.has("auto-update")
 	_settings = LauncherSettings.new(String(args.get("settings", "user://launcher_settings.cfg"))).load_file()
+	# --- W15-UX ---
+	_ux = LauncherUx.new()
+	add_child(_ux)
+	_ux.setup(_settings, String(args.get("game-userdir", "")))
+	# --- end W15-UX ---
 	var root: String = OS.get_executable_path().get_base_dir()
 	if _settings.install_root != "":
 		root = _settings.install_root
@@ -296,6 +306,9 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 			if key in ["config", "install-root", "update-to", "settings", "move-install-to", "launcher-dir", "launcher-version"] and i + 1 < all.size():
 				out[key] = all[i + 1]
 				i += 1
+			elif key in ["game-userdir", "page"] and i + 1 < all.size():  # W15-UX
+				out[key] = all[i + 1]
+				i += 1
 			elif key in ["check-only", "no-launch", "repair", "self-update", "self-updated", "show-login", "auto-update"]:
 				out[key] = true
 		i += 1
@@ -418,16 +431,15 @@ func _play() -> void:
 		_status.text = "(--no-launch) would start the game now"
 		return
 	var signed_in: bool = _login != null and _login.hand_over_env()
-	var started: bool = _updater.launch_game()
+	# --- W15-UX --- (LauncherUx starts the process so it can watch it and apply the launch behaviour)
+	var started: bool = _ux.launch(_updater.game_exe_path())
+	# --- end W15-UX ---
 	if signed_in:
 		LauncherLogin.clear_env()
 	if not started:
 		_status.text = "Could not start the game. Try reinstalling (delete the game folder)."
 		return
-	if _close_on_launch:
-		get_tree().quit()
-	else:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
+	# W15-UX: close / minimise / stay is now handled in LauncherUx.launch (Settings).
 
 
 ## Player picked a folder: offer to move an existing install into it.
@@ -515,6 +527,12 @@ func _build_ui() -> void:
 	_pages["home"] = _build_home()
 	_pages["notes"] = _build_notes()
 	_pages["settings"] = _build_settings()
+	# --- W15-UX --- the notes page with version history and hero block
+	var old_notes: Control = _pages["notes"]  # kept hidden: the old code still fills it
+	old_notes.visible = false
+	_pages["notes"] = _ux.build_notes_page()
+	_pages["notes"].add_child(old_notes)
+	# --- end W15-UX ---
 	for key in _pages:
 		var p: Control = _pages[key]
 		p.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -523,6 +541,12 @@ func _build_ui() -> void:
 	add_child(_build_top_bar())
 	add_child(_build_play_panel())
 	_show_page("home")
+	# --- W15-UX ---
+	if _args.has("page"):
+		_show_page(String(_args["page"]))
+	else:
+		_ux.first_run.call_deferred(self)
+	# --- end W15-UX ---
 
 	_dialog = FileDialog.new()
 	_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
@@ -791,7 +815,15 @@ func _build_settings() -> Control:
 	_version_label = UiKit.label("", &"small", t.text_dim)
 	about.body.add_child(_version_label)
 	about.body.add_child(UiKit.label("Launcher %s" % _own_version, &"small", t.text_off))
-	return margin
+	# --- W15-UX --- Game, launch behaviour, system check, pinned hero
+	for ux_card in _ux.build_settings_cards():
+		col.add_child(ux_card)
+	var ux_scroll: ScrollContainer = ScrollContainer.new()
+	ux_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ux_scroll.add_child(margin)
+	return ux_scroll
+	# --- end W15-UX ---
 
 
 ## The play bar (bottom, right of the rail): the chamfered button that fills
@@ -874,6 +906,7 @@ func _refresh_news() -> void:
 	_notes_cards.clear()
 	var md: String = _updater.latest_notes_md
 	var ver: String = _updater.latest_version
+	_ux.on_notes(ver, md)  # W15-UX
 	_patch_label.text = ("PATCH " + ver.get_slice(".", 0) + "." + ver.get_slice(".", 1)) if ver != "" else ""
 	if md == "":
 		_notes_box.add_child(UiKit.label("Patch notes appear here once the update server answers.", &"body", t.text_off))
@@ -954,6 +987,12 @@ func _news_card(sec: Dictionary, index: int) -> Control:
 
 ## Patch notes page, scrolled to section `index`.
 func _open_note(index: int) -> void:
+	# --- W15-UX ---
+	if _ux.notes_page != null:
+		_show_page("notes")
+		_ux.notes_page.focus_section(index)
+		return
+	# --- end W15-UX ---
 	_show_page("notes")
 	await get_tree().process_frame
 	await get_tree().process_frame
