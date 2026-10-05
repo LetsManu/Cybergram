@@ -732,3 +732,5 @@ HUD_SET_COMFORT_PRESET_DONE,Preset applied
 HUD_SET_COMFORT_NOTE,"Recoil is the same for everyone; lower values move the crosshair instead of the screen."
 HUD_COMFORT_HINT,Prone to motion sickness? See Settings > Comfort.
 HUD_COMFORT_HINT_DISMISS,Dismiss
+HUD_RING_OUTSIDE,OUTSIDE THE RING
+HUD_RING_RETURN,Return to the plaza

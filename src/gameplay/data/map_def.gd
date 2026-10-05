@@ -25,11 +25,19 @@ const TEAM_SYNDICATE: int = 1
 @export var mid_plaza_radius: float = 25.0
 ## Sudden Death spawn pads, indexed by team.
 @export var sudden_death_spawns: PackedVector3Array = PackedVector3Array()
+## Wading zones (W16-SDWATER): dock water slows 15%. Read by the shared hero
+## motor (server + prediction) and Wardling movement.
+@export var water_zones: Array[WaterZoneDef] = []
 ## Match rules this map plays under (format, clock, Uplink). Null = the
 ## session default. Canon C1: the full map is 5v5, the 1-lane slice 3v3.
 @export var match_rules: MatchRulesDef
 ## Wardling rules for this map (null = the session default).
 @export var wardling_rules: Resource
+
+
+## Strongest water speed factor at `pos` (1.0 = dry).
+func water_factor_at(pos: Vector3) -> float:
+	return WaterZoneDef.factor_at(water_zones, pos)
 
 
 func hq(team: int) -> HqDef:

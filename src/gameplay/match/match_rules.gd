@@ -124,6 +124,9 @@ func next_phase_time() -> float:
 			return nxt
 		Phase.DROUGHT:
 			return def.time_cap_s
+		Phase.SUDDEN_DEATH:
+			# Hard draw cap, expressed on the frozen match clock (see sudden_death_elapsed).
+			return time_s + maxf(def.sudden_death_max_s - sudden_death_s, 0.0)
 	return -1.0
 
 
@@ -246,8 +249,30 @@ func resolve_time_out() -> void:
 
 ## Sudden Death ring radius now (shrinks linearly, then holds at the end radius).
 func sudden_death_radius() -> float:
-	var t := clampf(sudden_death_s / maxf(def.sudden_death_shrink_s, 0.01), 0.0, 1.0)
-	return lerpf(def.sudden_death_ring_start_m, def.sudden_death_ring_end_m, t)
+	return ring_radius(def, sudden_death_s)
+
+
+## Shared by the server (damage) and the client (ring wall, minimap, warning) so
+## the two can never drift: ring radius `sd_s` clock-scaled seconds into Sudden Death.
+static func ring_radius(rules: MatchRulesDef, sd_s: float) -> float:
+	var t := clampf(sd_s / maxf(rules.sudden_death_shrink_s, 0.01), 0.0, 1.0)
+	return lerpf(rules.sudden_death_ring_start_m, rules.sudden_death_ring_end_m, t)
+
+
+## True when `pos` is beyond the ring (XZ distance from `centre` > `radius`).
+## The server's per-tick damage test and the client's warning share this.
+static func outside_ring(centre: Vector3, radius: float, pos: Vector3) -> bool:
+	return Vector2(pos.x - centre.x, pos.z - centre.z).length() > radius
+
+
+## Client side: seconds into Sudden Death from a snapshot's clock fields. The
+## server sends no extra field (protocol unchanged): in Sudden Death the match
+## clock is frozen and `next_phase_s` carries the hard draw cap, i.e.
+## next_phase_s = time_s + (sudden_death_max_s - sudden_death_s).
+static func sudden_death_elapsed(rules: MatchRulesDef, time_s: float, next_phase_s: float) -> float:
+	if next_phase_s < 0.0:
+		return 0.0
+	return maxf(rules.sudden_death_max_s - (next_phase_s - time_s), 0.0)
 
 
 ## Fraction of max HP per second a fighter loses now (`outside`: beyond the ring).

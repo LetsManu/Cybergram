@@ -17,6 +17,10 @@ const _PRIME_SPEED: float = 0.01  # see restore(); docs/architecture/verificatio
 
 var def: MovementDef
 var body: HeroBody
+## W16-SDWATER: wading zones (WaterZoneDef). Set identically on the server body
+## and the client's predicted body (from MapDef.water_zones), so the slow is part
+## of the one shared simulation and prediction matches the server exactly.
+var water_zones: Array = []
 
 
 func _init(movement: MovementDef, hero_body: HeroBody) -> void:
@@ -27,10 +31,11 @@ func _init(movement: MovementDef, hero_body: HeroBody) -> void:
 ## Pure part of a step: updates velocity, jump/coyote timers and crouch intent
 ## in `state`. Position is untouched (collision resolves it). Returns true if
 ## the hero wants to crouch this tick.
-static func compute_intent(state: MotorState, cmd: InputCommand, d: MovementDef, dt: float) -> bool:
+static func compute_intent(state: MotorState, cmd: InputCommand, d: MovementDef, dt: float,
+		water_factor: float = 1.0) -> bool:
 	var wants_crouch := cmd.has(InputCommand.BTN_CROUCH)
 	var crouched := state.crouching or wants_crouch
-	var speed := d.base_move_speed * maxf(state.speed_scale, 0.0)
+	var speed := d.base_move_speed * maxf(WaterZoneDef.combine(state.speed_scale, water_factor), 0.0)
 	if crouched:
 		speed *= d.crouch_multiplier
 	elif cmd.has(InputCommand.BTN_SPRINT) and cmd.move.y > 0.0:
@@ -75,7 +80,7 @@ static func compute_intent(state: MotorState, cmd: InputCommand, d: MovementDef,
 ## Advances `state` by one tick of `dt` seconds using `cmd`.
 ## The body must already be at state.position (true unless restore() is needed).
 func step(state: MotorState, cmd: InputCommand, dt: float) -> void:
-	var wants_crouch := compute_intent(state, cmd, def, dt)
+	var wants_crouch := compute_intent(state, cmd, def, dt, WaterZoneDef.factor_at(water_zones, state.position))
 	if wants_crouch != state.crouching:
 		if wants_crouch or body.can_stand():
 			state.crouching = wants_crouch

@@ -27,6 +27,10 @@ const OVERVIEW_PATH := "res://assets/maps/front/shardline_front_overview.tscn"
 const DEF_PATH := "res://assets/data/match/map_front.tres"
 const RULES_PATH := "res://assets/data/match/match_rules_front.tres"
 
+## Dock water (map spec: slows movement 15%); feet-in-water height band.
+const WATER_SPEED_FACTOR := 0.85
+const WATER_Y0 := -0.5
+const WATER_H := 2.0
 const LANE_LEN := 420.0
 const HQ_HALF_W := 30.0
 const HQ_BACK := -6.0
@@ -102,6 +106,8 @@ var rail_jobs: Array = []
 var strip_jobs: Array = []
 ## Flank tunnels for the MapDef: [id, from_hp, to_hp, waypoints (Vector3)].
 var flanks: Array = []
+## W16-SDWATER: wading zones collected while building the dock water meshes.
+var water_zones: Array[WaterZoneDef] = []
 var _rail_n := 0
 
 
@@ -678,6 +684,11 @@ func _lane_cover(g: Node3D, li: int, half: int) -> void:
 		# Halo / Cinder Dock: mana-water channel either side of the skiff (visual).
 		var l := _hl(half, 145.0)
 		_box(g, "DockWater", Vector3(26.0, 0.04, 26.0), P(lx, l, 0.03), mats.water, false)
+		# W16-SDWATER: the same footprint as a wading zone (MapDef.water_zones, -15% speed).
+		var wz := WaterZoneDef.new()
+		wz.bounds = AABB(P(lx - 13.0, l + 13.0, WATER_Y0), Vector3(26.0, WATER_H, 26.0))
+		wz.speed_factor = WATER_SPEED_FACTOR
+		water_zones.append(wz)
 		_box(g, "Skiff", Vector3(5.0, 0.9, 13.0), P(lx + side * 6.5, l, 0.45), mats.cover_low)
 	if lk == "c":
 		# Signal Market / Scrap Bazaar stalls around the Socket (5 entrances).
@@ -1118,6 +1129,7 @@ func _save_map_def() -> void:
 	md.sudden_death_spawns = PackedVector3Array([P(0, 185.0, 0.05), P(0, 235.0, 0.05)])
 	if ResourceLoader.exists(RULES_PATH):
 		md.match_rules = load(RULES_PATH)
+	md.water_zones = water_zones
 	var lanes: Array[LaneDef] = []
 	for li in LANES.size():
 		var lane := LaneDef.new()

@@ -64,6 +64,8 @@ var _task_actors: Dictionary = {}
 var debug_player_spawn: Variant = null
 ## E8 Wardlings (squads, Vanguard, bolts); null on maps without a MapDef.
 var wardlings: WardlingWorld
+## W16-SDWATER: the map's wading zones, handed to every hero's motor each tick.
+var _water_zones: Array = []
 ## E9 match flow (phases, clock, Uplinks); null until setup_match().
 var match_flow: MatchRules
 ## Map of the running match (Sudden Death plaza centre).
@@ -127,6 +129,7 @@ func match_summary() -> Dictionary:
 
 ## E7: builds the hardpoints from `map_def` (call after setup()).
 func setup_objectives(map_def: MapDef) -> void:
+	_water_zones = map_def.water_zones if map_def != null else []
 	if map_def != null and not map_def.lanes.is_empty():
 		objectives = ObjectiveSystem.new(map_def, rules)
 		for h in objectives.all:
@@ -416,7 +419,7 @@ func _step_sudden_death() -> void:
 		var h := registry.get_node_by_id(id) as HeroBody
 		if h == null or h.combat == null or h.combat.dead:
 			continue
-		var outside := Vector2(h.state.position.x - centre.x, h.state.position.z - centre.z).length() > r
+		var outside := MatchRules.outside_ring(centre, r, h.state.position)
 		var frac := match_flow.sudden_death_damage_frac_s(outside)
 		if frac > 0.0:
 			damage_hero(h, DamageInfo.make(h.combat.health.max_hp * frac * dt * match_flow.clock_scale, 0, -1, 0, DamageInfo.Type.TRUE))
@@ -466,6 +469,7 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 	if objectives != null:
 		h.state.speed_scale *= objectives.move_speed_mult(h.net_id)  # E14: Cell carrier 90%
 		_note_actor(h, cmd)
+	h.motor.water_zones = _water_zones  # W16-SDWATER: shared wading slow
 	h.step(cmd, dt)
 	if not c.dead and h.global_position.y < rules.kill_plane_y:
 		# Fell through the map: kill so respawn and Cell drop logic run.

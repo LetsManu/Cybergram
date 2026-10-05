@@ -66,6 +66,16 @@ func _draw() -> void:
 			if k == front:
 				draw_arc(p, CHIP_R + 4.0, 0.0, TAU, 16, Color.WHITE, 1.5, true)
 		base += hps.size()
+	# W16-SDWATER: the Sudden Death ring (danger colour), same radius as the server.
+	if c.sudden_death != null and c.sudden_death.active:
+		var ring := PackedVector2Array()
+		var rr := c.sudden_death.radius()
+		var cc := c.sudden_death.centre
+		for k in 49:
+			var ang := TAU * float(k) / 48.0
+			ring.append(to_px.call(cc + Vector3(cos(ang) * rr, 0.0, sin(ang) * rr)))
+		draw_polyline(ring, Color(0, 0, 0, 0.6), 4.0, true)
+		draw_polyline(ring, HudPalette.DANGER, 2.0, true)
 	if c.body != null:
 		var me: Vector2 = to_px.call(c.body.global_position)
 		var yaw: float = c.body.look_yaw if "look_yaw" in c.body else 0.0

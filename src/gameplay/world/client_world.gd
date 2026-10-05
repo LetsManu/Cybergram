@@ -55,6 +55,11 @@ var _hp_views: Array[HardpointView] = []
 ## E9: replicated match phase / clock / result / Uplinks (null until received).
 var match_state: SnapshotData.MatchState
 var _uplink_views: Array[UplinkView] = []
+## W16-SDWATER: Sudden Death rules for the ring (null = the map's rules, else the
+## defaults) and the ring model + wall built by setup_objectives().
+var match_rules: MatchRulesDef
+var sudden_death: SuddenDeathRing
+var _sd_view: SuddenDeathView
 
 ## E8: Wardling views, bolt tracers, own squad strip and squad-order resolution.
 var wardlings: WardlingPresenter
@@ -126,6 +131,10 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	sfx.client = self
 	sfx.presenter = abilities
 	add_child(sfx)
+	var water := WaterFx.new()  # W16-SDWATER: splash + wading sound
+	water.name = "WaterFx"
+	water.client = self
+	add_child(water)
 	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	session.connect_to_server()
 
@@ -142,11 +151,20 @@ func setup_objectives(md: MapDef) -> void:
 			v.setup(d)
 			add_child(v)
 			_hp_views.append(v)
+	_build_sudden_death(md)
 	for hq in md.hqs:
 		var uv := UplinkView.new()
 		uv.setup(hq)
 		add_child(uv)
 		_uplink_views.append(uv)
+
+
+## W16-SDWATER: the ring centre is MapDef.mid_plaza_center, as on the server.
+func _build_sudden_death(md: MapDef) -> void:
+	sudden_death = SuddenDeathRing.new(match_rules if match_rules != null else md.match_rules, md.mid_plaza_center)
+	_sd_view = SuddenDeathView.new()
+	_sd_view.setup(sudden_death)
+	add_child(_sd_view)
 
 
 func hardpoint_defs() -> Array[HardpointDef]:
@@ -216,6 +234,7 @@ func tick() -> void:
 		wardlings.resolve(_cmd)
 		_cmd.quantize()
 	body.state.speed_scale = own_speed_scale  # E10: slows / roots / stances
+	body.motor.water_zones = map_def.water_zones if map_def != null else []  # W16-SDWATER (same as the server)
 	if player_input != null:
 		player_input.recoil_def = hero_def.weapon
 		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
@@ -423,6 +442,8 @@ func _apply_match(s: SnapshotData) -> void:
 		return
 	var was_over := match_state != null and match_state.phase == MatchRules.Phase.END
 	match_state = s.match_state
+	if sudden_death != null:
+		sudden_death.apply(match_state)
 	for u in match_state.uplinks:
 		for v in _uplink_views:
 			if v.team == u.team:
