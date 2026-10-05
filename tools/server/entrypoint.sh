@@ -30,7 +30,7 @@ case "${CYBERGRAM_MODE:-front}" in
     export CYBERGRAM_HEALTH_FILE="${CYBERGRAM_HEALTH_FILE:-/tmp/cybergram-health.json}"
     rm -f "$CYBERGRAM_DRAIN_FILE"
     echo "[entrypoint] front mode: match ports ${CYBERGRAM_MATCH_PORTS:-7800-7809}," \
-      "max matches ${CYBERGRAM_MAX_MATCHES:-auto}, public host ${CYBERGRAM_PUBLIC_HOST:-<client's address>}"
+      "max matches ${CYBERGRAM_MAX_MATCHES:-auto}, public host ${CYBERGRAM_PUBLIC_HOST:-<address the client used>}"
     # Match processes are children of the front: it launches this same binary
     # (--match-host) on the next free port of CYBERGRAM_MATCH_PORTS.
     "$BIN" --headless -- --server --front --port 7777 --max-clients 32 "$@" &
