@@ -37,6 +37,8 @@ var _last_pos := Vector3.INF
 var _last_us: int = 0
 var _crouching: bool = false
 var _slow_ring: MeshInstance3D
+## W13: last replicated dead flag (rigged models play the death clip, then hide).
+var _dead: bool = false
 
 
 func _ready() -> void:
@@ -111,13 +113,30 @@ func apply(pos: Vector3, yaw: float, crouching: bool) -> void:
 		scale = Vector3(1.0, _CROUCH_SCALE if crouching else 1.0, 1.0)
 
 
-## Replicated health; a dead hero is hidden until it respawns.
+## Replicated health; a dead hero is hidden until it respawns. A rigged model
+## (W13) plays its death clip first and is hidden RiggedHeroModel.DEATH_HOLD_S later.
 func set_health(hp_: int, max_hp_: int, dead: bool) -> void:
-	visible = not dead
+	var was_dead := _dead
+	_dead = dead
+	if model is RiggedHeroModel:
+		model.set_dead(dead)
+		if not dead:
+			visible = true
+		elif not was_dead and is_inside_tree():
+			get_tree().create_timer(RiggedHeroModel.DEATH_HOLD_S).timeout.connect(_hide_if_dead)
+		elif not was_dead:
+			visible = false
+	else:
+		visible = not dead
 	if model != null and hp_ < hp and not dead:
 		model.flinch(clampf(float(hp - hp_) / maxf(1.0, max_hp_) * 6.0, 0.35, 1.0))
 	hp = hp_
 	max_hp = max_hp_
+
+
+func _hide_if_dead() -> void:
+	if _dead:
+		visible = false
 
 
 ## E10: replicated status bits -> greybox tells.
@@ -177,7 +196,7 @@ func _attach_model(k: StringName) -> void:
 	if model != null:
 		model.queue_free()
 	model_key = k
-	model = HeroModelBuilder.build(k, team)
+	model = HeroModelLoader.build(k, team)  # W13: rigged glb if present, else the box model
 	add_child(model)
 	_body.visible = false
 	scale = Vector3.ONE
@@ -192,6 +211,21 @@ func _bind_client() -> void:
 	var session: Variant = cw.get("session")
 	if session != null and (session as Object).has_signal("snapshot_received"):
 		(session as Object).connect("snapshot_received", _on_snapshot)
+	# W13: shot / skill-cast events drive the model's one-shot clips.
+	if cw.has_signal("shot_received"):
+		cw.connect("shot_received", _on_shot_event)
+	if cw.has_signal("skill_cast_received"):
+		cw.connect("skill_cast_received", _on_cast_event)
+
+
+func _on_shot_event(e: GameEvent) -> void:
+	if model != null and _net_id != 0 and e.source_net_id == _net_id:
+		model.play_shoot()
+
+
+func _on_cast_event(e: GameEvent) -> void:
+	if model != null and _net_id != 0 and e.source_net_id == _net_id:
+		model.play_cast(e.cast_slot())
 
 
 func _on_snapshot(snap: SnapshotData) -> void:
@@ -205,6 +239,8 @@ func _on_snapshot(snap: SnapshotData) -> void:
 		if e.net_id == _net_id:
 			_pitch = e.pitch
 			_vel = e.velocity
+			if model != null:
+				model.set_grounded(e.grounded)
 			if e.team != team:
 				team = e.team
 				if model != null:
