@@ -1,0 +1,19 @@
+== high
+PROBE north    draw_calls=1208 objects=1208 frame_ms=245.92 worst_ms=304.88 render_cpu_ms=237.51 render_gpu_ms=237.28
+PROBE center   draw_calls=1316 objects=1316 frame_ms=243.70 worst_ms=275.17 render_cpu_ms=233.03 render_gpu_ms=232.80
+PROBE south    draw_calls=1252 objects=1252 frame_ms=263.39 worst_ms=294.17 render_cpu_ms=254.49 render_gpu_ms=254.34
+PROBE skyline  draw_calls=32 objects=32 frame_ms=143.87 worst_ms=162.48 render_cpu_ms=136.00 render_gpu_ms=135.88
+PROBE ambient_cpu_per_frame_ms=0.0391 level=2
+PROBE mean draw_calls=952.0 frame_ms=224.22
+== low
+PROBE north    draw_calls=1194 objects=1194 frame_ms=249.83 worst_ms=397.44 render_cpu_ms=246.55 render_gpu_ms=246.47
+PROBE center   draw_calls=1302 objects=1302 frame_ms=233.91 worst_ms=350.07 render_cpu_ms=227.49 render_gpu_ms=227.45
+PROBE south    draw_calls=1240 objects=1240 frame_ms=228.69 worst_ms=285.75 render_cpu_ms=226.80 render_gpu_ms=226.67
+PROBE skyline  draw_calls=23 objects=23 frame_ms=114.36 worst_ms=181.78 render_cpu_ms=106.45 render_gpu_ms=106.31
+PROBE ambient_cpu_per_frame_ms=0.0194 level=0
+PROBE mean draw_calls=939.8 frame_ms=206.70
+PROBE north    draw_calls=1184 objects=1184 frame_ms=251.16 worst_ms=336.76 render_cpu_ms=245.08 render_gpu_ms=244.86
+PROBE center   draw_calls=1292 objects=1292 frame_ms=258.06 worst_ms=366.71 render_cpu_ms=248.32 render_gpu_ms=248.09
+PROBE south    draw_calls=1230 objects=1230 frame_ms=435.84 worst_ms=666.86 render_cpu_ms=352.91 render_gpu_ms=353.11
+PROBE skyline  draw_calls=19 objects=19 frame_ms=324.04 worst_ms=444.96 render_cpu_ms=304.56 render_gpu_ms=304.43
+PROBE mean draw_calls=931.2 frame_ms=317.27
