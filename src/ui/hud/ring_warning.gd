@@ -10,6 +10,8 @@ const W: float = 360.0
 const H: float = 56.0
 
 var _t: float = 0.0
+## True when the last _draw put the banner on screen (tests / debugging).
+var drawn: bool = false
 
 
 ## True when the warning should show for `ring` and a hero at `pos`.
@@ -18,9 +20,11 @@ static func shows(ring: SuddenDeathRing, pos: Vector3, dead: bool) -> bool:
 
 
 func _draw() -> void:
+	drawn = false
 	var c := ctx.client if ctx != null else null
 	if c == null or c.body == null or not RingWarning.shows(c.sudden_death, c.body.state.position, c.is_dead()):
 		return
+	drawn = true
 	var gs := GameSettings.shared()
 	_t += get_process_delta_time()
 	var calm := UiKit.reduce_motion()
