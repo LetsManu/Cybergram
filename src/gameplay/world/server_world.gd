@@ -66,6 +66,8 @@ var debug_player_spawn: Variant = null
 var wardlings: WardlingWorld
 ## E9 match flow (phases, clock, Uplinks); null until setup_match().
 var match_flow: MatchRules
+## Map of the running match (Sudden Death plaza centre).
+var _sd_map: MapDef
 ## E10 skills: deployables, skill projectiles, charges, leaps, skill FX.
 var abilities: AbilityWorld
 ## E13/E15 Lumen, Armory, Resonance, levels, skill tree; null until enable_progression().
@@ -164,6 +166,8 @@ func setup_match(map_def: MapDef, clock_scale: float = 1.0) -> MatchRules:
 		u.net_id = registry.register(u, UplinkSim.KIND_UPLINK, tick)
 		u.destroyed.connect(match_flow.on_uplink_destroyed.bind(u.team))
 	match_flow.surge_started.connect(_on_surge_started)
+	match_flow.sudden_death_started.connect(_on_sudden_death_started.bind(map_def))
+	_sd_map = map_def
 	return match_flow
 
 
@@ -372,8 +376,53 @@ func _step_match() -> void:
 		for peer in session.clients:
 			for ev in evs:
 				_queue_event(peer, ev)
+	if match_flow.phase == MatchRules.Phase.SUDDEN_DEATH:
+		_step_sudden_death()
 	if match_flow.is_over() and wardlings != null:
 		wardlings.vanguard_enabled = false
+
+
+## C10 Sudden Death start: every hero, alive or dead, is revived at full health
+## on its team's plaza pad (MapDef.sudden_death_spawns); waves stop.
+func _on_sudden_death_started(map_def: MapDef) -> void:
+	if wardlings != null:
+		wardlings.vanguard_enabled = false
+	var k := [0, 0]
+	for id in registry.ids():
+		var h := registry.get_node_by_id(id) as HeroBody
+		if h == null or h.combat == null:
+			continue
+		var team := h.combat.team
+		var pad := team_spawn(team, h.combat.home_spawn)
+		if map_def != null and team >= 0 and team < map_def.sudden_death_spawns.size():
+			pad = map_def.sudden_death_spawns[team]
+		var n: int = k[clampi(team, 0, 1)]
+		k[clampi(team, 0, 1)] = n + 1
+		var fresh := MotorState.new()
+		fresh.position = pad + Vector3((float(n) - 2.0) * 2.5, 0.0, 0.0)
+		h.state.copy_from(fresh)
+		h.collision_layer = HeroBody.LAYER_HEROES
+		h.motor.restore(h.state)
+		h.combat.reset_for_respawn(false)
+		hero_respawned.emit(id)
+
+
+## C10 each tick: ring + Leyfall Bloom damage, then last-team-standing.
+func _step_sudden_death() -> void:
+	var centre := _sd_map.mid_plaza_center if _sd_map != null else Vector3.ZERO
+	var r := match_flow.sudden_death_radius()
+	var alive := [0, 0]
+	for id in registry.ids():
+		var h := registry.get_node_by_id(id) as HeroBody
+		if h == null or h.combat == null or h.combat.dead:
+			continue
+		var outside := Vector2(h.state.position.x - centre.x, h.state.position.z - centre.z).length() > r
+		var frac := match_flow.sudden_death_damage_frac_s(outside)
+		if frac > 0.0:
+			damage_hero(h, DamageInfo.make(h.combat.health.max_hp * frac * dt * match_flow.clock_scale, 0, -1, 0, DamageInfo.Type.TRUE))
+		if not h.combat.dead and h.combat.team >= 0 and h.combat.team <= 1:
+			alive[h.combat.team] += 1
+	match_flow.resolve_sudden_death(alive[0], alive[1])
 
 
 func _on_surge_started(_index: int, _task_scale: float) -> void:
@@ -652,6 +701,8 @@ func _kill(victim: HeroBody, killer_id: int) -> void:
 
 
 func _respawn_due() -> void:
+	if match_flow != null and match_flow.phase == MatchRules.Phase.SUDDEN_DEATH:
+		return  # C10: no respawns in Sudden Death
 	for id in registry.ids():
 		var h := registry.get_node_by_id(id) as HeroBody
 		if h == null or not h.combat.dead or tick < h.combat.respawn_tick:

@@ -10,6 +10,8 @@ extends Node
 const NET_SIM_PATH := "res://assets/data/net/net_sim_%s.tres"
 ## `--map <name>` selects a MapDef; its scene replaces map_scene.
 const MAP_DEF_PATH := "res://assets/data/match/map_%s_lane.tres"
+## Tried first: map_<name>.tres (W14 "front" = Shardline Front).
+const MAP_DEF_PATH_PLAIN := "res://assets/data/match/map_%s.tres"
 const HERO_PATH := "res://assets/data/heroes/hero_%s.tres"
 const DEFAULT_PLAYER_HERO := "res://assets/data/heroes/hero_vesper_loom.tres"
 const DEFAULT_DUMMY_HEROES: Array[String] = [
@@ -65,6 +67,10 @@ var clock: SimClock
 var dedicated: bool = false
 var _quit_after_ticks: int = 0
 var _log_every_ticks: int = 0
+## W14 perf: whole server.step() time over the current log window (microseconds).
+var _tick_us_sum: int = 0
+var _tick_us_max: int = 0
+var _tick_us_n: int = 0
 
 
 func _ready() -> void:
@@ -74,10 +80,12 @@ func _ready() -> void:
 		if launch_config.net_sim_name != "":
 			net_sim = load(NET_SIM_PATH % launch_config.net_sim_name) as NetSimProfile
 		if launch_config.map_name != "":
-			var md := load(MAP_DEF_PATH % launch_config.map_name) as MapDef
+			var md := load_map_def(launch_config.map_name)
 			if md != null and md.scene != null:
 				map_def = md
 				map_scene = md.scene
+				if md.match_rules != null and launch_config.match_rules_path == "":
+					match_rules = md.match_rules  # C1: the map's format (5v5 full / 3v3 slice)
 		if launch_config.match_rules_path != "":
 			match_rules = load(launch_config.match_rules_path) as MatchRulesDef
 			if match_rules == null:
@@ -103,6 +111,15 @@ func _ready() -> void:
 		_start_lobby()
 		return
 	_build_match()
+
+
+## MapDef for a `--map` name: map_<name>.tres, else map_<name>_lane.tres (null if neither).
+static func load_map_def(map_name: String) -> MapDef:
+	for pat in [MAP_DEF_PATH_PLAIN, MAP_DEF_PATH]:
+		var path: String = pat % map_name
+		if ResourceLoader.exists(path):
+			return load(path) as MapDef
+	return null
 
 
 ## Builds the server world (and the local client unless dedicated).
@@ -411,13 +428,23 @@ func step_tick() -> void:
 	if client != null:
 		client.session.poll()
 		client.tick()
+	var t0 := Time.get_ticks_usec()
 	server.step()
+	var step_us := Time.get_ticks_usec() - t0
+	_tick_us_sum += step_us
+	_tick_us_max = maxi(_tick_us_max, step_us)
+	_tick_us_n += 1
 	_debug_uplink_squad()
 	_debug_task_squad()
 	_debug_progress()
 	_log_economy()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:
-		print("[server] tick=%d entities=%d" % [server.tick, server.registry.count()])
+		print("[server] tick=%d entities=%d | server tick avg %.2f ms max %.2f ms (budget %.1f ms)" % [server.tick,
+			server.registry.count(), float(_tick_us_sum) / maxf(_tick_us_n, 1) / 1000.0, _tick_us_max / 1000.0,
+			1000.0 / net_config.tick_rate_hz])
+		_tick_us_sum = 0
+		_tick_us_max = 0
+		_tick_us_n = 0
 		if server.wardlings != null and server.wardlings.steps > 0:
 			var w := server.wardlings
 			print("[server] wardlings=%d step avg %.3f ms (last %.3f) | AI think avg %.3f ms (last %.3f) | paths %d" % [

@@ -24,10 +24,18 @@ func test_launch_config_parses_server_and_net_sim() -> void:
 	assert_int(LaunchConfig.parse(PackedStringArray(["--server"]), false).mode).is_equal(LaunchConfig.Mode.DEDICATED)
 
 
-func test_no_argument_launch_is_a_playable_slice_match_vs_bots() -> void:
+func test_no_argument_launch_is_a_playable_full_map_match_vs_bots() -> void:
 	var c := LaunchConfig.parse(PackedStringArray(), false)
 	assert_int(c.mode).is_equal(LaunchConfig.Mode.OFFLINE)
-	assert_str(c.map_name).is_equal("slice")
+	assert_str(c.map_name).is_equal("front")  # W14: Shardline Front, 5v5
+	assert_int(GameSession.load_map_def(c.map_name).match_rules.team_size).is_equal(5)
+	assert_int(GameSession.load_map_def("slice").match_rules.team_size).is_equal(3)
+	# Online server and --bots-only default to the full map as well.
+	assert_str(LaunchConfig.parse(PackedStringArray(["--bots-only"]), false).map_name).is_equal("front")
+	# Quick Match: the slice with bots.
+	var q := LaunchConfig.parse(PackedStringArray(["--map", "slice", "--bots"]), false)
+	assert_str(q.map_name).is_equal("slice")
+	assert_bool(q.bots).is_true()
 	assert_bool(c.bots).is_true()
 	assert_bool(c.bots_only).is_false()
 	assert_str(c.hero_id).is_equal("")  # GameSession.DEFAULT_PLAYER_HERO = Vesper Loom

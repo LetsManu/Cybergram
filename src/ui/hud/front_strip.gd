@@ -1,6 +1,6 @@
 class_name FrontStrip
 extends HudWidget
-## Front-Line bar, one lane (design/ux/hud.md §4.7, slice §19), under the match
+## Front-Line bar, one row per lane (design/ux/hud.md §4.7, slice §19), under the match
 ## header. Chips in lane order with the own HQ on the left; chip shape = task
 ## (circle Hold, square Plant, triangle Breach, art bible §6.3); ownership =
 ## own solid + ring glyph, enemy diagonal hatch + tooth glyph, neutral hollow
@@ -11,6 +11,20 @@ extends HudWidget
 const CHIP: float = 26.0
 const GAP: float = 22.0
 const HEIGHT: float = 52.0
+## W14: 3-lane maps draw one compact row per lane (N / C / S), tagged on the left.
+const ROW_CHIP: float = 18.0
+const ROW_GAP: float = 20.0
+const ROW_H: float = 34.0
+const LANE_TAGS: Array[String] = ["HUD_LANE_TAG_N", "HUD_LANE_TAG_C", "HUD_LANE_TAG_S"]
+
+
+## Short chip label for a hardpoint id: the slice drops its "s_" prefix
+## (S-AI -> AI); the full map keeps the lane letter (N-AI, C-MID ...).
+static func tag_of(id: StringName, lane_count: int) -> String:
+	var s := String(id)
+	if lane_count <= 1:
+		s = s.trim_prefix("s_")
+	return s.replace("_", "-").to_upper()
 
 
 func _draw() -> void:
@@ -20,28 +34,58 @@ func _draw() -> void:
 	var defs := c.hardpoint_defs()
 	var states := c.hardpoints
 	var team := ctx.own_team()
-	var n := states.size()
-	var total := n * CHIP + (n - 1) * GAP
+	var md := c.map_def
+	var lanes := md.lanes.size() if md != null else 1
+	if lanes <= 1:
+		_draw_lane(0, states.size(), 0, defs, states, team, c.fronts[team] if c.fronts.size() > team else -1,
+			CHIP, GAP, 0.0, "", 1)
+		return
+	var per := md.lanes[0].hardpoints.size()
+	var total := per * ROW_CHIP + (per - 1) * ROW_GAP
 	var x0 := (size.x - total) * 0.5
-	panel(Rect2(x0 - 18.0, 0.0, total + 36.0, HEIGHT))
-	var front := c.fronts[team] if c.fronts.size() > team else -1
+	panel(Rect2(x0 - 34.0, 0.0, total + 52.0, ROW_H * lanes + 4.0))
+	var base := 0
+	for li in lanes:
+		var n := md.lanes[li].hardpoints.size()
+		var fi := li * 2 + team
+		var front := c.fronts[fi] if fi < c.fronts.size() else -1
+		var tag: String = tr(LANE_TAGS[li]) if li < LANE_TAGS.size() else str(li)
+		_draw_lane(base, n, li, defs, states, team, front, ROW_CHIP, ROW_GAP, ROW_H * li, tag, lanes)
+		base += n
+
+
+## One lane row: chips base..base+n-1, own HQ side on the left.
+func _draw_lane(base: int, n: int, _li: int, defs: Array[HardpointDef], states: Array[SnapshotData.HardpointState],
+		team: int, front: int, chip: float, gap: float, y: float, tag: String, lanes: int) -> void:
+	var total := n * chip + (n - 1) * gap
+	var x0 := (size.x - total) * 0.5
+	if lanes <= 1:
+		panel(Rect2(x0 - 18.0, 0.0, total + 36.0, HEIGHT))
+	else:
+		text_c(tag, Vector2(x0 - 20.0, y + 14.0), 12, HudPalette.TEXT_DIM, ctx.font_display)
+	var cy := y + (18.0 if lanes <= 1 else 13.0)
 	for k in n:
-		var i := k if team == MapDef.TEAM_CONCORD else n - 1 - k
+		var local := k if team == MapDef.TEAM_CONCORD else n - 1 - k
+		var i := base + local
+		if i >= states.size():
+			continue
 		var st := states[i]
-		var center := Vector2(x0 + k * (CHIP + GAP) + CHIP * 0.5, 18.0)
+		var center := Vector2(x0 + k * (chip + gap) + chip * 0.5, cy)
 		var task: int = defs[i].task if i < defs.size() else HardpointDef.TaskKind.HOLD
-		_chip(center, task, st, team)
-		var tag := String(defs[i].id).trim_prefix("s_").to_upper() if i < defs.size() else str(i)
-		text_c(tag, center + Vector2(0.0, 25.0), 11, HudPalette.TEXT_DIM, ctx.font_display)
-		if i == front:
-			var fx := center.x + CHIP * 0.5 + GAP * 0.5
-			draw_line(Vector2(fx, 2.0), Vector2(fx, 34.0), Color.WHITE, 3.0)
-			draw_colored_polygon(PackedVector2Array([Vector2(fx - 5.0, 38.0), Vector2(fx + 5.0, 38.0), Vector2(fx, 33.0)]),
-				Color.WHITE)
+		_chip(center, task, st, team, chip)
+		if lanes <= 1:
+			var t := tag_of(defs[i].id, lanes) if i < defs.size() else str(i)
+			text_c(t, center + Vector2(0.0, 25.0), 11, HudPalette.TEXT_DIM, ctx.font_display)
+		if local == front:
+			var fx := center.x + chip * 0.5 + gap * 0.5
+			var h := 32.0 if lanes <= 1 else 22.0
+			draw_line(Vector2(fx, cy - 16.0), Vector2(fx, cy - 16.0 + h), Color.WHITE, 3.0)
+			draw_colored_polygon(PackedVector2Array([Vector2(fx - 5.0, cy - 12.0 + h), Vector2(fx + 5.0, cy - 12.0 + h),
+				Vector2(fx, cy - 17.0 + h)]), Color.WHITE)
 
 
-func _chip(c: Vector2, task: int, st: SnapshotData.HardpointState, team: int) -> void:
-	var r := CHIP * 0.5
+func _chip(c: Vector2, task: int, st: SnapshotData.HardpointState, team: int, chip: float = CHIP) -> void:
+	var r := chip * 0.5
 	var pts := _shape(c, r, task)
 	var owner := st.owner
 	var col := ctx.team_color(owner)

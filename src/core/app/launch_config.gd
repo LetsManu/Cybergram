@@ -2,7 +2,7 @@ class_name LaunchConfig
 extends RefCounted
 ## Parsed command line (architecture.md §2.1). Only AppRoot builds one; nothing
 ## else reads OS arguments.
-##   godot --path .                              -> OFFLINE playable match: the slice map, 3v3
+##   godot --path .                              -> OFFLINE playable match: Shardline Front, 5v5 (--map slice: 3v3)
 ##                                                  (MatchRulesDef.team_size) vs normal bots,
 ##                                                  as Vesper Loom (--hero brannoc for Brannoc)
 ##   godot --path . -- --map test_course         -> OFFLINE movement test course (dummies, no bots)
@@ -15,7 +15,7 @@ extends RefCounted
 ##   godot --path . -- --connect 1.2.3.4[:7777]  -> CLIENT: join that server (no local server)
 ##   godot --path . -- --open-lobby 1.2.3.4[:7777] -> menu opened straight into that server's lobby
 ##   ... -- --server --quit-after-ticks 900      -> soak run that exits
-##   godot --path . -- --map slice               -> load assets/data/match/map_<name>_lane.tres
+##   godot --path . -- --map slice               -> load assets/data/match/map_<name>.tres (or map_<name>_lane.tres)
 ##   ... -- --hero brannoc                       -> play hero_brannoc.tres (also --hero=brannoc)
 ##   ... -- --autofire                           -> debug: the local client aims and fires at
 ##                                                  the nearest enemy (evidence captures)
@@ -60,6 +60,10 @@ var net_sim_name: String = ""
 var quit_after_ticks: int = 0
 ## Map id stem ("" = the session scene's default map). Resolved by the session.
 var map_name: String = ""
+## W14: the map a match runs on when --map is not given (Online, Vs Bots, default
+## launch): the 3-lane "Shardline Front" (5v5). `--map slice` selects the 1-lane
+## Shardline Causeway (3v3, the menu's Quick Match).
+const DEFAULT_MAP := "front"
 ## Hero id suffix (assets/data/heroes/hero_<id>.tres); "" = session default.
 var hero_id: String = ""
 var autofire: bool = false
@@ -102,7 +106,7 @@ var port: int = 0
 ## CLIENT mode: server address (host name or IP).
 var connect_address: String = ""
 ## Dedicated server: most simultaneous remote clients.
-var max_clients: int = 8
+var max_clients: int = 12  # W14: a full 5v5 lobby (10 seats) + spare
 ## Debug: open the pause menu on start (UI evidence captures).
 var debug_pause_menu: bool = false
 ## Debug: with --debug-settings <video|audio|controls|gameplay|0-3> the pause menu
@@ -265,15 +269,15 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 	if c.map_name == TEST_COURSE:
 		c.map_name = ""  # the session scene's default map (movement test course)
 	elif (c.bots or c.bots_only) and c.map_name == "":
-		c.map_name = "slice"  # E11: bot matches run on the slice map
+		c.map_name = DEFAULT_MAP  # W14: bot matches run on the full 3-lane map
 	elif not map_given and (c.mode == Mode.CLIENT or (c.mode == Mode.DEDICATED and c.port > 0)):
-		# Online: the slice match; the server fills empty slots with bots.
-		c.map_name = "slice"
+		# Online: the full-map match; the server fills empty slots with bots.
+		c.map_name = DEFAULT_MAP
 		c.bots = c.mode == Mode.DEDICATED
 	elif not map_given and c.mode == Mode.OFFLINE \
 			and not (c.autofire or c.debug_skill_demo or c.debug_squad_demo):
-		# M1 default launch (no arguments): a playable 3v3 slice match vs bots.
-		c.map_name = "slice"
+		# Default launch (no arguments): a playable 5v5 Shardline Front match vs bots.
+		c.map_name = DEFAULT_MAP
 		c.bots = true
 	if c.mode == Mode.CLIENT and c.port == 0:
 		c.port = DEFAULT_PORT

@@ -25,6 +25,11 @@ const TEAM_SYNDICATE: int = 1
 @export var mid_plaza_radius: float = 25.0
 ## Sudden Death spawn pads, indexed by team.
 @export var sudden_death_spawns: PackedVector3Array = PackedVector3Array()
+## Match rules this map plays under (format, clock, Uplink). Null = the
+## session default. Canon C1: the full map is 5v5, the 1-lane slice 3v3.
+@export var match_rules: MatchRulesDef
+## Wardling rules for this map (null = the session default).
+@export var wardling_rules: Resource
 
 
 func hq(team: int) -> HqDef:
@@ -32,3 +37,55 @@ func hq(team: int) -> HqDef:
 		if h.team == team:
 			return h
 	return null
+
+
+## Hardpoint by its map-wide index (lane-major: lane 0's, then lane 1's ...;
+## the snapshot / ObjectiveSystem.all order). Null if out of range.
+func hardpoint_global(index: int) -> HardpointDef:
+	var i := index
+	for lane in lanes:
+		if i < 0:
+			return null
+		if i < lane.hardpoints.size():
+			return lane.hardpoints[i]
+		i -= lane.hardpoints.size()
+	return null
+
+
+## Vector2i(lane, index in lane) of a map-wide hardpoint index, or (-1, -1).
+func lane_slot(index: int) -> Vector2i:
+	var i := index
+	for li in lanes.size():
+		if i < 0:
+			break
+		if i < lanes[li].hardpoints.size():
+			return Vector2i(li, i)
+		i -= lanes[li].hardpoints.size()
+	return Vector2i(-1, -1)
+
+
+## Index of the lane that holds hardpoint `hp_id`, or -1.
+func lane_of(hp_id: StringName) -> int:
+	for i in lanes.size():
+		if lanes[i].hardpoint(hp_id) != null:
+			return i
+	return -1
+
+
+## Lane index whose centreline (its hardpoints' mean lateral X) is nearest `pos`.
+func nearest_lane(pos: Vector3) -> int:
+	var best := 0
+	var best_d := INF
+	for i in lanes.size():
+		var hps := lanes[i].hardpoints
+		if hps.is_empty():
+			continue
+		var x := 0.0
+		for h in hps:
+			x += h.position.x
+		x /= float(hps.size())
+		var d := absf(pos.x - x)
+		if d < best_d:
+			best_d = d
+			best = i
+	return best

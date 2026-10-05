@@ -101,3 +101,17 @@ extends Resource
 @export_group("Squad")
 ## Minimum seconds between two squad orders.
 @export_range(0.5, 30.0, 0.5) var squad_order_interval_s: float = 2.5
+
+@export_group("Lanes")
+## W14 multi-lane maps (BotLanePlanner): seconds between a team's lane rebalances,
+## the surplus / deficit (bots) needed before one bot changes lane, and the lane
+## need weights: base + per own hardpoint under attack + per enemy hero in the
+## lane + when the enemy holds one of our Outer / Inner hardpoints there.
+@export_range(1.0, 60.0, 0.5) var lane_eval_interval_s: float = 8.0
+@export_range(0.1, 3.0, 0.05) var lane_switch_margin: float = 0.6
+## Seconds a bot stays in a lane after a rebalance moved it (no ping-pong).
+@export_range(0.0, 120.0, 1.0) var lane_min_stay_s: float = 20.0
+@export_range(0.0, 5.0, 0.05) var lane_need_base: float = 1.0
+@export_range(0.0, 5.0, 0.05) var lane_need_attacked: float = 1.5
+@export_range(0.0, 5.0, 0.05) var lane_need_enemy_hero: float = 0.5
+@export_range(0.0, 5.0, 0.05) var lane_need_losing: float = 1.0

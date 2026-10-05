@@ -724,6 +724,7 @@ func _save_map_def() -> void:
 	md.mid_plaza_center = P(0, MID_L)
 	md.mid_plaza_radius = PLAZA_R
 	md.sudden_death_spawns = PackedVector3Array([P(0, 185.0, 0.05), P(0, 235.0, 0.05)])
+	md.match_rules = load("res://assets/data/match/match_rules_slice.tres")  # C1 slice: 3v3
 	var lane := LaneDef.new()
 	lane.id = &"slice"
 	var hps: Array[HardpointDef] = []

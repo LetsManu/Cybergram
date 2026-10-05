@@ -197,7 +197,9 @@ func crosshair_targets(yaw: float, pitch: float) -> Dictionary:
 	var hit := space.intersect_ray(_ray)
 	var ground: Variant = hit.get("position")
 	if client.map_def != null and not client.map_def.lanes.is_empty():
-		var hps := client.map_def.lanes[0].hardpoints
+		var hps: Array[HardpointDef] = []
+		for lane in client.map_def.lanes:  # map-wide index order (W14: all lanes)
+			hps.append_array(lane.hardpoints)
 		for i in hps.size():
 			var hp: HardpointDef = hps[i]
 			var in_zone: bool = ground != null and WardlingWorld._flat(ground, hp.position) <= hp.zone_radius

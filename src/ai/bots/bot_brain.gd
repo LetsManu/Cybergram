@@ -69,6 +69,9 @@ var _calm_buttons: int = 0
 ## takes each Cell job.
 var team_brains: Array = []
 var claims: Dictionary = {}
+## W14: shared lane planner (null = lane 0). `lane` = this bot's lane this decision.
+var lanes: BotLanePlanner
+var lane: int = 0
 var interacts: int = 0
 ## W10-W3 thresholds (BotRosterDef.skill_tuning) and behaviour counters for
 ## tests and the match report.
@@ -181,11 +184,14 @@ func _fill_blackboard(tick: int, h: HeroBody) -> void:
 	bb.defend_index = BotBlackboard.NO_HARDPOINT
 	var objs := server.objectives
 	if objs != null and not objs.lanes.is_empty():
-		var lane: Array = objs.lanes[0]
-		var fi := objs.front.front_for(c.team, 0)
+		_plan_lanes(objs, md, c.team)
+		lane = clampi(lanes.lane_of(hero_id, c.team) if lanes != null else 0, 0, objs.lanes.size() - 1)
+		var li := lane
+		var lane: Array = objs.lanes[li]
+		var fi := objs.front.front_for(c.team, li)
 		if fi >= 0:
 			var fh: HardpointSim = lane[fi]
-			bb.front_index = fi
+			bb.front_index = objs.global_index(fh)  # map-wide (Go Capture on any lane)
 			bb.front_pos = fh.def.position
 			bb.front_radius = fh.def.zone_radius
 			bb.front_is_own = fh.owner == c.team
@@ -199,7 +205,7 @@ func _fill_blackboard(tick: int, h: HeroBody) -> void:
 				var d := BotBlackboard.flat_dist(bb.pos, hs.def.position)
 				if d < best_d:
 					best_d = d
-					bb.defend_index = hs.index
+					bb.defend_index = objs.global_index(hs)
 					bb.defend_pos = hs.def.position
 					bb.defend_radius = hs.def.zone_radius
 					bb.defend_progress = hs.pressure()
@@ -214,6 +220,63 @@ func _fill_blackboard(tick: int, h: HeroBody) -> void:
 			bb.enemy_uplink_pos = u.aim_point()
 			bb.siege_pos = _siege_point(u, c.team)
 			_fill_regroup(u, c.team)
+
+
+## W14: on a multi-lane map, one bot per team evaluation re-spreads the team
+## over the lanes by need (BotLanePlanner; weights in BotProfile "Lanes").
+func _plan_lanes(objs: ObjectiveSystem, md: MapDef, team: int) -> void:
+	if lanes == null or objs.lanes.size() <= 1 or md == null:
+		return
+	for b in team_brains:  # every bot of the team holds an assignment
+		var br := b as BotBrain
+		var bh := br.hero()
+		if bh != null:
+			lanes.lane_of(br.hero_id, bh.combat.team)
+	var now_s := float(bb.tick) / float(maxi(_tick_hz, 1))
+	if not lanes.due(team, now_s):
+		return
+	var dead := {}
+	for b in team_brains:
+		var bh := (b as BotBrain).hero()
+		if bh != null and bh.combat.team == team and bh.combat.dead:
+			dead[(b as BotBrain).hero_id] = true
+	var moved := lanes.rebalance(team, lane_need(objs, md, team, _all_heroes(), profile), dead, now_s)
+	if moved != 0:
+		print("[bots] team %d: hero %d -> lane %d (need-based rebalance)" % [team, moved, lanes.assignment[moved]])
+
+
+func _all_heroes() -> Array:
+	var out := []
+	for id in server.registry.ids():
+		var h := server.registry.get_node_by_id(id) as HeroBody
+		if h != null and h.combat != null:
+			out.append(h)
+	return out
+
+
+## W14 per-lane need for `team` (BotProfile "Lanes" weights): base, own
+## hardpoints under attack, enemy heroes in the lane (nearest lane by x) and
+## whether the enemy holds one of our Outer / Inner hardpoints there.
+static func lane_need(objs: ObjectiveSystem, md: MapDef, team: int, heroes: Array, p: BotProfile) -> PackedFloat32Array:
+	var need := PackedFloat32Array()
+	need.resize(objs.lanes.size())
+	for li in objs.lanes.size():
+		need[li] = p.lane_need_base
+		for hp in objs.lanes[li]:
+			var hs := hp as HardpointSim
+			if hs.owner == team and hs.is_under_attack():
+				need[li] += p.lane_need_attacked
+			elif hs.owner == 1 - team and hs.def.tier != HardpointDef.Tier.MID and hs.def.initial_owner == team:
+				need[li] += p.lane_need_losing
+	for h in heroes:
+		var hb := h as HeroBody
+		if hb == null or hb.combat.dead or hb.combat.team == team:
+			continue
+		var hq := md.hq(1 - team)
+		if hq != null and BotBlackboard.flat_dist(hb.state.position, hq.sanctum) < 45.0:
+			continue  # still at home
+		need[md.nearest_lane(hb.state.position)] += p.lane_need_enemy_hero
+	return need
 
 
 ## E14: how far `team` has got with the task on hardpoint `hs` (0..~1.5).
@@ -330,9 +393,10 @@ func _decide_spawn(h: HeroBody, out: InputCommand) -> void:
 	if prog == null or objs == null or objs.lanes.is_empty() or not profile.beacon_spawn:
 		return
 	var team := h.combat.team
-	var lane: Array = objs.lanes[0]
+	var li := clampi(lane, 0, objs.lanes.size() - 1)
+	var lane: Array = objs.lanes[li]
 	var mid := lane.size() / 2
-	var fi := objs.front.front_for(team, 0)
+	var fi := objs.front.front_for(team, li)
 	var past_mid := fi >= 0 and (fi > mid if team == MapDef.TEAM_CONCORD else fi < mid) \
 		and (lane[fi] as HardpointSim).owner != team
 	var mf := server.match_flow

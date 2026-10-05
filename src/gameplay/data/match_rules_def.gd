@@ -119,6 +119,20 @@ extends Resource
 @export_range(0.0, 10.0, 0.1) var uplink_tiebreak_min_pct: float = 1.0
 ## C10 Sudden Death after a tied Incursion. Not built in M1 (slice: a tie is a draw).
 @export var sudden_death_enabled: bool = false
+## Sudden Death (C10, match-flow-and-map.md §3.1): heroes fight in the Mid Plaza
+## ring with no respawns; the last team standing wins. The ring shrinks
+## linearly from start to end radius over shrink_s, centred on MapDef.mid_plaza_center;
+## outside it a fighter loses outside_frac_s of max HP per second. After
+## shrink_s, Leyfall Bloom hits everyone for bloom_frac_s, +bloom_step_frac
+## every bloom_step_s. sudden_death_max_s is a hard draw cap (safety net).
+@export_range(5.0, 200.0, 1.0) var sudden_death_ring_start_m: float = 45.0
+@export_range(0.0, 50.0, 0.5) var sudden_death_ring_end_m: float = 4.0
+@export_range(5.0, 600.0, 1.0) var sudden_death_shrink_s: float = 90.0
+@export_range(0.0, 1.0, 0.01) var sudden_death_outside_frac_s: float = 0.08
+@export_range(0.0, 1.0, 0.005) var sudden_death_bloom_frac_s: float = 0.02
+@export_range(0.0, 1.0, 0.005) var sudden_death_bloom_step_frac: float = 0.02
+@export_range(1.0, 120.0, 1.0) var sudden_death_bloom_step_s: float = 10.0
+@export_range(30.0, 1200.0, 1.0) var sudden_death_max_s: float = 300.0
 ## Uplink hit volume around HqDef.uplink (greybox spire + core, see the slice map):
 ## vertical capsule radius and its bottom / top heights above the Uplink floor.
 @export_range(0.1, 10.0, 0.1) var uplink_hit_radius_m: float = 1.7

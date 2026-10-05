@@ -27,6 +27,12 @@ const AZURE := Color("#2E86FF")
 const EMBER := Color("#FF5A1F")
 const LEYFALL := Color("#8E5CFF")
 
+## Per-map dressing extents (the 3-lane Shardline Front spans x -95..95, so its
+## builder pushes the skyline out and spreads the spires; slice defaults above).
+@export var skyline_min_x: float = SKYLINE_MIN_X
+@export var skyline_max_x: float = SKYLINE_MAX_X
+@export var spire_spread: float = 1.0
+
 var _spin: Array[Node3D] = []
 var _rng := RandomNumberGenerator.new()
 ## W14-P2 post layers (null below High).
@@ -143,10 +149,10 @@ func _skyline(parent: Node, count: int) -> void:
 	var shards: Array[Transform3D] = []
 	for i in count:
 		var side := -1.0 if i % 2 == 0 else 1.0
-		var x := side * _rng.randf_range(SKYLINE_MIN_X, SKYLINE_MAX_X)
+		var x := side * _rng.randf_range(skyline_min_x, skyline_max_x)
 		var l := _rng.randf_range(-120.0, LANE_LEN + 120.0)
 		var w := _rng.randf_range(10.0, 26.0)
-		var h := _rng.randf_range(35.0, 150.0) * (1.0 + (absf(x) - SKYLINE_MIN_X) / 400.0)
+		var h := _rng.randf_range(35.0, 150.0) * (1.0 + (absf(x) - skyline_min_x) / 400.0)
 		var base := _rng.randf_range(-30.0, -4.0)
 		var yaw := _rng.randf_range(0.0, PI)
 		var b := Basis(Vector3.UP, yaw).scaled(Vector3(w, h, w * _rng.randf_range(0.7, 1.3)))
@@ -172,7 +178,7 @@ func _crystals(parent: Node, count: int) -> void:
 	var xf: Array[Transform3D] = []
 	for i in count:
 		var side := -1.0 if i % 2 == 0 else 1.0
-		var x := side * _rng.randf_range(32.0, 140.0)
+		var x := side * _rng.randf_range(32.0, 140.0) * spire_spread
 		var l := _rng.randf_range(-20.0, LANE_LEN + 20.0)
 		var y := _rng.randf_range(14.0, 70.0)
 		var s := _rng.randf_range(1.5, 5.5)
@@ -205,7 +211,7 @@ func _spires(parent: Node) -> void:
 	ring.rings = 24
 	ring.ring_segments = 4
 	for s in spec:
-		var p: Vector3 = s[0]
+		var p: Vector3 = s[0] * Vector3(spire_spread, 1.0, 1.0)
 		var c: Color = s[1]
 		var mi := MeshInstance3D.new()
 		mi.mesh = body

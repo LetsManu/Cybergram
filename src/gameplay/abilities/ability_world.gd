@@ -1007,12 +1007,12 @@ func _zone_passive(h: HeroBody) -> void:
 		h.combat.stats.remove_by_source(src)
 
 
-## Index (lane 0) of the hardpoint zone with an active task containing `p`, or -1.
+## Map-wide index (ObjectiveSystem.all) of the hardpoint zone with an active task containing `p`, or -1.
 ## Slice simplification: every unlocked hardpoint runs a Hold task.
 func _hardpoint_at(p: Vector3) -> int:
 	if server.objectives == null:
 		return -1
-	var hps: Array = server.objectives.lanes[0] if not server.objectives.lanes.is_empty() else []
+	var hps: Array = server.objectives.all
 	for i in hps.size():
 		var hp: HardpointSim = hps[i]
 		var d := hp.def

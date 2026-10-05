@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MatchRulesDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/match_rules_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+respawn_base_s = 6.0
+respawn_per_min_s = 0.4
+respawn_cap_s = 30.0
+exposed_respawn_mult = 1.0
+deploy_end_s = 60.0
+surge_times_s = PackedFloat32Array(900, 1800)
+surge_task_scale = PackedFloat32Array(0.85, 0.7)
+drought_time_s = 2700.0
+time_cap_s = 3600.0
+uplink_integrity = 33000.0
+uplink_wardling_damage_scale = 0.5
+uplink_tiebreak_min_pct = 1.0
+sudden_death_enabled = true
+stage_all_as_hold = false
+plant_base_mult = 1.0
+generator_hp_mult = 1.0
+outer_exposure_from_s = -1.0
+team_size = 5
