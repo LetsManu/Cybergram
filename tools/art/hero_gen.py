@@ -73,6 +73,42 @@ class GenHero(Hero):
         return Vector((sx * 0.032 * self.lm["k"], hh.y + L["head_d"] * 0.25, hh.z + L["head_h"] * 0.5))
 
 
+def cull_covered(h, reach=0.04):
+    """Deletes body faces (hd_kind 0) hidden under an armour shell (hd_kind 1): a ray
+    from the face centre along its normal hits a shell within `reach` m. Saves tris and
+    atlas space; the shell rim closes the gap visually."""
+    import bmesh
+    from mathutils.bvhtree import BVHTree
+    me = h.body.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    kl = bm.faces.layers.int.get("hd_kind")
+    if kl is None:
+        bm.free()
+        return 0
+    shell = [f for f in bm.faces if f[kl] == 1]
+    if not shell:
+        bm.free()
+        return 0
+    verts = [v.co.copy() for v in bm.verts]
+    bm.verts.index_update()
+    bvh = BVHTree.FromPolygons(verts, [[v.index for v in f.verts] for f in shell])
+    dead = []
+    for f in bm.faces:
+        if f[kl] != 0:
+            continue
+        c = f.calc_center_median()
+        hit = bvh.ray_cast(c + f.normal * 1e-4, f.normal, reach)
+        if hit[0] is not None and all(bvh.ray_cast(v.co + f.normal * 1e-4, f.normal, reach)[0] is not None
+                                      for v in f.verts):
+            dead.append(f)
+    bmesh.ops.delete(bm, geom=dead, context="FACES")
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    return len(dead)
+
+
 def build(key, hd, out_dir=None):
     import cloth_bake
     import hero_anims
@@ -92,6 +128,7 @@ def build(key, hd, out_dir=None):
     h.paint_body()
     if hd.get("smooth_shells", True):
         hero_hd.smooth_shells(h)
+    print("gen: culled %d body faces under shells" % cull_covered(h))
     lap("paint")
     weapon_rest = hero_anims.weapon_rest(h)
     h.weapon_rest = weapon_rest

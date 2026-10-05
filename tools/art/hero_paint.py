@@ -163,7 +163,83 @@ def _bfs_path(src, dst, edges):
     return []
 
 
-def unwrap_pack(ob, margin):
+def _uv_islands(bm, faces, uvl):
+    """Face islands by shared (vertex, uv) loops."""
+    parent = {f: f for f in faces}
+
+    def find(a):
+        while parent[a] is not a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    key = {}
+    for f in faces:
+        for lp in f.loops:
+            k = (lp.vert.index, round(lp[uvl].uv[0], 5), round(lp[uvl].uv[1], 5))
+            if k in key:
+                a, b = find(key[k]), find(f)
+                if a is not b:
+                    parent[a] = b
+            else:
+                key[k] = f
+    out = {}
+    for f in faces:
+        out.setdefault(find(f), []).append(f)
+    return list(out.values())
+
+
+def _fill(isl, uvl):
+    """UV area / area of the island's PCA-aligned bounding box."""
+    pts = np.array([lp[uvl].uv[:] for f in isl for lp in f.loops])
+    area = 0.0
+    for f in isl:
+        uv = [lp[uvl].uv for lp in f.loops]
+        for i in range(1, len(uv) - 1):
+            a, b = uv[i] - uv[0], uv[i + 1] - uv[0]
+            area += abs(a.x * b.y - a.y * b.x) * 0.5
+    c = pts - pts.mean(0)
+    if len(c) < 3:
+        return 1.0
+    _w, v = np.linalg.eigh(c.T @ c)
+    q = c @ v
+    box = np.ptp(q[:, 0]) * np.ptp(q[:, 1])
+    return area / box if box > 1e-12 else 1.0
+
+
+def _split_low_fill(bm, faces, uvl, thresh=0.6, min_faces=8):
+    """Cuts islands that fill < `thresh` of their box (arcs, C shapes, bells) in two along
+    the plane through their centroid normal to their main 3D axis. Returns the cut count."""
+    n = 0
+    for isl in _uv_islands(bm, faces, uvl):
+        if len(isl) < min_faces or _fill(isl, uvl) >= thresh:
+            continue
+        C = np.array([tuple(f.calc_center_median()) for f in isl])
+        W = np.array([f.calc_area() for f in isl])
+        m = (C * W[:, None]).sum(0) / max(W.sum(), 1e-12)
+        d = C - m
+        _w, v = np.linalg.eigh((d * W[:, None]).T @ d)
+        ax = v[:, -1]
+        side = {f: float(np.dot(np.array(tuple(f.calc_center_median())) - m, ax)) > 0 for f in isl}
+        for f in isl:
+            for e in f.edges:
+                lf = [g for g in e.link_faces if g in side]
+                if len(lf) == 2 and side[lf[0]] != side[lf[1]]:
+                    e.seam = True
+        n += 1
+    return n
+
+
+def _bm_usage(bm, uvl):
+    a = 0.0
+    for f in bm.faces:
+        uv = [lp[uvl].uv for lp in f.loops]
+        for i in range(1, len(uv) - 1):
+            p, q = uv[i] - uv[0], uv[i + 1] - uv[0]
+            a += abs(p.x * q.y - p.y * q.x) * 0.5
+    return a
+
+
+def unwrap_pack(ob, margin, tries=6):
     """Body + shells (hd_kind 0/1): angle-based unwrap along the body_gen cage seams.
     Parts, garments, weapon: generated seams (_part_seams) + angle-based unwrap, so
     every island is a flat disk (no annuli, few shards). Then one pack of everything."""
@@ -184,9 +260,35 @@ def unwrap_pack(ob, margin):
     bmesh.update_edit_mesh(me)
     select(lambda k: True)
     bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0.0, correct_aspect=True)
+    for _ in range(3):  # cut low-fill islands (arcs, bells) and unwrap again
+        bm = bmesh.from_edit_mesh(me)
+        uvl = bm.loops.layers.uv.active
+        cuts = _split_low_fill(bm, list(bm.faces), uvl)
+        bmesh.update_edit_mesh(me)
+        if not cuts:
+            break
+        select(lambda k: True)
+        bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0.0, correct_aspect=True)
     bpy.ops.uv.select_all(action="SELECT")
-    bpy.ops.uv.pack_islands(rotate=True, rotate_method="ANY", scale=True, margin_method="FRACTION", margin=margin,
-                            shape_method="CONCAVE")
+    # SCALED margin: measured >= 2 texels between islands at 1024 for margin 0.002.
+    # Blender's packer is not deterministic: keep the best of `tries` packs.
+    best, best_uv = -1.0, None
+    for _ in range(tries):
+        bpy.ops.uv.pack_islands(rotate=True, rotate_method="ANY", scale=True, margin_method="SCALED", margin=margin,
+                                shape_method="CONCAVE")
+        bm = bmesh.from_edit_mesh(me)
+        uvl = bm.loops.layers.uv.active
+        use = _bm_usage(bm, uvl)
+        if use > best:
+            best = use
+            best_uv = [lp[uvl].uv.copy() for f in bm.faces for lp in f.loops]
+    bm = bmesh.from_edit_mesh(me)
+    uvl = bm.loops.layers.uv.active
+    it = iter(best_uv)
+    for f in bm.faces:
+        for lp in f.loops:
+            lp[uvl].uv = next(it)
+    bmesh.update_edit_mesh(me)
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
