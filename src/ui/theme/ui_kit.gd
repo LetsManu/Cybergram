@@ -437,6 +437,56 @@ static func card(title: String = "", pad: int = 16) -> UiCard:
 	return UiCard.new().setup(title, pad)
 
 
+## Styles `panel` as a kit screen (login, profile, settings, lobby, launcher
+## pages): layered card, a header strip with `title` (display face, brass
+## tick) and an optional `subtitle` on the right, then a padded body column,
+## which is returned. Fades in when shown.
+static func screen_frame(panel: PanelContainer, title: String, subtitle: String = "", pad: int = 20) -> VBoxContainer:
+	var t := tokens()
+	var sb := panel_box(t.panel, 0, Color(t.gold, 0.3))
+	sb.shadow_color = Color(0, 0, 0, 0.5)
+	sb.shadow_size = 18
+	panel.add_theme_stylebox_override("panel", sb)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 0)
+	panel.add_child(outer)
+	var head := PanelContainer.new()
+	var hb := StyleBoxFlat.new()
+	hb.bg_color = t.panel_raised
+	hb.border_color = t.line
+	hb.border_width_bottom = 1
+	hb.content_margin_left = pad
+	hb.content_margin_right = pad
+	hb.content_margin_top = 10
+	hb.content_margin_bottom = 10
+	head.add_theme_stylebox_override("panel", hb)
+	outer.add_child(head)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", t.space_m)
+	head.add_child(row)
+	var tick := ColorRect.new()
+	tick.color = t.gold
+	tick.custom_minimum_size = Vector2(3, 22)
+	tick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(tick)
+	var tl := label(title.to_upper(), &"title")
+	tl.add_theme_font_size_override("font_size", t.size_title - 4)
+	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(tl)
+	if subtitle != "":
+		var st := label(subtitle, &"small", t.text_off, HORIZONTAL_ALIGNMENT_RIGHT)
+		st.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(st)
+	var m := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, pad)
+	outer.add_child(m)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", t.space_s)
+	m.add_child(col)
+	return col
+
+
 ## A vertical gap.
 static func spacer(h: int) -> Control:
 	var c := Control.new()

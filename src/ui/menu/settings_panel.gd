@@ -10,7 +10,7 @@ signal back_pressed
 
 const TAB_KEYS: Array[String] = ["HUD_SET_TAB_VIDEO", "HUD_SET_TAB_AUDIO", "HUD_SET_TAB_CONTROLS",
 	"HUD_SET_TAB_GAMEPLAY"]
-const CONTENT_H := 420.0
+const CONTENT_H := 360.0
 
 var _s: GameSettings
 var _tab_buttons: Array[Button] = []
@@ -24,47 +24,33 @@ var start_tab: int = 0
 func _ready() -> void:
 	HudStrings.ensure_loaded()
 	_s = GameSettings.shared()
-	theme = SettingsTheme.build()
-	add_theme_constant_override("separation", 10)
-	custom_minimum_size = Vector2(620, 0)
-	var title := Label.new()
-	title.text = tr("HUD_SET_TITLE")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", HudPalette.TEXT)
-	add_child(title)
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 6)
-	add_child(bar)
-	var group := ButtonGroup.new()
-	for i in TAB_KEYS.size():
-		var b := Button.new()
-		b.text = tr(TAB_KEYS[i])
-		b.toggle_mode = true
-		b.button_group = group
+	theme = UiKit.theme()
+	add_theme_constant_override("separation", 0)
+	custom_minimum_size = Vector2(660, 0)
+	var card := PanelContainer.new()
+	add_child(card)
+	var col := UiKit.screen_frame(card, tr("HUD_SET_TITLE"), tr("HUD_SET_TAB_HINT"), 18)
+	var labels: Array = []
+	for k in TAB_KEYS:
+		labels.append(tr(k))
+	var bar := UiKit.tab_bar(labels, func(i: int) -> void: show_tab(i), start_tab)
+	for b: Button in bar.get_children():
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.custom_minimum_size.y = 40
-		b.pressed.connect(show_tab.bind(i))
-		bar.add_child(b)
 		_tab_buttons.append(b)
+	col.add_child(bar)
 	var frame := PanelContainer.new()
-	frame.add_theme_stylebox_override("panel", SettingsTheme.frame())
-	add_child(frame)
+	frame.add_theme_stylebox_override("panel", UiKit.panel_box(UiKit.tokens().panel_sunken, 14))
+	col.add_child(frame)
 	_scroll = ScrollContainer.new()
 	_scroll.custom_minimum_size = Vector2(0, CONTENT_H)
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	frame.add_child(_scroll)
-	var hint := Label.new()
-	hint.text = tr("HUD_SET_TAB_HINT")
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_color_override("font_color", HudPalette.TEXT_OFF)
-	hint.add_theme_font_size_override("font_size", 12)
-	add_child(hint)
-	var back := Button.new()
-	back.text = tr("HUD_SET_BACK")
-	back.custom_minimum_size.y = 44
-	back.pressed.connect(func() -> void: back_pressed.emit())
-	add_child(back)
+	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_END
+	col.add_child(foot)
+	var back := UiKit.button(tr("HUD_SET_BACK"), func() -> void: back_pressed.emit(), &"secondary", 42)
+	back.custom_minimum_size.x = 180
+	foot.add_child(back)
 	visibility_changed.connect(func() -> void:
 		if visible:
 			show_tab(_index))
@@ -100,6 +86,7 @@ func show_tab(i: int) -> void:
 	_scroll.add_child(_tab)
 	_tab.build()
 	_scroll.scroll_vertical = 0
+	UiKit.transition_in(_tab, Vector2.ZERO, UiKit.tokens().motion_base)
 
 
 ## Focus the current tab button (keyboard / gamepad navigation).

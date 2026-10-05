@@ -43,14 +43,9 @@ func _ready() -> void:
 	_emblem = int(session.get("emblem", 0))
 	_accent = int(session.get("accent", 0))
 	var guest: bool = int(session.get("guest", 0)) != 0
-	add_theme_stylebox_override("panel", MenuStyle.panel(HudPalette.PANEL_STRONG, 18))
-	custom_minimum_size = Vector2(640, 0)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 7)
-	add_child(col)
-	col.add_child(MenuStyle.label(tr("HUD_PROFILE_TITLE"), 28, HudPalette.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	custom_minimum_size = Vector2(660, 0)
 	var who := tr("HUD_ACCOUNT_GUEST_LINE") if guest else tr("HUD_ACCOUNT_LINE") % str(session.get("username", ""))
-	col.add_child(MenuStyle.label(who, 12, HudPalette.TEXT_OFF, HORIZONTAL_ALIGNMENT_CENTER))
+	var col := UiKit.screen_frame(self, tr("HUD_PROFILE_TITLE"), who)
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -112,13 +107,11 @@ func _ready() -> void:
 		sw.add_child(b)
 		_accents.append(b)
 	col.add_child(sw)
-	col.add_child(MenuStyle.button(tr("HUD_PROFILE_SAVE"), _save_profile, true, 44))
+	col.add_child(UiKit.button(tr("HUD_PROFILE_SAVE"), _save_profile, &"primary", 44))
 
 	if not guest:
-		var acc := MenuStyle.panel_container(Color(0.02, 0.025, 0.05, 0.9), 10)
-		var av := VBoxContainer.new()
-		av.add_theme_constant_override("separation", 6)
-		acc.add_child(av)
+		var acc := UiKit.card(tr("HUD_PROFILE_ACCOUNT"), 12)
+		var av := acc.body
 		var pw := HBoxContainer.new()
 		pw.add_theme_constant_override("separation", 6)
 		_old_pw = _secret(tr("HUD_ACCOUNT_OLD_PW"))
@@ -132,8 +125,7 @@ func _ready() -> void:
 		data.add_child(MenuStyle.button(tr("HUD_PRIVACY_EXPORT"), func() -> void: _export(""), false, 34))
 		_del_pw = _secret(tr("HUD_ACCOUNT_DELETE_PW"))
 		data.add_child(_del_pw)
-		_delete_btn = MenuStyle.button(tr("HUD_ACCOUNT_DELETE"), _delete, false, 34)
-		_delete_btn.add_theme_color_override("font_color", HudPalette.DANGER)
+		_delete_btn = UiKit.button(tr("HUD_ACCOUNT_DELETE"), _delete, &"danger", 34)
 		data.add_child(_delete_btn)
 		av.add_child(data)
 		col.add_child(acc)
@@ -150,7 +142,7 @@ func _ready() -> void:
 		false, 38)
 	logout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom.add_child(logout)
-	var back := MenuStyle.button(tr("HUD_LOGIN_BACK"), func() -> void: closed.emit(), false, 38)
+	var back := UiKit.button(tr("HUD_LOGIN_BACK"), func() -> void: closed.emit(), &"ghost", 38)
 	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bottom.add_child(back)
 	col.add_child(bottom)

@@ -54,25 +54,15 @@ func _ready() -> void:
 	HudStrings.ensure_loaded()
 	_emblem = prefill_emblem
 	_accent = prefill_accent
-	add_theme_stylebox_override("panel", MenuStyle.panel(HudPalette.PANEL_STRONG, 18))
-	custom_minimum_size = Vector2(600, 0)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
-	add_child(col)
-	col.add_child(MenuStyle.label(tr("HUD_LOGIN_TITLE"), 28, HudPalette.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
-	col.add_child(MenuStyle.label(server_text, 12, HudPalette.TEXT_OFF, HORIZONTAL_ALIGNMENT_CENTER))
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 6)
-	var group := ButtonGroup.new()
-	for m in 3:
-		var b := MenuStyle.button(tr(["HUD_LOGIN_TAB_LOGIN", "HUD_LOGIN_TAB_REGISTER", "HUD_LOGIN_TAB_GUEST"][m]),
-			func() -> void: set_mode(m), false, 36)
-		b.toggle_mode = true
-		b.button_group = group
+	custom_minimum_size = Vector2(620, 0)
+	var col := UiKit.screen_frame(self, tr("HUD_LOGIN_TITLE"), server_text)
+	var tabs := UiKit.tab_bar([tr("HUD_LOGIN_TAB_LOGIN"), tr("HUD_LOGIN_TAB_REGISTER"), tr("HUD_LOGIN_TAB_GUEST")],
+		func(m: int) -> void: set_mode(m))
+	for b: Button in tabs.get_children():
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tabs.add_child(b)
 		_tabs.append(b)
 	col.add_child(tabs)
+	col.add_child(HSeparator.new())
 	_pages.append(_login_page())
 	_pages.append(_register_page())
 	_pages.append(_guest_page())
@@ -81,7 +71,7 @@ func _ready() -> void:
 	_msg = MenuStyle.label("", 13, HudPalette.WARN, HORIZONTAL_ALIGNMENT_CENTER)
 	_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_msg)
-	col.add_child(MenuStyle.button(tr("HUD_LOGIN_BACK"), func() -> void: cancelled.emit(), false, 34))
+	col.add_child(UiKit.button(tr("HUD_LOGIN_BACK"), func() -> void: cancelled.emit(), &"ghost", 36))
 	if not accounts_available:
 		_tabs[0].disabled = true
 		_tabs[1].disabled = true
@@ -137,7 +127,8 @@ func _login_page() -> Control:
 	_remember.text = tr("HUD_LOGIN_REMEMBER")
 	_remember.button_pressed = remember
 	v.add_child(_remember)
-	v.add_child(MenuStyle.button(tr("HUD_LOGIN_SUBMIT"), _submit_login, true))
+	v.add_child(UiKit.spacer(4))
+	v.add_child(UiKit.button(tr("HUD_LOGIN_SUBMIT"), _submit_login, &"primary"))
 	return v
 
 
@@ -173,7 +164,7 @@ func _register_page() -> Control:
 	_r_privacy = _check(tr("HUD_LOGIN_PRIVACY_ACK"))
 	_r_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	prow.add_child(_r_privacy)
-	var read := MenuStyle.button(tr("HUD_PRIVACY_READ"), func() -> void: OS.shell_open(PRIVACY_URL), false, 28)
+	var read := UiKit.button(tr("HUD_PRIVACY_READ"), func() -> void: OS.shell_open(PRIVACY_URL), &"ghost", 28)
 	read.add_theme_font_size_override("font_size", 11)
 	prow.add_child(read)
 	v.add_child(prow)
@@ -182,7 +173,7 @@ func _register_page() -> Control:
 	var rec := MenuStyle.label(tr("HUD_LOGIN_NO_RECOVERY"), 11, HudPalette.LUMEN)
 	rec.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(rec)
-	v.add_child(MenuStyle.button(tr("HUD_LOGIN_CREATE"), _submit_register, true, 46))
+	v.add_child(UiKit.button(tr("HUD_LOGIN_CREATE"), _submit_register, &"primary", 46))
 	return v
 
 
@@ -198,7 +189,7 @@ func _guest_page() -> Control:
 	v.add_child(_picker())
 	_g_privacy = _check(tr("HUD_LOGIN_GUEST_PRIVACY"))
 	v.add_child(_g_privacy)
-	v.add_child(MenuStyle.button(tr("HUD_LOGIN_GUEST_SUBMIT"), _submit_guest, true))
+	v.add_child(UiKit.button(tr("HUD_LOGIN_GUEST_SUBMIT"), _submit_guest, &"primary"))
 	return v
 
 
