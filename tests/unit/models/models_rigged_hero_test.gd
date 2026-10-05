@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## to the procedural box model for heroes without a glb, the rigged model keeps
 ## the HeroModel API, and replicated state maps onto the AnimationTree.
 
-const RIGGED: Array[StringName] = [&"ryker", &"vesper"]
+const RIGGED: Array[StringName] = [&"vesper", &"sable", &"juniper", &"ryker", &"brannoc", &"liora", &"hex"]
 const CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"run_back", &"strafe_l", &"strafe_r",
 	&"crouch_idle", &"crouch_walk", &"jump", &"aim_up", &"aim_mid", &"aim_down", &"shoot", &"hit",
 	&"reload", &"cast_0", &"cast_1", &"cast_2", &"cast_3", &"death"]
@@ -27,11 +27,11 @@ func test_loader_uses_glb_for_pilot_heroes() -> void:
 
 
 func test_loader_falls_back_to_box_model_without_glb() -> void:
-	for k in [&"brannoc", &"hex", &"sable"]:
-		assert_bool(HeroModelLoader.has_rigged(k)).is_false()
-		var m := _build(k)
-		assert_object(m).is_not_instanceof(RiggedHeroModel)
-		assert_object(m.pivot(&"spine")).is_not_null()
+	# A key with no glb on disk (every shipped hero now has one).
+	assert_bool(HeroModelLoader.has_rigged(&"wardling_test_hero")).is_false()
+	var m := _build(&"wardling_test_hero")
+	assert_object(m).is_not_instanceof(RiggedHeroModel)
+	assert_object(m.pivot(&"spine")).is_not_null()
 
 
 func test_loader_forced_box_and_unknown_key() -> void:

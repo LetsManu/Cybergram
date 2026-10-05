@@ -1,5 +1,5 @@
 extends SceneTree
-## Renders every hero's model (HeroModelBuilder, team-neutral palette) to a
+## Renders every hero's model (HeroModelLoader: rigged toon glb, else HeroModelBuilder; team-neutral palette) to a
 ## transparent PNG portrait: assets/ui/portraits/hero_<stem>.png, 720x1000,
 ## three-quarter view, warm key light + teal rim (design/ux/mockups/v0.9).
 ## The menus crop these (UiPortrait / UiKit.portrait_texture), so keep the
@@ -85,7 +85,7 @@ func _run() -> void:
 		var stem := String(h.stem)
 		if not only.is_empty() and not only.has(stem):
 			continue
-		var model := HeroModelBuilder.build(ModelCatalog.hero_key_from_id(stem), ModelPalette.TEAM_NEUTRAL)
+		var model := HeroModelLoader.build(ModelCatalog.hero_key_from_id(stem), ModelPalette.TEAM_NEUTRAL)
 		turn.add_child(model)
 		for i in SETTLE_FRAMES:
 			await process_frame
