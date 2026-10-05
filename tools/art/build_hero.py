@@ -228,6 +228,7 @@ class Hero:
         self.key = hero["key"]
         self.base = Base(hero)
         self.pal = {k: srgb(v) for k, v in hero["palette"].items()}
+        self.names = {}  # rgba -> palette name (bake material classes)
         self.joints = {}
         self.parent = {}
         self._game_skeleton()
@@ -375,6 +376,7 @@ class Hero:
         bm.normal_update()
         col = bm.loops.layers.float_color.new("Color")
         uv = bm.loops.layers.uv.new("UVMap")
+        kind = bm.faces.layers.int.new("hd_kind")
         info = {}
         for f in bm.faces:
             c = f.calc_center_median()
@@ -404,6 +406,7 @@ class Hero:
             for v in nv:
                 v.co += normals[v] * off
             for f in nf:
+                f[kind] = 1
                 c = f.calc_center_median()
                 name, ch = shell["paint"](self, c) if callable(shell["paint"]) else shell["paint"]
                 _paint_face(f, col, uv, self.color(name), ch)
@@ -420,6 +423,7 @@ class Hero:
                     v.co -= n * off * 0.9
                 rim = shell.get("rim", shell["paint"] if not callable(shell["paint"]) else ("trim", "flat"))
                 for f in {f for v in ev for f in v.link_faces}:
+                    f[kind] = 1
                     _paint_face(f, col, uv, self.color(rim[0]), rim[1])
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
         bm.to_mesh(me)
@@ -428,7 +432,9 @@ class Hero:
         me.update()
 
     def color(self, name):
-        return self.pal[name]
+        c = self.pal[name]
+        self.names.setdefault(c, name)
+        return c
 
     # -- rigid / skinned parts -----------------------------------------
     def begin_parts(self):
@@ -436,8 +442,9 @@ class Hero:
         self.pdl = self.pbm.verts.layers.deform.verify()
         self.pcol = self.pbm.loops.layers.float_color.new("Color")
         self.puv = self.pbm.loops.layers.uv.new("UVMap")
+        self.pkind = self.pbm.faces.layers.int.new("hd_kind")
 
-    def _add(self, tmp, mat, bone, color, ch, weights=None):
+    def _add(self, tmp, mat, bone, color, ch, weights=None, kind=None):
         """Merges bmesh `tmp` (local space) into the part mesh with matrix `mat`."""
         tmp.transform(mat)
         vmap = {}
@@ -455,6 +462,8 @@ class Hero:
             except ValueError:
                 continue
             nf.smooth = True
+            nf[self.pkind] = kind if kind is not None else (3 if bone == "Weapon" and weights is None else
+                                                            (4 if weights is not None else 2))
             _paint_face(nf, self.pcol, self.puv, self.color(color), ch)
         tmp.free()
 
@@ -550,12 +559,13 @@ class Hero:
         bpy.context.scene.collection.objects.link(ob)
         _activate(ob)
         bpy.ops.object.mode_set(mode="EDIT")
-        for name in self.bone_names[:-1]:
+        body_bones = [n for n in self.bone_names if n != "Weapon"]
+        for name in body_bones:
             eb = arm.edit_bones.new(name)
             h, t = self.joints[name]
             eb.head, eb.tail = h, t
             eb.roll = 0.0
-        for name in self.bone_names[:-1]:
+        for name in body_bones:
             if self.parent[name]:
                 arm.edit_bones[name].parent = arm.edit_bones[self.parent[name]]
         eb = arm.edit_bones.new("Weapon")
@@ -594,21 +604,40 @@ def reset_scene():
     bpy.context.scene.render.fps = FPS
 
 
+# W14: body decimation budget x2.4 (~20-30k tris in view); `--lowpoly` keeps the W13 budget.
+HD_DECIMATE_SCALE = 1.5
+HD_SCALE_HERO = {"ryker": 1.1}  # keeps every hero under ModelCatalog.HERO_TRI_BUDGET (30k)
+LOD_TRIS = 8000
+
+
 def build(key):
     sys.path.insert(0, HERE)
     import hero_defs
     import hero_anims
-    hd = hero_defs.HEROES[key]
+    import hero_hd
+    hd = dict(hero_defs.HEROES[key])
+    lowpoly = "--lowpoly" in sys.argv
+    if not lowpoly:
+        hd["decimate"] = min(1.0, hd.get("decimate", 0.19) * HD_SCALE_HERO.get(key, HD_DECIMATE_SCALE))
     reset_scene()
     h = Hero(hd)
     h.build_body()
     h.paint_body()
+    if not lowpoly:
+        hero_hd.smooth_shells(h)
     weapon_rest = hero_anims.weapon_rest(h)
     h.weapon_rest = weapon_rest
     h.begin_parts()
     hd["parts"](h)
+    if not lowpoly:
+        hero_hd.detail_kit(h)
     hero_defs.WEAPONS[hd["weapon"]](h, weapon_rest)
+    if not lowpoly:
+        hero_hd.weapon_detail(h, weapon_rest)
+        hero_hd.add_secondary(h)
     parts = h.finish_parts()
+    if not lowpoly:
+        hero_hd.harden_parts(parts)
     rig = h.build_armature(weapon_rest)
     _activate(h.body)
     parts.select_set(True)
@@ -618,11 +647,31 @@ def build(key):
     body.data.name = h.key
     for p in body.data.polygons:
         p.use_smooth = True
+    tex_sizes = {}
+    if not lowpoly:
+        os.makedirs(os.path.join(OUT_DIR, h.key), exist_ok=True)
+        tex_sizes = hero_hd.bake_textures(h, body, os.path.join(OUT_DIR, h.key),
+                                          int(os.environ.get("HERO_TEX", "1024")))
+    elif "hd_kind" in body.data.attributes:
+        body.data.attributes.remove(body.data.attributes["hd_kind"])
     mat = bpy.data.materials.new("Toon_" + h.key)
     body.data.materials.append(mat)
-    body.parent = rig
-    mod = body.modifiers.new("Armature", "ARMATURE")
-    mod.object = rig
+    lod = None
+    if not lowpoly:
+        # W14: ~8k-tri skinned LOD; at runtime it carries the ink hull up close and replaces
+        # the body beyond RiggedHeroModel.LOD_M (design/art/hero-art-bible.md §8).
+        lod = body.copy()
+        lod.data = body.data.copy()
+        lod.name = lod.data.name = h.key + "_lod"
+        bpy.context.scene.collection.objects.link(lod)
+        _activate(lod)
+        dec = lod.modifiers.new("dec", "DECIMATE")
+        dec.ratio = min(1.0, LOD_TRIS / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons)))
+        bpy.ops.object.modifier_apply(modifier=dec.name)
+    for ob in [body] + ([lod] if lod else []):
+        ob.parent = rig
+        mod = ob.modifiers.new("Armature", "ARMATURE")
+        mod.object = rig
     body.data.color_attributes.active_color = body.data.color_attributes["Color"]
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     mocap_info = hero_anims.author_all(h, use_mocap="--scripted" not in sys.argv)
@@ -630,11 +679,14 @@ def build(key):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     _activate(rig)
     body.select_set(True)
+    if lod:
+        lod.select_set(True)
+        print("lod %s: %d tris" % (lod.name, sum(len(p.vertices) - 2 for p in lod.data.polygons)))
     bpy.ops.export_scene.gltf(filepath=out, export_format="GLB", use_selection=True, export_animations=True,
                               export_animation_mode="ACTIONS", export_vertex_color="NAME", export_vertex_color_name="Color",
                               export_all_vertex_colors=False, export_skins=True, export_yup=True,
                               export_force_sampling=True, export_optimize_animation_size=True,
-                              export_materials="EXPORT", export_image_format="NONE", export_tangents=False,
+                              export_materials="EXPORT", export_image_format="NONE", export_tangents=False,  # Godot builds MikkTSpace tangents on import (matches the bake)
                               export_def_bones=False, export_leaf_bone=False)
     side = {"clips": mocap_info, "credit": "The data used in this project was obtained from mocap.cs.cmu.edu. "
             "The database was created with funding from NSF EIA-0196217."} if mocap_info else {"clips": {}}
@@ -646,8 +698,9 @@ def build(key):
         fh.write('[gd_resource type="Resource" format=3]\n\n[resource]\nmetadata/clip_speed = {\n')
         fh.write(",\n".join('"%s": %.3f' % (k, speeds[k]) for k in sorted(speeds)))
         fh.write("\n}\n")
-    print("built %s: %d tris, %d bones, %d clips, %.2f MB" % (out, tris, len(rig.data.bones), len(bpy.data.actions),
-                                                             os.path.getsize(out) / 1e6))
+    print("built %s: %d tris, %d bones, %d clips, %.2f MB glb, textures %s" % (
+        out, tris, len(rig.data.bones), len(bpy.data.actions), os.path.getsize(out) / 1e6,
+        {k: round(v / 1e6, 2) for k, v in tex_sizes.items()}))
 
 
 if __name__ == "__main__":

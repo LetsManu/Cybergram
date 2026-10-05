@@ -34,6 +34,9 @@ const OUTLINE_PX := {ModelPalette.TEAM_CONCORD: 2.8, ModelPalette.TEAM_SYNDICATE
 ## Beyond this camera distance (m) the inverted hull is dropped (outline LOD):
 ## the hull pass is the largest per-hero cost (pilot perf note in the art bible).
 const OUTLINE_LOD_M: float = 30.0
+## W14: glbs with a `<key>_lod` mesh (~8k tris) use it for the ink hull up close and
+## swap the full body for it beyond this distance (m); the far LOD has no hull.
+const LOD_M: float = 25.0
 
 static var _materials: Dictionary = {}
 static var _tris: Dictionary = {}
@@ -42,6 +45,7 @@ var skeleton: Skeleton3D
 var anim_player: AnimationPlayer
 var tree: AnimationTree
 var _meshes: Array[MeshInstance3D] = []
+var _lod_meshes: Array[MeshInstance3D] = []
 var _grounded: bool = true
 var _dead: bool = false
 var _flash: float = 0.0
@@ -67,8 +71,11 @@ func build_from_scene(model_key: StringName, scene: PackedScene, team_: int) -> 
 	skeleton = inst.find_child("Skeleton3D", true, false) as Skeleton3D
 	anim_player = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	for n in inst.find_children("*", "MeshInstance3D", true, false):
-		_meshes.append(n as MeshInstance3D)
 		(n as MeshInstance3D).layers = 1 | (1 << (GfxQuality.HERO_VISUAL_LAYER - 1))  # + the rim-light layer
+		if String(n.name).ends_with("_lod"):
+			_lod_meshes.append(n as MeshInstance3D)
+		else:
+			_meshes.append(n as MeshInstance3D)
 	_measure_height()
 	_make_markers()
 	_setup_loops()
@@ -261,21 +268,35 @@ static func cast_clip(slot: int) -> StringName:
 func set_team(team_: int, enemy_outline: bool = false) -> void:
 	team = team_
 	_enemy_outline = enemy_outline
-	var m := material(team_, enemy_outline, _far)
-	for mi in _meshes:
-		mi.material_override = m
+	if _lod_meshes.is_empty():
+		var m := material(team_, enemy_outline, _far, key)
+		for mi in _meshes:
+			mi.material_override = m
+	else:
+		# Full body without hull + the LOD mesh drawing the hull; far: LOD body only.
+		for mi in _meshes:
+			mi.material_override = material(team_, enemy_outline, true, key)
+			mi.visible = not _far
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # the 8k LOD casts
+		for mi in _lod_meshes:
+			mi.material_override = material(team_, enemy_outline, true, key) if _far \
+					else hull_material(team_, enemy_outline)
 	set_meta(&"team_tint", ModelPalette.team_color(team))
 
 
-## One shared toon + hull material per (team, enemy_outline); `far` = no hull.
-static func material(team_: int, enemy_outline: bool = false, far: bool = false) -> ShaderMaterial:
-	var k := "%d|%s|%s" % [team_, enemy_outline, far]
+## One shared toon + hull material per (hero, team, enemy_outline); `far` = no hull.
+## `model_key` binds the hero's baked W14 texture set when it exists
+## (assets/models/heroes/<key>/<key>_albedo|_normal|_mask.png), else flat colours.
+static func material(team_: int, enemy_outline: bool = false, far: bool = false,
+		model_key: StringName = &"") -> ShaderMaterial:
+	var k := "%s|%d|%s|%s" % [model_key, team_, enemy_outline, far]
 	if _materials.has(k):
 		return _materials[k]
 	var tc := ModelPalette.team_color(team_)
 	var m := ShaderMaterial.new()
 	m.shader = load(TOON_SHADER)
 	m.set_shader_parameter("team_color", tc)
+	_bind_maps(m, model_key)
 	var o := ShaderMaterial.new()
 	o.shader = load(OUTLINE_SHADER)
 	o.set_shader_parameter("outline_color", tc if enemy_outline else Color("#090A0E"))
@@ -284,6 +305,32 @@ static func material(team_: int, enemy_outline: bool = false, far: bool = false)
 		m.next_pass = o
 	_materials[k] = m
 	return m
+
+
+## Outline-only material (the hull pass on its own) for the W14 LOD mesh.
+static func hull_material(team_: int, enemy_outline: bool = false) -> ShaderMaterial:
+	var k := "hull|%d|%s" % [team_, enemy_outline]
+	if _materials.has(k):
+		return _materials[k]
+	var o := ShaderMaterial.new()
+	o.shader = load(OUTLINE_SHADER)
+	o.set_shader_parameter("outline_color", ModelPalette.team_color(team_) if enemy_outline else Color("#090A0E"))
+	o.set_shader_parameter("width_px", OUTLINE_PX.get(team_, 2.0))
+	_materials[k] = o
+	return o
+
+
+## Binds the baked albedo / normal / mask maps of `model_key` (W14), if present.
+static func _bind_maps(m: ShaderMaterial, model_key: StringName) -> void:
+	if model_key == &"":
+		return
+	var base := "res://assets/models/heroes/%s/%s_" % [model_key, model_key]
+	if not ResourceLoader.exists(base + "albedo.png"):
+		return
+	m.set_shader_parameter("use_maps", 1.0)
+	m.set_shader_parameter("albedo_map", load(base + "albedo.png"))
+	m.set_shader_parameter("normal_map", load(base + "normal.png"))
+	m.set_shader_parameter("mask_map", load(base + "mask.png"))
 
 
 func set_motion(velocity_world: Vector3, crouching: bool, pitch: float) -> void:
@@ -336,7 +383,7 @@ func is_dead() -> bool:
 ## 1 = fully visible, 0 = invisible (screen-door dither, outline drops below 1).
 func set_fade(alpha: float) -> void:
 	_fade = clampf(alpha, 0.0, 1.0)
-	for mi in _meshes:
+	for mi in _meshes + _lod_meshes:
 		mi.set_instance_shader_parameter(&"fade", _fade)
 
 
@@ -371,7 +418,7 @@ func _update_outline_lod() -> void:
 	var d := cam.global_position.distance_to(global_position)
 	if spring_bones != null:
 		spring_bones.active = SecondaryMotion.should_run(d)
-	var far := d > OUTLINE_LOD_M
+	var far := d > (OUTLINE_LOD_M if _lod_meshes.is_empty() else LOD_M)
 	if far != _far:
 		_far = far
 		set_team(team, _enemy_outline)
@@ -405,7 +452,7 @@ func _apply_pose(delta: float) -> void:
 	_flinch = maxf(0.0, _flinch - delta * 3.5)
 	if _flash > 0.0 or delta == 0.0:
 		_flash = maxf(0.0, _flash - delta * 5.0)
-		for mi in _meshes:
+		for mi in _meshes + _lod_meshes:
 			mi.set_instance_shader_parameter(&"flash", _flash)
 	_update_outline_lod()
 	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead, _clip_speed)
