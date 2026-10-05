@@ -173,7 +173,6 @@ jobs:
       - name: Matchmaking e2e and auto-update tests
         run: |
           tools/ci/auto_update_test.sh
-          # PENDING until the front and scripted-client flags exist (prints PENDING, exits 0).
           GAME=build/linux/Cybergram.x86_64 tools/ci/matchmaking_e2e.sh
 
       - name: Add play notes
@@ -394,8 +393,6 @@ jobs:
 
       - name: Smoke-test the container in front mode
         run: |
-          # Front mode is the default. Skipped until the build knows --front.
-          if ! grep -q -- '--front' src/core/app/launch_config.gd; then echo "PENDING: no --front yet"; exit 0; fi
           docker run -d --name front -e CYBERGRAM_MATCH_PORTS=7800-7801 $IMAGE:$VERSION > /dev/null
           for _ in $(seq 1 60); do
             [ "$(docker inspect -f '{{.State.Health.Status}}' front)" = healthy ] && break; sleep 3

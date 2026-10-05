@@ -94,10 +94,11 @@ account. None of it contains your IP address, chat or free text.
   normal), the server stores a rating number, its uncertainty, the number of
   games and the date of the last change, with your player id. It is used to put
   you in an even match and to show your rank. **Kept as long as the account
-  exists, and deleted with it.** Matches with bots are not rated.
+  exists, and deleted with it.** Matches with bots are not rated. Guests (no account) cannot play ranked and
+  no rating is ever stored for them.
 - **Match history (minimal).** For each finished match: a match id, the
-  date, the queue and map, the heroes played, the result (win, loss, void) and
-  the duration, linked to your player id. No chat, no positions, no address.
+  heroes played, the result (win, loss, void) and the duration, linked to
+  your player id. No chat, no positions, no address.
   It is used for your match list, for the rating and to settle disputes.
   **Kept for 180 days, then deleted automatically** (checked at start and
   daily), or earlier with the account.
