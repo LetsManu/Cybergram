@@ -135,6 +135,7 @@ node_modules/
 .env.local
 .env.*.local
 *.pem
+!launcher/tests/fixtures/*.pub.pem
 *.key
 credentials.json
 secrets.json
