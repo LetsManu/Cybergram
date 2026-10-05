@@ -201,11 +201,11 @@ def liora_parts(h):
     hero_hd.piece(h, M, (0, 0, 0.004), (0.075 * k, 0.07 * k, 0.012), "chrome", skin.fixed(p), "chrome", bevel=0.4)
     hero_hd.piece(h, M, (0, 0, 0.012), (0.045 * k, 0.014 * k, 0.006), "team", skin.fixed(p), "team_emit", bevel=0.3)
     hero_hd.piece(h, M, (0, 0, 0.012), (0.014 * k, 0.045 * k, 0.006), "team", skin.fixed(p), "team_emit", bevel=0.3)
-    for ang in (28, -28):  # kit pouches in the coat's open front (never under the coat)
+    for ang in (14, -14):  # kit pouches well inside the coat's open front (edge at +-33 deg)
         a = math.radians(ang)
         pp = min(pts, key=lambda pd: abs(math.atan2(pd[0].x, pd[0].y - h.jh("Hips").y) - a))
         Mp = hero_hd.frame(pp[0] + pp[1] * 0.03, pp[1], Vector((0, 0, 1)))
-        hero_hd.piece(h, Mp, (0, -0.03 * k, 0), (0.09 * k, 0.07 * k, 0.045 * k), "ivory", skin.fixed(pp[0]),
+        hero_hd.piece(h, Mp, (0, -0.03 * k, 0), (0.075 * k, 0.065 * k, 0.038 * k), "ivory", skin.fixed(pp[0]),
                       bevel=0.4)
         hero_hd.piece(h, Mp, (0, -0.03 * k, 0.024 * k), (0.03 * k, 0.01 * k, 0.006), "sage", skin.fixed(pp[0]),
                       bevel=0.2)
