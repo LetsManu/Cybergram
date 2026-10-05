@@ -510,6 +510,10 @@ func _setup_remote_client() -> void:
 	remote = ENetTransport.connect_to(lc.connect_address, lc.port,
 		AuthConfig.from_os().client_tls_for(lc.connect_address))  # L1: DTLS like the lobby link
 	print("[client] connecting to %s:%d" % [lc.connect_address, lc.port])
+	if net_sim != null and OS.is_debug_build() and (net_sim.one_way_latency_ms > 0 or net_sim.jitter_ms > 0 or net_sim.loss > 0.0):
+		remote.debug_conditioner = NetSimConditioner.new(net_sim)  # W16-NET debug loss / jitter injector
+		print("[client] debug net-sim on received packets: %d ms +%d jitter, %.0f%% loss" % [
+			net_sim.one_way_latency_ms, net_sim.jitter_ms, net_sim.loss * 100.0])
 	client = ClientWorld.new()
 	client.hello_token = lc.token
 	add_child(client)
@@ -536,7 +540,26 @@ func _setup_remote_client() -> void:
 const REMOTE_TIMEOUT_TICKS: int = 30 * 8
 
 
+## W16-NET: headless CLIENT runs (smoke tests) print the link figures every 10 s.
+var _client_log_ticks: int = 0
+
+
+func _log_client_net() -> void:
+	if DisplayServer.get_name() != "headless":
+		return
+	_client_log_ticks += 1
+	if _client_log_ticks % roundi(net_config.stats_log_interval_s * net_config.tick_rate_hz) != 0:
+		return
+	var n := net_stats()
+	if n.is_empty():
+		return
+	print("[client-net] ping=%dms loss=%.1f%% jitter=%.1fms p95=%.1fms interp=%.0fms snap avg=%dB max=%dB in=%.2fkB/s out=%.2fkB/s misses=%d malformed=%d" % [
+		n.ping_ms, n.loss_pct, n.jitter_ms, n.jitter_p95_ms, n.interp_ms, roundi(n.snap_avg), n.snap_max,
+		n.kbps_snap, n.kbps_out, client.session.stats.baseline_misses, client.session.malformed_packets])
+
+
 func _watch_remote() -> void:
+	_log_client_net()
 	if remote.error_text != "" and remote_status == "":
 		remote_status = remote.error_text
 	if not client.session.is_welcomed:

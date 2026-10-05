@@ -67,7 +67,7 @@ func _ready() -> void:
 	_panel.add_theme_stylebox_override("panel", UiKit.panel_box(bg, 10, t.line_strong))
 	add_child(_panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", 4)
 	_panel.add_child(col)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
@@ -96,7 +96,7 @@ func _ready() -> void:
 	var cap := UiKit.label("SNAPSHOT BYTES / BUDGET", &"caption", t.text_off)
 	col.add_child(cap)
 	_spark = _Spark.new()
-	_spark.custom_minimum_size = Vector2(0, 38)
+	_spark.custom_minimum_size = Vector2(0, 28)
 	_spark.bar = t.cyan
 	_spark.over = t.warn
 	_spark.line = t.accent
@@ -113,7 +113,7 @@ func _ready() -> void:
 
 func _place() -> void:
 	var vp := get_viewport().get_visible_rect().size
-	_panel.position = Vector2(12.0, vp.y * 0.26)
+	_panel.position = Vector2(12.0, vp.y * 0.225)  # below the minimap, above the item strip
 	_panel.custom_minimum_size = Vector2(clampf(vp.x * 0.2, 260.0, 340.0), 0.0)
 	_panel.size = Vector2(_panel.custom_minimum_size.x, 0.0)
 
@@ -134,24 +134,24 @@ func refresh() -> void:
 	var s: Dictionary = session.call("net_stats") if session.has_method("net_stats") else {}
 	apply_stats(s)
 	var dbg: String = session.call("debug_text") if session.has_method("debug_text") else ""
-	_footer.text = "%s\nGodot %s / %s" % [dbg, Engine.get_version_info().string,
+	_footer.text = "%s | Godot %s / %s" % [dbg, Engine.get_version_info().string,
 		RenderingServer.get_current_rendering_method()]
 
 
 ## Shows `s` (GameSession.net_stats() keys; missing keys show "-").
 func apply_stats(s: Dictionary) -> void:
 	var t := UiKit.tokens()
-	_set("ping", "%d ms" % s.ping_ms if s.get("ping_ms", -1) >= 0 else "-",
+	_set_row("ping", "%d ms" % s.ping_ms if s.get("ping_ms", -1) >= 0 else "-",
 		s.get("ping_ms", 0) > WARN_PING_MS)
-	_set("loss", "%.1f %%" % s.loss_pct if s.has("loss_pct") else "-", s.get("loss_pct", 0.0) > WARN_LOSS_PCT)
-	_set("jitter", "%.0f ms  p95 %.0f" % [s.jitter_ms, s.jitter_p95_ms] if s.has("jitter_ms") else "-",
+	_set_row("loss", "%.1f %%" % s.loss_pct if s.has("loss_pct") else "-", s.get("loss_pct", 0.0) > WARN_LOSS_PCT)
+	_set_row("jitter", "%.0f ms  p95 %.0f" % [s.jitter_ms, s.jitter_p95_ms] if s.has("jitter_ms") else "-",
 		s.get("jitter_p95_ms", 0.0) > WARN_JITTER_MS)
-	_set("interp", "%.0f ms  (%.1f t)" % [s.interp_ms, s.interp_ticks] if s.has("interp_ms") else "-", false)
-	_set("kbps_in", "%.1f kB/s  all %.1f" % [s.kbps_snap, s.kbps_in] if s.has("kbps_snap") else "-", false)
-	_set("kbps_out", "%.1f kB/s" % s.kbps_out if s.has("kbps_out") else "-", false)
-	_set("snap", "%d B  max %d" % [roundi(s.snap_avg), s.snap_max] if s.has("snap_avg") else "-",
+	_set_row("interp", "%.0f ms  (%.1f t)" % [s.interp_ms, s.interp_ticks] if s.has("interp_ms") else "-", false)
+	_set_row("kbps_in", "%.1f kB/s  all %.1f" % [s.kbps_snap, s.kbps_in] if s.has("kbps_snap") else "-", false)
+	_set_row("kbps_out", "%.1f kB/s" % s.kbps_out if s.has("kbps_out") else "-", false)
+	_set_row("snap", "%d B  max %d" % [roundi(s.snap_avg), s.snap_max] if s.has("snap_avg") else "-",
 		s.get("snap_max", 0) > s.get("budget", 1 << 30))
-	_set("mode", str(s.get("mode", "-")), false)
+	_set_row("mode", str(s.get("mode", "-")), false)
 	_spark.sizes = s.get("sizes", PackedInt32Array())
 	_spark.budget = s.get("budget", 1100)
 	_spark.queue_redraw()
@@ -163,7 +163,7 @@ func value_text(key: String) -> String:
 	return _values[key].text if _values.has(key) else ""
 
 
-func _set(key: String, text: String, bad: bool) -> void:
+func _set_row(key: String, text: String, bad: bool) -> void:
 	var l: Label = _values[key]
 	l.text = text
 	var t := UiKit.tokens()
