@@ -248,7 +248,7 @@ func _paint() -> void:
 	var in_party: Array = (pr.members as Array).map(func(e: Dictionary) -> String: return String(e.id)) \
 		+ (pr.invites_out as Array).map(func(e: Dictionary) -> String: return String(e.id))
 	for e: Dictionary in g.incoming:
-		_friends_box.add_child(_row(e, "WANTS TO BE FRIENDS", ["ACCEPT", func() -> void: _send(AccountCodec.OP_FRIEND_ACCEPT, {"id": e.id})],
+		_friends_box.add_child(_row(e, "REQUEST", ["ACCEPT", func() -> void: _send(AccountCodec.OP_FRIEND_ACCEPT, {"id": e.id})],
 			[["Decline", func() -> void: _send(AccountCodec.OP_FRIEND_DECLINE, {"id": e.id})],
 			["Block", func() -> void: _send(AccountCodec.OP_BLOCK, {"id": e.id})]]))
 	for e: Dictionary in g.friends:

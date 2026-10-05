@@ -140,9 +140,12 @@ jobs:
           $GODOT --headless --path launcher -s tests/test_core.gd
           $GODOT --headless --path launcher -s tests/test_upd.gd
           $GODOT --headless --path launcher -s tests/test_ux.gd
+          $GODOT --headless --path launcher -s tests/test_online.gd
           GODOT=$GODOT launcher/tests/e2e_update.sh
           # Delta updates, pause/resume (Range), pre-load, packs, Lite, AppImage self-update.
           GODOT=$GODOT launcher/tests/e2e_upd.sh
+          # Launch-token sign-in against DTLS and plain headless servers (needs openssl).
+          GODOT=$GODOT launcher/tests/online_e2e.sh
 
       - name: Smoke-test the exported dedicated server
         run: |

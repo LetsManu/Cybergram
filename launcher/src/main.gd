@@ -196,6 +196,9 @@ func _ready() -> void:
 		add_child(_rail)
 		move_child(_rail, _login_modal.get_index())  # under the dialogs
 		_rail.setup(_probe, url, _login)
+		# The first page was shown before the rail existed: match its visibility to that page.
+		_rail.visible = _pages.has("home") and (_pages["home"] as Control).visible
+		_sync_top_status()
 		_crash = CrashReporter.new()
 		_crash.prefs = _prefs
 		_crash.login = _login
@@ -330,6 +333,15 @@ func _on_login_result(ok: bool, message: String, display_name: String) -> void:
 		_close_login()
 
 
+# --- W15-ONLINE ---
+## Home shows the server status in the online rail, so the top-bar line hides there.
+func _sync_top_status() -> void:
+	if _server_label == null:
+		return
+	_server_label.visible = _rail == null or not _rail.visible
+# --- end W15-ONLINE ---
+
+
 func _on_probed(info: Dictionary) -> void:
 	if _server_label == null:
 		return
@@ -338,6 +350,7 @@ func _on_probed(info: Dictionary) -> void:
 	var c: Color = t.ok if info.get("reachable", false) else t.danger
 	_server_dot.color = c
 	_server_label.add_theme_color_override("font_color", c)
+	_sync_top_status()  # W15-ONLINE
 
 
 func _parse_args(all: PackedStringArray) -> Dictionary:
@@ -755,6 +768,7 @@ func _show_page(key: String) -> void:
 	# --- W15-ONLINE ---
 	if _rail != null:
 		_rail.visible = key == "home"  # the rail sits over the key art, not over other pages
+	_sync_top_status()
 	# --- end W15-ONLINE ---
 	if _nav.has(key):
 		(_nav[key] as Button).button_pressed = true
