@@ -10,6 +10,10 @@ extends AccountStore
 ##   store.open()
 ##   store.put(AccountStore.new_account(id, "neo", pw, profile, now))
 
+## Owner-only permissions (rwx------ / rw-------), W11-Q1 SEC-006.
+const DIR_MODE := FileAccess.UNIX_READ_OWNER | FileAccess.UNIX_WRITE_OWNER | FileAccess.UNIX_EXECUTE_OWNER
+const FILE_MODE := FileAccess.UNIX_READ_OWNER | FileAccess.UNIX_WRITE_OWNER
+
 var data_dir: String
 var _by_id: Dictionary = {}
 var _by_name: Dictionary = {}  # lower-case username -> id
@@ -31,6 +35,7 @@ func open() -> int:
 	var err := DirAccess.make_dir_recursive_absolute(dir)
 	if err != OK and not DirAccess.dir_exists_absolute(dir):
 		return err
+	_owner_only(dir, DIR_MODE)
 	for f in DirAccess.get_files_at(dir):
 		if f.ends_with(".tmp"):
 			DirAccess.remove_absolute(dir.path_join(f))  # an interrupted write: the old file is intact
@@ -73,6 +78,7 @@ func put(account: Dictionary) -> bool:
 	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	if f == null:
 		return false
+	_owner_only(tmp, FILE_MODE)  # password hashes: not readable by other users
 	f.store_string(JSON.stringify(account, "\t"))
 	f.flush()
 	f.close()
@@ -102,3 +108,9 @@ func _remove(id: String) -> bool:
 
 static func _abs(p: String) -> String:
 	return ProjectSettings.globalize_path(p) if p.begins_with("user://") or p.begins_with("res://") else p
+
+
+## chmod on Unix; a no-op elsewhere (Windows has no Unix modes).
+static func _owner_only(path: String, mode: int) -> void:
+	if OS.get_name() in ["Linux", "macOS", "FreeBSD", "NetBSD", "OpenBSD", "BSD"]:
+		FileAccess.set_unix_permissions(path, mode)

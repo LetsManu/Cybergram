@@ -109,6 +109,11 @@ func send(to_peer: int, channel: int, data: PackedByteArray) -> void:
 	p.send(channel, data, flags)
 
 
+func peer_address(peer: int) -> String:
+	var p: ENetPacketPeer = _peer_of.get(peer)
+	return p.get_remote_address() if p != null else ""
+
+
 func poll() -> void:
 	while true:
 		var ev: Array = _host.service(0)
