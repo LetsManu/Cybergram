@@ -559,12 +559,13 @@ class Hero:
         bpy.context.scene.collection.objects.link(ob)
         _activate(ob)
         bpy.ops.object.mode_set(mode="EDIT")
-        for name in self.bone_names[:-1]:
+        body_bones = [n for n in self.bone_names if n != "Weapon"]
+        for name in body_bones:
             eb = arm.edit_bones.new(name)
             h, t = self.joints[name]
             eb.head, eb.tail = h, t
             eb.roll = 0.0
-        for name in self.bone_names[:-1]:
+        for name in body_bones:
             if self.parent[name]:
                 arm.edit_bones[name].parent = arm.edit_bones[self.parent[name]]
         eb = arm.edit_bones.new("Weapon")
@@ -631,6 +632,7 @@ def build(key):
     hero_defs.WEAPONS[hd["weapon"]](h, weapon_rest)
     if not lowpoly:
         hero_hd.weapon_detail(h, weapon_rest)
+        hero_hd.add_secondary(h)
     parts = h.finish_parts()
     if not lowpoly:
         hero_hd.harden_parts(parts)

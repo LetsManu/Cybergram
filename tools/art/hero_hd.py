@@ -771,3 +771,143 @@ def smooth_shells(h, iters=8):
     bm.to_mesh(me)
     bm.free()
     me.update()
+
+
+# ------------------------------------------------------------------ secondary (spring) bones
+# Contract: design/art/secondary-motion.md (W14-P2). Bones Sec_<part>[_<side>]_<n>, root parented
+# to a body bone, skinned to the dangling geometry, never keyed by the clips.
+def _sec_specs(h):
+    k = h.d["height"] / 1.85
+    neck = h.jh("Neck").z
+    hips = h.jh("Hips").z
+    back = lambda co: co.y < h.surface(co.x, co.z, side=-1)[0].y - 0.05 * k
+
+    def sel(names=None, bones=None, extra=None):
+        def f(co, name, dom):
+            return ((names is None or name in names) and (bones is None or dom in bones)
+                    and (extra is None or extra(co)))
+        return f
+    S = {
+        "vesper": [("Sec_coat_L", "Hips", 3, "top", sel({"plum", "gold"}, {"Hips", "UpperLeg_L", "UpperLeg_R"},
+                                                        lambda co: co.z < hips and co.x < -0.05 * k and back(co))),
+                   ("Sec_coat_B", "Hips", 3, "top", sel({"plum", "gold"}, {"Hips", "UpperLeg_L", "UpperLeg_R"},
+                                                        lambda co: co.z < hips and abs(co.x) <= 0.05 * k and back(co))),
+                   ("Sec_coat_R", "Hips", 3, "top", sel({"plum", "gold"}, {"Hips", "UpperLeg_L", "UpperLeg_R"},
+                                                        lambda co: co.z < hips and co.x > 0.05 * k and back(co)))],
+        "liora": [("Sec_halo_1", "UpperChest", 1, "bottom", sel({"chrome", "team"}, {"UpperChest"},
+                                                               lambda co: co.y < h.jh("UpperChest").y - 0.12 * k)),
+                  ("Sec_coat_B", "Hips", 2, "top", sel({"ivory", "sage"}, {"Hips", "UpperLeg_L", "UpperLeg_R"},
+                                                       lambda co: co.y < -0.08 * k and co.z < hips))],
+        "hex": [("Sec_antenna_L", "Head", 2, "bottom", sel({"chrome", "team"}, {"Head"},
+                                                           lambda co: co.z > neck + 0.2 * k and co.x * _lx(h) > 0.04)),
+                ("Sec_antenna_R", "Head", 2, "bottom", sel({"chrome", "team"}, {"Head"},
+                                                           lambda co: co.z > neck + 0.2 * k and co.x * _lx(h) < -0.04))],
+        "juniper": [("Sec_pack_1", "UpperChest", 1, "top", sel({"mustard", "olive", "team", "chrome", "lime"}, None,
+                                                              lambda co: back(co) and co.z > hips))],
+        "sable": [("Sec_strap_L", "UpperChest", 3, "top", sel(None, None, lambda co: back(co) and co.x * _lx(h) > 0
+                                                              and hips - 0.3 * k < co.z < neck)),
+                  ("Sec_strap_R", "UpperChest", 3, "top", sel(None, None, lambda co: back(co) and co.x * _lx(h) <= 0
+                                                              and hips - 0.3 * k < co.z < neck))],
+        "ryker": [("Sec_antenna_1", "Clavicle_L", 2, "bottom", sel({"olive", "team"}, {"Clavicle_L"}, _ryker_fin(h, k)))],
+        "brannoc": [],
+    }
+    return S.get(h.key, [])
+
+
+def _ryker_fin(h, k):
+    """The antenna fin on Ryker's left pauldron (hero_defs.ryker_parts)."""
+    pc = h.jh("UpperArm_L") + Vector((-0.02, -0.005, 0.045)) * k
+    fin = pc + Vector((-0.04, 0.0, 0.11)) * k
+    return lambda co: abs(co.x - fin.x) < 0.05 * k and abs(co.y - fin.y) < 0.06 * k and co.z > pc.z + 0.035 * k
+
+
+def _islands(vs, min_frac=0.25):
+    """Expands a vertex selection to the connected islands it touches (>= min_frac selected)."""
+    sel = set(vs)
+    seen, out = set(), []
+    for v0 in vs:
+        if v0 in seen:
+            continue
+        isl, stack = [], [v0]
+        seen.add(v0)
+        while stack:
+            v = stack.pop()
+            isl.append(v)
+            for e in v.link_edges:
+                o = e.other_vert(v)
+                if o not in seen:
+                    seen.add(o)
+                    stack.append(o)
+        if sum(1 for v in isl if v in sel) >= min_frac * len(isl):
+            out += isl
+    return out
+
+
+def _lx(h):
+    """+1 if the hero's left is +X."""
+    return 1.0 if h.jh("UpperLeg_L").x > 0 else -1.0
+
+
+def add_secondary(h):
+    """Fits Sec_ chains to the selected part geometry and re-skins it (call before finish_parts)."""
+    bm, dl, cl = h.pbm, h.pdl, h.pcol
+    names = h.bone_names
+    rgb_name = {tuple(round(x, 3) for x in c[:3]): n for c, n in h.names.items()}
+    vname = {}
+    for f in bm.faces:
+        n = rgb_name.get(tuple(round(x, 3) for x in f.loops[0][cl][:3]), "")
+        for v in f.verts:
+            vname.setdefault(v, n)
+    made = []
+    for chain, parent, nb, root_mode, pred in _sec_specs(h):
+        vs = []
+        for v in bm.verts:
+            w = v[dl]
+            if not w:
+                continue
+            dom = names[max(w.keys(), key=lambda g: w[g])]
+            if dom.startswith("Sec_") or dom == "Weapon":
+                continue
+            if pred(v.co, vname.get(v, ""), dom):
+                vs.append(v)
+        vs = _islands(vs)  # whole connected pieces, never a torn partial selection
+        if len(vs) < 8:
+            print("hd: secondary %s skipped (%d verts)" % (chain, len(vs)))
+            continue
+        P = np.array([tuple(v.co) for v in vs])
+        r = P[np.argmax(P[:, 2])] if root_mode == "top" else P[np.argmin(P[:, 2])]
+        root = Vector(P[np.argsort(np.abs(P[:, 2] - r[2]))[:max(3, len(P) // 20)]].mean(axis=0))
+        tip = Vector(P[np.argmax(np.linalg.norm(P - np.array(root), axis=1))])
+        L = (tip - root).length
+        if L < 0.04:
+            continue
+        d = (tip - root).normalized()
+        pts = [root + d * (L * i / nb) for i in range(nb + 1)]
+        bnames = ["%s_%d" % (chain, i + 1) for i in range(nb)]
+        for i, bn in enumerate(bnames):
+            h.joints[bn] = (pts[i], pts[i + 1])
+            h.parent[bn] = parent if i == 0 else bnames[i - 1]
+            h.bone_names.append(bn)
+        for v in vs:
+            s = max(0.0, min(0.999, (v.co - root).dot(d) / L))
+            fb = s * nb
+            i = int(fb)
+            fr = fb - i
+            new = {h.bone_names.index(bnames[i]): 1.0}
+            if fr > 0.7 and i + 1 < nb:
+                t = (fr - 0.7) / 0.3
+                new = {h.bone_names.index(bnames[i]): 1.0 - 0.5 * t, h.bone_names.index(bnames[i + 1]): 0.5 * t}
+            if s < 0.15:  # soft root: blend with the original (body) weights
+                t = s / 0.15
+                old = dict(v[dl])
+                new = {g: w * t for g, w in new.items()}
+                for g, w in old.items():
+                    new[g] = new.get(g, 0.0) + w * (1.0 - t)
+            top = sorted(new.items(), key=lambda x: -x[1])[:4]
+            tot = sum(w for _, w in top) or 1.0
+            v[dl].clear()
+            for g, w in top:
+                v[dl][g] = w / tot
+        made.append("%s x%d (%d verts, %.2f m)" % (chain, nb, len(vs), L))
+    print("hd: secondary chains:", made)
+    return made
