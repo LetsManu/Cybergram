@@ -59,6 +59,7 @@ func _init(agent_: Variant, setup_: Dictionary, send_fn_: Callable, rules_: Matc
 ## The match starts (first tick of the built world).
 func start(now: float) -> void:
 	started_at = now
+	_vote_state = [RemakeVote.State.IDLE, RemakeVote.State.IDLE]
 	for t in 2:
 		var team: Array = team_of.keys().filter(func(a: String) -> bool: return team_of[a] == t)
 		votes[t] = RemakeVote.new(team, now, rules)

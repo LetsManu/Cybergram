@@ -175,7 +175,7 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 	return true
 
 
-func _queue_join(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
+func _queue_join(_peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 	var me := str(who.id)
 	var qi := int(r.queue)
 	var q: MatchQueueDef = null
@@ -695,7 +695,7 @@ func _on_match_result(match_id: String, res: Dictionary) -> void:
 			leavers, voided)
 		if not rate_guests:
 			for id in humans:
-				if bool(_seat_ident(m, id).get("guest", false)):
+				if bool(_identity_of(id).get("guest", false)):
 					ratings.store.erase_account(id)
 	var struck := {}
 	if not m.custom:
@@ -1122,11 +1122,6 @@ func _peer_of(id: String) -> int:
 func _identity_of(id: String) -> Dictionary:
 	var p := _peer_of(id)
 	return accounts.identity(p) if p >= 0 else {}
-
-
-func _seat_ident(m: Match, id: String) -> Dictionary:
-	var ident := _identity_of(id)
-	return ident
 
 
 func _rating_of(id: String, track: StringName) -> float:
