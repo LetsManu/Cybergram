@@ -1,0 +1,29 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/fp_pos = Vector3(0.1400, -0.2050, -0.2000)
+metadata/sockets = {
+"fx_muzzle": Vector3(0.0877, -0.1224, -0.9148),
+"grip_l": Vector3(0.0465, -0.1620, -0.5124),
+"socket_barrel": Vector3(0.1038, -0.0817, -0.6427),
+"socket_chamber": Vector3(0.1889, -0.1424, -0.2001),
+"socket_core": Vector3(0.1240, -0.0825, -0.3430),
+"socket_frame": Vector3(0.0758, -0.1600, -0.3437)
+}
+metadata/clip_length = {
+"cast": 0.6667,
+"cast_ult": 1.2000,
+"draw": 0.4667,
+"fire": 0.2667,
+"holster": 0.4000,
+"idle": 3.0000,
+"inspect": 3.2000,
+"jump": 0.4667,
+"land": 0.4667,
+"reload": 1.8000,
+"sprint": 0.6667,
+"walk": 1.0667
+}
+metadata/tris = 11648
+metadata/weapon = "ironmaw_w16"
+metadata/fallback = false
