@@ -504,6 +504,11 @@ func _build_ui() -> void:
 	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_art)
 	# Key art: three heroes on the right (mockup positions, right-anchored).
+	# --- W15-UX --- live key art (videos over the portraits)
+	var key_art: KeyArt = KeyArt.new()
+	key_art.reduce_motion = KeyArt.motion_reduced(_ux.game_dir)
+	_art.add_child(key_art)
+	# --- end W15-UX ---
 	for a in [["brannoc", 640, 120, 470, 0.55], ["sable", 960, 110, 480, 0.55], ["vesper_loom", 770, 60, 560, 1.0]]:
 		var img: TextureRect = TextureRect.new()
 		img.texture = UiKit.portrait_texture(String(a[0]))
@@ -518,6 +523,7 @@ func _build_ui() -> void:
 		img.offset_bottom = float(a[2]) + h
 		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_art.add_child(img)
+		key_art.add_layer(img, String(a[0]), 0.5 + float(a[4]) * 0.5)  # W15-UX
 	var stack: Control = Control.new()
 	stack.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stack.offset_left = RAIL_W

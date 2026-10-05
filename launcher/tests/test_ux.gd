@@ -21,6 +21,7 @@ func _init() -> void:
 	_dirs()
 	_settings_file()
 	_syscheck()
+	_keyart()
 	print("launcher ux tests: %d checks, %d failed" % [_checks, _fails])
 	quit(0 if _fails == 0 else 1)
 
@@ -138,3 +139,16 @@ func _syscheck() -> void:
 	_check(q.call("NVIDIA GeForce GTX 1060", 16) == SystemCheck.Quality.HIGH, "mid discrete high")
 	_check(q.call("NVIDIA GeForce GTX 1060", 8) == SystemCheck.Quality.MEDIUM, "mid discrete 8gb medium")
 	_check(q.call("", 16) == SystemCheck.Quality.MEDIUM, "unknown gpu medium")
+
+
+func _keyart() -> void:
+	var dir: String = OS.get_cache_dir().path_join("cg_keyart_test")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var cfg: ConfigFile = ConfigFile.new()
+	cfg.set_value("accessibility", "reduce_motion", true)
+	cfg.save(dir.path_join("settings.cfg"))
+	_check(KeyArt.motion_reduced(dir), "game reduce_motion makes the key art static")
+	_check(not KeyArt.motion_reduced(dir + "_none"), "no file means motion allowed")
+	DirAccess.remove_absolute(dir.path_join("settings.cfg"))
+	for h in ["brannoc", "sable", "vesper_loom"]:
+		_check(ResourceLoader.exists(KeyArt.VIDEO_DIR.path_join(h + ".ogv")), "video exists " + h)
