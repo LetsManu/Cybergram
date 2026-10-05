@@ -172,6 +172,8 @@ func _build_match() -> void:
 		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, map_def)  # E13/E15
 	if launch_config != null and launch_config.debug_armory and map_def != null and not map_def.hqs.is_empty():
 		server.debug_player_spawn = map_def.hq(ServerWorld.TEAM_PLAYERS).armory + Vector3(0.0, 0.05, 1.5)
+	if launch_config != null and launch_config.debug_water and map_def != null and not map_def.water_zones.is_empty():
+		server.debug_player_spawn = map_def.water_zones[0].bounds.get_center() + Vector3(-5.0, 0.55, 0.0)
 	# E11: bot matches fill the slots from src/ai (BotAiInstaller); no training dummies.
 	var bot_match := launch_config != null and (launch_config.bots or launch_config.bots_only)
 	for i in dummy_inputs.size() if not bot_match else 0:
@@ -200,6 +202,7 @@ func _build_match() -> void:
 		client.setup(net_config, movement, look, map_scene, link.create_endpoint(LOCAL_CLIENT_PEER), source,
 			player_hero)
 		HeroPlayHistory.track(client, player_hero)  # W15-UX: local hero play history
+		client.match_rules = match_rules  # W16-SDWATER: same ring rules as the local server
 		client.setup_objectives(map_def)
 		if wardling_rules != null:
 			client.wardlings.rules = wardling_rules

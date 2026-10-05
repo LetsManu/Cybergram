@@ -1,15 +1,16 @@
 [gd_resource type="Resource" script_class="MapDef" format=3]
 
-[ext_resource type="Script" path="res://src/gameplay/data/hq_def.gd" id="1_g75tf"]
-[ext_resource type="Script" path="res://src/gameplay/data/lane_def.gd" id="2_jyfy2"]
-[ext_resource type="Script" path="res://src/gameplay/data/flank_loop_def.gd" id="3_rem6n"]
-[ext_resource type="Script" path="res://src/gameplay/data/hardpoint_def.gd" id="4_1h11q"]
-[ext_resource type="Resource" path="res://assets/data/match/match_rules_front.tres" id="5_h5rn0"]
-[ext_resource type="PackedScene" path="res://assets/maps/front/shardline_front.tscn" id="6_1ig57"]
-[ext_resource type="Script" path="res://src/gameplay/data/map_def.gd" id="7_bjrcl"]
+[ext_resource type="Script" path="res://src/gameplay/data/hq_def.gd" id="1_jyfy2"]
+[ext_resource type="Script" path="res://src/gameplay/data/lane_def.gd" id="2_rem6n"]
+[ext_resource type="Script" path="res://src/gameplay/data/flank_loop_def.gd" id="3_1h11q"]
+[ext_resource type="Script" path="res://src/gameplay/data/hardpoint_def.gd" id="4_h5rn0"]
+[ext_resource type="Resource" path="res://assets/data/match/match_rules_front.tres" id="5_1ig57"]
+[ext_resource type="PackedScene" path="res://assets/maps/front/shardline_front.tscn" id="6_bjrcl"]
+[ext_resource type="Script" path="res://src/gameplay/data/map_def.gd" id="7_xrcqk"]
+[ext_resource type="Script" path="res://src/gameplay/data/water_zone_def.gd" id="8_bftco"]
 
-[sub_resource type="Resource" id="Resource_xrcqk"]
-script = ExtResource("1_g75tf")
+[sub_resource type="Resource" id="Resource_qoyce"]
+script = ExtResource("1_jyfy2")
 sanctum = Vector3(0, 0, -5)
 uplink = Vector3(0, 0, -30)
 foundry = Vector3(-19, 0, -17)
@@ -18,8 +19,8 @@ lane_gate = Vector3(0, 0, -40)
 lane_gates = PackedVector3Array(-22, 0, -40, 0, 0, -40, 22, 0, -40)
 spawn_points = PackedVector3Array(-6, 0.05, -4, -3, 0.05, -4, 0, 0.05, -4, 3, 0.05, -4, 6, 0.05, -4)
 
-[sub_resource type="Resource" id="Resource_bftco"]
-script = ExtResource("1_g75tf")
+[sub_resource type="Resource" id="Resource_me51m"]
+script = ExtResource("1_jyfy2")
 team = 1
 sanctum = Vector3(0, 0, -415)
 uplink = Vector3(0, 0, -390)
@@ -30,8 +31,8 @@ lane_gates = PackedVector3Array(-22, 0, -380, 0, 0, -380, 22, 0, -380)
 spawn_points = PackedVector3Array(-6, 0.05, -416, -3, 0.05, -416, 0, 0.05, -416, 3, 0.05, -416, 6, 0.05, -416)
 spawn_yaw_deg = 180.0
 
-[sub_resource type="Resource" id="Resource_qoyce"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_nlv08"]
+script = ExtResource("3_1h11q")
 id = &"fx_an_n"
 from_hardpoint = &"n_ao"
 to_hardpoint = &"c_mid"
@@ -39,8 +40,8 @@ outer_door = Vector3(-65, 0, -145)
 mid_door = Vector3(-23.03563, 0, -191.5715)
 waypoints = PackedVector3Array(-65, 0, -145, -44.52893, -4, -172.0218, -40, -4, -178, -34.143486, -4, -182.68521, -23.03563, 0, -191.5715)
 
-[sub_resource type="Resource" id="Resource_me51m"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_xbmeg"]
+script = ExtResource("3_1h11q")
 id = &"fx_bn_n"
 from_hardpoint = &"n_bo"
 to_hardpoint = &"c_mid"
@@ -48,8 +49,8 @@ outer_door = Vector3(-65, 0, -275)
 mid_door = Vector3(-23.03563, 0, -228.4285)
 waypoints = PackedVector3Array(-65, 0, -275, -44.52893, -4, -247.9782, -40, -4, -242, -34.143486, -4, -237.31479, -23.03563, 0, -228.4285)
 
-[sub_resource type="Resource" id="Resource_nlv08"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_yyaq8"]
+script = ExtResource("4_h5rn0")
 id = &"n_ai"
 display_name = "Glasswork Gate"
 task = 2
@@ -64,8 +65,8 @@ garrison_points = PackedVector3Array(-84, 0, -91.6, -76, 0, -91.6, -80, 0, -81.7
 supply_cache = Vector3(-70.5, 0, -76)
 side_doors = PackedVector3Array()
 
-[sub_resource type="Resource" id="Resource_xbmeg"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_sx0sc"]
+script = ExtResource("4_h5rn0")
 id = &"n_ao"
 display_name = "Lattice Bridge"
 tier = 1
@@ -79,8 +80,8 @@ garrison_points = PackedVector3Array(-84, 0, -151.6, -76, 0, -151.6, -80, 0, -14
 supply_cache = Vector3(-70.5, 0, -136)
 side_doors = PackedVector3Array(-65, 0, -145)
 
-[sub_resource type="Resource" id="Resource_yyaq8"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_0wtdb"]
+script = ExtResource("4_h5rn0")
 id = &"n_mid"
 display_name = "Belfry Ruin"
 task = 1
@@ -94,8 +95,8 @@ garrison_points = PackedVector3Array(-84, 0, -204.5, -76, 0, -204.5, -80, 0, -21
 supply_cache = Vector3(-70.5, 0, -219)
 side_doors = PackedVector3Array(-66, 0, -201, -66, 0, -219)
 
-[sub_resource type="Resource" id="Resource_sx0sc"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_nv7bs"]
+script = ExtResource("4_h5rn0")
 id = &"n_bo"
 display_name = "Rivet Span"
 tier = 1
@@ -109,8 +110,8 @@ garrison_points = PackedVector3Array(-84, 0, -268.4, -76, 0, -268.4, -80, 0, -27
 supply_cache = Vector3(-70.5, 0, -284)
 side_doors = PackedVector3Array(-65, 0, -275)
 
-[sub_resource type="Resource" id="Resource_0wtdb"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_6ybnv"]
+script = ExtResource("4_h5rn0")
 id = &"n_bi"
 display_name = "Furnace Gate"
 task = 2
@@ -126,14 +127,14 @@ garrison_points = PackedVector3Array(-84, 0, -328.4, -76, 0, -328.4, -80, 0, -33
 supply_cache = Vector3(-70.5, 0, -344)
 side_doors = PackedVector3Array()
 
-[sub_resource type="Resource" id="Resource_nv7bs"]
-script = ExtResource("2_jyfy2")
+[sub_resource type="Resource" id="Resource_qs1nd"]
+script = ExtResource("2_rem6n")
 id = &"north"
-hardpoints = Array[ExtResource("4_1h11q")]([SubResource("Resource_nlv08"), SubResource("Resource_xbmeg"), SubResource("Resource_yyaq8"), SubResource("Resource_sx0sc"), SubResource("Resource_0wtdb")])
-flank_loops = Array[ExtResource("3_rem6n")]([SubResource("Resource_qoyce"), SubResource("Resource_me51m")])
+hardpoints = Array[ExtResource("4_h5rn0")]([SubResource("Resource_yyaq8"), SubResource("Resource_sx0sc"), SubResource("Resource_0wtdb"), SubResource("Resource_nv7bs"), SubResource("Resource_6ybnv")])
+flank_loops = Array[ExtResource("3_1h11q")]([SubResource("Resource_nlv08"), SubResource("Resource_xbmeg")])
 
-[sub_resource type="Resource" id="Resource_6ybnv"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_0gx25"]
+script = ExtResource("3_1h11q")
 id = &"fx_an_c"
 from_hardpoint = &"c_ao"
 to_hardpoint = &"n_mid"
@@ -141,8 +142,8 @@ outer_door = Vector3(-14, 0, -145)
 mid_door = Vector3(-66, 0, -201)
 waypoints = PackedVector3Array(-14, 0, -145, -35.35846, -4, -172.10881, -40, -4, -178, -45.617474, -4, -182.9693, -66, 0, -201)
 
-[sub_resource type="Resource" id="Resource_qs1nd"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_eg1yj"]
+script = ExtResource("3_1h11q")
 id = &"fx_as_c"
 from_hardpoint = &"c_ao"
 to_hardpoint = &"s_mid"
@@ -150,8 +151,8 @@ outer_door = Vector3(14, 0, -145)
 mid_door = Vector3(65, 0, -201)
 waypoints = PackedVector3Array(14, 0, -145, 35.35846, -4, -172.10881, 40, -4, -178, 45.51948, -4, -183.07793, 65, 0, -201)
 
-[sub_resource type="Resource" id="Resource_0gx25"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_vxkrp"]
+script = ExtResource("3_1h11q")
 id = &"fx_bn_c"
 from_hardpoint = &"c_bo"
 to_hardpoint = &"n_mid"
@@ -159,8 +160,8 @@ outer_door = Vector3(-14, 0, -275)
 mid_door = Vector3(-66, 0, -219)
 waypoints = PackedVector3Array(-14, 0, -275, -35.35846, -4, -247.89119, -40, -4, -242, -45.617474, -4, -237.0307, -66, 0, -219)
 
-[sub_resource type="Resource" id="Resource_eg1yj"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_ipnoq"]
+script = ExtResource("3_1h11q")
 id = &"fx_bs_c"
 from_hardpoint = &"c_bo"
 to_hardpoint = &"s_mid"
@@ -168,8 +169,8 @@ outer_door = Vector3(14, 0, -275)
 mid_door = Vector3(65, 0, -219)
 waypoints = PackedVector3Array(14, 0, -275, 35.35846, -4, -247.89119, 40, -4, -242, 45.51948, -4, -236.92207, 65, 0, -219)
 
-[sub_resource type="Resource" id="Resource_vxkrp"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_oh216"]
+script = ExtResource("4_h5rn0")
 id = &"c_ai"
 display_name = "Concord Atrium"
 tier = 0
@@ -182,8 +183,8 @@ garrison_points = PackedVector3Array(-4, 0, -91.6, 4, 0, -91.6, 0, 0, -81.7)
 supply_cache = Vector3(-9.5, 0, -76)
 side_doors = PackedVector3Array()
 
-[sub_resource type="Resource" id="Resource_ipnoq"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_hil3p"]
+script = ExtResource("4_h5rn0")
 id = &"c_ao"
 display_name = "Signal Market"
 task = 1
@@ -199,8 +200,8 @@ garrison_points = PackedVector3Array(-4, 0, -150.5, 4, 0, -150.5, 0, 0, -142.25)
 supply_cache = Vector3(-9.5, 0, -136)
 side_doors = PackedVector3Array(-14, 0, -145, 14, 0, -145)
 
-[sub_resource type="Resource" id="Resource_oh216"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_urwmi"]
+script = ExtResource("4_h5rn0")
 id = &"c_mid"
 display_name = "The Spindle"
 lane_index = 2
@@ -211,8 +212,8 @@ garrison_points = PackedVector3Array(-4, 0, -203.4, 4, 0, -203.4, 0, 0, -213.3)
 supply_cache = Vector3(9, 0, -210)
 side_doors = PackedVector3Array(-23.03563, 0, -191.5715, 23.03563, 0, -191.5715, -23.03563, 0, -228.4285, 23.03563, 0, -228.4285)
 
-[sub_resource type="Resource" id="Resource_hil3p"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_klib3"]
+script = ExtResource("4_h5rn0")
 id = &"c_bo"
 display_name = "Scrap Bazaar"
 task = 1
@@ -228,8 +229,8 @@ garrison_points = PackedVector3Array(-4, 0, -269.5, 4, 0, -269.5, 0, 0, -277.75)
 supply_cache = Vector3(-9.5, 0, -284)
 side_doors = PackedVector3Array(-14, 0, -275, 14, 0, -275)
 
-[sub_resource type="Resource" id="Resource_urwmi"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_ehsn0"]
+script = ExtResource("4_h5rn0")
 id = &"c_bi"
 display_name = "Boiler Hall"
 tier = 0
@@ -243,14 +244,14 @@ garrison_points = PackedVector3Array(-4, 0, -328.4, 4, 0, -328.4, 0, 0, -338.3)
 supply_cache = Vector3(-9.5, 0, -344)
 side_doors = PackedVector3Array()
 
-[sub_resource type="Resource" id="Resource_klib3"]
-script = ExtResource("2_jyfy2")
+[sub_resource type="Resource" id="Resource_mwbfv"]
+script = ExtResource("2_rem6n")
 id = &"center"
-hardpoints = Array[ExtResource("4_1h11q")]([SubResource("Resource_vxkrp"), SubResource("Resource_ipnoq"), SubResource("Resource_oh216"), SubResource("Resource_hil3p"), SubResource("Resource_urwmi")])
-flank_loops = Array[ExtResource("3_rem6n")]([SubResource("Resource_6ybnv"), SubResource("Resource_qs1nd"), SubResource("Resource_0gx25"), SubResource("Resource_eg1yj")])
+hardpoints = Array[ExtResource("4_h5rn0")]([SubResource("Resource_oh216"), SubResource("Resource_hil3p"), SubResource("Resource_urwmi"), SubResource("Resource_klib3"), SubResource("Resource_ehsn0")])
+flank_loops = Array[ExtResource("3_1h11q")]([SubResource("Resource_0gx25"), SubResource("Resource_eg1yj"), SubResource("Resource_vxkrp"), SubResource("Resource_ipnoq")])
 
-[sub_resource type="Resource" id="Resource_ehsn0"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_sbt5b"]
+script = ExtResource("3_1h11q")
 id = &"fx_as_s"
 from_hardpoint = &"s_ao"
 to_hardpoint = &"c_mid"
@@ -258,8 +259,8 @@ outer_door = Vector3(65, 0, -145)
 mid_door = Vector3(23.03563, 0, -191.5715)
 waypoints = PackedVector3Array(65, 0, -145, 44.52893, -4, -172.0218, 40, -4, -178, 34.143486, -4, -182.68521, 23.03563, 0, -191.5715)
 
-[sub_resource type="Resource" id="Resource_mwbfv"]
-script = ExtResource("3_rem6n")
+[sub_resource type="Resource" id="Resource_ejgsw"]
+script = ExtResource("3_1h11q")
 id = &"fx_bs_s"
 from_hardpoint = &"s_bo"
 to_hardpoint = &"c_mid"
@@ -267,8 +268,8 @@ outer_door = Vector3(65, 0, -275)
 mid_door = Vector3(23.03563, 0, -228.4285)
 waypoints = PackedVector3Array(65, 0, -275, 44.52893, -4, -247.9782, 40, -4, -242, 34.143486, -4, -237.31479, 23.03563, 0, -228.4285)
 
-[sub_resource type="Resource" id="Resource_sbt5b"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_awc6o"]
+script = ExtResource("4_h5rn0")
 id = &"s_ai"
 display_name = "Prism Locks"
 task = 1
@@ -283,8 +284,8 @@ garrison_points = PackedVector3Array(76, 0, -90.5, 84, 0, -90.5, 80, 0, -82.25)
 supply_cache = Vector3(70.5, 0, -76)
 side_doors = PackedVector3Array()
 
-[sub_resource type="Resource" id="Resource_ejgsw"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_s0ex0"]
+script = ExtResource("4_h5rn0")
 id = &"s_ao"
 display_name = "Halo Dock"
 task = 2
@@ -300,8 +301,8 @@ garrison_points = PackedVector3Array(76, 0, -151.6, 84, 0, -151.6, 80, 0, -141.7
 supply_cache = Vector3(70.5, 0, -136)
 side_doors = PackedVector3Array(65, 0, -145)
 
-[sub_resource type="Resource" id="Resource_awc6o"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_1llg1"]
+script = ExtResource("4_h5rn0")
 id = &"s_mid"
 display_name = "Leyfall Pumpworks"
 task = 2
@@ -315,8 +316,8 @@ garrison_points = PackedVector3Array(76, 0, -203.4, 84, 0, -203.4, 80, 0, -213.3
 supply_cache = Vector3(70.5, 0, -219)
 side_doors = PackedVector3Array(65, 0, -201, 65, 0, -219)
 
-[sub_resource type="Resource" id="Resource_s0ex0"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_s4s6a"]
+script = ExtResource("4_h5rn0")
 id = &"s_bo"
 display_name = "Cinder Dock"
 task = 2
@@ -332,8 +333,8 @@ garrison_points = PackedVector3Array(76, 0, -268.4, 84, 0, -268.4, 80, 0, -278.3
 supply_cache = Vector3(70.5, 0, -284)
 side_doors = PackedVector3Array(65, 0, -275)
 
-[sub_resource type="Resource" id="Resource_1llg1"]
-script = ExtResource("4_1h11q")
+[sub_resource type="Resource" id="Resource_jnujm"]
+script = ExtResource("4_h5rn0")
 id = &"s_bi"
 display_name = "Slag Locks"
 task = 1
@@ -349,20 +350,29 @@ garrison_points = PackedVector3Array(76, 0, -329.5, 84, 0, -329.5, 80, 0, -337.7
 supply_cache = Vector3(70.5, 0, -344)
 side_doors = PackedVector3Array()
 
-[sub_resource type="Resource" id="Resource_s4s6a"]
-script = ExtResource("2_jyfy2")
+[sub_resource type="Resource" id="Resource_6c1rg"]
+script = ExtResource("2_rem6n")
 id = &"south"
-hardpoints = Array[ExtResource("4_1h11q")]([SubResource("Resource_sbt5b"), SubResource("Resource_ejgsw"), SubResource("Resource_awc6o"), SubResource("Resource_s0ex0"), SubResource("Resource_1llg1")])
-flank_loops = Array[ExtResource("3_rem6n")]([SubResource("Resource_ehsn0"), SubResource("Resource_mwbfv")])
+hardpoints = Array[ExtResource("4_h5rn0")]([SubResource("Resource_awc6o"), SubResource("Resource_s0ex0"), SubResource("Resource_1llg1"), SubResource("Resource_s4s6a"), SubResource("Resource_jnujm")])
+flank_loops = Array[ExtResource("3_1h11q")]([SubResource("Resource_sbt5b"), SubResource("Resource_ejgsw")])
+
+[sub_resource type="Resource" id="Resource_1ngj4"]
+script = ExtResource("8_bftco")
+bounds = AABB(67, -0.5, -158, 26, 2, 26)
+
+[sub_resource type="Resource" id="Resource_wv6dg"]
+script = ExtResource("8_bftco")
+bounds = AABB(67, -0.5, -288, 26, 2, 26)
 
 [resource]
-script = ExtResource("7_bjrcl")
+script = ExtResource("7_xrcqk")
 id = &"map_front"
 display_name = "Shardline Front"
-scene = ExtResource("6_1ig57")
-lanes = Array[ExtResource("2_jyfy2")]([SubResource("Resource_nv7bs"), SubResource("Resource_klib3"), SubResource("Resource_s4s6a")])
-hqs = Array[ExtResource("1_g75tf")]([SubResource("Resource_xrcqk"), SubResource("Resource_bftco")])
+scene = ExtResource("6_bjrcl")
+lanes = Array[ExtResource("2_rem6n")]([SubResource("Resource_qs1nd"), SubResource("Resource_mwbfv"), SubResource("Resource_6c1rg")])
+hqs = Array[ExtResource("1_jyfy2")]([SubResource("Resource_qoyce"), SubResource("Resource_me51m")])
 mid_plaza_center = Vector3(0, 0, -210)
 mid_plaza_radius = 30.0
 sudden_death_spawns = PackedVector3Array(0, 0.05, -185, 0, 0.05, -235)
-match_rules = ExtResource("5_h5rn0")
+water_zones = Array[ExtResource("8_bftco")]([SubResource("Resource_1ngj4"), SubResource("Resource_wv6dg")])
+match_rules = ExtResource("5_1ig57")

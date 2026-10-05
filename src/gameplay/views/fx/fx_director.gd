@@ -18,6 +18,8 @@ const SAME_SHOOTER_GAP_MS: int = 40
 const REMOTE_MUZZLE_H: float = 1.45
 ## Impacts farther than this from the muzzle are max-range misses: no sparks.
 const IMPACT_MAX_RANGE_M: float = 140.0
+## Hit-flash overlay colour at full effects intensity (scaled by the setting).
+const HIT_OVERLAY_COLOR := Color(0.55, 0.16, 0.12)
 const COLOR_OWN := Color(1.0, 0.82, 0.35)
 const COLOR_ALLY := Color(0.45, 0.72, 1.0)
 const COLOR_ENEMY := Color(1.0, 0.42, 0.2)
@@ -46,12 +48,21 @@ var _hit_flash: Dictionary = {}  # HeroView -> seconds left
 var _was_visible: Dictionary = {}  # net id -> bool
 var _poll_t: float = 0.0
 var _overlay: StandardMaterial3D
+## W16-COMFORT: screen effects intensity (GameSettings.comfort_fx_intensity, 0..1).
+## Scales flash / light / hit-flash brightness; at 0 no flash quad, muzzle light
+## or hit overlay is shown at all (sparks stay: they are small world particles).
+## Injectable for tests; null = the process-wide settings.
+var settings: GameSettings
+## Debug (evidence, `--debug-hitflash`): re-fire a hit flash on the first remote
+## hero plus a big flash in front of the camera every frame.
+var debug_hitflash: bool = false
 
 
 func _ready() -> void:
 	if GfxQuality.is_headless():
 		set_process(false)
 		return
+	debug_hitflash = OS.get_cmdline_user_args().has("--debug-hitflash")
 	_lvl = GfxQuality.level()
 	_k = GfxQuality.particle_scale(_lvl)
 	_reduce = UiKit.reduce_motion()
@@ -118,7 +129,7 @@ func _ready() -> void:
 	_overlay = StandardMaterial3D.new()
 	_overlay.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_overlay.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	_overlay.albedo_color = Color(0.55, 0.16, 0.12)
+	_overlay.albedo_color = HIT_OVERLAY_COLOR
 	_overlay.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	if client != null:
 		if client.has_signal("shot_received"):
@@ -129,12 +140,20 @@ func _ready() -> void:
 			client.connect("kill_received", _on_kill)
 
 
+## Current effects intensity 0..1.
+func fx_intensity() -> float:
+	var gs := settings if settings != null else GameSettings.shared()
+	return gs.comfort_fx_intensity
+
+
 # ------------------------------------------------------------ primitives
 
 ## One pooled additive billboard (`ring` = expanding ring, else a soft star).
 func flash(pos: Vector3, color: Color, size: float, life: float, ring: bool = false, energy: float = 1.6, spikes: float = 4.0) -> void:
-	if _flashes.is_empty():
+	var k := fx_intensity()
+	if _flashes.is_empty() or k <= 0.0:
 		return
+	energy *= k
 	var i := _next_flash
 	_next_flash = (_next_flash + 1) % FLASH_POOL
 	var mi := _flashes[i]
@@ -156,8 +175,10 @@ func flash(pos: Vector3, color: Color, size: float, life: float, ring: bool = fa
 
 ## One pooled short OmniLight (a no-op on the Low tier, which pools none).
 func pulse_light(pos: Vector3, color: Color, energy: float, range_m: float, life: float) -> void:
-	if _lights.is_empty():
+	var k := fx_intensity()
+	if _lights.is_empty() or k <= 0.0:
 		return
+	energy *= k
 	var i := _next_light
 	_next_light = (_next_light + 1) % _lights.size()
 	var l := _lights[i]
@@ -256,9 +277,12 @@ func _on_hit(e: GameEvent) -> void:
 	if v == null:
 		return
 	var hv := v as Node3D
-	for mi in hv.find_children("*", "MeshInstance3D", true, false):
-		(mi as MeshInstance3D).material_overlay = _overlay
-	_hit_flash[hv] = HIT_FLASH_S
+	var k := fx_intensity()
+	if k > 0.0:
+		_overlay.albedo_color = HIT_OVERLAY_COLOR * k
+		for mi in hv.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_overlay = _overlay
+		_hit_flash[hv] = HIT_FLASH_S
 	var head := (e.flags & GameEvent.FLAG_HEADSHOT) != 0
 	var tint := _shot_color(e.source_net_id)  # team-relative: own gold / ally blue / enemy orange
 	flash(e.position, Color(1.0, 0.95, 0.7).lerp(tint, 0.25) if head else tint, 0.8 if head else 0.5, 0.12, false, 1.8, 8.0 if head else 6.0)
@@ -290,7 +314,25 @@ func _on_respawn(v: Node3D) -> void:
 	pulse_light(p + Vector3(0.0, 1.0, 0.0), c, 2.0, 8.0, 0.4)
 
 
+func _debug_fire_hit() -> void:
+	var views: Dictionary = client.call("remote_views")
+	var rig: Variant = client.get("rig")
+	if views.is_empty() or rig == null:
+		return
+	var id: int = views.keys()[0]
+	var e := GameEvent.new()
+	e.target_net_id = id
+	e.source_net_id = _own_id()
+	e.position = (views[id] as Node3D).global_position + Vector3(0.0, 1.2, 0.0)
+	_on_hit(e)
+	var cam := (rig as Object).get("camera") as Camera3D
+	if cam != null:
+		flash(cam.global_position - cam.global_transform.basis.z * 1.2, Color.WHITE, 3.0, 0.2, false, 2.0, 8.0)
+
+
 func _process(delta: float) -> void:
+	if debug_hitflash and client != null and client.has_method("remote_views"):
+		_debug_fire_hit()
 	for i in FLASH_POOL:
 		if _flash_age[i] == INF:
 			continue

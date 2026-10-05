@@ -587,6 +587,7 @@ func _move(w: WardlingSim) -> void:
 		w.desired_velocity = Vector3.ZERO
 		return
 	var pos := w.global_position
+	var water_factor := map_def.water_factor_at(pos) if map_def != null else 1.0
 	var desired := Vector3.ZERO
 	if w.has_move_target:
 		var goal := w.move_target
@@ -606,7 +607,7 @@ func _move(w: WardlingSim) -> void:
 					steer = w.path[w.path_index]
 			var d := Vector3(steer.x - pos.x, 0.0, steer.z - pos.z)
 			if d.length_squared() > 1e-6:
-				desired = d.normalized() * minf(w.move_speed, dist / dt)
+				desired = d.normalized() * minf(w.move_speed * water_factor, dist / dt)  # W16-SDWATER: wading slow
 	w.desired_velocity = desired
 	var v := desired
 	var fresh := _ticks_this_frame == 1 and Engine.get_physics_frames() - w.safe_frame <= 1

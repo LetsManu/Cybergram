@@ -147,7 +147,7 @@ func _apply_look() -> void:
 	GameSettings.shared().apply_look(look)
 	var client: Variant = session.get("client")
 	if client != null and client.rig != null and client.rig.camera != null:
-		client.rig.camera.fov = GameSettings.shared().fov_deg
+		client.rig.set_fov(GameSettings.shared().fov_deg)
 
 
 func _find_input() -> PlayerInputSource:

@@ -702,15 +702,35 @@ HUD_MODE_CTA_START,START
 HUD_MODE_CTA_PRACTICE,ENTER RANGE
 HUD_MODE_CTA_TUTORIAL,START TUTORIAL
 HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
-HUD_PATCH_1_TITLE,Smaller updates
-HUD_PATCH_1_SUB,"Only changed files download; pause, pre-load, lite install"
-HUD_PATCH_2_TITLE,Friends and party
-HUD_PATCH_2_SUB,"Sign in once in the launcher, party up before you play"
-HUD_PATCH_3_TITLE,New launcher
-HUD_PATCH_3_SUB,"Patch notes for your heroes, game settings, system check"
+HUD_PATCH_1_TITLE,Comfort settings
+HUD_PATCH_1_SUB,"Against motion sickness: one-click preset in Settings > Comfort"
+HUD_PATCH_2_TITLE,Damage direction
+HUD_PATCH_2_SUB,"See where hits come from, with a damage vignette"
+HUD_PATCH_3_TITLE,Fair recoil
+HUD_PATCH_3_SUB,"Same recoil for everyone; move the crosshair, not the screen"
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
 HUD_LOBBY_ABILITIES,ABILITIES
-HUD_LOBBY_OPEN_SLOT,Open slot
 HUD_LOBBY_MODE_LINE,Online 3v3
+HUD_SET_TAB_COMFORT,Comfort
+HUD_SET_SEC_COMFORT_VIEW,Camera and weapon
+HUD_SET_SEC_COMFORT_FX,Screen effects
+HUD_SET_SEC_COMFORT_DOT,Fixed centre dot
+HUD_SET_SEC_COMFORT_MOVE,Movement
+HUD_SET_COMFORT_RECOIL,Camera recoil
+HUD_SET_COMFORT_BOB,Weapon bob
+HUD_SET_COMFORT_FX,Screen effects intensity
+HUD_SET_COMFORT_DOT,Centre dot
+HUD_SET_COMFORT_DOT_SIZE,Dot size
+HUD_SET_COMFORT_DOT_OPACITY,Dot opacity
+HUD_SET_COMFORT_SMOOTH,Smooth corrections
+HUD_SET_COMFORT_VIGNETTE,Comfort vignette
+HUD_SET_COMFORT_PRESET,Apply motion comfort preset
+HUD_SET_COMFORT_PRESET_DONE,Preset applied
+HUD_SET_COMFORT_NOTE,"Recoil is the same for everyone; lower values move the crosshair instead of the screen."
+HUD_COMFORT_HINT,Prone to motion sickness? See Settings > Comfort.
+HUD_COMFORT_HINT_DISMISS,Dismiss
+HUD_SET_XH_DYNAMIC,Dynamic crosshair (shows spread)
+HUD_RING_OUTSIDE,OUTSIDE THE RING
+HUD_RING_RETURN,Return to the plaza
