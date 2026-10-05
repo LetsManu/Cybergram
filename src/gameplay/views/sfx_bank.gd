@@ -56,3 +56,8 @@ func fx_impact(kind: int) -> AudioStreamWAV:
 
 func ui_stream(event: StringName) -> AudioStreamWAV:
 	return stream(def.ui.get(event, &""))
+
+
+## W11-C1 feel sound (reload_start, reload_done, dry_fire, footstep) or null.
+func feel_stream(event: StringName) -> AudioStreamWAV:
+	return stream(def.feel.get(event, &""))

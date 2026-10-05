@@ -83,6 +83,8 @@ var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
 var _visual_offset: Vector3 = Vector3.ZERO
 var _cmd := InputCommand.new()
+## Buttons of the last sampled command (feel sounds read it: dry fire).
+var last_buttons: int = 0
 var _look: LookSettings
 
 
@@ -96,6 +98,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	player_input = source as PlayerInputSource
 	if player_input != null:
 		player_input.fork_slot_fn = fork_pending_slot
+		player_input.aim_targets_fn = aim_targets
 	add_child(map_scene.instantiate())
 	session = ClientSession.new(transport, net)
 	session.token = hello_token
@@ -150,6 +153,28 @@ func own_team() -> int:
 	return ServerWorld.TEAM_PLAYERS
 
 
+## View-recoil multiplier for the own hero. GAP: the server's WeaponSim.recoil_mult
+## (Ryker Overdrive 0.5) is not replicated to the client (no field in OwnCombat,
+## protocol is off limits for this chunk), so this is 1.0 until it is.
+func own_recoil_mult() -> float:
+	return 1.0
+
+
+## W11-C1 gamepad aim assist: hitbox centres of visible enemy heroes relative to
+## the own eye (client-side view only; the server's hit logic is untouched).
+func aim_targets() -> Array:
+	var out: Array = []
+	if body == null or player_input == null or player_input.look == null:
+		return out
+	var eye := body.state.position + Vector3(0.0, body.eye_height(), 0.0)
+	var h := player_input.look.aim_assist_center_height_m
+	for id in _views:
+		var v: HeroView = _views[id]
+		if v.visible and v.team != own_team():
+			out.append(v.position + Vector3(0.0, h, 0.0) - eye)
+	return out
+
+
 ## Index of the hardpoint whose zone holds the predicted own hero, or -1.
 func own_hardpoint_index() -> int:
 	if body == null:
@@ -170,6 +195,7 @@ func tick() -> void:
 	client_seq += 1
 	_prev_pos = body.state.position
 	input_source.sample(client_seq, _cmd)
+	last_buttons = _cmd.buttons
 	# Lag compensation: the server rewinds targets to what this screen showed.
 	if view_render_tick > 0.0:
 		_cmd.view_tick = floori(view_render_tick)
@@ -185,6 +211,11 @@ func tick() -> void:
 		wardlings.resolve(_cmd)
 		_cmd.quantize()
 	body.state.speed_scale = own_speed_scale  # E10: slows / roots / stances
+	if player_input != null:
+		player_input.recoil_def = hero_def.weapon
+		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
+		var can := combat != null and combat.ammo > 0.0 and not combat.dead
+		player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
 	predictor.predict(_cmd)
 	session.send_input(_cmd)
 
@@ -208,8 +239,8 @@ func render(delta: float) -> void:
 		_visual_offset = Vector3.ZERO
 	var frac := Engine.get_physics_interpolation_fraction()
 	var feet := _prev_pos.lerp(body.state.position, frac) + _visual_offset
-	var yaw := player_input.live_yaw if player_input != null else _cmd.yaw
-	var pitch := player_input.live_pitch if player_input != null else _cmd.pitch
+	var yaw := player_input.view_yaw() if player_input != null else _cmd.yaw
+	var pitch := player_input.view_pitch() if player_input != null else _cmd.pitch
 	rig.follow(feet, body.eye_height(), yaw, pitch)
 	wardlings.apply_debug_camera()
 

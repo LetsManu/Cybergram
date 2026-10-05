@@ -18,6 +18,9 @@ const ARCHETYPES := {
 	&"buff_up": [0.25, false], &"deploy": [0.22, false], &"beam_loop": [0.4, true],
 	&"ui_buy": [0.18, false], &"ui_sell": [0.15, false], &"ui_levelup": [0.45, false],
 	&"ui_fork": [0.3, false], &"ui_hover": [0.025, false], &"ui_click": [0.04, false],
+	# W11-C1 feel sounds: reload start / finish, dry fire, own footstep.
+	&"reload_start": [0.2, false], &"reload_done": [0.18, false],
+	&"dry_fire": [0.07, false], &"footstep": [0.1, false],
 }
 
 
@@ -57,6 +60,10 @@ static func make(name: StringName) -> AudioStreamWAV:
 		&"ult_rise": _sweep(pcm, 80.0, 900.0, 1.0, -3.0)
 		&"deploy": _sweep(pcm, 300.0, 180.0, 0.2, 14.0)
 		&"beam_loop": _beam(pcm)
+		&"reload_start": _clacks(pcm, rng, [0.0, 0.1], 420.0, 38.0)
+		&"reload_done": _clacks(pcm, rng, [0.0, 0.07], 780.0, 55.0)
+		&"dry_fire": _dry(pcm, rng)
+		&"footstep": _thud(pcm, rng)
 	return _finish(pcm, bool(spec[1]))
 
 
@@ -206,3 +213,29 @@ static func _beam(pcm: PackedFloat32Array) -> void:
 	for i in n:
 		var x := float(i) / n
 		pcm[i] = sin(TAU * 440.0 * 0.4 * x * 2.5) * 0.5 + sin(TAU * 880.0 * 0.4 * x) * (0.3 + 0.2 * sin(TAU * 4.0 * x)) + sin(TAU * 660.0 * 0.4 * x) * 0.2
+
+
+## Mechanical clacks at `times` (s): a noise tick plus a short low-pitched knock.
+static func _clacks(pcm: PackedFloat32Array, rng: RandomNumberGenerator, times: Array, hz: float, decay: float) -> void:
+	for i in pcm.size():
+		var t := float(i) / RATE
+		var v := 0.0
+		for k in times:
+			var u := t - float(k)
+			if u >= 0.0:
+				v += (rng.randf() * 2.0 - 1.0) * exp(-u * 400.0) * 0.5 + sin(TAU * hz * u) * exp(-u * decay) * 0.7
+		pcm[i] = v
+
+
+## Dry-fire hammer click: thin and short, higher than the reload clacks.
+static func _dry(pcm: PackedFloat32Array, rng: RandomNumberGenerator) -> void:
+	for i in pcm.size():
+		var t := float(i) / RATE
+		pcm[i] = (rng.randf() * 2.0 - 1.0) * exp(-t * 700.0) * 0.5 + sin(TAU * 1250.0 * t) * exp(-t * 260.0) * 0.6
+
+
+## Footstep: low thump with a scuff of noise.
+static func _thud(pcm: PackedFloat32Array, rng: RandomNumberGenerator) -> void:
+	for i in pcm.size():
+		var t := float(i) / RATE
+		pcm[i] = sin(TAU * 78.0 * t) * exp(-t * 34.0) + (rng.randf() * 2.0 - 1.0) * exp(-t * 85.0) * 0.35

@@ -1,8 +1,10 @@
 class_name InputBindings
 extends RefCounted
-## Rebindable controls: one primary binding per action, stored as a spec string
-## ("k:<physical keycode>" or "m:<mouse button>"), persisted in the [bindings]
-## section of user://settings.cfg and applied to the InputMap at boot
+## Rebindable controls: one keyboard/mouse binding and one gamepad binding per
+## action, stored as spec strings. Keyboard/mouse: "k:<physical keycode>" or
+## "m:<mouse button>" ([bindings] section). Gamepad (W11-C1): "j:<JoyButton>" or
+## "a:<JoyAxis>:<sign>" with sign +1 / -1 ([bindings_pad] section). Both are
+## persisted in user://settings.cfg and applied to the InputMap at boot
 ## (GameSettings.shared()). Game code reads InputMap actions (is_down()), so
 ## rebinding takes effect everywhere at once. Pure data + InputMap writes: no
 ## UI or gameplay types.
@@ -13,46 +15,64 @@ const GROUP_SKILLS := "skills"
 const GROUP_SQUAD := "squad"
 const GROUP_INTERFACE := "interface"
 
-## [action, group, default spec] in menu order. Names and defaults follow
+## [action, group, default key/mouse spec, default gamepad spec ("" = unbound)]
+## in menu order. Pad layout: LS move, RS look (fixed, not an action), RT fire,
+## LT alt-fire, A jump, B crouch, L3 sprint, X reload, Y interact, LB/RB skills
+## 1/2, D-pad left/up skills 3/ult, D-pad down med-pack, D-pad right = quick
+## spend modifier (hold + a skill button learns it), R3 squad smart (hold =
+## wheel), Back scoreboard, Start pause. Fork A/B on a pad default to unbound:
+## while the HUD offers a Fork the skill-1 / skill-2 pad buttons (LB / RB) pick it. Names and defaults follow
 ## PlayerInputSource (hud.md §13) and the HUD (Tab scoreboard, F3 net graph).
 ## Keycodes: W 87, S 83, A 65, D 68, Space 32, Ctrl 4194326, Shift 4194325,
 ## R 82, F 70, 4 52, Q 81, E 69, C 67, G 71, Alt 4194328, Z 90, X 88, V 86,
 ## B 66, Tab 4194306, F3 4194334, Esc 4194305.
 const ACTIONS: Array = [
-	["move_forward", GROUP_MOVE, "k:87"],
-	["move_back", GROUP_MOVE, "k:83"],
-	["move_left", GROUP_MOVE, "k:65"],
-	["move_right", GROUP_MOVE, "k:68"],
-	["jump", GROUP_MOVE, "k:32"],
-	["crouch", GROUP_MOVE, "k:4194326"],
-	["sprint", GROUP_MOVE, "k:4194325"],
-	["fire", GROUP_COMBAT, "m:1"],
-	["alt_fire", GROUP_COMBAT, "m:2"],
-	["reload", GROUP_COMBAT, "k:82"],
-	["interact", GROUP_COMBAT, "k:70"],
-	["use_medpack", GROUP_COMBAT, "k:52"],
-	["skill_1", GROUP_SKILLS, "k:81"],
-	["skill_2", GROUP_SKILLS, "k:69"],
-	["skill_3", GROUP_SKILLS, "k:67"],
-	["skill_4", GROUP_SKILLS, "k:71"],
-	["quick_spend", GROUP_SKILLS, "k:4194328"],
+	["move_forward", GROUP_MOVE, "k:87", "a:1:-1"],
+	["move_back", GROUP_MOVE, "k:83", "a:1:1"],
+	["move_left", GROUP_MOVE, "k:65", "a:0:-1"],
+	["move_right", GROUP_MOVE, "k:68", "a:0:1"],
+	["jump", GROUP_MOVE, "k:32", "j:0"],
+	["crouch", GROUP_MOVE, "k:4194326", "j:1"],
+	["sprint", GROUP_MOVE, "k:4194325", "j:7"],
+	["fire", GROUP_COMBAT, "m:1", "a:5:1"],
+	["alt_fire", GROUP_COMBAT, "m:2", "a:4:1"],
+	["reload", GROUP_COMBAT, "k:82", "j:2"],
+	["interact", GROUP_COMBAT, "k:70", "j:3"],
+	["use_medpack", GROUP_COMBAT, "k:52", "j:12"],
+	["skill_1", GROUP_SKILLS, "k:81", "j:9"],
+	["skill_2", GROUP_SKILLS, "k:69", "j:10"],
+	["skill_3", GROUP_SKILLS, "k:67", "j:13"],
+	["skill_4", GROUP_SKILLS, "k:71", "j:11"],
+	["quick_spend", GROUP_SKILLS, "k:4194328", "j:14"],
 	# W10-T1: pick Fork A / B when the HUD offers the choice (1 / 2; gamepad L1 / R1).
-	["fork_a", GROUP_SKILLS, "k:49"],
-	["fork_b", GROUP_SKILLS, "k:50"],
-	["squad_smart", GROUP_SQUAD, "k:90"],
-	["squad_follow", GROUP_SQUAD, "k:88"],
-	["squad_wheel", GROUP_SQUAD, "k:86"],
-	["open_shop", GROUP_INTERFACE, "k:66"],
-	["scoreboard", GROUP_INTERFACE, "k:4194306"],
-	["net_graph", GROUP_INTERFACE, "k:4194334"],
-	["pause", GROUP_INTERFACE, "k:4194305"],
+	["fork_a", GROUP_SKILLS, "k:49", ""],
+	["fork_b", GROUP_SKILLS, "k:50", ""],
+	["squad_smart", GROUP_SQUAD, "k:90", "j:8"],
+	["squad_follow", GROUP_SQUAD, "k:88", ""],
+	["squad_wheel", GROUP_SQUAD, "k:86", ""],
+	["open_shop", GROUP_INTERFACE, "k:66", ""],
+	["scoreboard", GROUP_INTERFACE, "k:4194306", "j:4"],
+	["net_graph", GROUP_INTERFACE, "k:4194334", ""],
+	["pause", GROUP_INTERFACE, "k:4194305", "j:6"],
 ]
 const GROUPS: Array[String] = [GROUP_MOVE, GROUP_COMBAT, GROUP_SKILLS, GROUP_SQUAD, GROUP_INTERFACE]
 const SECTION := "bindings"
+const SECTION_PAD := "bindings_pad"
 const UNBOUND := ""
+## Axis value past which a stick / trigger counts as a press when capturing.
+const CAPTURE_AXIS_THRESHOLD := 0.6
+const JOY_BUTTON_NAMES := {
+	JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y",
+	JOY_BUTTON_BACK: "Back", JOY_BUTTON_START: "Start", JOY_BUTTON_LEFT_STICK: "L3",
+	JOY_BUTTON_RIGHT_STICK: "R3", JOY_BUTTON_LEFT_SHOULDER: "LB", JOY_BUTTON_RIGHT_SHOULDER: "RB",
+	JOY_BUTTON_DPAD_UP: "D-Pad Up", JOY_BUTTON_DPAD_DOWN: "D-Pad Down",
+	JOY_BUTTON_DPAD_LEFT: "D-Pad Left", JOY_BUTTON_DPAD_RIGHT: "D-Pad Right",
+}
 
-## action -> spec string.
+## action -> key / mouse spec string.
 var _map: Dictionary = {}
+## action -> gamepad spec string ("" = unbound).
+var _pad: Dictionary = {}
 
 
 func _init() -> void:
@@ -96,11 +116,66 @@ func is_default() -> bool:
 	return true
 
 
-## Restores every default binding.
+## Restores every default key / mouse binding (the gamepad map is untouched).
 func reset_all() -> void:
 	_map.clear()
 	for a in ACTIONS:
 		_map[a[0]] = a[2]
+	if _pad.is_empty():
+		reset_pad()
+
+
+## Default gamepad spec of `action` ("" = unbound / unknown).
+static func default_pad_spec(action: String) -> String:
+	for a in ACTIONS:
+		if a[0] == action:
+			return a[3]
+	return UNBOUND
+
+
+## Current gamepad spec of `action`.
+func get_pad_spec(action: String) -> String:
+	return str(_pad.get(action, UNBOUND))
+
+
+## True when every action has its default gamepad binding.
+func is_pad_default() -> bool:
+	for a in ACTIONS:
+		if get_pad_spec(a[0]) != a[3]:
+			return false
+	return true
+
+
+## Restores every default gamepad binding.
+func reset_pad() -> void:
+	_pad.clear()
+	for a in ACTIONS:
+		_pad[a[0]] = a[3]
+
+
+## Binds the gamepad `spec` to `action`; same swap-on-conflict rule as assign().
+## Returns the swapped action id or "". Malformed specs change nothing; "" unbinds.
+func assign_pad(action: String, spec: String) -> String:
+	if not _pad.has(action) or (spec != UNBOUND and joy_event_from_spec(spec) == null):
+		return ""
+	var old := get_pad_spec(action)
+	if old == spec:
+		return ""
+	var other := pad_action_using(spec, action) if spec != UNBOUND else ""
+	_pad[action] = spec
+	if other != "":
+		_pad[other] = old
+	return other
+
+
+## The action (other than `except`) with the gamepad `spec`, or "".
+func pad_action_using(spec: String, except: String = "") -> String:
+	if spec == UNBOUND:
+		return ""
+	for a in ACTIONS:
+		if a[0] != except and get_pad_spec(a[0]) == spec:
+			return a[0]
+	return ""
 
 
 ## Binds `spec` to `action`. When another action already uses it the two swap
@@ -131,6 +206,7 @@ func action_using(spec: String, except: String = "") -> String:
 func write_config(cfg: ConfigFile) -> void:
 	for a in ACTIONS:
 		cfg.set_value(SECTION, a[0], get_spec(a[0]))
+		cfg.set_value(SECTION_PAD, a[0], get_pad_spec(a[0]))
 
 
 ## Reads the [bindings] section. Unknown / malformed values keep the default;
@@ -148,6 +224,18 @@ func read_config(cfg: ConfigFile) -> void:
 		_map[a[0]] = spec
 		if spec != UNBOUND:
 			seen[spec] = true
+	# Gamepad section: same repair (invalid / duplicate -> default, else unbound).
+	_pad.clear()
+	var seen_pad := {}
+	for a in ACTIONS:
+		var pspec := str(cfg.get_value(SECTION_PAD, a[0], a[3]))
+		if pspec != UNBOUND and (joy_event_from_spec(pspec) == null or seen_pad.has(pspec)):
+			pspec = a[3]
+		if pspec != UNBOUND and seen_pad.has(pspec):
+			pspec = UNBOUND
+		_pad[a[0]] = pspec
+		if pspec != UNBOUND:
+			seen_pad[pspec] = true
 
 
 ## Replaces each action's InputMap events with its binding. "pause" also feeds
@@ -161,6 +249,9 @@ func apply_to_input_map() -> void:
 		var ev := event_from_spec(get_spec(a[0]))
 		if ev != null:
 			InputMap.action_add_event(action, ev)
+		var jev := joy_event_from_spec(get_pad_spec(a[0]))
+		if jev != null:
+			InputMap.action_add_event(action, jev)
 	if InputMap.has_action(&"ui_cancel"):
 		var esc_spec := "k:%d" % KEY_ESCAPE
 		InputMap.action_erase_events(&"ui_cancel")
@@ -168,6 +259,9 @@ func apply_to_input_map() -> void:
 		var pause_spec := get_spec("pause")
 		if pause_spec != esc_spec and event_from_spec(pause_spec) != null:
 			InputMap.action_add_event(&"ui_cancel", event_from_spec(pause_spec))
+		var pad_pause := joy_event_from_spec(get_pad_spec("pause"))
+		if pad_pause != null:
+			InputMap.action_add_event(&"ui_cancel", pad_pause)
 
 
 ## InputEvent for a spec (null when malformed).
@@ -185,6 +279,68 @@ static func event_from_spec(spec: String) -> InputEvent:
 		m.button_index = n as MouseButton
 		return m
 	return null
+
+
+## InputEvent for a gamepad spec ("j:<button>" / "a:<axis>:<sign>"); null when
+## malformed. Events match every device (device -1).
+static func joy_event_from_spec(spec: String) -> InputEvent:
+	var parts := spec.split(":")
+	if parts.size() == 2 and parts[0] == "j" and parts[1].is_valid_int():
+		var n := parts[1].to_int()
+		if n < 0 or n >= JOY_BUTTON_SDL_MAX:
+			return null
+		var b := InputEventJoypadButton.new()
+		b.device = -1
+		b.button_index = n as JoyButton
+		return b
+	if parts.size() == 3 and parts[0] == "a" and parts[1].is_valid_int() and parts[2].is_valid_int():
+		var axis := parts[1].to_int()
+		var sign_v := parts[2].to_int()
+		if axis < 0 or axis >= JOY_AXIS_SDL_MAX or (sign_v != 1 and sign_v != -1):
+			return null
+		var m := InputEventJoypadMotion.new()
+		m.device = -1
+		m.axis = axis as JoyAxis
+		m.axis_value = float(sign_v)
+		return m
+	return null
+
+
+## Gamepad spec for a captured event ("" = not a bindable press): a button press,
+## or an axis pushed past CAPTURE_AXIS_THRESHOLD.
+static func joy_spec_from_event(event: InputEvent) -> String:
+	if event is InputEventJoypadButton and event.pressed:
+		return "j:%d" % event.button_index
+	if event is InputEventJoypadMotion and absf(event.axis_value) >= CAPTURE_AXIS_THRESHOLD:
+		return "a:%d:%d" % [event.axis, 1 if event.axis_value > 0.0 else -1]
+	return UNBOUND
+
+
+## Display text of a gamepad spec ("A", "RT", "Left Stick Up", ...); "-" = unbound.
+static func joy_spec_text(spec: String) -> String:
+	var ev := joy_event_from_spec(spec)
+	if ev is InputEventJoypadButton:
+		var b: int = (ev as InputEventJoypadButton).button_index
+		return str(JOY_BUTTON_NAMES.get(b, "Button %d" % b))
+	if ev is InputEventJoypadMotion:
+		var m := ev as InputEventJoypadMotion
+		var up := m.axis_value < 0.0
+		match m.axis:
+			JOY_AXIS_LEFT_X:
+				return "Left Stick " + ("Left" if up else "Right")
+			JOY_AXIS_LEFT_Y:
+				return "Left Stick " + ("Up" if up else "Down")
+			JOY_AXIS_RIGHT_X:
+				return "Right Stick " + ("Left" if up else "Right")
+			JOY_AXIS_RIGHT_Y:
+				return "Right Stick " + ("Up" if up else "Down")
+			JOY_AXIS_TRIGGER_LEFT:
+				return "LT"
+			JOY_AXIS_TRIGGER_RIGHT:
+				return "RT"
+			_:
+				return "Axis %d%s" % [m.axis, "-" if up else "+"]
+	return "-"
 
 
 ## Spec for a captured event ("" when it is not a bindable key / mouse press).

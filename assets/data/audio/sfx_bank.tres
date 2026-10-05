@@ -60,6 +60,12 @@ fx_impacts = {
 45: &"hack_glitch",
 46: &"explosion"
 }
+feel = {
+&"reload_start": &"reload_start",
+&"reload_done": &"reload_done",
+&"dry_fire": &"dry_fire",
+&"footstep": &"footstep"
+}
 ui = {
 &"buy": &"ui_buy",
 &"sell": &"ui_sell",
