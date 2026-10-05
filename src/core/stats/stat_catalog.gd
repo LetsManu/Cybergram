@@ -74,6 +74,8 @@ const SKILL_PARAMS: Array[StringName] = [
 	&"recast_window", &"recast_value", &"expiry_heal",
 	# W11-M1: a wall that blocks enemy hero movement (> 0).
 	&"block_move",
+	# W11-M1 Interceptor: range (m) at which Ram Charge may target an ally (0 = off).
+	&"ally_charge",
 ]
 
 

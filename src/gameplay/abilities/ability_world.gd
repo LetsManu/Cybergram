@@ -103,6 +103,8 @@ class Charge:
 	var mask: int
 	var pinned: bool = false
 	var fx: Fx
+	## W11-M1 Interceptor: the ally this charge homes in on (null = a normal charge).
+	var ally: HeroBody
 
 
 class Leap:
@@ -546,6 +548,13 @@ func start_charge(ctx: EffectContext, def: ChargeEffectDef) -> void:
 	ch.half_width = def.path_half_width_m
 	ch.last_pos = h.state.position
 	ch.mask = h.collision_mask
+	var ally_range := ctx.param(&"ally_charge")
+	if ally_range > 0.0:  # Interceptor: an ally in the crosshair is charged instead of a lane
+		var a := extras.pick_ally_hero(h, ctx.origin, ctx.dir, ally_range, Targeting.ALLY_CONE_DEG)
+		if a != null:
+			ch.ally = a
+			var to := a.state.position - h.state.position
+			ch.dir = Vector3(to.x, 0.0, to.z).normalized()
 	# Charges pass through bodies; contact is resolved by _step_charge.
 	h.collision_mask = HeroBody.LAYER_WORLD | HeroBody.LAYER_EDGE_BLOCK
 	h.state.dash_velocity = ch.dir * ch.speed
@@ -836,6 +845,9 @@ func _step_charge(ch: Charge) -> void:
 	if h.combat.dead or ch.pinned:
 		_end_charge(ch)
 		return
+	if ch.ally != null:
+		_step_ally_charge(ch)
+		return
 	ch.ticks_left -= 1
 	var pos := h.state.position
 	var moved := Vector2(pos.x - ch.last_pos.x, pos.z - ch.last_pos.z).length()
@@ -888,6 +900,30 @@ func _step_charge(ch: Charge) -> void:
 	elif moved < expected * 0.3 and ch.total - ch.ticks_left > 1:
 		_end_charge(ch)  # ran into a wall with nobody to pin
 		return
+	if ch.ticks_left <= 0:
+		_end_charge(ch)
+
+
+## W11-M1 Interceptor: home in on the ally; on contact both gain the shield.
+func _step_ally_charge(ch: Charge) -> void:
+	var h := ch.hero
+	var a := ch.ally
+	if a.combat.dead:
+		_end_charge(ch)
+		return
+	ch.ticks_left -= 1
+	var to := a.state.position - h.state.position
+	to.y = 0.0
+	var contact := h.combat.def.body_radius * h.combat.def.hitbox_scale + a.combat.def.body_radius * a.combat.def.hitbox_scale + 0.6
+	if to.length() <= contact:
+		var ticks := ch.ctx.ticks(&"secondary_duration")
+		var amount := ch.ctx.power_param(&"extra")
+		apply_status(ch.ctx, h, StatusComponent.Kind.SHIELD, ticks, amount)
+		apply_status(ch.ctx, a, StatusComponent.Kind.SHIELD, ticks, amount)
+		_end_charge(ch)
+		return
+	ch.dir = to.normalized()
+	h.state.dash_velocity = ch.dir * ch.speed
 	if ch.ticks_left <= 0:
 		_end_charge(ch)
 
