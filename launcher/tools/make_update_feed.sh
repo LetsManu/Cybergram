@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Builds the update feed the server container serves on TCP 8080:
+# Builds the update feed the server container serves on TCP 8080 (published
+# as https://cyber-api.djboeck.at). Every file entry is a name relative to
+# version.json (only an AppImage may carry an absolute https url), so the
+# feed works under any host name:
 #   <out>/Cybergram-<version>-windows-x86_64.zip
 #   <out>/Cybergram-<version>-linux-x86_64.zip
 #   <out>/version.json   (version, notes_md, per-platform file/size/sha256/exe and

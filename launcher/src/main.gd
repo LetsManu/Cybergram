@@ -114,7 +114,11 @@ func _ready() -> void:
 	var cfg_path: String = String(args.get("config", OS.get_executable_path().get_base_dir().path_join("launcher.cfg")))
 	if FileAccess.file_exists(cfg_path):
 		cfg.load(cfg_path)
-	var url: String = String(cfg.get_value("launcher", "version_url", LauncherCore.DEFAULT_VERSION_URL))
+	# --- W20-WEB ---
+	# The update feed moved to https://cyber-api.djboeck.at: an old default in
+	# launcher.cfg is rewritten; a custom URL stays.
+	var url: String = LauncherCore.version_url_from_config(cfg, cfg_path)
+	# --- end W20-WEB ---
 	_close_on_launch = bool(cfg.get_value("launcher", "close_on_launch", true))
 	_game_server = String(cfg.get_value("launcher", "game_server", _game_server))
 	_no_launch = args.has("no-launch")

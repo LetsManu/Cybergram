@@ -1,0 +1,12 @@
+# Build context of web/Dockerfile (repo root): only what the site needs.
+*
+!web/
+web/dist/
+!launcher/assets/notes/
+!assets/data/heroes/
+!assets/data/skills/
+!assets/data/weapons/
+!assets/localization/hud.csv
+!assets/ui/portraits/*.png
+!assets/fonts/
+!src/ui/menu/hero_showcase.gd

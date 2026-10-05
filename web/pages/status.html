@@ -1,0 +1,30 @@
+<!-- title: Server status -->
+<!-- description: Live status of the Cybergram server: players online, running matches and queue times. -->
+<section class="page-head">
+  <p class="eyebrow">Live</p>
+  <h1>Server status</h1>
+  <p class="lede">Anonymous numbers from the official server, refreshed every 30 seconds.</p>
+</section>
+
+<section class="status" data-status aria-live="polite">
+  <div class="card status-main">
+    <p class="state" data-state="loading"><span class="dot" aria-hidden="true"></span><span data-state-text>Checking…</span></p>
+    <p class="updated" data-updated></p>
+  </div>
+  <dl class="tiles">
+    <div class="card tile"><dt>Players online</dt><dd data-players>–</dd></div>
+    <div class="card tile"><dt>Matches running</dt><dd data-matches>–</dd></div>
+    <div class="card tile"><dt>Matches starting</dt><dd data-forming>–</dd></div>
+  </dl>
+  <div class="card">
+    <h2>Queues</h2>
+    <div class="table-wrap">
+      <table class="queues">
+        <thead><tr><th scope="col">Queue</th><th scope="col" class="num">Waiting</th><th scope="col" class="num">Estimated wait</th></tr></thead>
+        <tbody data-queues><tr><td colspan="3" class="muted">No data yet.</td></tr></tbody>
+      </table>
+    </div>
+    <p class="fine">The estimate is the average wait of the last matches found in that queue.</p>
+  </div>
+</section>
+<noscript><p class="card">This page needs JavaScript to load the live numbers. The raw data is at <a href="/data/snapshot.json">/data/snapshot.json</a>.</p></noscript>

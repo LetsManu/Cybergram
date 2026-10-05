@@ -45,6 +45,7 @@ func _init() -> void:
 	_preload_tests()
 	_install_tests()
 	_appimage_tests()
+	_feed_url_tests()
 	LauncherCore.remove_tree(_tmp)
 	print("launcher upd tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)
@@ -259,3 +260,36 @@ func _appimage_tests() -> void:
 	_check(FileAccess.get_file_as_string(dir.path_join("Cybergram.AppImage")) == "appimage", "new AppImage in place")
 	_check(FileAccess.get_unix_permissions(dir.path_join("Cybergram.AppImage")) & 73 != 0, "new AppImage executable")
 	_check(not FileAccess.file_exists(dir.path_join("Cybergram.AppImage.new")), "no .new left")
+
+
+## W20-WEB: the update feed moved from http://cyber.djboeck.at:8080 to
+## https://cyber-api.djboeck.at; old defaults migrate, custom URLs stay.
+func _feed_url_tests() -> void:
+	var new_url: String = "https://cyber-api.djboeck.at/version.json"
+	_check(LauncherCore.DEFAULT_VERSION_URL == new_url, "new default feed URL")
+	_check(LauncherCore.migrate_version_url("http://cyber.djboeck.at:8080/version.json") == new_url, "old default migrates")
+	_check(LauncherCore.migrate_version_url("  http://cyber.djboeck.at:8080/version.json \n") == new_url, "old default with spaces migrates")
+	_check(LauncherCore.migrate_version_url("") == new_url, "empty value means default")
+	_check(LauncherCore.migrate_version_url(new_url) == new_url, "new default unchanged")
+	var custom: String = "http://my-nas.lan:8080/version.json"
+	_check(LauncherCore.migrate_version_url(custom) == custom, "custom URL kept")
+	_check(LauncherCore.migrate_version_url("http://cyber.djboeck.at:8080/feed/version.json") == "http://cyber.djboeck.at:8080/feed/version.json",
+		"other path on the old host kept")
+	_check(LauncherCore.base_url(new_url) == "https://cyber-api.djboeck.at/", "feed files hang off the new host")
+	var cfg_path: String = _tmp.path_join("launcher.cfg")
+	_write(cfg_path, "[launcher]\nversion_url=\"http://cyber.djboeck.at:8080/version.json\"\ngame_server=\"cyber.djboeck.at:7777\"\n")
+	var cfg := ConfigFile.new()
+	cfg.load(cfg_path)
+	_check(LauncherCore.version_url_from_config(cfg, cfg_path) == new_url, "main.gd gets the new URL")
+	var again := ConfigFile.new()
+	again.load(cfg_path)
+	_check(String(again.get_value("launcher", "version_url", "")) == new_url, "config rewritten to the new default")
+	_check(String(again.get_value("launcher", "game_server", "")) == "cyber.djboeck.at:7777", "other keys kept")
+	var custom_path: String = _tmp.path_join("custom.cfg")
+	_write(custom_path, "[launcher]\nversion_url=\"%s\"\n" % custom)
+	var ccfg := ConfigFile.new()
+	ccfg.load(custom_path)
+	_check(LauncherCore.version_url_from_config(ccfg, custom_path) == custom, "custom URL used")
+	_check(FileAccess.get_file_as_string(custom_path).contains(custom), "custom config not rewritten")
+	_check(LauncherCore.version_url_from_config(ConfigFile.new(), "") == new_url, "no config: default")
+

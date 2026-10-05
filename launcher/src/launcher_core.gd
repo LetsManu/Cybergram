@@ -5,7 +5,11 @@ extends RefCounted
 ## so everything here is unit-testable (see tests/test_core.gd).
 
 ## Default location of the update manifest (overridable in launcher.cfg).
-const DEFAULT_VERSION_URL: String = "http://cyber.djboeck.at:8080/version.json"
+## W20-WEB: the server's HTTP side moved behind a TLS proxy on its own host.
+const DEFAULT_VERSION_URL: String = "https://cyber-api.djboeck.at/version.json"
+## The default before W20-WEB (launcher 1.4.0 and older). A stored value equal
+## to it is migrated to DEFAULT_VERSION_URL (migrate_version_url()).
+const OLD_DEFAULT_VERSION_URL: String = "http://cyber.djboeck.at:8080/version.json"
 ## Detached signature of the feed, next to version.json (base64 of an ECDSA
 ## P-256 / SHA-256 DER signature over the exact bytes of version.json).
 const SIG_SUFFIX: String = ".sig"
@@ -232,6 +236,30 @@ static func split_notes(md: String) -> Dictionary:
 		out["sections"].append(cur)
 	out["intro"] = "\n".join(intro).strip_edges()
 	return out
+
+
+## W20-WEB: the version URL to use for a stored launcher.cfg value. The old
+## built-in default becomes the new one; any custom URL is kept as it is
+## (surrounding whitespace removed); empty means the default.
+static func migrate_version_url(stored: String) -> String:
+	var u: String = stored.strip_edges()
+	if u == "" or u == OLD_DEFAULT_VERSION_URL:
+		return DEFAULT_VERSION_URL
+	return u
+
+
+## W20-WEB: reads [launcher] version_url from `cfg` (loaded from `cfg_path`),
+## migrates it (migrate_version_url()) and, when a stored old default
+## changed, rewrites the file. Returns the URL to use. A config that cannot
+## be saved (read-only install) still gets the migrated URL for this run.
+static func version_url_from_config(cfg: ConfigFile, cfg_path: String) -> String:
+	var stored: String = String(cfg.get_value("launcher", "version_url", DEFAULT_VERSION_URL))
+	var url: String = migrate_version_url(stored)
+	if url != stored and cfg.has_section_key("launcher", "version_url"):
+		cfg.set_value("launcher", "version_url", url)
+		if cfg_path != "" and cfg.save(cfg_path) != OK:
+			print("LAUNCHER: could not rewrite version_url in %s (using %s)" % [cfg_path.get_file(), url])
+	return url
 
 
 ## Base URL (with trailing slash) that the manifest's file names hang off.

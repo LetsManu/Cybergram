@@ -163,6 +163,31 @@ printf '#!/bin/sh\necho old appimage\n' > "$tmp/apps/Cybergram.AppImage"
 APPIMAGE="$tmp/apps/Cybergram.AppImage" expect_exit 1 "AppImage with a bad sha256 refused" run --self-update --launcher-version 0.6.0 --install-root "$tmp/inst" --launcher-dir "$tmp/apps"
 check '[[ "$("$tmp/apps/Cybergram.AppImage")" == "old appimage" ]]' "old AppImage untouched"
 
+echo "[11] old feed host answering 301 (W20-WEB: the website forwards old launchers)"
+rport=8094
+python3 - "$rport" "$port" > /dev/null 2> "$tmp/redirect.log" <<'PY' &
+import sys
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+target = "http://127.0.0.1:%s" % sys.argv[2]
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(301)
+        self.send_header("Location", target + self.path)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+PY
+red_pid=$!
+for _ in $(seq 1 30); do [[ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$rport/version.json")" == 301 ]] && break; sleep 0.2; done
+printf '[launcher]\nversion_url="http://127.0.0.1:%s/version.json"\n' "$rport" > "$tmp/old.cfg"
+: > "$tmp/http.log"
+expect_exit 0 "install through the redirect" timeout 90 "$godot" --headless --path "$here" -- --config "$tmp/old.cfg" \
+  --settings "$tmp/s2.cfg" --update-to "$tmp/viaredirect"
+check '[[ "$(cat "$tmp/viaredirect/game/installed_version.txt")" == 0.7.0 ]]' "game installed from the redirected feed"
+check 'grep -q "GET /version.json" "$tmp/redirect.log" && grep -q "GET /version.json" "$tmp/http.log"' "version.json fetched via the 301"
+check 'grep -q "GET /Cybergram-v0.7.0-linux" "$tmp/redirect.log" || grep -q "GET /blobs/" "$tmp/redirect.log"' "game files fetched via the 301"
+kill "$red_pid" 2>/dev/null; wait "$red_pid" 2>/dev/null
+
 echo
 [[ "$fails" == 0 ]] && echo "E2E UPD PASS" || echo "E2E UPD FAILED ($fails)"
 exit "$fails"

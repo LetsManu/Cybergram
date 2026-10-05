@@ -19,7 +19,12 @@ services:
       - no-new-privileges:true
     ports:
       - "7777:7777/udp"
-      - "8080:8080/tcp"   # launcher updates (version.json + client zips)
+      # The HTTP side (launcher update feed: version.json, blobs, client zips,
+      # status.json, snapshot.json) on host TCP 8081 (CYBERGRAM_API_PORT).
+      # Put a TLS reverse proxy in front: https://cyber-api.djboeck.at -> 8081.
+      # (Before W20-WEB this was host 8080, which is now the website; the
+      # website sends old launchers' feed requests here with a 301.)
+      - "${CYBERGRAM_API_PORT:-8081}:8080/tcp"
       # One UDP port per concurrent match (front mode). Keep equal to
       # CYBERGRAM_MATCH_PORTS below.
       - "7800-7809:7800-7809/udp"
@@ -34,6 +39,9 @@ services:
       # The host folder comes from CYBERGRAM_TLS_DIR (e.g. in a .env file next
       # to this file); default ./tls next to it.
       - ${CYBERGRAM_TLS_DIR:-./tls}:/data/tls:ro
+      # Public snapshot for the website (W20-WEB): status counts, queue waits
+      # and the opt-in ranked leaderboard, rewritten every 5 s. No ids, no IPs.
+      - cybergram-public:/public
     # Message of the day in the launcher (W15): plain text, max 200 characters,
     # re-read every few seconds. Put motd.txt into the data volume, e.g.
     #   docker cp motd.txt cybergram:/data/motd.txt
@@ -56,6 +64,8 @@ services:
       # a random key per start (fine on one host).
       CYBERGRAM_TICKET_KEYS: ${CYBERGRAM_TICKET_KEYS:-}
       CYBERGRAM_DRAIN_MAX_S: "2340"   # a bit under stop_grace_period
+      # Where the front writes snapshot.json for the website ("" = off).
+      CYBERGRAM_PUBLIC_DIR: ${CYBERGRAM_PUBLIC_DIR:-/public}
     # Resource limits (W17): uncomment and size to the host. Budget about
     # 190 MiB per match process plus ~250 MiB for the front; 2 matches per core.
     # cpus: "2.0"
@@ -70,5 +80,47 @@ services:
     # Extra server flags, e.g. bot skill:
     # command: ["--bot-difficulty", "hard"]
 
+  # Public website (W20-WEB, docs/HOSTING.md "Website"): a static nginx site
+  # with live status, leaderboard, heroes, patch notes and downloads.
+  # Optional: start it with the "web" profile, e.g. COMPOSE_PROFILES=web in
+  # the .env file next to this file, or
+  #   docker compose -f tools/server/docker-compose.yml --profile web up -d
+  # It listens on host TCP 8080 (CYBERGRAM_WEB_PORT; the game server's HTTP
+  # side moved to 8081). Put your TLS reverse proxy (Caddy, Traefik, nginx) in
+  # front: https://cyber.djboeck.at -> 8080. Launchers 1.4.0 and older still
+  # ask http://cyber.djboeck.at:8080/version.json; the website answers their
+  # feed paths with a 301 to CYBERGRAM_API_URL.
+  web:
+    profiles: ["web"]
+    image: ${CYBERGRAM_WEB_IMAGE:-ghcr.io/letsmanu/cybergram-web}:${CYBERGRAM_IMAGE_TAG:-latest}
+    container_name: cybergram-web
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/cybergram-web:uid=101,gid=101
+    ports:
+      - "${CYBERGRAM_WEB_PORT:-8080}:8080/tcp"
+    volumes:
+      - cybergram-public:/srv/public:ro
+    environment:
+      # Release info for the download buttons is fetched by this container
+      # from the GitHub API every 6 h (visitors never contact GitHub for it).
+      CYBERGRAM_RELEASE_FETCH: ${CYBERGRAM_RELEASE_FETCH:-1}
+      # Where old launchers' feed requests (version.json, blobs/, ...) are
+      # redirected (301): the public URL of the game server's HTTP side.
+      CYBERGRAM_API_URL: ${CYBERGRAM_API_URL:-https://cyber-api.djboeck.at}
+    # Access log: no IP address, no user agent (privacy page). Rotated by size.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   cybergram-data:
+  cybergram-public:
