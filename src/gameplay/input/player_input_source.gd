@@ -46,6 +46,10 @@ var has_pause_menu: bool = false
 ## Gamepad (W11-C1). True while the last input device used was the pad (fire
 ## then works without mouse capture). aim_targets_fn() -> Array[Vector3]: enemy
 ## hitbox centres relative to the eye (ClientWorld sets it; empty = no assist).
+## W11-C1 view punch (client-side only; see RecoilKick).
+var recoil := RecoilKick.new()
+## Weapon whose recovery values apply while no shot is kicking (ClientWorld sets it).
+var recoil_def: WeaponDef
 var pad_active: bool = false
 var aim_targets_fn: Callable
 ## Last aim-assist multiplier applied to the stick turn (diagnostics / tests).
@@ -100,7 +104,17 @@ func request_action(action: int, arg: int = 0) -> void:
 	_actions.append([action, arg])
 
 
+## Aim yaw / pitch = player look + recoil kick (camera and InputCommand agree).
+func view_yaw() -> float:
+	return fposmod(live_yaw + recoil.kick.x, TAU)
+
+
+func view_pitch() -> float:
+	return clampf(live_pitch + recoil.kick.y, -max_pitch_rad, max_pitch_rad)
+
+
 func _process(delta: float) -> void:
+	recoil.recover(delta, recoil_def)
 	_apply_stick_look(delta)
 	quick_spend = _pressed("quick_spend", KEY_ALT)
 	var keys := [KEY_Q, KEY_E, KEY_C, KEY_G]
@@ -227,8 +241,8 @@ func sample(seq: int, out: InputCommand) -> void:
 		_sample_neutral(out)
 		return
 	out.move = _move_vector()
-	out.yaw = live_yaw
-	out.pitch = live_pitch
+	out.yaw = view_yaw()
+	out.pitch = view_pitch()
 	out.buttons = 0
 	if _pressed("jump", KEY_SPACE):
 		out.buttons |= InputCommand.BTN_JUMP

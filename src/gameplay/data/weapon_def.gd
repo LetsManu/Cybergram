@@ -63,6 +63,20 @@ enum FeedKind { MANA, MAGAZINE }
 ## interrupts it. False: one committed reload moves a full magazine.
 @export var reload_per_round: bool = false
 
+@export_group("View recoil (client-side)")
+## W11-C1 camera kick per shot, degrees. Visual / aim-offset only: the server
+## ignores it (its own deterministic bloom is spread_*; WeaponSim.recoil_mult
+## scales both, e.g. Ryker's Overdrive).
+@export_range(0.0, 10.0, 0.01) var recoil_v: float = 0.0
+## Max random sideways kick per shot (degrees, +/-).
+@export_range(0.0, 5.0, 0.01) var recoil_h: float = 0.0
+## Total kick is capped here (degrees).
+@export_range(0.0, 20.0, 0.1) var recoil_max_deg: float = 6.0
+## Recovery speed back to the aim point (deg/s) after `recoil_recovery_delay_s`
+## without shooting.
+@export_range(0.0, 100.0, 0.5) var recoil_recovery_deg_s: float = 14.0
+@export_range(0.0, 1.0, 0.01) var recoil_recovery_delay_s: float = 0.08
+
 @export_group("Art")
 ## Procedural model key (ModelCatalog), e.g. &"vesper". Empty = derived from `id`.
 @export var model_id: StringName = &""
