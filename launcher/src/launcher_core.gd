@@ -198,7 +198,9 @@ static func first_bullet(md: String) -> String:
 	for raw in md.split("\n"):
 		var l: String = raw.strip_edges()
 		if l.begins_with("- ") or l.begins_with("* "):
-			var t: String = l.substr(2).replace("**", "").replace("`", "").strip_edges()
+			var t: String = l.substr(2).replace("**", "").replace("`", "").replace("*", "").strip_edges()
+			if t.ends_with(":"):
+				continue  # a heading bullet ("Top bar:") with sub-bullets below
 			var colon: int = t.find(": ")
 			if colon > 0 and colon < 28:
 				t = t.substr(colon + 2)

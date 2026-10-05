@@ -711,7 +711,7 @@ func _build_home() -> Control:
 	_blurb.add_theme_constant_override("line_spacing", 8)
 	_blurb.add_theme_color_override("font_color", t.text_dim)
 	_blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_blurb.max_lines_visible = 3
+	_blurb.max_lines_visible = 2
 	_blurb.custom_minimum_size.x = 440
 	_blurb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	col.add_child(_blurb)
@@ -720,7 +720,7 @@ func _build_home() -> Control:
 	more.add_theme_font_size_override("font_size", 14)
 	more.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	col.add_child(more)
-	col.add_child(UiKit.spacer(36))
+	col.add_child(UiKit.spacer(28))
 	_news_row = VBoxContainer.new()
 	_news_row.add_theme_constant_override("separation", 0)
 	col.add_child(_news_row)
@@ -858,6 +858,8 @@ func _refresh_news() -> void:
 	var parts: Dictionary = LauncherCore.split_notes(md)
 	if parts["headline"] != "":
 		_headline.text = LauncherCore.headline_title(parts["headline"])
+		# Mockup: 48 px on one line; long titles step down so the news list fits.
+		_headline.add_theme_font_size_override("font_size", 48 if _headline.text.length() <= 20 else 38)
 		_notes_box.add_child(UiKit.label(parts["headline"], &"title"))
 	if parts["intro"] != "":
 		_blurb.text = LauncherCore.plain_text(parts["intro"])
