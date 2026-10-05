@@ -396,6 +396,22 @@ def _normal_mat(strength):
     return build
 
 
+def _drop_degenerate(ob, area=1e-7):
+    """Dissolves near zero-area garment faces (hd_kind 4): one of them blows an angle-based
+    unwrap up into an island the size of the atlas (Sable's mantle: atlas 51 %)."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    kl = bm.faces.layers.int.get("hd_kind")
+    bad = [f for f in bm.faces if f.calc_area() < area and (kl is None or f[kl] == 4)]
+    if bad:
+        edges = list({e for f in bad for e in f.edges})
+        bmesh.ops.dissolve_degenerate(bm, dist=1e-4, edges=edges)
+        bm.to_mesh(ob.data)
+        ob.data.update()
+    bm.free()
+    print("paint: %d degenerate garment faces dissolved" % len(bad))
+
+
 def bake_textures(h, ob, out_dir, size=1024):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
@@ -405,6 +421,7 @@ def bake_textures(h, ob, out_dir, size=1024):
     cfg = paint_cfg(h)
     me = ob.data
     _classify(h, ob)
+    _drop_degenerate(ob)
     unwrap_pack(ob, cfg["uv_margin"], head=cfg.get("uv_head", 1.0))  # on quads: triangles give worse islands (58 % vs 76 %)
     bm = bmesh.new()
     bm.from_mesh(me)

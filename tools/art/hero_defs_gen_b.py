@@ -408,9 +408,8 @@ def sable_parts(h):
           "team", bevel=0.0)
     shp = h.jh("UpperArm_L") + Vector((-0.012, 0, 0.03)) * k
     h.sphere("Clavicle_L", shp, Vector((0.07, 0.08, 0.05)) * k, "mask", seg=(12, 8), clip=[((0, 0, -0.2), (0, 0, -1))])
-    for i in range(2):
-        h.sphere("Clavicle_L", shp + Vector((-0.004, 0, -0.016 - 0.014 * i)) * k, Vector((0.073, 0.083, 0.05)) * k,
-                 "charcoal" if i else "jade", seg=(12, 8), clip=[((0, 0, -0.2), (0, 0, -1)), ((0, 0, 0.1), (0, 0, 1))])
+    # jade rim (a torus: thin clipped-sphere rings unwrap into degenerate UV islands)
+    h.torus("Clavicle_L", shp + Vector((0, 0, -0.01)) * k, (0, 0, 1), 0.07 * k, 0.007 * k, "jade", seg=(16, 5))
     # --- belt, left thigh holster with a knife, forearm blades, boots with calf struts.
     pts = hero_hd.ring(h, Vector((0, h.jh("Hips").y, h.waist_z)), (0, 0, 1), ("Hips", "Spine", "Chest"), n=32,
                        off=0.016)
@@ -823,11 +822,11 @@ HEROES["sable"] = {
     # Draped hood mantle over the shoulders (5 x 2) and a split scarf hanging down the back
     # to the knees (2 x 3): 16 cloth bones -> 37 total.
     "cloth": [
-        {"part": "hood", "kind": "skirt", "parent": "UpperChest", "top": 0.52, "hem": 1.12, "offset": 0.035,
+        {"part": "hood", "kind": "skirt", "parent": "UpperChest", "top": 0.46, "hem": 1.1, "offset": 0.04,
          "flare": 0.06, "clear": 0.04, "open_front": 210, "chains": [("R", 118), ("BR", 150), ("B", 180),
                                                                        ("BL", 210), ("L", 242)],
-         "around": ("Spine", "Chest", "UpperChest", "Neck", "Clavicle_L", "Clavicle_R"),
-         "bones": 2, "rows": 7, "col_deg": 9, "thick": 0.012,
+         "around": ("Spine", "Chest", "UpperChest"),  # the shoulders fold the top rows
+         "bones": 2, "rows": 7, "col_deg": 9, "thick": 0.012, "trim_cols": 0,
          "colors": {"outer": "charcoal", "inner": "deep", "hem": "jade", "trim": "jade"}},
         {"part": "scarf", "kind": "skirt", "parent": "UpperChest", "top": 0.3, "hem": 0.5, "offset": 0.016,
          "flare": 0.07, "clear": 0.03, "open_front": 296, "slits": [(180, 0.9)],
