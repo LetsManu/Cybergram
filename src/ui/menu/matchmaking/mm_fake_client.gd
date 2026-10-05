@@ -46,8 +46,11 @@ signal post_match(result: Dictionary)
 signal profile_received(profile: Dictionary)
 ## {members: [{id, name, leader, me, rating_label}], leader}
 signal party_changed(party: Dictionary)
-## {host, me, map, mode, bots, maps: [], modes: [], members: [{id, name, team}], invited: []}
+## {host, me, map, mode (&"custom" | &"all_random"), bots (bool), team_size,
+## maps: [], modes: [], members: [{id, name, team, bot}], invited: [], starting}
 signal custom_changed(lobby: Dictionary)
+## A request failed: a HUD_MM_ERR_* key.
+signal failed(key: String)
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
 
@@ -189,12 +192,12 @@ func reconnect() -> void:
 		match_assigned.emit(_assigned_info())
 
 
-func honour(match_id: int, target: String) -> void:
+func honour(match_id: Variant, target: String) -> void:
 	sent.append({"op": &"honour", "match": match_id, "target": target})
 	feedback_result.emit({"op": &"honour", "target": target, "ok": true})
 
 
-func report(match_id: int, target: String, category: StringName) -> void:
+func report(match_id: Variant, target: String, category: StringName) -> void:
 	sent.append({"op": &"report", "match": match_id, "target": target, "category": category})
 	feedback_result.emit({"op": &"report", "target": target, "ok": rules.report_categories.has(category)})
 
@@ -206,20 +209,23 @@ func request_profile() -> void:
 
 func custom_open() -> void:
 	sent.append({"op": &"custom_open"})
-	_custom = {"host": ME, "me": ME, "map": &"shardline_front", "mode": &"draft", "bots": 4,
-		"maps": [&"shardline_front", &"slice", &"test_course"], "modes": [&"draft", &"all_random", &"blind"],
-		"members": [{"id": ME, "name": "You", "team": 0}, {"id": "p2", "name": NAMES[0], "team": 0}],
-		"invited": []}
+	_custom = {"host": ME, "me": ME, "map": &"shardline_front", "mode": &"custom", "bots": true, "team_size": 5,
+		"maps": MatchmakingCodec.CUSTOM_MAPS.duplicate(), "modes": [&"custom", &"all_random"],
+		"members": [{"id": ME, "name": "You", "team": 0, "bot": false},
+			{"id": "p2", "name": NAMES[0], "team": 0, "bot": false},
+			{"id": "p3", "name": NAMES[1], "team": 1, "bot": false}],
+		"invited": [], "starting": false}
 	custom_changed.emit(_custom.duplicate(true))
 
 
-func custom_set(map_id: StringName, mode: StringName, bots: int) -> void:
-	sent.append({"op": &"custom_set", "map": map_id, "mode": mode, "bots": bots})
+func custom_set(map_id: StringName, mode: StringName, bots: bool, team_size: int = 5) -> void:
+	sent.append({"op": &"custom_set", "map": map_id, "mode": mode, "bots": bots, "team_size": team_size})
 	if _custom.is_empty():
 		return
 	_custom.map = map_id
 	_custom.mode = mode
-	_custom.bots = clampi(bots, 0, 9)
+	_custom.bots = bots
+	_custom.team_size = clampi(team_size, 1, 5)
 	custom_changed.emit(_custom.duplicate(true))
 
 
