@@ -33,6 +33,8 @@ const KINDS: Array[StringName] = [&"primary", &"secondary", &"ghost", &"danger",
 const ROLES: Array[StringName] = [&"display", &"title", &"heading", &"nav", &"body", &"small", &"caption"]
 ## Name of the toast lane a parent gets on its first toast.
 const TOAST_LANE := &"UiKitToasts"
+## Hero portraits (tools/art/render_hero_portraits.gd): hero_<stem>.png.
+const PORTRAIT_DIR := "res://assets/ui/portraits"
 
 ## Tests: -1 = follow GameSettings, 0 = motion on, 1 = reduce motion.
 static var force_reduce_motion: int = -1
@@ -41,6 +43,7 @@ static var _tokens: UiKitTokens
 static var _theme: Theme
 static var _fonts: Dictionary = {}
 static var _icons: Dictionary = {}
+static var _portraits: Dictionary = {}
 
 
 # --- tokens, motion ---------------------------------------------------------
@@ -61,6 +64,7 @@ static func clear_cache() -> void:
 	_theme = null
 	_fonts.clear()
 	_icons.clear()
+	_portraits.clear()
 
 
 ## True when animations must be skipped (accessibility setting).
@@ -444,6 +448,17 @@ static func icon_button(kind: StringName, on_press: Callable, tooltip := "", sid
 	if on_press.is_valid():
 		b.pressed.connect(on_press)
 	return b
+
+
+## The portrait texture of hero `stem` ("brannoc"), or null when it has not
+## been rendered. Cached.
+static func portrait_texture(stem: String) -> Texture2D:
+	if _portraits.has(stem):
+		return _portraits[stem]
+	var path := "%s/hero_%s.png" % [PORTRAIT_DIR, stem]
+	var tex := load(path) as Texture2D if ResourceLoader.exists(path) else null
+	_portraits[stem] = tex
+	return tex
 
 
 ## An avatar: `icon` (e.g. an EmblemIcon) centred inside a status ring of

@@ -19,3 +19,11 @@ assets/fonts/ibmplexsans/OFL.txt
 assets/fonts/ibmplexmono/IBMPlexMono-Medium.ttf
 assets/fonts/ibmplexmono/OFL.txt
 assets/shaders/canvas_ui_background.gdshader
+src/ui/theme/ui_portrait.gd
+assets/ui/portraits/hero_brannoc.png
+assets/ui/portraits/hero_hex.png
+assets/ui/portraits/hero_juniper_quill.png
+assets/ui/portraits/hero_liora_vale.png
+assets/ui/portraits/hero_ryker_vance.png
+assets/ui/portraits/hero_sable.png
+assets/ui/portraits/hero_vesper_loom.png
