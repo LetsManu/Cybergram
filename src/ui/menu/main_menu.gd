@@ -82,6 +82,12 @@ var _server: String = ""
 var _then: Callable
 var _link_up: bool = false  # the server link completed its handshake
 var _auto_guest_sent: bool = false
+## W21-U2: ends every wait on the server with a clear message and a retry.
+var _watch: ConnectionWatch = ConnectionWatch.new()
+var _conn_error: ConnectionErrorPanel
+## The `then` / address of the last _with_session, kept for the retry button.
+var _retry_then: Callable
+var _retry_addr: String = ""
 
 ## Nav tabs of the top bar.
 enum Nav { HOME, HEROES, PROFILE, SETTINGS }
@@ -130,6 +136,7 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 	get_viewport().size_changed.connect(_fit_stage)
+	_watch.failed.connect(_on_watch_failed)
 	_fit_stage()
 	_bg = UiKit.background()
 	_root.add_child(_bg)
@@ -769,6 +776,9 @@ func _refresh_chip() -> void:
 func _with_session(then: Callable, addr: String = "") -> void:
 	var a := addr if addr != "" else online_server()
 	_then = then
+	_retry_then = then
+	_retry_addr = addr
+	_hide_conn_error()
 	if _online != null and not _online.session.is_empty() and _server == a:
 		_run_then()
 		return
@@ -825,6 +835,10 @@ func _connect(addr: String) -> bool:
 	_link_up = false
 	_online = LobbyClient.new(_enet)
 	_online.account_result.connect(_on_account)
+	_online.failed.connect(func(key: String) -> void:
+		if key == LobbyClient.reject_text(MsgType.REJECT_PROTOCOL_MISMATCH):
+			_watch.on_reject(MsgType.REJECT_PROTOCOL_MISMATCH))
+	_watch.begin("%s:%d" % [host, port], _enet.is_secure)
 	return true
 
 
@@ -866,6 +880,7 @@ func _send_resume() -> bool:
 
 
 func _disconnect() -> void:
+	_watch.stop()
 	if _enet != null:
 		_enet.close()
 	_enet = null
@@ -877,16 +892,19 @@ func _exit_tree() -> void:
 	UiKit.clear_cache()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _online == null or _lobby != null:
 		return  # the lobby view steps the client while it is open
 	_online.step()
-	if _enet != null and _enet.is_server_connected():
+	_watch.tick(delta)
+	if _enet != null and _enet.is_server_connected() and not _link_up:
 		_link_up = true
+		_watch.on_link_up()
 	if _enet != null and _enet.error_text != "" and _enet.is_secure and not _link_up:
 		_fall_back_to_plain()
 		return
 	if _enet != null and _enet.error_text != "":
+		_watch.on_transport_error(_enet.error_text, _link_up)
 		_status.text = tr("HUD_LOBBY_CONNECTION_LOST")
 		_disconnect()
 		if _login != null:
@@ -903,7 +921,10 @@ func _request(op: int, fields: Dictionary) -> void:
 func _on_account(d: Dictionary) -> void:
 	var op: int = d.op
 	var ok: bool = d.code == AccountCodec.OK
+	if not ok:
+		_watch.on_account_error(op, int(d.code))
 	if d.has("token") and ok:
+		_watch.on_login_ok()
 		session_token = str(d.token)
 		session_server = _server
 		session_guest = int(d.get("guest", 0)) != 0
@@ -1268,3 +1289,52 @@ func _show_matchmaking() -> void:
 
 func _version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
+
+
+# --- W21-U2: connection errors ------------------------------------------------
+
+## The watchdog gave up (timeout, DTLS, version mismatch, link lost): drop the
+## connection and show the reason with Retry / Back instead of staying silent.
+func _on_watch_failed(reason_key: String) -> void:
+	_close_login()
+	_disconnect()
+	_refresh_chip()
+	if _conn_error == null:
+		_conn_error = ConnectionErrorPanel.new()
+		_conn_error.retry_requested.connect(_retry_connection)
+		_conn_error.back_requested.connect(_leave_after_error)
+		_root.add_child(_conn_error)
+	_root.move_child(_conn_error, -1)
+	_conn_error.show_error(tr(reason_key))
+
+
+func _hide_conn_error() -> void:
+	if _conn_error != null:
+		_conn_error.visible = false
+
+
+## Retry button: the same online action again, on a fresh connection.
+func _retry_connection() -> void:
+	var then := _retry_then
+	var addr := _retry_addr
+	_hide_conn_error()
+	if _mm_flow != null:
+		_mm_flow.queue_free()
+		_mm_flow = null
+		_root.get_node("TopBar").visible = true
+		_friends.visible = true
+		_content.visible = true
+		then = _show_matchmaking
+	_with_session(then, addr)
+
+
+## Back button: leave the failed online action and return to the home page.
+func _leave_after_error() -> void:
+	_hide_conn_error()
+	if _mm_flow != null:
+		_mm_flow.queue_free()
+		_mm_flow = null
+		_root.get_node("TopBar").visible = true
+		_friends.visible = true
+		_content.visible = true
+	_go(Nav.HOME)

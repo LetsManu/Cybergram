@@ -37,6 +37,9 @@ var mm: MatchmakingClient
 var lobby: Object
 var rules: MatchmakingRulesDef
 var _outgoing: Array = []
+## W21-U2: seconds the pending "join queue" has waited for the server's first status (-1 = none pending).
+var _join_wait_s: float = -1.0
+var _watch_config: ConnectionWatchConfig = ConnectionWatchConfig.load_default()
 var _remake_voted: bool = false
 var _custom_cfg := {"map": 0, "mode": MatchmakingCodec.PM_CUSTOM, "bots": true, "team_size": 5}
 
@@ -45,7 +48,11 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 	mm = mm_
 	lobby = lobby_
 	rules = rules_ if rules_ != null else MatchmakingRulesDef.load_default()
-	mm.queue_detail.connect(func(d: Dictionary) -> void: queue_changed.emit(status_of(d)))
+	mm.queue_detail.connect(func(d: Dictionary) -> void:
+		if _join_wait_s >= 0.0:
+			print("[net] queue status received after %.1fs (state %d)" % [_join_wait_s, int(d.get("state", 0))])
+		_join_wait_s = -1.0
+		queue_changed.emit(status_of(d)))
 	mm.lockout.connect(func(d: Dictionary) -> void:
 		queue_changed.emit({"state": &"locked", "queue": &"", "waited_s": 0.0, "estimate_s": 0.0, "in_queue": 0,
 			"locked_s": float(d.get("seconds", 0)), "err": "HUD_MM_ERR_LOCKED"}))
@@ -77,9 +84,12 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 
 func join_queue(queue_id: StringName, prefs: Array) -> void:
 	mm.queue_join(queue_id, prefs if not prefs.is_empty() else [&"fill"])
+	_join_wait_s = 0.0
+	print("[net] queue join sent (%s)" % queue_id)
 
 
 func leave_queue() -> void:
+	_join_wait_s = -1.0
 	mm.queue_leave()
 
 
@@ -178,6 +188,20 @@ func custom_invite(id: String) -> void:
 
 func custom_start() -> void:
 	mm.custom_start()
+
+
+## Local timers (the flow calls this every frame): when the server never
+## answers a queue join, the player gets an error and the queue view resets.
+func tick(delta: float) -> void:
+	if _join_wait_s < 0.0:
+		return
+	_join_wait_s += delta
+	if _join_wait_s >= _watch_config.queue_ack_timeout_s:
+		_join_wait_s = -1.0
+		print("[net] queue join not acknowledged: timeout")
+		failed.emit("HUD_NET_ERR_QUEUE_TIMEOUT")
+		queue_changed.emit({"state": &"idle", "queue": &"", "waited_s": 0.0, "estimate_s": 0.0, "in_queue": 0,
+			"locked_s": 0.0, "err": ""})
 
 
 func step(_delta: float) -> void:

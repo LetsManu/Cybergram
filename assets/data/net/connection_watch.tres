@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ConnectionWatchConfig" format=3]
+
+[ext_resource type="Script" path="res://src/networking/client/connection_watch_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+connect_timeout_s = 10.0
+login_timeout_s = 10.0
+queue_ack_timeout_s = 8.0
