@@ -1,7 +1,7 @@
 # Cybergram: Privacy Notice
 
 > **Draft. Needs a legal check before public release.** Written in plain
-> words for players. Version 5 (2026-10-05, after game v0.13.1, protocol v18).
+> words for players. Version 6 (2026-10-05, after game v0.15.0, protocol v19: recovery code).
 
 **Offline play (PLAY VS BOTS, the test course) sends nothing anywhere.** This
 notice is about **online play**.
@@ -23,6 +23,7 @@ If you run your own server, you are the controller for that server.
 |---|---|
 | Username | to log in |
 | Password, stored only as a salted hash (PBKDF2-HMAC-SHA256) | to log in; nobody, not even the operator, can read your password |
+| Your recovery code, stored only as a salted hash (PBKDF2-HMAC-SHA256), and when it was made | to set a new password if you forget yours; nobody, not even the operator, can read the code |
 | Display name, emblem, accent colour, favourite hero | so other players see you in the lobby, the scoreboard and the kill feed |
 | Whether you chose to appear on the public leaderboard (off unless you switch it on) | the website's ranked leaderboard (see *Public leaderboard*) |
 | A random player id | to tell accounts apart |
@@ -239,7 +240,9 @@ a supervisory authority (in Austria: the Datenschutzbehörde, dsb.gv.at).
 In the game, under **PROFILE**:
 
 - **Export my data**: the server sends everything it stores about your
-  account, including ratings and match history (without the password hash), and the game saves it as a readable
+  account, including ratings and match history (without the password hash
+  and without the recovery code hash; it only says whether you have a code
+  and since when), and the game saves it as a readable
   JSON file where you choose.
 - **Delete account**: needs your password. The account is deleted at once.
   You are also removed from every other player's friends, requests and
@@ -247,10 +250,18 @@ In the game, under **PROFILE**:
   and your public leaderboard setting are deleted too.
 - Under **RANKS**, switch **Show me on the public leaderboard** on or off.
 - Changing your display name, emblem, colour or favourite hero corrects your
-  data. You can change your password there too.
+  data. You can change your password there too, and make a **new recovery
+  code** (needs your password; the old code stops working).
 
-**There is no password recovery.** There is no e-mail, so if you forget your
-password, the account cannot be recovered. You can create a new one.
+**Forgotten password: the recovery code.** There is no e-mail. When you create
+an account, the game shows you a one-time **recovery code** once; write it
+down. With your username and that code, **Forgot password?** (game or
+launcher) lets you set a new password. The code then stops working, you get a
+new one (again shown once), and every other device you were signed in on is
+signed out. Tries are limited like logins. If you lost the code too, ask the
+server operator: they can reset your password and give you a fresh code; your
+old password then stops working. The operator never sees your password or a
+code you made yourself.
 
 For anything else, contact the operator above.
 
