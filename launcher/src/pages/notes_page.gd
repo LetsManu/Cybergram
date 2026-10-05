@@ -47,8 +47,9 @@ func _init() -> void:
 	add_child(_scroll)
 	var margin: MarginContainer = MarginContainer.new()
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for s in ["left", "right", "top", "bottom"]:
+	for s in ["left", "right", "bottom"]:
 		margin.add_theme_constant_override("margin_" + s, 24)
+	margin.add_theme_constant_override("margin_top", 64)  # clear of the top bar
 	_scroll.add_child(margin)
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", 12)
@@ -162,9 +163,9 @@ func _heroes_block(md: String) -> Control:
 		var e: Dictionary = HeroHistory.entry_for(_history, h)
 		var line: String = "### %s" % ReleaseNotes.hero_display(h)
 		if not e.is_empty():
-			line += "\n*%d matches, %d min played*" % [int(e["matches"]), int(e["minutes"])]
+			line += "\n\n*%d matches, %d min played*" % [int(e["matches"]), int(e["minutes"])]
 		var sec: String = ReleaseNotes.section_for(hs, h)
-		line += "\n" + (sec if sec != "" else "*No changes listed for this hero in this patch.*")
+		line += "\n\n" + (sec if sec != "" else "*No changes listed for this hero in this patch.*")
 		card.body.add_child(_rich(line))
 	return card
 

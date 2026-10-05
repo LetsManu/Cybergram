@@ -24,6 +24,8 @@ var _qual: OptionButton
 var _game_status: Label
 var _sys_box: VBoxContainer
 var _sys_info: Dictionary = {}
+var _sys_card: Control
+var _launch_card: Control
 
 
 func setup(settings_: LauncherSettings, game_userdir_override: String = "") -> void:
@@ -117,7 +119,20 @@ func _process(delta: float) -> void:
 # --- settings cards ------------------------------------------------------------
 
 func build_settings_cards() -> Array[Control]:
-	return [_build_game_card(), _build_launch_card(), _build_syscheck_card(), _build_pin_card()]
+	_launch_card = _build_launch_card()
+	_sys_card = _build_syscheck_card()
+	return [_build_game_card(), _launch_card, _sys_card, _build_pin_card()]
+
+
+## Screenshot helper (--page syscheck / launchsetting): runs the check when
+## asked and scrolls the settings page to the card.
+func show_card(scroll: ScrollContainer, which: String) -> void:
+	if which == "syscheck":
+		run_check()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var c: Control = _sys_card if which == "syscheck" else _launch_card
+	scroll.scroll_vertical = int(c.global_position.y - scroll.global_position.y + scroll.scroll_vertical - 20)
 
 
 func _row(parent: Control, text: String, ctl: Control) -> void:
@@ -177,6 +192,7 @@ func _build_game_card() -> Control:
 	_game_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_game_status)
 	card.body.add_child(row)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_run_note = UiKit.label("The game is running: these settings are read-only until you close it.", &"small", t.warn)
 	_run_note.visible = false
 	card.body.add_child(_run_note)
@@ -246,7 +262,9 @@ func _build_syscheck_card() -> Control:
 	_sys_box = VBoxContainer.new()
 	_sys_box.add_theme_constant_override("separation", 4)
 	card.body.add_child(_sys_box)
-	card.body.add_child(UiKit.button("RUN SYSTEM CHECK", func() -> void: run_check(), &"secondary", 38))
+	var run: Button = UiKit.button("RUN SYSTEM CHECK", func() -> void: run_check(), &"secondary", 38)
+	run.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	card.body.add_child(run)
 	card.body.add_child(UiKit.label("Local only: nothing is sent anywhere.", &"caption", UiKit.tokens().text_off))
 	if not _sys_info.is_empty():
 		_show_check()
@@ -282,6 +300,7 @@ func _show_check() -> void:
 	_sys_box.add_child(UiKit.label(String(rec["reason"]), &"small", t.text_dim))
 	var apply: Button = UiKit.button("APPLY %s PRESET" % GameSettingsFile.QUALITIES[q].to_upper(), func() -> void: apply_preset(q), &"primary", 38)
 	apply.disabled = game_running()
+	apply.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_sys_box.add_child(apply)
 
 

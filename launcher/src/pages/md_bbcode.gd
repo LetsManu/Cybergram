@@ -63,7 +63,7 @@ static func convert(md: String, t: UiKitTokens = null, base_dir: String = "") ->
 				out[last_item] += closing
 			var opening: String = ""
 			while list_kinds.size() < level + 1:
-				opening += "[ul bullet=\"•\"]" if kind == "ul" else "[ol type=1]"
+				opening += "[ul bullet=•]" if kind == "ul" else "[ol type=1]"
 				list_kinds.append(kind)
 			out.append(opening + _inline(String(bullet["text"]), pal, base_dir))
 			last_item = out.size() - 1

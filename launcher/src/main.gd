@@ -542,7 +542,10 @@ func _build_ui() -> void:
 	add_child(_build_play_panel())
 	_show_page("home")
 	# --- W15-UX ---
-	if _args.has("page"):
+	if _args.has("page") and String(_args["page"]) in ["syscheck", "launchsetting"]:
+		_show_page("settings")
+		_ux.show_card(_pages["settings"], String(_args["page"]))
+	elif _args.has("page"):
 		_show_page(String(_args["page"]))
 	else:
 		_ux.first_run.call_deferred(self)
