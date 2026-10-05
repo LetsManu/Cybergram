@@ -463,3 +463,8 @@ import hero_defs_gen  # noqa: E402  (W16: heroes on the bespoke pipeline overrid
 
 HEROES.update(hero_defs_gen.HEROES)
 WEAPONS.update(hero_defs_gen.WEAPONS)
+
+import hero_defs_gen_a  # noqa: E402  (W16-HERO-A: Ryker, Brannoc, Hex on the bespoke pipeline)
+
+HEROES.update(hero_defs_gen_a.HEROES)
+WEAPONS.update(hero_defs_gen_a.WEAPONS)

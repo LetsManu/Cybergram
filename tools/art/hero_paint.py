@@ -506,6 +506,12 @@ def composite(h, cfg, out_dir, size, col, mat, et, aoe, P, N, nrm, cov):
     alb = np.where(emit[..., None] > 0.5, base, alb)
     alb = np.clip(alb, 0, 1)
     spec = np.clip(metal * (0.55 + 0.45 * edge), 0, 1)
+    post = cfg.get("post")  # per-hero paint pass (helmet wear, scratches, decals, gloss, emissive pixels)
+    if post is not None:
+        alb, spec, emit = post({"P": p3, "N": n3, "base": base, "alb": alb, "spec": spec, "emit": emit,
+                                "edge": edge, "convex": convex, "lit": lit, "hard": hard, "metal": metal,
+                                "inside": inside, "H": H, "k": k, "S": S, "ink": ink[0, 0]})
+        alb = np.clip(alb, 0, 1)
     mask = np.stack([np.clip(0.4 + 0.6 * ao, 0, 1), spec, emit, team], axis=-1)
 
     def save(a, path, sz, mode):
