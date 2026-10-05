@@ -127,6 +127,7 @@ const MODE_QUICK := 5
 
 func _ready() -> void:
 	HudStrings.ensure_loaded()  # shared UI string table (hud.csv)
+	MusicDirector.request(MusicLogic.State.MENU)  # W21-A1 menu music
 	layer = 50
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var t := UiKit.tokens()
