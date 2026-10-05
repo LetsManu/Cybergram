@@ -37,7 +37,7 @@ const SYS_KEYS := ["", "HUD_LOBBY_SYS_JOINED", "HUD_LOBBY_SYS_LEFT", "HUD_LOBBY_
 	"HUD_LOBBY_SYS_TEAM_FULL"]
 ## Side column : centre column width ratio (the bottom row uses the same).
 const SIDE_RATIO := 1.0
-const CENTRE_RATIO := 2.2
+const CENTRE_RATIO := 1.9
 const HERO_TILE := 48
 const SLOT_MIN_H := 60
 
@@ -379,7 +379,7 @@ func _build_bottom(t: UiKitTokens) -> void:
 ## The finalization overlay (both teams' heroes), hidden until PHASE_LOCKED.
 func _build_final(wrap: Control, t: UiKitTokens) -> void:
 	_final = PanelContainer.new()
-	_final.add_theme_stylebox_override("panel", UiKit.panel_box(Color(t.bg_deep, 0.92), 16, Color(t.gold, 0.5)))
+	_final.add_theme_stylebox_override("panel", UiKit.panel_box(Color(t.bg_deep, 0.97), 16, Color(t.gold, 0.5)))
 	_final.visible = false
 	_final.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_final_row = HBoxContainer.new()
@@ -484,6 +484,7 @@ func _on_state(s: Dictionary) -> void:
 	var locked: bool = _phase == LobbyCodec.PHASE_LOCKED
 	var own_ready: bool = own.get("ready", false)
 	_lock_btn.set_pressed_no_signal(own_ready)
+	_lock_btn.tooltip_text = tr("HUD_LOBBY_LOCKED_CANCEL_TIP") if own_ready and not locked else ""
 	_lock_btn.disabled = locked or (_hero_index == 0 and not own_ready)
 	_lock_btn.text = tr("HUD_LOBBY_LOCKED") if locked else (tr("HUD_LOBBY_LOCKED_CANCEL") if own_ready \
 		else (tr("HUD_LOBBY_LOCK_IN") if _hero_index != 0 else tr("HUD_LOBBY_PICK_TO_LOCK")))
@@ -623,7 +624,7 @@ func _slot_card(sl: Dictionary, is_you: bool) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", t.space_s)
 	col.add_child(row)
-	var badge := HeroBadge.make(int(sl.hero_index), 52.0)
+	var badge := HeroBadge.make(int(sl.hero_index), 46.0)
 	badge.dim = not ready
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(badge)
@@ -683,8 +684,8 @@ func _link_button(text: String, tip: String, cb: Callable) -> Button:
 	b.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var idle := StyleBoxFlat.new()
 	idle.bg_color = Color(0, 0, 0, 0)
-	idle.content_margin_left = 6
-	idle.content_margin_right = 6
+	idle.content_margin_left = 4
+	idle.content_margin_right = 4
 	idle.content_margin_top = 2
 	idle.content_margin_bottom = 2
 	var hov := idle.duplicate() as StyleBoxFlat

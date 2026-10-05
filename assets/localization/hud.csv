@@ -610,7 +610,8 @@ HUD_LOBBY_WAIT_ALL,Waiting for all players to lock in
 HUD_LOBBY_WAIT_COUNT,%d of %d players locked in
 HUD_LOBBY_COUNTDOWN_SUB,Starting in %d s
 HUD_LOBBY_LOCK_IN,LOCK IN
-HUD_LOBBY_LOCKED_CANCEL,LOCKED IN  (click to cancel)
+HUD_LOBBY_LOCKED_CANCEL,LOCKED IN
+HUD_LOBBY_LOCKED_CANCEL_TIP,Click to cancel your lock-in
 HUD_LOBBY_PICK_TO_LOCK,Pick a hero to lock in
 HUD_LOBBY_YOUR_TEAM,Your team
 HUD_LOBBY_ENEMY_TEAM,Enemy team
