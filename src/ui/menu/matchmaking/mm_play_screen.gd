@@ -51,13 +51,13 @@ func _ready() -> void:
 	HudStrings.ensure_loaded()
 	if rules == null:
 		rules = MatchmakingRulesDef.load_default()
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UiKit.theme()
 	_build()
 	select_queue(queue)
 	set_party({"members": [{"id": "me", "name": tr("HUD_LOBBY_YOU"), "leader": true, "me": true}]})
 	_sync()
-	(_queue_rows[queue].button as Button).grab_focus.call_deferred()
+	(func() -> void: (_queue_rows[queue].button as Button).grab_focus()).call_deferred()
 
 
 func _build() -> void:
@@ -222,6 +222,9 @@ func select_queue(id: StringName) -> void:
 
 ## Sets the lane preference; an illegal secondary is corrected.
 func set_lanes(p: StringName, s: StringName) -> void:
+	if state == State.QUEUED:
+		_sync()
+		return
 	primary = p
 	secondary = MmView.fix_secondary(p, s)
 	_sync()
@@ -310,11 +313,11 @@ func _sync() -> void:
 	for lane: StringName in _primary_chips:
 		var c := _primary_chips[lane] as Button
 		c.set_pressed_no_signal(lane == primary)
-		c.disabled = queued or not lanes_on
+		c.disabled = not lanes_on
 	for lane: StringName in _secondary_chips:
 		var c := _secondary_chips[lane] as Button
 		c.set_pressed_no_signal(lane == secondary and primary != &"fill")
-		c.disabled = queued or not lanes_on or primary == &"fill" or lane == primary
+		c.disabled = not lanes_on or primary == &"fill" or lane == primary
 	for k: StringName in _queue_rows:
 		(_queue_rows[k].button as Button).disabled = queued and k != queue
 	_queue_box.visible = queued

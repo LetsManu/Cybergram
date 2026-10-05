@@ -123,6 +123,7 @@ func reply_ready(accept: bool) -> void:
 		return
 	_me_accepted = true
 	_found.me_accepted = true
+	_found.accepted = mini(int(_found.accepted) + 1, int(_found.humans))
 	match_found.emit(_found_info())
 
 
@@ -410,7 +411,7 @@ func _start_pick() -> void:
 		# Team 1 starts so the screens show the enemy pick, then you.
 		_draft = DraftSession.new(a, b, heroes, rules, now, _match_id, 1)
 		_aram = null
-	_turn_seen = -1
+	_turn_seen = _draft.turn if _draft != null else -1
 	_turn_at = now
 	_emit_pick()
 

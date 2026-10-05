@@ -125,7 +125,10 @@ static func key_hint(key: String, text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(UiKit.key_chip(key, 24))
+	var k := UiKit.key_chip(key, 24)
+	if key.length() > 1:
+		k.custom_minimum_size.x = 14 + 9 * key.length()
+	row.add_child(k)
 	var l := caption(text, 11)
 	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(l)
