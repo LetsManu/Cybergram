@@ -30,6 +30,9 @@ var heroes: Array = []
 var selected: int = 0
 ## Render the 3D model (tests / headless may turn it off).
 var with_model: bool = true
+## false = only the 3D stage (no text, arrows or badge strip): the lobby embeds
+## the stage and draws its own hero info.
+var chrome: bool = true
 
 var _vp: SubViewport
 var _vpc: SubViewportContainer
@@ -54,6 +57,9 @@ func _ready() -> void:
 	add_child(frame)
 	if with_model:
 		_build_stage()
+	if not chrome:
+		select(selected, false)
+		return
 	# Left-side gradient so the text reads over the stage.
 	var shade := TextureRect.new()
 	var g := Gradient.new()
@@ -157,6 +163,7 @@ func select(i: int, notify := true) -> void:
 	selected = posmod(i, heroes.size())
 	var h: Dictionary = heroes[selected]
 	if _name == null:
+		_show_model(str(h.stem))
 		return
 	_name.text = str(h.name).to_upper()
 	_role.text = tr(ROLE_KEYS.get(str(h.stem), "HUD_ROLE_SOLDIER"))
@@ -186,7 +193,7 @@ func _build_stage() -> void:
 	var t := UiKit.tokens()
 	_vpc = SubViewportContainer.new()
 	_vpc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_vpc.anchor_left = 0.3
+	_vpc.anchor_left = 0.3 if chrome else 0.0
 	_vpc.stretch = true
 	_vpc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_vpc)

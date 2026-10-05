@@ -21,6 +21,8 @@ const ARCHETYPES := {
 	# W11-C1 feel sounds: reload start / finish, dry fire, own footstep.
 	&"reload_start": [0.2, false], &"reload_done": [0.18, false],
 	&"dry_fire": [0.07, false], &"footstep": [0.1, false],
+	# W12-L2: champ-select lock-in (soft thud + two-note chime).
+	&"ui_lock": [0.32, false],
 }
 
 
@@ -64,6 +66,7 @@ static func make(name: StringName) -> AudioStreamWAV:
 		&"reload_done": _clacks(pcm, rng, [0.0, 0.07], 780.0, 55.0)
 		&"dry_fire": _dry(pcm, rng)
 		&"footstep": _thud(pcm, rng)
+		&"ui_lock": _lock(pcm, rng)
 	return _finish(pcm, bool(spec[1]))
 
 
@@ -151,6 +154,15 @@ static func _boom(pcm: PackedFloat32Array, rng: RandomNumberGenerator, noise_amt
 		env *= k
 		lp = lerpf(lp, rng.randf() * 2.0 - 1.0, 0.12 + 0.3 * env)
 		pcm[i] = lp * env * noise_amt * 2.5 + sin(TAU * f0 * (1.0 - 0.6 * minf(t * 2.0, 1.0)) * t) * env * 0.7
+
+
+static func _lock(pcm: PackedFloat32Array, rng: RandomNumberGenerator) -> void:
+	_boom(pcm, rng, 0.08, 16.0, 110.0)
+	var bell := PackedFloat32Array()
+	bell.resize(pcm.size())
+	_chime(bell, [784.0, 1175.0], 0.06, 9.0)
+	for i in pcm.size():
+		pcm[i] = pcm[i] * 0.7 + bell[i] * 0.6
 
 
 static func _whoosh(pcm: PackedFloat32Array, rng: RandomNumberGenerator) -> void:

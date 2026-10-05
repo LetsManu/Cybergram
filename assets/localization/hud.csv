@@ -602,3 +602,61 @@ HUD_FRIENDS_GROUP_OTHER,PENDING / BLOCKED
 HUD_QUIT_TITLE,Quit Cybergram?
 HUD_QUIT_BODY,"You can come back any time; your settings are saved."
 HUD_PROFILE_ACCOUNT,ACCOUNT AND DATA
+HUD_LOBBY_PHASE_PICK,Choose your hero
+HUD_LOBBY_PHASE_LOCKED_WAIT,Locked in
+HUD_LOBBY_PHASE_LOCK,Lock in!
+HUD_LOBBY_PHASE_START,Match starting
+HUD_LOBBY_WAIT_ALL,Waiting for all players to lock in
+HUD_LOBBY_WAIT_COUNT,%d of %d players locked in
+HUD_LOBBY_COUNTDOWN_SUB,Starting in %d s
+HUD_LOBBY_LOCK_IN,LOCK IN
+HUD_LOBBY_LOCKED_CANCEL,LOCKED IN
+HUD_LOBBY_LOCKED_CANCEL_TIP,Click to cancel your lock-in
+HUD_LOBBY_PICK_TO_LOCK,Pick a hero to lock in
+HUD_LOBBY_YOUR_TEAM,Your team
+HUD_LOBBY_ENEMY_TEAM,Enemy team
+HUD_LOBBY_BOT_FILL,Bot will fill
+HUD_LOBBY_STATE_LOCKED,Locked
+HUD_LOBBY_SEARCH,Search heroes
+HUD_LOBBY_ROLE_ALL,All
+HUD_LOBBY_NO_MATCH,No hero matches
+HUD_LOBBY_SKILLS,SKILLS
+HUD_LOBBY_SKILL_ULT,ULT
+HUD_LOBBY_VS,VS
+HUD_LOBBY_CHAT_TITLE,Lobby chat
+HUD_LOBBY_HEROES_TITLE,Heroes
+HUD_ROLE_SHORT_COMMANDER,Commander
+HUD_ROLE_SHORT_INFILTRATOR,Infiltrator
+HUD_ROLE_SHORT_TRAPPER,Trapper
+HUD_ROLE_SHORT_SOLDIER,Soldier
+HUD_ROLE_SHORT_TANK,Tank
+HUD_ROLE_SHORT_HEALER,Healer
+HUD_ROLE_SHORT_HACKER,Hacker
+HUD_SKILL_BRANNOC_AEGIS_WALL,Place a shield wall that blocks enemy shots.
+HUD_SKILL_BRANNOC_RAM_CHARGE,"Charge forward, knocking enemies aside."
+HUD_SKILL_BRANNOC_FORTIFY,Take less damage and resist crowd control.
+HUD_SKILL_BRANNOC_EARTHBREAKER,"Leap and slam: damage, stun and an ally bastion zone."
+HUD_SKILL_HEX_BREACH_SPIKE,Dart that malfunctions gadgets and scrambles heroes.
+HUD_SKILL_HEX_STATIC_FIELD,Zone that shuts down enemy gadgets.
+HUD_SKILL_HEX_RELAY_HOP,Teleport to an allied or malfunctioning gadget.
+HUD_SKILL_HEX_ZERO_DAY,Huge pulse: every enemy gadget malfunctions.
+HUD_SKILL_JUNIPER_SNARE_COIL,Thrown coil that roots and damages an enemy.
+HUD_SKILL_JUNIPER_TRIPWIRE_LATTICE,"Laser wire: damage, slow and reveal."
+HUD_SKILL_JUNIPER_PRESSURE_MINE,Buried mine with area damage.
+HUD_SKILL_JUNIPER_KILLBOX,Electrified fence dome that stuns enemies crossing it.
+HUD_SKILL_LIORA_MED_PACK_DRONE,Drone heals the most injured nearby ally.
+HUD_SKILL_LIORA_PRISM_WARD,Shield an ally or yourself.
+HUD_SKILL_LIORA_FLASH_BLOOM,Blinds and knocks back enemies facing it.
+HUD_SKILL_LIORA_AURORA,Dome of light that heals allies and keeps them alive.
+HUD_SKILL_RYKER_FRAG_GRENADE,Bouncing grenade with area damage.
+HUD_SKILL_RYKER_COMBAT_STIM,Fire and run faster at a cost of health.
+HUD_SKILL_RYKER_TACTICAL_SLIDE,Slide forward and reload part of the magazine.
+HUD_SKILL_RYKER_OVERDRIVE,"Bottomless magazine, more damage, less recoil."
+HUD_SKILL_SABLE_VEILWALK,Turn nearly invisible and move faster.
+HUD_SKILL_SABLE_PHASE_SHIFT,Dash through barricades and deployables.
+HUD_SKILL_SABLE_SABOTAGE_CHARGE,Sticky charge that blows up near enemy heroes.
+HUD_SKILL_SABLE_ECLIPSE_STEP,Dart that teleports you behind a target and silences it.
+HUD_SKILL_VESPER_MARIONETTE_THREAD,"Mana thread: damage, and your squad attacks the target."
+HUD_SKILL_VESPER_RALLY_BEACON,Beacon that heals and shields nearby Wardlings.
+HUD_SKILL_VESPER_THREADSTEP,Swap places with one of your Wardlings.
+HUD_SKILL_VESPER_REWRITE,"Upgrade allied Wardlings in range, turn enemy ones."
