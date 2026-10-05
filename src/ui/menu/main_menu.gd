@@ -355,7 +355,7 @@ func _build_roster(page: Control) -> void:
 		var empty := StyleBoxEmpty.new()
 		for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, empty)
-		b.add_theme_stylebox_override("focus", UiKit.focus_box())
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())  # focus = brass name
 		var well := Control.new()
 		well.clip_contents = true
 		well.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -443,7 +443,7 @@ func _build_modes(content: Control) -> void:
 		var row_sb := UiKit.underline_box(t.line)
 		for st in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, row_sb)
-		b.add_theme_stylebox_override("focus", UiKit.focus_box())
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())  # focus = selection (marker)
 		var marker := UiIcon.make(&"diamond", 12, t.accent)
 		marker.position = Vector2(16, 32)
 		b.add_child(marker)

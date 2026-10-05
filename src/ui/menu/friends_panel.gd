@@ -427,23 +427,27 @@ func _row(e: Dictionary) -> Control:
 			acts.add_child(_small(tr("HUD_FRIENDS_REMOVE_X"), func() -> void: _op(AccountCodec.OP_FRIEND_REMOVE, id)))
 		AccountCodec.REL_BLOCKED:
 			acts.add_child(_small(tr("HUD_FRIENDS_UNBLOCK"), func() -> void: _op(AccountCodec.OP_UNBLOCK, id)))
-	# Hover-reveal: transparent (still focusable) until the row is hovered or
-	# one of its buttons has keyboard / gamepad focus.
-	acts.modulate.a = 0.0
+	# Hover-reveal: the actions show while the row is hovered or focused
+	# (rows take keyboard / gamepad focus; Right / Tab then reaches a button).
+	acts.visible = false
+	panel.focus_mode = Control.FOCUS_ALL
+	panel.add_theme_stylebox_override("focus", UiKit.focus_box())
 	var sync := func() -> void:
+		if not panel.is_inside_tree():
+			return
 		var r := Rect2(Vector2.ZERO, panel.size)
-		var over := panel.is_inside_tree() and r.has_point(panel.get_local_mouse_position())
-		var focused := false
+		var on := r.has_point(panel.get_local_mouse_position()) or panel.has_focus()
 		for b in acts.get_children():
-			focused = focused or (b as Control).has_focus()
-		acts.modulate.a = 1.0 if over or focused else 0.0
-		panel.add_theme_stylebox_override("panel", hot if over or focused else idle)
+			on = on or (b as Control).has_focus()
+		acts.visible = on
+		panel.add_theme_stylebox_override("panel", hot if on else idle)
 	panel.mouse_entered.connect(sync)
 	panel.mouse_exited.connect(sync)
+	panel.focus_entered.connect(sync)
+	panel.focus_exited.connect(func() -> void: sync.call_deferred())
 	for b in acts.get_children():
-		(b as Control).mouse_entered.connect(sync)
-		(b as Control).focus_entered.connect(sync)
-		(b as Control).focus_exited.connect(sync)
+		(b as Control).mouse_exited.connect(sync)
+		(b as Control).focus_exited.connect(func() -> void: sync.call_deferred())
 	return panel
 
 
