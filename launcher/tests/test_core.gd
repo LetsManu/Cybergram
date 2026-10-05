@@ -67,6 +67,10 @@ func _init() -> void:
 	var notes_split: Dictionary = LauncherCore.split_notes("# Head\nintro line\n## A\n- x\n## B\ny")
 	_check(notes_split["headline"] == "Head" and notes_split["intro"] == "intro line", "notes headline and intro")
 	_check(notes_split["sections"].size() == 2 and notes_split["sections"][0]["title"] == "A" and notes_split["sections"][1]["md"].strip_edges() == "y", "notes sections")
+	_check(LauncherCore.headline_title("Cybergram v0.9.0: the new look") == "The new look", "home headline after the colon")
+	_check(LauncherCore.plain_text("A **bold**\nline `x`") == "A bold line x", "notes intro as plain text")
+	_check(LauncherCore.first_bullet("- **Top bar:**\n  - sub\n- **Lobby:** lock in together") == "Sub",
+		"news line skips heading bullets (takes the first sub-bullet)")
 	_check(LauncherCore.progress_text(1048576, 2097152, 1048576.0) == "1.0 / 2.0 MB  -  1.0 MB/s", "progress text with speed")
 	_check(not LauncherCore.progress_text(0, 0, 0.0).contains("/s"), "progress text without speed")
 
