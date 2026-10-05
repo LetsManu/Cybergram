@@ -297,7 +297,7 @@ def _pal_sable(rng, d, f0, kind):
     lfo = 0.5 + 0.5 * np.sin(2 * np.pi * (0.5 + 6 * t / d) * t)
     phased = lp(swell, 400 + 4000 * lfo.mean()) * lfo
     rev_noise = bp(noise(rng, d), 1000, 8000) * (t / d) ** 3 * 0.4
-    return mix(phased * 0.7, rev_noise)
+    return fade(mix(phased * 0.7, rev_noise), 0.002, 0.03)
 
 
 def _pal_vesper(rng, d, f0, kind):
@@ -334,7 +334,9 @@ def ability(rng, v, hero, gesture, semis=0.0, dur=0.6, ult=False):
         x = mix(x, rise)
         if ult:
             boom = at(_thump(rng, 0.8, f0 * 1.2, max(f0 * 0.35, 30), 5) * 1.2, dur * 0.55)
-            air = sweep_lp(noise(rng, dur), 300, 9000) * (t_axis(dur) / dur) ** 2 * 0.4
+            u = t_axis(dur) / dur
+            air_env = np.where(u < 0.55, (u / 0.55) ** 2, np.exp(-(u - 0.55) * 9.0))
+            air = sweep_lp(noise(rng, dur), 300, 7000) * air_env * 0.25
             x = mix(x, boom, air)
     else:
         x = mix(x, _thump(rng, 0.3, f0 * 2, f0, 12) * 0.6)

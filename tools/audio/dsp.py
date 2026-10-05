@@ -34,7 +34,11 @@ def env_exp(seconds: float, decay: float, attack: float = 0.001) -> np.ndarray:
     """Exponential decay (1/s) with a linear attack of `attack` seconds."""
     t = t_axis(seconds)
     a = np.clip(t / max(attack, 1e-5), 0.0, 1.0)
-    return a * np.exp(-t * decay)
+    e = a * np.exp(-t * decay)
+    k = min(int(RATE * 0.006), len(e))
+    if k:
+        e[len(e) - k:] *= np.linspace(1.0, 0.0, k)  # no click where the segment ends
+    return e
 
 
 def env_adsr(seconds: float, a: float, d: float, s: float, r: float) -> np.ndarray:
@@ -278,9 +282,13 @@ def _meter():
 def k_weight(x: np.ndarray) -> np.ndarray:
     m = _meter()
     y = x if x.ndim == 2 else x[:, None]
-    for f in m._filters.values():
-        y = f.apply_filter(y)
-    return y
+    out = np.zeros_like(y)
+    for c in range(y.shape[1]):
+        ch = y[:, c]
+        for f in m._filters.values():
+            ch = signal.lfilter(f.b, f.a, ch)
+        out[:, c] = ch
+    return out
 
 
 def momentary_max(x: np.ndarray) -> float:

@@ -283,7 +283,7 @@ for name, (n, lufs, legacy) in UI_EVENTS.items():
 # -------------------------------------------------------------- announcer
 for tier in ("triumph", "alert", "streak", "neutral"):
     st = f"voice_stinger_{tier}"
-    f("voice", st, R.announce, 1, -16.0, stereo=True, tier=tier)
+    f("voice", st, R.announce, 1, -16.0, "I", stereo=True, tier=tier)
     e(f"announce_{tier}", st, "voice", VOICE, priority=0, max_voices=1, vol_jitter_db=0.0, pitch_jitter=0.0)
 # Recorded announcer lines (layer 2): files voice/voice_announcer_<line>_01.ogg; silent until present.
 ANNOUNCER_LINES = ["victory", "defeat", "sudden_death", "uplink_under_attack", "hardpoint_lost",
