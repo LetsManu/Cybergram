@@ -9,15 +9,16 @@ extends Node3D
 const MAP := "res://assets/maps/front/shardline_front.tscn"
 ## name -> [eye, look-at] (world space, z = -L).
 const CAMS := {
-	"skyline": [Vector3(-88.0, 7.0, -150.0), Vector3(-260.0, 55.0, -235.0)],
+	"skyline": [Vector3(-88.0, 7.0, -150.0), Vector3(-260.0, 45.0, -260.0)],
 	"market": [Vector3(0.0, 2.2, -70.0), Vector3(0.0, 4.5, -170.0)],
-	"train": [Vector3(-95.0, 6.0, -90.0), Vector3(-205.0, 62.0, -150.0)],
+	"train": [Vector3(-90.0, 6.0, -100.0), Vector3(-130.0, 58.0, -170.0)],
 	"lane": [Vector3(-80.0, 2.0, -104.0), Vector3(-80.0, 2.0, -200.0)],
 	"wide": [Vector3(110.0, 26.0, 20.0), Vector3(-60.0, 10.0, -220.0)],
 }
 
 
 func _ready() -> void:
+	HudStrings.ensure_loaded()  # the HUD would load the string table in a match
 	var map: Node3D = (load(MAP) as PackedScene).instantiate()
 	add_child(map)
 	var cam := Camera3D.new()

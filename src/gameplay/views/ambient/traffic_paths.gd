@@ -104,13 +104,14 @@ static func fallback_drones(count: int) -> Array[PackedVector3Array]:
 	return out
 
 
-## Fallback sky-train track: a straight elevated line behind the north skyline,
-## past the HQ ends, from beyond one map edge to beyond the other.
+## Fallback sky-train track: an elevated line in the gap between the north lane
+## and the skyline (x -125..-140, 62 m up, outside the playable box), running
+## past both HQ ends.
 static func fallback_train() -> PackedVector3Array:
 	var pts := PackedVector3Array()
 	for s in SAMPLES:
 		var k := s / float(SAMPLES - 1)
-		pts.append(Vector3(-205.0 + 25.0 * sin(k * PI), 62.0, lerpf(260.0, -680.0, k)))
+		pts.append(Vector3(-125.0 - 15.0 * sin(k * PI), 62.0, lerpf(260.0, -680.0, k)))
 	return pts
 
 

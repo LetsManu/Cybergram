@@ -2,7 +2,7 @@
 // Same route data and INSTANCE_CUSTOM layout as spatial_amb_mover; the mesh is a
 // unit box stretched backwards along the route by trail_len.
 shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 #include "res://assets/shaders/env_ambient_path.gdshaderinc"
 

@@ -2,7 +2,7 @@
 // Open cone mesh, additive, soft at the silhouette and fading toward the ground.
 // Night searchlights sweep slowly (sweep = 0 with reduce motion).
 shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 uniform vec3 color : source_color = vec3(1.0, 0.86, 0.7);
 uniform float gain = 0.25;

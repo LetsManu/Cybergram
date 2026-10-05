@@ -76,6 +76,9 @@ var _holo_labels: Array[Label3D] = []
 var _signs: Array[Label3D] = []
 var _sign_frames: MultiMesh
 var _sign_colors: Array[Color] = []
+## Label -> its hud.csv keys; re-translated until the HUD string table is loaded
+## (the UI layer loads it, possibly after the map is built).
+var _label_keys: Dictionary = {}
 var _rain: GPUParticles3D
 var _motes: GPUParticles3D
 var _schedule: SkyTrainSchedule
@@ -168,6 +171,7 @@ func _rebuild() -> void:
 	_holo_labels.clear()
 	_signs.clear()
 	_sign_colors.clear()
+	_label_keys.clear()
 	_trail_mat = null
 	_train_mat = null
 	_train_node = null
@@ -213,7 +217,7 @@ func _process(delta: float) -> void:
 	if _train_mat != null:
 		var u := _schedule.progress(t)
 		_train_node.visible = u >= 0.0
-		# The head car runs 6 car lengths past 1.0 so the tail clears the track.
+		# The head car runs 6 car lengths past 1.0 so the tail clears the rail.
 		_train_mat.set_shader_parameter("train_u", u * 1.12)
 	_update_signs(t)
 	var cam := get_viewport().get_camera_3d()
@@ -226,6 +230,8 @@ func _process(delta: float) -> void:
 	_poll += 1
 	if _poll % 30 == 0:
 		_poll_settings()
+		if not _label_keys.is_empty():
+			_retranslate()
 
 
 ## Shared match clock (s): the server tick estimate on clients, so every
@@ -355,6 +361,27 @@ func _apply_comfort() -> void:
 		_audio.set_level(level)
 
 
+func _translate(label: Label3D) -> bool:
+	var keys: Array = _label_keys.get(label, [])
+	var parts: PackedStringArray = []
+	var ok := true
+	for k in keys:
+		var t := tr(k)
+		ok = ok and t != k
+		parts.append(t)
+	label.text = "\n".join(parts)
+	return ok
+
+
+## Re-translates labels whose keys were not resolvable yet; stops once all are.
+func _retranslate() -> void:
+	var done := true
+	for l in _label_keys:
+		done = _translate(l) and done
+	if done:
+		_label_keys.clear()
+
+
 # ------------------------------------------------------------- anchors
 
 ## Anchor nodes of one kind: members of `group` under the map, plus children of
@@ -479,9 +506,9 @@ func _build_train() -> void:
 	var routes := _routes_from(G_TRAIN, false)
 	if routes.is_empty():
 		routes = [TrafficPaths.fallback_train()] as Array[PackedVector3Array]
-	var track := routes[0]
-	var tex := TrafficPaths.bake([track] as Array[PackedVector3Array])
-	var len_m := maxf(1.0, TrafficPaths.length(track, false))
+	var rail := routes[0]
+	var tex := TrafficPaths.bake([rail] as Array[PackedVector3Array])
+	var len_m := maxf(1.0, TrafficPaths.length(rail, false))
 	var custom: Array[Color] = []
 	for i in 6:
 		custom.append(Color(0.0, i * 17.0 / len_m, 0.0, 0.0))
@@ -490,11 +517,11 @@ func _build_train() -> void:
 	_train_mat.set_shader_parameter("body_color", Color(0.78, 0.76, 0.86))
 	_train_mat.set_shader_parameter("light_front", Color(1.0, 0.9, 0.64))
 	_train_node = _custom_mm("SkyTrain", _unit_box(), _train_mat, custom)
-	# Static track beam with pylons every 8th sample (one MultiMesh, no collision).
+	# Static rail beam with pylons every 8th sample (one MultiMesh, no collision).
 	var xf: Array[Transform3D] = []
-	for i in track.size() - 1:
-		var a := track[i]
-		var c := track[i + 1]
+	for i in rail.size() - 1:
+		var a := rail[i]
+		var c := rail[i + 1]
 		var mid := (a + c) * 0.5 - Vector3(0.0, 2.4, 0.0)
 		var basis := Basis.looking_at((c - a).normalized(), Vector3.UP).scaled(Vector3(2.6, 0.8, a.distance_to(c) + 0.2))
 		xf.append(Transform3D(basis, mid))
@@ -528,8 +555,9 @@ func _fallback_billboards(n: int) -> Array[Transform3D]:
 	for i in n:
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var z := -40.0 - (i * 340.0 / maxf(1.0, n - 1.0))
-		var pos := Vector3(side * (150.0 + 12.0 * (i % 3)), 34.0 + 8.0 * (i % 2), z)
-		var face := Vector3(-side, 0.0, 0.25 * (1.0 if i % 3 == 0 else -1.0)).normalized()
+		var pos := Vector3(side * (132.0 + 10.0 * (i % 3)), 28.0 + 8.0 * (i % 2), z)
+		# Angled 50 deg toward one lane end, so players looking down a lane see them.
+		var face := Vector3(-side * 0.65, 0.0, 0.76 if i % 4 < 2 else -0.76).normalized()
 		out.append(Transform3D(Basis.looking_at(-face, Vector3.UP), pos))
 	return out
 
@@ -542,11 +570,11 @@ func _build_billboards(b: Dictionary) -> void:
 	var sizes: Array[Vector2] = []
 	for a in anchors(G_BILLBOARD):
 		xfs.append((a as Node3D).global_transform)
-		sizes.append(a.get_meta("size", Vector2(24.0, 9.0)))
+		sizes.append(a.get_meta("size", Vector2(32.0, 12.0)))
 	if xfs.is_empty():
 		xfs = _fallback_billboards(n)
 		for i in xfs.size():
-			sizes.append(Vector2(24.0, 9.0))
+			sizes.append(Vector2(32.0, 12.0))
 	var font := _font()
 	var lk := AmbientMood.look(mood)
 	for i in mini(n, xfs.size()):
@@ -559,6 +587,7 @@ func _build_billboards(b: Dictionary) -> void:
 		m.set_shader_parameter("color_b", ad[4])
 		m.set_shader_parameter("motif", ad[2])
 		m.set_shader_parameter("gain", float(lk.neon_gain))
+		m.set_shader_parameter("alpha", 0.85)
 		_anim_mats.append(m)
 		_holo_mats.append(m)
 		var panel := MeshInstance3D.new()
@@ -569,18 +598,19 @@ func _build_billboards(b: Dictionary) -> void:
 		panel.transform = xfs[i]
 		add_child(panel)
 		var label := Label3D.new()
-		label.text = "%s\n%s" % [tr(ad[0]), tr(ad[1])]
+		_label_keys[label] = [ad[0], ad[1]]
 		if font != null:
 			label.font = font
 		label.font_size = 96
-		label.pixel_size = sizes[i].y / 9.0 * 0.03
+		label.pixel_size = sizes[i].y / 9.0 * 0.04
 		label.outline_size = 0
 		label.modulate = Color(1.0, 1.0, 1.0)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		label.position = Vector3(sizes[i].x * 0.02, 0.0, 0.15)
+		label.position = Vector3(sizes[i].x * 0.14, 0.0, 0.15)
 		label.render_priority = 1
 		label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		panel.add_child(label)
+		_translate(label)
 		_holo_labels.append(label)
 
 
@@ -611,7 +641,8 @@ func _build_signs(b: Dictionary) -> void:
 		var c := NEON_COLORS[(i * 3 + match_seed) % NEON_COLORS.size()]
 		var label := Label3D.new()
 		label.name = "ShopSign%d" % i
-		label.text = tr(SHOP_SIGNS[i % SHOP_SIGNS.size()])
+		_label_keys[label] = [SHOP_SIGNS[i % SHOP_SIGNS.size()]]
+		_translate(label)
 		if font != null:
 			label.font = font
 		label.font_size = 64
