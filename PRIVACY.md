@@ -1,7 +1,7 @@
 # Cybergram: Privacy Notice
 
 > **Draft. Needs a legal check before public release.** Written in plain
-> words for players. Version 3 (game v0.11.0, protocol v15).
+> words for players. Version 4 (2026-10-05, game v0.13.0, protocol v17).
 
 **Offline play (PLAY VS BOTS, the test course) sends nothing anywhere.** This
 notice is about **online play**.
@@ -82,6 +82,52 @@ Invites expire after 2 minutes. A party is forgotten when you leave it, or
 when you have no connection left after the usual grace period of about a
 minute. Nothing about parties is written to disk.
 
+## Ratings, match history, lockouts and reports (online matchmaking)
+
+**Purpose:** fair games, and fair play. **Legal basis:** our legitimate
+interest in fair matchmaking and a fair community, Art. 6(1)(f) GDPR
+(together with the contract, Art. 6(1)(b)). You can object at any time
+(see *Your rights*); then we delete the data below, or you delete your
+account. None of it contains your IP address, chat or free text.
+
+- **Ratings (per queue).** For each queue you played (for example ranked 5v5,
+  normal), the server stores a rating number, its uncertainty, the number of
+  games and the date of the last change, with your player id. It is used to put
+  you in an even match and to show your rank. **Kept as long as the account
+  exists, and deleted with it.** Matches with bots are not rated. Guests (no account) cannot play ranked and
+  no rating is ever stored for them.
+- **Match history (minimal).** For each finished match: a match id, the
+  heroes played, the result (win, loss, void) and the duration, linked to
+  your player id. No chat, no positions, no address.
+  It is used for your match list, for the rating and to settle disputes.
+  **Kept for 180 days, then deleted automatically** (checked at start and
+  daily), or earlier with the account.
+- **Lockouts and leaver strikes.** If you decline a found match or leave a
+  match early, the server counts a strike and may keep you out of the queue for
+  a short time. It stores the strike count, its type and the lockout end. Purpose:
+  fair play (a missing player spoils the game for nine others). Strikes
+  **decay by themselves** (declines after 6 hours, leaver strikes after 7 days
+  without a new one) and are deleted on decay, **at the latest 30 days** after
+  the last strike, or with the account.
+- **Reports and honour.** After a match you can report a player (a category from
+  a fixed list, never free text) or honour a player. The server stores who
+  reported or honoured whom, in which match, the category and the time. **Reports
+  and the who-honoured-whom records are deleted after 30 days**, reviewed or
+  not. The operator reviews reports by hand; there are no automatic bans from
+  reports. Your honour **count** (a number on your account) is kept with the
+  account. The reported player is not told who reported them.
+- **Matches.** While a match runs, its roster (player ids and heroes) is held
+  by the match process in memory and passed over a local, authenticated
+  channel. A one-time join ticket, bound to your account and that match, lets
+  you in; it is valid for seconds. Nothing of this is kept after the match
+  except the history above.
+
+**Account deletion removes all of it:** your ratings, match history, strikes
+and lockouts, the reports you filed, and your honour count are deleted together
+with the account, at once. Reports *about* you and honour records that name you
+are deleted at the latest after their 30 days (or earlier on request to the
+operator).
+
 ## Crash reports (only if you agree)
 
 **Purpose:** find and fix crashes. **Legal basis:** your consent,
@@ -144,6 +190,9 @@ consent (Art. 6(1)(a) GDPR), see their sections above. You must be **at least 14
 - Launch codes: 60 seconds at most, or until used. Parties and invites: while
   you are connected (invites 2 minutes).
 - Crash reports: 30 days, then deleted automatically.
+- Ratings: while the account exists. Match history: 180 days. Strikes and
+  lockouts: until they decay, 30 days at the latest. Reports and honour
+  records: 30 days. All of it is deleted with the account.
 
 ## Server logs
 
@@ -161,11 +210,12 @@ a supervisory authority (in Austria: the Datenschutzbehörde, dsb.gv.at).
 In the game, under **PROFILE**:
 
 - **Export my data**: the server sends everything it stores about your
-  account (without the password hash), and the game saves it as a readable
+  account, including ratings and match history (without the password hash), and the game saves it as a readable
   JSON file where you choose.
 - **Delete account**: needs your password. The account is deleted at once.
   You are also removed from every other player's friends, requests and
-  blocks.
+  blocks. Your ratings, match history, strikes, filed reports and honour count
+  are deleted too.
 - Changing your display name, emblem, colour or favourite hero corrects your
   data. You can change your password there too.
 
