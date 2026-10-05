@@ -257,12 +257,6 @@ func test_brannoc_ram_forks_stun_shield_and_refund_data() -> void:
 	await get_tree().physics_frame
 	var s := _learn(b, 1, SkillNodeDef.Kind.FORK_A)
 	assert_float(s.param(&"stun")).is_equal_approx(1.5, 1e-4)  # Bulldozer stun 1.0 -> 1.5
-	var s2 := SkillInstance.new(s.def, 1)
-	s2.learn(s2.node_of(SkillNodeDef.Kind.FORK_B))
-	var rc := _node_ctx(b, 1)
-	rc.skill = s2
-	rc.run(s2.node_of(SkillNodeDef.Kind.FORK_B).added_effects)
-	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()  # Interceptor shield
 	s.learn(s.node_of(SkillNodeDef.Kind.MASTERY), b.combat.stats)
 	assert_float(s.param(&"extra_b")).is_equal(0.5)  # pin refund fraction
 

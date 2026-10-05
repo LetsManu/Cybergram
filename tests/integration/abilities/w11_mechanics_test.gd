@@ -314,3 +314,29 @@ func test_echo_second_press_snaps_back_to_the_start_point() -> void:
 	assert_float(sa.state.position.distance_to(start)).is_less(0.1)
 	assert_bool(_cast(sa, 1)).is_false()  # once
 	assert_int(s.casts).is_equal(1)
+
+
+# ------------------------------------------------------------------ Interceptor (ally charge)
+
+func test_interceptor_charges_an_aimed_ally_and_shields_both() -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	var ally := _hero(VESPER, Vector3(0.0, 0.05, -9.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	_learn_fork(b, 1, SkillNodeDef.Kind.FORK_B)
+	assert_bool(_cast(b, 1)).is_true()
+	_run(HZ)
+	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()
+	assert_bool(ally.combat.status.has(StatusComponent.Kind.SHIELD)).is_true()
+	assert_float(ally.combat.health.shield).is_greater(100.0)
+	assert_float(b.state.position.distance_to(ally.state.position)).is_less(3.0)
+
+
+func test_interceptor_without_an_ally_is_a_plain_charge_without_shield() -> void:
+	_world()
+	var b := _hero(BRANNOC, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
+	await get_tree().physics_frame
+	_learn_fork(b, 1, SkillNodeDef.Kind.FORK_B)
+	assert_bool(_cast(b, 1)).is_true()
+	_run(HZ)
+	assert_bool(b.combat.status.has(StatusComponent.Kind.SHIELD)).is_false()
