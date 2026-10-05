@@ -113,10 +113,12 @@ func poll() -> void:
 		_auto_open = false
 		open = true
 	if not searching:
-		if _e(KEY_F) or _je(JOY_BUTTON_Y) or _open_edge():
+		var toggle := _toggle_edge()
+		var shop := _open_edge()
+		if toggle or shop:
 			if at and not client.is_dead():
 				open = not open
-			elif _e(KEY_B) or _open_edge():
+			elif _e(KEY_B) or shop:
 				_hint_t = HINT_LIFE_S if not client.is_dead() else 0.0
 	_sync_open()
 	_check_pending(dt)
@@ -156,7 +158,15 @@ func _refresh_rows() -> void:
 	_ensure_visible()
 
 
-## F / the open_shop action (key B fallback when the action is not registered yet).
+## Interact (rebindable, keyboard or pad) toggles the panel on the Armory pad:
+## the same action the "[%s] ARMORY" prompt names. Falls back to F / pad Y.
+func _toggle_edge() -> bool:
+	if InputMap.has_action(&"interact"):
+		return _track(2001, Input.is_action_pressed(&"interact"))
+	return _e(KEY_F) or _je(JOY_BUTTON_Y)
+
+
+## The open_shop action (key B fallback when the action is not registered yet).
 func _open_edge() -> bool:
 	return _e(KEY_B) if not InputMap.has_action(&"open_shop") else _track(2000, Input.is_action_pressed(&"open_shop"))
 

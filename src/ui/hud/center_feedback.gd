@@ -42,7 +42,7 @@ func _draw() -> void:
 	if _marker_left > 0.0:
 		_marker(c, 1.0 - _marker_left / _marker_total)
 	if ctx.armory_prompt:
-		caps_c(tr("HUD_ARMORY_PROMPT"), c + Vector2(0.0, 110.0), 20, HudPalette.BRASS_HI, 0.16)
+		caps_c(ctx.prompt("HUD_ARMORY_PROMPT", &"interact", "F"), c + Vector2(0.0, 110.0), 20, HudPalette.BRASS_HI, 0.16)
 	var input := ctx.client.player_input if ctx.client != null else null
 	if input != null and input.wheel_open:
 		_wheel(c, input)
