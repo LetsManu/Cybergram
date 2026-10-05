@@ -114,7 +114,7 @@ func _build() -> void:
 	_task_cue = _add(TaskCue.new(), _tracker.get_parent(), Rect2(0, 0, 1, 0), Vector2(ObjectiveTracker.H + 6.0, ObjectiveTracker.H + 6.0 + TaskCue.H))
 	_toasts = _fill(ToastLane.new(), _zone("Toasts", 0.70, 0.48, 1.0, 0.64)) as ToastLane
 	# W16-SDWATER: "OUTSIDE THE RING" (Sudden Death) under the front strip.
-	_fill(RingWarning.new(), _zone("RingWarning", 0.30, 0.71, 0.70, 0.79))  # below the centre: clear of the 3-row front strip and the damage ring
+	_fill(RingWarning.new(), _zone("RingWarning", 0.25, 0.255, 0.75, 0.34))  # v0.12: centre-upper (top 321 at 1080p), above the damage ring
 	_center = _fill(CenterFeedback.new(), _zone("Centre", 0.30, 0.30, 0.70, 0.70)) as CenterFeedback
 	var z_bl := _zone("BottomLeft", 0.0, 0.70, 0.34, 1.0)
 	_vitals = _fill(VitalsPanel.new(), z_bl) as VitalsPanel
@@ -122,7 +122,7 @@ func _build() -> void:
 	_skills = _fill(SkillBar.new(), _zone("BottomCentre", 0.3, 0.72, 0.7, 1.0)) as SkillBar
 	_weapon = _fill(WeaponPanel.new(), _zone("BottomRight", 0.70, 0.74, 1.0, 1.0)) as WeaponPanel
 	_armory = _fill(ArmoryPanel.new(), _zone("Armory", 0.02, 0.04, 0.98, 0.96)) as ArmoryPanel
-	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.50, 0.8, 0.84)) as DeathScreen
+	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.22, 0.8, 0.9)) as DeathScreen
 	_end = _fill(EndBanner.new(), _zone("End", 0.0, 0.20, 1.0, 0.36)) as EndBanner
 	_scoreboard = _fill(Scoreboard.new(), _zone("Scoreboard", 0.0, 0.0, 1.0, 1.0)) as Scoreboard
 
@@ -203,7 +203,16 @@ func _apply_context(c: ClientWorld) -> void:
 	var board := ctx.scoreboard_open
 	var shop := ctx.armory_open
 	var gameplay := not board and not dead
-	_scrims.set_flags(not board, gameplay and not shop and (c.match_state == null or c.match_state.phase != MatchRules.Phase.END))
+	var ended := c.match_state != null and c.match_state.phase == MatchRules.Phase.END
+	_scrims.set_flags(not board, gameplay and not shop and not ended)
+	var bd := HudScrims.Backdrop.NONE
+	if board or shop:
+		bd = HudScrims.Backdrop.OVERLAY
+	elif ended:
+		bd = HudScrims.Backdrop.END
+	elif dead:
+		bd = HudScrims.Backdrop.DEAD
+	_scrims.set_backdrop(bd)
 	_header.visible = not board
 	_front.visible = not board and not shop
 	_minimap.visible = gameplay

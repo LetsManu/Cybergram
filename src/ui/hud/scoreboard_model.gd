@@ -22,6 +22,8 @@ class Row:
 	var is_bot: bool = false
 	## W11-V1: Fork / Mastery bits of the 3 basic skills (SnapshotData.EntityState.fork_bits).
 	var fork_bits: int = 0
+	## W19-HUD: HeroDef id (face crop, muted hero name); &"" when unknown.
+	var hero_id: StringName = &""
 
 	static func make(id: int, name_: String, team_: int, level_: int, k: int, d: int, lumen_: int = -1) -> Row:
 		var r := Row.new()

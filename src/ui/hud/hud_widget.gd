@@ -14,6 +14,7 @@ const SHADOW := Color(0.0, 0.0, 0.0, 0.75)
 const GLOW := Color(0.031, 0.047, 0.063, 0.38)
 
 static var _radial: GradientTexture2D
+static var _hero_names: Dictionary = {}
 
 var ctx: HudContext
 
@@ -211,6 +212,17 @@ func face_circle(c: Vector2, r: float, hero_id: StringName, a: float = 1.0) -> b
 		uvs[k] = uv.position + (d * 0.5 + Vector2(0.5, 0.5)) * uv.size
 	draw_colored_polygon(pts, Color(1, 1, 1, a), uvs, tex)
 	return true
+
+
+## Display name of HeroDef `hero_id` (cached; "" when unknown).
+static func hero_name(hero_id: StringName) -> String:
+	if hero_id == &"":
+		return ""
+	if not _hero_names.has(hero_id):
+		var path := "res://assets/data/heroes/%s.tres" % hero_id
+		var d := load(path) as HeroDef if ResourceLoader.exists(path) else null
+		_hero_names[hero_id] = d.display_name if d != null else ""
+	return _hero_names[hero_id]
 
 
 ## Ally chevron (pointing up) — art bible §4.4 nameplate glyph.

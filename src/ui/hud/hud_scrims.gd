@@ -10,8 +10,46 @@ const BOTTOM_H: float = 285.0
 const TOP_A: float = 0.62
 const BOTTOM_A: float = 0.66
 
+const BACKDROP_SHADER := "res://assets/shaders/canvas_hud_backdrop.gdshader"
+enum Backdrop { NONE, DEAD, OVERLAY, END }
+## [saturation, brightness, blur lod] per Backdrop (hud-v0.12.md §2: death is
+## greyscale at 45%; Tab / Armory blur 4 px + dim; match end blur 3 px, 50%, 60% sat).
+const BACKDROPS: Array = [[1.0, 1.0, 0.0], [0.1, 0.45, 0.6], [1.0, 0.6, 2.2], [0.6, 0.5, 1.8]]
+
 var top: bool = true
 var bottom: bool = true
+var backdrop: int = Backdrop.NONE
+var _fx: ColorRect
+
+
+func _ready() -> void:
+	_fx = ColorRect.new()
+	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx.show_behind_parent = true
+	_fx.top_level = true
+	var m := ShaderMaterial.new()
+	m.shader = load(BACKDROP_SHADER) as Shader
+	_fx.material = m
+	_fx.visible = false
+	add_child(_fx)
+
+
+## Screen treatment behind the HUD (Backdrop). Static with reduce motion: it
+## switches instantly either way.
+func set_backdrop(b: int) -> void:
+	if _fx == null:
+		return
+	_fx.size = get_viewport_rect().size
+	_fx.position = Vector2.ZERO
+	if b == backdrop:
+		return
+	backdrop = b
+	_fx.visible = b != Backdrop.NONE
+	var v: Array = BACKDROPS[b]
+	var m := _fx.material as ShaderMaterial
+	m.set_shader_parameter("saturation", v[0])
+	m.set_shader_parameter("brightness", v[1])
+	m.set_shader_parameter("blur_lod", v[2])
 
 
 func _process(_delta: float) -> void:
