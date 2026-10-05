@@ -39,12 +39,17 @@ stat = &"secondary_duration"
 op = 0
 value = 3.0
 
+[sub_resource type="Resource" id="m11_ac"]
+script = ExtResource("2")
+stat = &"ally_charge"
+op = 0
+value = 12.0
+
 [sub_resource type="Resource" id="w10_sub_6"]
 script = ExtResource("w10_1")
 kind = 3
 required_level = 5
-modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_4"), SubResource("w10_sub_5")])
-added_effects = Array[Resource]([SubResource("w10_sub_1")])
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_4"), SubResource("w10_sub_5"), SubResource("m11_ac")])
 
 [sub_resource type="Resource" id="w10_sub_7"]
 script = ExtResource("w10_0")

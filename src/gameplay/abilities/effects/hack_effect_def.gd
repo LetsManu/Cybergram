@@ -35,6 +35,8 @@ func apply(ctx: EffectContext) -> void:
 ## Malfunctions `gadget` (WardlingSim or AbilityWorld.Deployable).
 func hack_gadget(ctx: EffectContext, gadget: Object) -> bool:
 	var w := ctx.world
+	if ctx.param(&"hijack") > 0.0 and w.traps.can_hijack(gadget):  # Turncoat fork: switches sides instead
+		return w.traps.hijack(gadget as AbilityWorld.Deployable, ctx, w.traps.category_ticks(gadget, self, ctx.param(scale_param)))
 	var ok := w.traps.hack(gadget, w.traps.category_ticks(gadget, self, ctx.param(scale_param)),
 		roundi(immune_s * w.tick_hz))
 	var spread := roundi(ctx.param(&"count"))  # W10-T1 Worm fork: up to `count` more gadgets at 50% duration

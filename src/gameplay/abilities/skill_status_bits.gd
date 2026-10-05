@@ -7,3 +7,6 @@ extends RefCounted
 const STEALTH: int = 512
 const SILENCE: int = 1024
 const BLIND: int = 2048
+## W11-M1: this hero is REVEALED to the snapshot's recipient team (set per
+## recipient by ServerWorld, never in the shared entity state). Bits 12+ free.
+const REVEALED: int = 4096

@@ -9,15 +9,33 @@
 
 [sub_resource type="Resource" id="w10_sub_1"]
 script = ExtResource("w10_0")
-stat = &"damage"
+stat = &"bleed"
 op = 0
 value = 40.0
+
+[sub_resource type="Resource" id="m11_bl0"]
+script = ExtResource("1")
+stat = &"bleed_time"
+op = 0
+value = 3.0
+
+[sub_resource type="Resource" id="m11_bl1"]
+script = ExtResource("1")
+stat = &"heal_cut"
+op = 0
+value = 0.3
+
+[sub_resource type="Resource" id="m11_bl2"]
+script = ExtResource("1")
+stat = &"heal_cut_time"
+op = 0
+value = 3.0
 
 [sub_resource type="Resource" id="w10_sub_2"]
 script = ExtResource("w10_1")
 kind = 2
 required_level = 5
-modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_1")])
+modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_1"), SubResource("m11_bl0"), SubResource("m11_bl1"), SubResource("m11_bl2")])
 
 [sub_resource type="Resource" id="w10_sub_3"]
 script = ExtResource("w10_0")
@@ -39,9 +57,9 @@ modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_3"), SubResource("
 
 [sub_resource type="Resource" id="w10_sub_6"]
 script = ExtResource("w10_0")
-stat = &"extra"
+stat = &"reveal"
 op = 0
-value = 0.3
+value = 5.0
 
 [sub_resource type="Resource" id="w10_sub_7"]
 script = ExtResource("w10_0")

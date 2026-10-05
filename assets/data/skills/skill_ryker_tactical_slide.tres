@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://src/gameplay/data/skill_node_def.gd" id="w10_1"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/overdrive_effect_def.gd" id="w10_2"]
 [ext_resource type="Script" path="res://src/gameplay/abilities/effects/status_effect_def.gd" id="w10_3"]
+[ext_resource type="Script" path="res://src/gameplay/abilities/effects/repeat_cast_effect_def.gd" id="m11_rep"]
 
 [sub_resource type="Resource" id="w10_sub_1"]
 script = ExtResource("w10_2")
@@ -43,15 +44,19 @@ added_effects = Array[Resource]([SubResource("w10_sub_1")])
 
 [sub_resource type="Resource" id="w10_sub_6"]
 script = ExtResource("w10_0")
-stat = &"charges"
+stat = &"recast_window"
 op = 0
 value = 2.0
+
+[sub_resource type="Resource" id="m11_rc"]
+script = ExtResource("m11_rep")
 
 [sub_resource type="Resource" id="w10_sub_7"]
 script = ExtResource("w10_1")
 kind = 3
 required_level = 5
 modifiers = Array[ExtResource("w10_0")]([SubResource("w10_sub_6")])
+recast_effects = Array[Resource]([SubResource("m11_rc")])
 
 [sub_resource type="Resource" id="w10_sub_8"]
 script = ExtResource("w10_0")

@@ -68,6 +68,14 @@ const SKILL_PARAMS: Array[StringName] = [
 	&"arm_time", &"scramble", &"lag", &"max_placed",
 	# W10-T1 fork nodes: hero heal/s of a beacon, effect-specific extras (s / fraction / count).
 	&"ally_heal", &"extra", &"extra_b", &"count", &"splits",
+	# W11-M1 mechanics: Reveal (s), Bleed (total HP, s), Healing reduction (fraction, s),
+	# Hijack (s), recast window (s) / strength, expiry-hook amount.
+	&"reveal", &"bleed", &"bleed_time", &"heal_cut", &"heal_cut_time", &"hijack",
+	&"recast_window", &"recast_value", &"expiry_heal",
+	# W11-M1: a wall that blocks enemy hero movement (> 0).
+	&"block_move",
+	# W11-M1 Interceptor: range (m) at which Ram Charge may target an ally (0 = off).
+	&"ally_charge",
 ]
 
 
