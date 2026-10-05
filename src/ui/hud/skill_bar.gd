@@ -186,7 +186,8 @@ func _draw_fork(r: Rect2, def: SkillDef, flags: int) -> void:
 		return
 	var stem := String(def.id).trim_prefix("skill_").to_upper()
 	var w := 360.0
-	var p := Rect2(Vector2(r.get_center().x - w * 0.5, r.position.y - 132.0), Vector2(w, 92.0))
+	# Centred on the whole bar (not the slot) so it never runs into the squad strip.
+	var p := Rect2(Vector2(size.x * 0.5 - w * 0.5, r.position.y - 132.0), Vector2(w, 92.0))
 	cut_fill(p, 10.0, Color(HudPalette.INK, 0.86))
 	cut_line(p, 10.0, HudPalette.BRASS, 1.0)
 	caps_c(tr("HUD_FORK_CHOOSE"), p.position + Vector2(w * 0.5, 18.0), 15, HudPalette.BRASS_HI, 0.18)

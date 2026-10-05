@@ -118,7 +118,7 @@ func _build() -> void:
 	# W16-SDWATER: "OUTSIDE THE RING" (Sudden Death) under the front strip.
 	_fill(RingWarning.new(), _zone("RingWarning", 0.25, 0.255, 0.75, 0.34))  # v0.12: centre-upper (top 321 at 1080p), above the damage ring
 	_center = _fill(CenterFeedback.new(), _zone("Centre", 0.30, 0.30, 0.70, 0.70)) as CenterFeedback
-	var z_bl := _zone("BottomLeft", 0.0, 0.70, 0.34, 1.0)
+	var z_bl := _zone("BottomLeft", 0.0, 0.70, 0.3, 1.0)
 	_vitals = _fill(VitalsPanel.new(), z_bl) as VitalsPanel
 	_squad = _add(SquadStrip.new(), z_bl, Rect2(0, 1, 1, 1), Vector2(-(VitalsPanel.H + SquadStrip.H + 24.0), -(VitalsPanel.H + 24.0))) as SquadStrip
 	_skills = _fill(SkillBar.new(), _zone("BottomCentre", 0.3, 0.72, 0.7, 1.0)) as SkillBar

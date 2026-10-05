@@ -91,7 +91,8 @@ func _draw() -> void:
 			draw_rect(r, Color(col, 0.6), false, 1.0)
 			caps(t, Vector2(cx + 9.0, base_y - 3.0), 15, col, 0.16)
 			cx += tw + 9.0
-	_hp_bar(Rect2(x, top + 70.0, BAR_W, BAR_H), cb, hp_frac, critical, dmg)
+	# The bar shrinks on narrow canvases (720p floor scale) so it stays clear of the skill bar.
+	_hp_bar(Rect2(x, top + 70.0, minf(BAR_W, size.x - x - 12.0), BAR_H), cb, hp_frac, critical, dmg)
 	if p == null or board:
 		return
 	_lumen_row(Vector2(x, top + 108.0), p)
@@ -138,7 +139,7 @@ func _lumen_row(at: Vector2, p: SnapshotData.ProgressState) -> void:
 		var a := minf(1.0, _gain_t * 2.0)
 		var lift := 0.0 if UiKit.reduce_motion() else (ctx.tuning.lumen_flyout_seconds - _gain_t) * 10.0
 		text("+%d" % _gain, Vector2(x, at.y - lift), 16, Color(HudPalette.BRASS, a), ctx.font_mono)
-	x += 54.0
+	x += 30.0 if size.x < 560.0 else 54.0
 	var econ_frac := 0.0
 	if _econ != null:
 		var cur := EconomyMath.exp_for_level(_econ, p.level)
@@ -146,7 +147,7 @@ func _lumen_row(at: Vector2, p: SnapshotData.ProgressState) -> void:
 		econ_frac = 1.0 if need <= 0 else clampf(float(p.exp - cur) / need, 0.0, 1.0)
 	var res := tr("HUD_RES") + " %d%%" % floori(econ_frac * 100.0)
 	caps(res, Vector2(x, at.y - 1.0), 16, Color(HudPalette.MUTED, idle_a(0.55)), 0.18)
-	x += caps_width(res, 16, 0.18) + 21.0
+	x += caps_width(res, 16, 0.18) + (12.0 if size.x < 560.0 else 21.0)
 	if p.skill_points > 0:
 		brass_chip(Vector2(x, at.y - 7.0), tr("HUD_SP_BADGE") % p.skill_points, 16)
 
