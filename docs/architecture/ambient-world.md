@@ -27,18 +27,33 @@ counts if it is in the group, or if it sits under a map child named
 | `ambient_billboard` | `Billboard` | Node3D | Holo ad panel centre; panel faces +Z. Optional meta `size` (Vector2, default 32x12 m). |
 | `ambient_shop_sign` | `ShopSign` | Node3D | Market shop sign slot; text faces +Z. |
 | `ambient_neon` | `Neon` | Node3D | Other neon sign mount; text faces +Z. |
+| `ambient_steam_vent` | `SteamVent` | Node3D | Floor steam vent (W18-GEO jungle alleys). Plume always rises along world +Y. |
 | `ambient_traffic_path` | `TrafficPath` | Path3D | Closed skyline traffic loop (one lane each). |
 | `ambient_drone_path` | `DronePath` | Path3D | Closed drone weave loop. |
 | `ambient_skytrain` | `SkyTrain` | Path3D | Open sky-train track (first one is used). |
 
 Paths are resampled to 64 even points; keep them outside the playable box.
+W18-GEO supplies all kinds (see `docs/architecture/ambient-anchors.md`). When a
+kind has more mounts than the level's budget, an even spread is used
+(`AmbientWorld.spread`). With anchors present the fallbacks are not built.
+Text is fitted to the mount `size`; facade billboards under 10 m wide show the
+product name only.
+
+**Steam vents** sit in playable jungle alleys: one GPUParticles3D over all vent
+points, puffs about 1.1 m, alpha 0.22, rising about 2.5 m; half speed with
+reduce motion; off on Low.
+
+**Night trails** are deliberately not tracer-like: 10 m long, gain 0.45 at night
+and 0.18 at dusk, soft at both ends (no bright head), warm amber or
+desaturated lilac, and only on GEO's side routes (|x| 156..208), never over a lane.
 
 ## Determinism
 - Mood (dusk / night / overcast) and weather (clear / fog / rain) are
   `AmbientMood.pick_*(match_seed)` (integer hash).
-- Seed: `--ambient-seed`, else `LaunchConfig.match_seed` (offline / local), else
-  for online clients `seed_from_match_clock()`: the match start tick (snapshot
-  tick minus match clock) in 30 s buckets. A protocol-sent seed would be exact.
+- Seed (`AmbientWorld.pick_seed`): `--ambient-seed`, else the server's Welcome
+  `mood_seed` (`ClientSession.mood_seed`, non-zero; identical for every client
+  of a match), else the local `LaunchConfig.match_seed`. The Welcome can land
+  after the map is built; the layer re-checks every 30 frames and rebuilds once.
 - Sky-train: `SkyTrainSchedule`, gaps 60..120 s from the seed, on the shared
   clock (`server_tick_estimate / tick_rate_hz`).
 
@@ -56,7 +71,9 @@ Paths are resampled to 64 even points; keep them outside the playable box.
 |---|---|---|
 | Draw calls added (lane view, measured) | +22..24 | +10..12 |
 | CPU (`_process`, measured) | 0.04 ms | 0.02 ms |
-| Movers | 7 lanes x 22 cars, 12 drones, 14 birds, 6 train cars | 3 x 10 cars, train |
+| Movers | up to 7 lanes x 22 cars (4 with GEO anchors), 12 drones, 14 birds, 6 train cars | 3 x 10 cars, train |
+| Signs | 8 billboards, 12 shop signs, 64 neon mounts (1 draw) | 2, 4, 16 |
+| Steam | 128 particles (1 draw) | off |
 | Particles | 260 motes, 1600 rain | 60 motes, 300 rain |
 | Transparent fill | 6 shafts, 10 fog cards, 6 billboards | 2 billboards |
 

@@ -386,12 +386,12 @@ func _translate(label: Label3D) -> bool:
 
 
 ## Pixel size that fits `lines` (font size `font_px`) into `area` metres.
-## Chakra Petch averages ~0.6 em per glyph; line height ~1.25 em.
+## Chakra Petch caps average ~0.55 em per glyph; line height ~1.25 em.
 static func fit_pixel_size(lines: PackedStringArray, font_px: int, area: Vector2) -> float:
 	var longest := 1
 	for l in lines:
 		longest = maxi(longest, l.length())
-	var by_w := area.x / (longest * 0.6 * font_px)
+	var by_w := area.x / (longest * 0.55 * font_px)
 	var by_h := area.y / (maxi(1, lines.size()) * 1.25 * font_px)
 	return minf(by_w, by_h)
 
@@ -640,7 +640,8 @@ func _build_billboards(b: Dictionary) -> void:
 		panel.transform = xfs[i]
 		add_child(panel)
 		var label := Label3D.new()
-		_label_keys[label] = [ad[0], ad[1]]
+		# Small facade panels show the product name only (legible); big ones add the tagline.
+		_label_keys[label] = [ad[0], ad[1]] if sizes[i].x >= 10.0 else [ad[0]]
 		if font != null:
 			label.font = font
 		label.font_size = 96
@@ -648,7 +649,7 @@ func _build_billboards(b: Dictionary) -> void:
 		label.modulate = Color(1.0, 1.0, 1.0)
 		# Glyph on the left 36 %, text fitted into the rest.
 		label.position = Vector3(sizes[i].x * 0.18, 0.0, 0.06)
-		label.set_meta(&"fit", Vector2(sizes[i].x * 0.58, sizes[i].y * 0.75))
+		label.set_meta(&"fit", Vector2(sizes[i].x * 0.6, sizes[i].y * 0.7))
 		label.render_priority = 1
 		label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		panel.add_child(label)
@@ -934,7 +935,7 @@ func _build_neon(b: Dictionary) -> void:
 
 ## Steam vents (ambient_steam_vent anchors, jungle alley floors): one
 ## GPUParticles3D emitting from every vent point. Low, faint plumes (about
-## 2.5 m, alpha <= 0.12) so they never hide a player; slower with reduce motion.
+## 2.5 m, alpha 0.22 per puff) so they never hide a player; slower with reduce motion.
 func _build_steam(b: Dictionary) -> void:
 	var found := anchors(G_STEAM)
 	if found.is_empty() or int(b.steam) <= 0:
@@ -982,7 +983,7 @@ func _build_steam(b: Dictionary) -> void:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
-	m.albedo_color = Color(0.86, 0.86, 0.94, 0.12)
+	m.albedo_color = Color(0.86, 0.86, 0.94, 0.22)
 	var puff := GradientTexture2D.new()
 	puff.fill = GradientTexture2D.FILL_RADIAL
 	puff.fill_from = Vector2(0.5, 0.5)

@@ -73,5 +73,5 @@ func test_spread_and_fit() -> void:
 	# "LEYFALL LINE" / tagline must fit a 5.6 x 4.5 m GEO billboard text area.
 	var lines := PackedStringArray(["LEYFALL LINE", "Ride above it all."])
 	var px := AmbientWorld.fit_pixel_size(lines, 96, Vector2(5.6 * 0.58, 4.5 * 0.75))
-	assert_float(18 * 0.6 * 96 * px).is_less_equal(5.6 * 0.58 + 0.001)
+	assert_float(18 * 0.55 * 96 * px).is_less_equal(5.6 * 0.58 + 0.001)
 	assert_float(2 * 1.25 * 96 * px).is_less_equal(4.5 * 0.75 + 0.001)
