@@ -46,6 +46,22 @@ var hud_settings: HudSettings = HudSettings.new()
 var _hud_t: float = 0.0
 var _dot: _Dot
 var _dot_top: _Dot
+# --- W19-HUD ---
+var _edge: _Edge
+var _edge_vig: ColorRect
+## Low-HP threshold (HudTuningDef.low_hp_frac).
+var low_hp_frac: float = 0.25
+
+
+## Static 3 px edge line in the warning colour (low HP / outside the ring).
+class _Edge extends Control:
+	var col: Color = Color(0, 0, 0, 0)
+
+	func _draw() -> void:
+		if col.a <= 0.01:
+			return
+		draw_rect(Rect2(Vector2.ZERO, size).grow(-1.5), col, false, 3.0)
+# --- end W19-HUD ---
 var _top_layer: CanvasLayer
 
 
@@ -58,7 +74,9 @@ class _Dot extends Control:
 	func _draw() -> void:
 		if gs == null or not gs.comfort_center_dot or not active:
 			return
-		draw_circle(size * 0.5, gs.comfort_dot_size_px * 0.5, Color(1, 1, 1, gs.comfort_dot_opacity))
+		# W19-HUD v0.12: brass-hi with a 1 px ink outline (size / opacity stay the player's).
+		draw_circle(size * 0.5, gs.comfort_dot_size_px * 0.5 + 1.0, Color(HudPalette.INK_DEEP, 0.8 * gs.comfort_dot_opacity))
+		draw_circle(size * 0.5, gs.comfort_dot_size_px * 0.5, Color(HudPalette.BRASS_HI, gs.comfort_dot_opacity))
 
 
 ## Draws the damage direction indicator arcs.
@@ -79,6 +97,13 @@ class _Ring extends Control:
 		var m: DamageFeedbackModel = o.feedback
 		var c := size * 0.5
 		var r := m.rules.indicator_ring_radius * size.y
+		# --- W19-HUD v0.12: 1 px ivory 8% guide ring while an indicator shows ---
+		var guide := 0.0
+		for ind in m.indicators:
+			guide = maxf(guide, m.indicator_alpha(ind, fx, reduce))
+		if guide > 0.01:
+			draw_arc(c, r, 0.0, TAU, 96, Color(HudPalette.IVORY, 0.08 * minf(guide * 2.0, 1.0)), 1.0, true)
+		# --- end W19-HUD ---
 		for ind in m.indicators:
 			var a := m.indicator_alpha(ind, fx, reduce)
 			if a <= 0.01:
@@ -89,8 +114,8 @@ class _Ring extends Control:
 			if ind.has_dir:
 				var mid := DamageFeedbackModel.relative_angle(own_pos, yaw, ind.pos) - PI * 0.5  # 0 = up on screen
 				var half := m.indicator_half_arc_rad(ind)
-				draw_arc(c, r, mid - half, mid + half, 24, dark, w + 3.0, true)
-				draw_arc(c, r, mid - half, mid + half, 24, col, w, true)
+				draw_arc(c, r, mid - half, mid + half, 24, Color(dark, dark.a * 0.6), w + 3.0, true)
+				_faded_arc(c, r, mid - half, mid + half, col, w)  # W19-HUD: fades at both ends
 				# Shape cue (direction never relies on colour alone): a chevron at the
 				# arc centre pointing outward toward the attacker.
 				var dir := Vector2(cos(mid), sin(mid))
@@ -104,6 +129,22 @@ class _Ring extends Control:
 			else:  # environment / unattributed: a thin full ring pulse
 				draw_arc(c, r, 0.0, TAU, 64, dark, w * 0.5 + 2.0, true)
 				draw_arc(c, r, 0.0, TAU, 64, Color(col, a * 0.8), w * 0.5, true)
+
+
+	## W19-HUD v0.12: the arc in `col`, fully opaque in the middle third and
+	## fading to 0 at both ends (one polyline with per-point colours).
+	func _faded_arc(c: Vector2, r: float, a0: float, a1: float, col: Color, w: float) -> void:
+		var n := 24
+		var pts := PackedVector2Array()
+		var cols := PackedColorArray()
+		pts.resize(n + 1)
+		cols.resize(n + 1)
+		for k in n + 1:
+			var t := float(k) / n
+			var a := lerpf(a0, a1, t)
+			pts[k] = c + Vector2(cos(a), sin(a)) * r
+			cols[k] = Color(col, col.a * clampf(minf(t, 1.0 - t) * 3.0, 0.0, 1.0))
+		draw_polyline_colors(pts, cols, w, true)
 
 
 func _ready() -> void:
@@ -123,6 +164,7 @@ func _ready() -> void:
 	_vig.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var m := ShaderMaterial.new()
 	m.shader = load(SHADER) as Shader
+	m.set_shader_parameter("tint", Vector3(HudPalette.INK.r, HudPalette.INK.g, HudPalette.INK.b))  # W19-HUD: ink, not black
 	_vig.material = m
 	_vig.visible = false
 	add_child(_vig)
@@ -134,6 +176,19 @@ func _ready() -> void:
 	_dmg.material = dm
 	_dmg.visible = false
 	add_child(_dmg)
+	# --- W19-HUD v0.12: low-HP / outside-the-ring edge (soft red vignette + a
+	# static 3 px edge line, no flash; scaled by Screen effects, off at 0%) ---
+	_edge = _Edge.new()
+	_edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var em := ShaderMaterial.new()
+	em.shader = load(SHADER) as Shader
+	_edge_vig = ColorRect.new()
+	_edge_vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_edge_vig.material = em
+	_edge_vig.visible = false
+	add_child(_edge_vig)
+	add_child(_edge)
+	# --- end W19-HUD ---
 	_ring = _Ring.new()
 	_ring.owner_overlay = self
 	_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -173,6 +228,7 @@ func _process(delta: float) -> void:
 		if client.player_input != null:
 			paused = client.player_input.paused
 	_damage_feedback(delta, client, gs)
+	_low_edge(client, gs)  # W19-HUD
 	model.step(delta, vel, forced)
 	var a := model.alpha(gs.comfort_vignette)
 	if debug_level >= 0.0:
@@ -186,6 +242,8 @@ func _process(delta: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	_vig.size = vp
 	_dmg.size = vp
+	_edge.size = vp
+	_edge_vig.size = vp
 	_ring.size = vp
 	_dot.size = vp
 	_dot_top.size = vp
@@ -198,6 +256,31 @@ func _process(delta: float) -> void:
 
 
 const _EYE_H: float = 1.0
+
+
+# --- W19-HUD v0.12 (hud-v0.12.md §2 "Low HP", "Ring warning", §3 effects 0%) ---
+## Edge treatment: low HP (≤ low_hp_frac) or outside the Sudden Death ring.
+func _low_edge(client: Variant, gs: GameSettings) -> void:
+	var a := 0.0
+	if client != null and client.combat != null and not client.is_dead():
+		var cb = client.combat
+		if float(cb.hp) / maxf(1.0, cb.max_hp) <= low_hp_frac:
+			a = 0.38
+		if client.body != null and client.sudden_death != null and client.sudden_death.is_outside(client.body.state.position):
+			a = maxf(a, 0.32)
+	a *= clampf(gs.comfort_fx_intensity, 0.0, 1.0)
+	var warn := HudPalette.damage_color(hud_settings.colorblind)
+	_edge_vig.visible = a > 0.002
+	if _edge_vig.visible:
+		var m := _edge_vig.material as ShaderMaterial
+		m.set_shader_parameter("alpha", a)
+		m.set_shader_parameter("inner", 0.5)
+		m.set_shader_parameter("tint", Vector3(warn.r, warn.g, warn.b))
+	var ec := Color(warn, 0.5 * a / 0.38) if a > 0.0 else Color(0, 0, 0, 0)
+	if ec != _edge.col:
+		_edge.col = ec
+		_edge.queue_redraw()
+# --- end W19-HUD ---
 
 
 ## Detects own HP drops, attributes them (see header) and drives the model.

@@ -6,7 +6,7 @@ extends HudWidget
 ## or near, and the Ward Generator's HP and shield. Reads replicated hardpoint
 ## state only. Strings are keys in assets/localization/hud.csv (E12).
 
-const W: float = 316.0
+const W: float = 366.0
 const H: float = 54.0
 
 
@@ -35,7 +35,7 @@ func _draw() -> void:
 			HardpointSim.CellState.CARRIED:
 				if st.carrier_id == me:
 					line = tr("HUD_CELL_CARRYING") % defs[idx].display_name
-					col = HudPalette.WARN
+					col = HudPalette.WARN_UI
 				else:
 					line = tr("HUD_CELL_ALLY_CARRIES") if mine else tr("HUD_CELL_ENEMY_CARRIES")
 			HardpointSim.CellState.CRADLE:
@@ -55,15 +55,19 @@ func _draw() -> void:
 			line = tr("HUD_GENERATOR_HP") % ceili(st.gen_frac * 100.0)
 			if st.shielded:
 				line += tr("HUD_GENERATOR_SHIELDED")
-				col = HudPalette.WARN
+				col = HudPalette.WARN_UI
 			frac = st.gen_frac
 	if line == "":
 		return
+	if ctx.idle_k > 0.5:
+		return  # v0.12 idle: the objective collapses to glyph + verb
+	# v0.12: no box; the cue line in 18 body under the objective card (muted, or
+	# the state colour when it matters), with a 4 px bar for channels / Generator.
 	var x := size.x - W
-	panel(Rect2(x, 0.0, W, H))
-	text(line, Vector2(x + 14.0, 22.0), 15, col, ctx.font_display, HORIZONTAL_ALIGNMENT_LEFT, W - 28.0)
+	text(line, Vector2(x + 21.0, 20.0), 18, HudPalette.MUTED if col == HudPalette.TEXT else col, ctx.font_body,
+		HORIZONTAL_ALIGNMENT_LEFT, W - 21.0)
 	if frac >= 0.0:
-		bar(Rect2(x + 14.0, 32.0, W - 28.0, 8.0), frac, col)
+		bar(Rect2(x + 21.0, 31.0, W - 21.0, 4.0), frac, HudPalette.IVORY if col == HudPalette.TEXT else col)
 
 
 ## The Plant / Breach hardpoint the player stands in, else the nearest within the tracker range.

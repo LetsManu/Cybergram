@@ -325,6 +325,47 @@ func _debug_uplink_squad() -> void:
 		sq.issue(Squad.CMD_ATTACK, server.tick, Vector3.ZERO, u.net_id)
 
 
+# --- W19-HUD: --debug-hud-state low|dead|sd (HUD v0.12 evidence captures) ---
+var _hud_state_done: bool = false
+
+
+func _debug_hud_state() -> void:
+	if launch_config == null or launch_config.debug_hud_state == "" or client == null or server.tick < 60:
+		return
+	var h := server.hero(client.session.own_net_id)
+	if h == null or h.combat == null:
+		return
+	match launch_config.debug_hud_state:
+		"low":
+			var hc := h.combat.health
+			if hc.hp > hc.max_hp * 0.16:
+				hc.hp = hc.max_hp * 0.15
+		"dead":
+			if not h.combat.dead:
+				var foe := 0
+				for id in server.registry.ids():
+					var o := server.registry.get_node_by_id(id) as HeroBody
+					if o != null and o.combat != null and o.combat.team != h.combat.team:
+						foe = o.net_id
+						break
+				server.damage_hero(h, DamageInfo.make(100000.0, foe, 1 - h.combat.team))
+		"sd":
+			if not _hud_state_done and server.match_flow != null:
+				_hud_state_done = true
+				var m := server.match_flow  # the C10 branch of resolve_time_out, without the tie-breaks
+				m.def.sudden_death_enabled = true
+				m._enter(MatchRules.Phase.SUDDEN_DEATH)
+				m.sudden_death_s = 0.0
+				for u in m.uplinks:
+					u.set_exposed(false)
+				m.sudden_death_started.emit()
+		"end":
+			if not _hud_state_done and server.match_flow != null:
+				_hud_state_done = true
+				server.match_flow._end(ServerWorld.TEAM_PLAYERS, MatchRules.EndReason.UPLINK_DESTROYED)
+# --- end W19-HUD ---
+
+
 ## --debug-level N / --debug-armory (E13/E15 evidence): once the player's hero
 ## exists, set its level and learn skills (Unlock all basics, Boost S1 at L3+,
 ## ult rank 1 at L6+; the rest stays banked), and on the Armory pad buy a gun
@@ -483,6 +524,7 @@ func step_tick() -> void:
 	_debug_uplink_squad()
 	_debug_task_squad()
 	_debug_progress()
+	_debug_hud_state()  # W19-HUD
 	_log_economy()
 	if _log_every_ticks > 0 and server.tick % _log_every_ticks == 0:
 		print("[server] tick=%d entities=%d | server tick avg %.2f ms max %.2f ms (budget %.1f ms)" % [server.tick,

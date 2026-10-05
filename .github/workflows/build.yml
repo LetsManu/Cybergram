@@ -374,7 +374,8 @@ jobs:
 
       - name: Smoke-test the container
         run: |
-          out=$(timeout 60 docker run --rm $IMAGE:$VERSION --quit-after-ticks 30 2>&1) || true
+          # Single mode (the pre-v0.13 one-process server, kept for rollback).
+          out=$(timeout 60 docker run --rm -e CYBERGRAM_MODE=single $IMAGE:$VERSION --quit-after-ticks 30 2>&1) || true
           echo "$out" | tail -5
           echo "$out" | grep -q "\[lobby\] open on UDP 7777"
           echo "$out" | grep -q "\[lobby\] quit after 30 ticks"

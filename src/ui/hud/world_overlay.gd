@@ -78,8 +78,7 @@ func _plates(c: ClientWorld, cam: Camera3D) -> void:
 		var p := cam.unproject_position(head)
 		var r := Rect2(p - Vector2(w * 0.5, bh * 0.5), Vector2(w, bh))
 		var col := ctx.team_color(h.team)
-		draw_rect(r.grow(1.0), Color(0, 0, 0, 0.7))
-		draw_rect(r, Color(0.08, 0.08, 0.1, 0.8))
+		draw_rect(r, Color(HudPalette.INK_DEEP, 0.6))  # v0.12: ink track, no black frame
 		var frac := clampf(float(h.hp) / h.max_hp, 0.0, 1.0)
 		draw_rect(Rect2(r.position, Vector2(w * frac, bh)), col)
 		var g := Vector2(r.position.x - 8.0 * s, r.get_center().y)
@@ -102,7 +101,7 @@ func _name_label(h: RosterTracker.Hero, id: int, anchor: Vector2, s: float) -> v
 	var w := text_width(n, fs)
 	var gw := masteries * 9.0 * s
 	var x := anchor.x - (w + gw) * 0.5
-	text(n, Vector2(x, anchor.y), fs, HudPalette.TEXT)
+	text(n, Vector2(x, anchor.y), fs, HudPalette.IVORY)
 	for i in masteries:
 		var gc := Vector2(x + w + 6.0 * s + i * 9.0 * s, anchor.y - fs * 0.35)
 		draw_colored_polygon(_diamond(gc, 4.5 * s), Color(0, 0, 0, 0.8))
@@ -118,12 +117,13 @@ func _numbers(c: ClientWorld, cam: Camera3D) -> void:
 		var v := views.get(n.target_id) as Node3D
 		if v != null:
 			anchor = v.global_position + Vector3(0.0, ctx.tuning.plate_height_m + lift * 0.5, 0.0)
-		anchor += Vector3(0.0, 0.5 * n.age, 0.0)
+		if not UiKit.reduce_motion():  # v0.12: with reduce motion the number fades in place
+			anchor += Vector3(0.0, 0.5 * n.age, 0.0)
 		if cam.is_position_behind(anchor):
 			continue
 		var p := cam.unproject_position(anchor) + Vector2(18.0 * s, 0.0)
 		var col := Color(HudPalette.CRIT if n.headshot else Color.WHITE, numbers.alpha(n))
-		var fs := roundi((24.0 if n.headshot else 20.0) * s)
+		var fs := roundi((28.0 if n.headshot else 25.0) * s)  # v0.12: Chakra Petch 25
 		text(DamageNumberModel.text_of(n), p, fs, col, ctx.font_numbers)
 
 

@@ -10,6 +10,9 @@ extends HudWidget
 
 const PAD: float = 10.0
 const CHIP_R: float = 4.5
+# --- W19-HUD: v0.12 frame (hud-v0.12.md §2): map area 318×204, label below ---
+const MAP_SIZE := Vector2(318.0, 204.0)
+# --- end W19-HUD ---
 
 
 func _draw() -> void:
@@ -19,8 +22,12 @@ func _draw() -> void:
 	var md := c.map_def
 	var team := ctx.own_team()
 	var bounds := _bounds(md)
-	var r := Rect2(Vector2.ZERO, size)
-	panel(r)
+	# --- W19-HUD: radial ink backdrop + brass corner ticks instead of a box; label ---
+	var r := Rect2(Vector2.ZERO, MAP_SIZE)
+	radial_backdrop(r.grow(24.0), 0.75)
+	corner_ticks(r, 15.0, Color(HudPalette.BRASS, 0.7))
+	_label(c, Vector2(0.0, r.end.y + 24.0))
+	# --- end W19-HUD ---
 	var inner := r.grow(-PAD)
 	var flip := team == MapDef.TEAM_SYNDICATE
 	var to_px := func(p: Vector3) -> Vector2:
@@ -88,6 +95,35 @@ func _draw() -> void:
 		var d := (ahead - me).normalized()
 		var side := Vector2(-d.y, d.x)
 		draw_colored_polygon(PackedVector2Array([me + d * 7.0, me - d * 4.0 + side * 4.0, me - d * 4.0 - side * 4.0]), Color.WHITE)
+
+
+# --- W19-HUD: "SHARDLINE · WAVE 0:18" under the map (idle 42%) ---
+func _label(c: ClientWorld, at: Vector2) -> void:
+	var a := idle_a(0.42)
+	var map_name := c.map_def.display_name if c.map_def.display_name != "" else String(c.map_def.resource_path.get_file().get_basename())
+	var rules: WardlingRulesDef = c.wardlings.rules if c.wardlings != null else null
+	if rules == null or c.match_state == null:
+		return
+	var left := next_wave_in(c.match_state.time_s, rules)
+	var t := HudFormat.clock(ceilf(left))
+	var tw := text_width(t, 16, ctx.font_numbers)
+	text(t, Vector2(MAP_SIZE.x - tw, at.y), 16, Color(HudPalette.IVORY, a), ctx.font_numbers)
+	var wave_w := caps_width(tr("HUD_WAVE"), 16)
+	caps(tr("HUD_WAVE"), Vector2(MAP_SIZE.x - tw - 9.0 - wave_w, at.y), 16, Color(HudPalette.MUTED, a), 0.22)
+	if caps_width(map_name, 16) > MAP_SIZE.x - tw - wave_w - 30.0:
+		map_name = map_name.split(" ")[0]  # "SHARDLINE FRONT" -> "SHARDLINE" when it would collide
+	caps(map_name, at, 16, Color(HudPalette.MUTED, a), 0.22)
+
+
+## Seconds from match time `t` to the next Vanguard wave (first at
+## wave_first_s, then every wave_interval_s; wardlings-and-economy.md §10).
+static func next_wave_in(t: float, rules: WardlingRulesDef) -> float:
+	if t < rules.wave_first_s:
+		return rules.wave_first_s - t
+	var k := ceilf((t - rules.wave_first_s) / maxf(rules.wave_interval_s, 0.01))
+	var nxt := rules.wave_first_s + k * rules.wave_interval_s
+	return nxt - t if nxt > t else rules.wave_interval_s
+# --- end W19-HUD ---
 
 
 ## Layout bounds in (lane distance -z, lateral x), padded.

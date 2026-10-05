@@ -120,6 +120,12 @@ var port: int = 0
 var connect_address: String = ""
 ## Dedicated server: most simultaneous remote clients.
 var max_clients: int = 12  # W14: a full 5v5 lobby (10 seats) + spare
+# --- W19-HUD ---
+## Debug (HUD evidence): "low" keeps the own hero at 15% HP, "dead" kills it
+## (by an enemy hero) whenever it is alive, "sd" starts Sudden Death, "end"
+## ends the match (player team wins). "" = off.
+var debug_hud_state: String = ""
+# --- end W19-HUD ---
 ## Debug: open the pause menu on start (UI evidence captures).
 var debug_pause_menu: bool = false
 ## Debug: with --debug-settings <video|audio|controls|gameplay|comfort|0-4> the pause menu
@@ -223,6 +229,10 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.open_lobby = args[i]
 			"--no-lobby":
 				c.no_lobby = true
+			"--debug-hud-state":  # W19-HUD
+				if i + 1 < args.size():
+					i += 1
+					c.debug_hud_state = args[i].validate_filename()
 			"--debug-pause-menu":
 				c.debug_pause_menu = true
 			"--debug-settings":
