@@ -7,6 +7,10 @@ services:
     image: ghcr.io/letsmanu/cybergram-server:latest
     container_name: cybergram
     restart: unless-stopped
+    # Graceful stop (W17): in front mode SIGTERM drains (running matches
+    # finish, at most CYBERGRAM_DRAIN_MAX_S), so give it time. Single mode
+    # stops at once. Force a quicker stop with `docker compose stop -t 30`.
+    stop_grace_period: 40m
     # Hardening (W11-Q1): the server needs no Linux capabilities (ports > 1024)
     # and must never gain privileges.
     cap_drop:
@@ -16,6 +20,9 @@ services:
     ports:
       - "7777:7777/udp"
       - "8080:8080/tcp"   # launcher updates (version.json + client zips)
+      # One UDP port per concurrent match (front mode). Keep equal to
+      # CYBERGRAM_MATCH_PORTS below.
+      - "7800-7809:7800-7809/udp"
     volumes:
       # Player accounts. Keep this volume: deleting it deletes every account.
       - cybergram-data:/data
@@ -23,13 +30,30 @@ services:
       # domain): put fullchain.pem + privkey.pem in ./tls, readable by the
       # container user (uid shown by `docker exec cybergram id -u`).
       # Without it the server runs guest-only.
-      - /srv/cybergram/tls:/data/tls:ro   # change to a folder on your NAS
+      # The host folder comes from CYBERGRAM_TLS_DIR (e.g. in a .env file next
+      # to this file); default ./tls next to it.
+      - ${CYBERGRAM_TLS_DIR:-./tls}:/data/tls:ro
     # Message of the day in the launcher (W15): plain text, max 200 characters,
     # re-read every few seconds. Put motd.txt into the data volume, e.g.
     #   docker cp motd.txt cybergram:/data/motd.txt
     # An absent file shows no message.
     environment:
       CYBERGRAM_MOTD_FILE: /data/motd.txt
+      # Hosting (W17, docs/HOSTING.md). single = today's one-process server;
+      # front = one process per match (needs the phase-B build).
+      CYBERGRAM_MODE: single
+      # Address clients are told to connect to (domain or public IP of the
+      # VPS / relay). Empty = the address they used to reach this server.
+      CYBERGRAM_PUBLIC_HOST: ""
+      CYBERGRAM_MATCH_PORTS: "7800-7809"
+      # 0 = 2 matches per core. About 190 MiB RAM per running match.
+      CYBERGRAM_MAX_MATCHES: "0"
+      CYBERGRAM_DRAIN_MAX_S: "2340"   # a bit under stop_grace_period
+    # Resource limits (W17): uncomment and size to the host. Budget about
+    # 190 MiB per match process plus ~250 MiB for the front; 2 matches per core.
+    # cpus: "2.0"
+    # mem_limit: 1536m
+    # pids_limit: 256
     # Server logs: rotated, never kept long (privacy: they can name players).
     logging:
       driver: json-file
