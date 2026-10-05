@@ -48,6 +48,8 @@ func _pump() -> void:
 func test_shows_pick_phase_and_waiting_counts() -> void:
 	assert_str(_screen._title.text).is_equal(tr("HUD_LOBBY_PHASE_PICK").to_upper())
 	assert_str(_screen._sub.text).contains(tr("HUD_LOBBY_WAIT_ALL"))
+	# Rebuilt rows are queue_free()d; let that frame run so gdUnit sees no orphans.
+	await await_idle_frame()
 
 
 func test_lock_in_updates_button_and_title() -> void:
@@ -61,6 +63,8 @@ func test_lock_in_updates_button_and_title() -> void:
 	# Tiles are disabled while locked in (picks are final until cancelled).
 	for k in _screen._hero_tiles:
 		assert_bool((_screen._hero_tiles[k] as Button).disabled).is_true()
+	# Rebuilt rows are queue_free()d; let that frame run so gdUnit sees no orphans.
+	await await_idle_frame()
 
 
 func test_search_and_role_filter_hide_tiles() -> void:
@@ -72,6 +76,8 @@ func test_search_and_role_filter_hide_tiles() -> void:
 	_screen._search.text_changed.emit(str(all[0].name).substr(0, 2))
 	assert_bool((_screen._hero_tiles[int(all[0].index)] as Button).visible).is_true()
 	assert_bool(_screen._no_match.visible).is_false()
+	# Rebuilt rows are queue_free()d; let that frame run so gdUnit sees no orphans.
+	await await_idle_frame()
 
 
 func test_picking_a_tile_sends_the_pick() -> void:
@@ -82,3 +88,5 @@ func test_picking_a_tile_sends_the_pick() -> void:
 		_pump()
 	assert_int(int(_me.own_slot().get("hero_index", 0))).is_equal(idx)
 	assert_str(_screen._info_name.text).is_equal(str(all[all.size() - 1].name).to_upper())
+	# Rebuilt rows are queue_free()d; let that frame run so gdUnit sees no orphans.
+	await await_idle_frame()
