@@ -589,7 +589,7 @@ HUD_ROLE_HACKER,Hacker
 HUD_NEWS_TITLE,What's new in v%s
 HUD_NEWS_1,"New client: top bar, PLAY mode select and a 3D hero showcase."
 HUD_NEWS_2,"Friends sidebar grouped by status, collapsible to an icon strip."
-HUD_NEWS_3,"Settings > Video: Reduce motion stops menu animations."
+HUD_NEWS_3,"New lobby: hero select with team columns, skills, search and LOCK IN."
 HUD_FRIENDS_GROUP_ONLINE,ONLINE
 HUD_FRIENDS_GROUP_LOBBY,IN LOBBY
 HUD_FRIENDS_GROUP_MATCH,IN MATCH
