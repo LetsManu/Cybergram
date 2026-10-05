@@ -6,6 +6,8 @@ extends Resource
 ## Each knob documents its safe range; validate() lists violations.
 
 const PATH := "res://assets/data/net/matchmaking_rules.tres"
+## Seat ids starting with this are bots (labelled, never rated or stored).
+const BOT_PREFIX := "bot:"
 
 @export_group("Queues")
 ## The queues: Normal 5v5, Ranked 5v5, 3v3 All Random, Custom.
@@ -130,6 +132,11 @@ const PATH := "res://assets/data/net/matchmaking_rules.tres"
 @export var match_port_last: int = 7809
 ## Most concurrent match processes. Safe range 1-64 (2 per core).
 @export_range(1, 256) var max_concurrent_matches: int = 8
+
+
+## True when `seat_id` is a bot seat.
+static func is_bot(seat_id: String) -> bool:
+	return seat_id.begins_with(BOT_PREFIX)
 
 
 ## The rules from PATH, or code defaults (with the four standard queues).
