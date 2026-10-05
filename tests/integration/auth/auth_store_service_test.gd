@@ -109,7 +109,7 @@ func _service(secure := true) -> AccountService:
 	return s
 
 
-func _pump(svc: AccountService, t: Transport, clients: Array, n := 4) -> void:
+func _pump(svc: AccountService, t: Transport, clients: Array, n := 6) -> void:  # W21-N1: register chains two hash jobs
 	for k in n:
 		_link.advance(DT)
 		t.poll()
