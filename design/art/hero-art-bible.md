@@ -96,7 +96,52 @@ replicated speed / direction, airborne from `grounded`, upper-body aim always on
 additive via spine bones), shoot from `shot_received`, cast from `skill_cast_received`,
 death from `dead`.
 
-## 6. Pipeline (rebuild)
+## 6. Runtime
 
-See §7 for commands. The base and its licence are recorded in
-`assets/models/heroes/LICENSES.md`.
+`HeroModelLoader.build(key, team)` returns a `RiggedHeroModel` when
+`assets/models/heroes/<key>/<key>.glb` exists, else the procedural `HeroModelBuilder` model
+(`-- --box-heroes` forces the box models). The loader is used by `HeroView`, the portrait tool,
+the turntable and the perf tools. The own player has no HeroView (first person is unchanged).
+AnimationTree: `loco_bs` (BlendSpace2D idle/walk/run/run_back/strafe_l/r, points at the mocap
+clip speeds) -> `loco` TimeScale (up to x2.2 above the run clip speed) -> `crouch_mix` ->
+`air` (Transition: jump) -> `upper` (Blend2, filter UpperChest+arms+head+Weapon <- aim
+BlendSpace1D down/mid/up by pitch) -> OneShots `reload`, `cast` (clip cast_<slot>), `shoot`
+and `hit` (Chest only) -> `life` (Transition: death). Mapping: `RiggedHeroModel.map_state()`.
+Outline LOD: the hull pass is dropped beyond 30 m.
+
+## 7. Pipeline (rebuild)
+
+```bash
+python3.11 -m venv /tmp/venv && /tmp/venv/bin/pip install bpy pillow   # Blender as a module
+tools/art/fetch_base.sh          # CC0 MakeHuman base -> tools/art/.cache/makehuman (gitignored)
+tools/art/fetch_mocap.sh         # CMU BVH trials -> tools/art/.cache/cmu (gitignored)
+/tmp/venv/bin/python tools/art/build_hero.py ryker vesper   # -> assets/models/heroes/<id>/<id>.glb
+#   flags: --scripted (no mocap), --out <dir>
+godot --headless --path . --import
+xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --resolution 1280x720 \
+    -s res://tools/art/render_turntable.gd -- --hero ryker          # turntable + poses + vs-old + 30 m
+#   -- --map res://assets/maps/slice/shardline_causeway.tscn --at 0,-118   (in-map lane shot)
+#   -- --strip res://.../x.glb --clip run --tag x                          (clip frame strip)
+python tools/art/contact_sheet.py out.png 4 420 a.png b.png ...       # evidence sheets
+xvfb-run ... godot --path . -s res://tools/art/perf_heroes.gd [-- --box-heroes]   # 6-hero A/B
+xvfb-run -a -s "-screen 0 1280x1024x24" godot --path . --rendering-driver opengl3 \
+    -s res://tools/art/render_hero_portraits.gd && bash launcher/tools/sync_shared.sh
+```
+
+Files: `build_hero.py` (base, rig collapse, decimate, colour cuts, shells, parts API, export),
+`hero_defs.py` (Ryker, Vesper + shared helpers), `hero_defs_more.py` (the other five, generic
+zone painter), `hero_anims.py` (scripted clips + IK), `mocap.py` (CMU retarget).
+
+### Adding a hero
+1. Add an entry to `HEROES` (in `hero_defs_more.py` use `_hero(...)`): height, MakeHuman macro
+   `targets`, `palette` (names -> hex), `generic({...})` zone spec (paint per zone, sleeve /
+   glove / boot / shorts cut fractions, torso / thigh / boot shells), `parts(h)` (mask, hook,
+   gear via `h.box/cyl/sphere/torus`, `h.surface()` to stick to the body, `weights=` for
+   skinned pieces), the weapon builder in `WEAPONS` (weapon space: origin right grip, +Y
+   barrel), `_stance(...)` (grip positions, twist, poles) and four `casts` gestures.
+2. Build, import, render the turntable, look, iterate; keep 8-15k tris and < 3 MB.
+3. The key must match `ModelCatalog.HERO_KEYS`; nothing else changes in the game code.
+
+### Pilot perf note
+On the xvfb llvmpipe software renderer the inverted hull is the dominant per-hero cost
+(see the W13 report); it is LOD-ed out beyond 30 m. Re-measure on real GPU hardware.
