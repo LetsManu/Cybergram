@@ -40,6 +40,12 @@ var _pool_2d: Array[AudioStreamPlayer] = []
 var _pool_3d: Array[AudioStreamPlayer3D] = []
 var _next_2d: int = 0
 var _next_3d: int = 0
+var _pool_feet: Array[AudioStreamPlayer] = []
+var _next_feet: int = 0
+var _steps := FootstepClock.new()
+var _was_reloading: bool = false
+var _ammo_at_reload: float = 0.0
+var _prev_fire: bool = false
 var _last_shot_ms: Dictionary = {}  # shooter net id -> msec
 
 
@@ -67,6 +73,13 @@ func _ready() -> void:
 		p.bus = GameSettings.BUS_UI
 		add_child(p)
 		_pool_ui.append(p)
+	for i in bank.def.pool_feet:
+		var p := AudioStreamPlayer.new()
+		p.bus = GameSettings.BUS_EFFECTS
+		add_child(p)
+		_pool_feet.append(p)
+	_steps.stride_m = bank.def.footstep_stride_m
+	_steps.min_speed = bank.def.footstep_min_speed
 	for i in bank.def.pool_loops:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = GameSettings.BUS_EFFECTS
@@ -150,6 +163,7 @@ func _voice_for(w: WeaponDef) -> Dictionary:
 func _on_snapshot(s: SnapshotData) -> void:
 	var c := s.own_combat
 	if c != null:
+		_reload_sounds(c)
 		if _prev_cd.size() == c.skill_cd_left.size():
 			for i in c.skill_cd_left.size():
 				if c.skill_cd_left[i] > _prev_cd[i]:
@@ -168,6 +182,55 @@ func _on_snapshot(s: SnapshotData) -> void:
 				if p.mount_item[i] != _prev_mounts[i]:
 					play_ui(&"buy" if p.mount_item[i] >= 0 else &"sell")
 		_prev_mounts = p.mount_item.duplicate()
+
+
+## W11-C1 feel sounds that follow the own body: footsteps (cadence from ground
+## speed, silent airborne / dead) and the dry-fire click on an empty magazine.
+func _process(delta: float) -> void:
+	if client == null or client.body == null or bank == null:
+		return
+	var st: MotorState = client.body.state
+	var dead: bool = client.is_dead()
+	var buttons: int = client.last_buttons
+	var crouch: bool = (buttons & InputCommand.BTN_CROUCH) != 0
+	var speed: float = Vector2(st.velocity.x, st.velocity.z).length()
+	if not dead and _steps.advance(speed, st.grounded, delta, bank.def.footstep_crouch_stride_mult if crouch else 1.0):
+		_play_footstep(crouch)
+	var c: SnapshotData.OwnCombat = client.combat
+	var fire: bool = (buttons & InputCommand.BTN_FIRE) != 0
+	if fire and not _prev_fire and c != null and not dead and c.ammo <= 0.0 \
+			and (c.ammo_flags & AmmoFeed.FLAG_RELOADING) == 0:
+		var d := bank.feel_stream(&"dry_fire")
+		if d != null:
+			play_2d(d, bank.def.feel_db, randf_range(0.95, 1.05))
+	_prev_fire = fire
+
+
+func _play_footstep(crouch: bool) -> void:
+	var st := bank.feel_stream(&"footstep")
+	if st == null or _pool_feet.is_empty():
+		return
+	var p := _pool_feet[_next_feet]
+	_next_feet = (_next_feet + 1) % _pool_feet.size()
+	p.stream = st
+	p.volume_db = bank.def.footstep_db - (6.0 if crouch else 0.0)
+	p.pitch_scale = randf_range(0.9, 1.1)
+	p.play()
+
+
+## Reload start / finish from the replicated reload flag (finish only when rounds were added).
+func _reload_sounds(c: SnapshotData.OwnCombat) -> void:
+	var reloading := (c.ammo_flags & AmmoFeed.FLAG_RELOADING) != 0
+	if reloading and not _was_reloading:
+		_ammo_at_reload = c.ammo
+		var s := bank.feel_stream(&"reload_start")
+		if s != null:
+			play_2d(s, bank.def.feel_db, 1.0)
+	elif _was_reloading and not reloading and c.ammo > _ammo_at_reload and not c.dead:
+		var s := bank.feel_stream(&"reload_done")
+		if s != null:
+			play_2d(s, bank.def.feel_db, 1.0)
+	_was_reloading = reloading
 
 
 func _on_own_cast(slot: int) -> void:

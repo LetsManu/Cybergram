@@ -83,6 +83,8 @@ var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _prev_pos: Vector3
 var _visual_offset: Vector3 = Vector3.ZERO
 var _cmd := InputCommand.new()
+## Buttons of the last sampled command (feel sounds read it: dry fire).
+var last_buttons: int = 0
 var _look: LookSettings
 
 
@@ -193,6 +195,7 @@ func tick() -> void:
 	client_seq += 1
 	_prev_pos = body.state.position
 	input_source.sample(client_seq, _cmd)
+	last_buttons = _cmd.buttons
 	# Lag compensation: the server rewinds targets to what this screen showed.
 	if view_render_tick > 0.0:
 		_cmd.view_tick = floori(view_render_tick)

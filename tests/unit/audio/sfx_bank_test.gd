@@ -87,8 +87,8 @@ func test_voice_pools_are_bounded() -> void:
 	var d := SfxBank.shared().def
 	var sfx := ClientSfx.new()
 	add_child(auto_free(sfx))
-	assert_int(sfx.get_child_count()).is_less_equal(d.pool_2d + d.pool_3d + d.pool_ui + d.pool_loops)
+	assert_int(sfx.get_child_count()).is_less_equal(d.pool_2d + d.pool_3d + d.pool_ui + d.pool_loops + d.pool_feet)
 	for i in 100:
 		sfx.play_2d(sfx.gunshot, 0.0, 1.0)
 		sfx.play_3d(sfx.gunshot, Vector3.ZERO, 0.0, 1.0)
-	assert_int(sfx.get_child_count()).is_less_equal(d.pool_2d + d.pool_3d + d.pool_ui + d.pool_loops)
+	assert_int(sfx.get_child_count()).is_less_equal(d.pool_2d + d.pool_3d + d.pool_ui + d.pool_loops + d.pool_feet)
