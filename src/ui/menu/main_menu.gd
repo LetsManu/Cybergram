@@ -1199,8 +1199,9 @@ func _save_settings() -> void:
 
 
 # --- W17B-UI --- matchmaking flow (design/gdd/matchmaking.md) ----------------
-## CYBERGRAM_MATCHMAKING: "" = off (PLAY ONLINE opens the classic lobby),
-## "1" = the server's matchmaking, "fake" = the offline MatchmakingFakeClient.
+## CYBERGRAM_MATCHMAKING: unset or "1" = the server's matchmaking (default since
+## v0.13), "off"/"0" = PLAY ONLINE opens the classic lobby, "fake" = the offline
+## MatchmakingFakeClient.
 const MM_ENV := "CYBERGRAM_MATCHMAKING"
 var _mm_flow: MatchmakingFlow
 var _mm_profile: MmProfilePanel
@@ -1209,7 +1210,10 @@ var _mm_adapter: MmClientAdapter
 
 
 func _mm_mode() -> String:
-	return OS.get_environment(MM_ENV).strip_edges().to_lower()
+	var v := OS.get_environment(MM_ENV).strip_edges().to_lower()
+	if v == "off" or v == "0":
+		return ""
+	return "1" if v == "" else v
 
 
 ## The screen-facing matchmaking client (null = not logged in yet).
