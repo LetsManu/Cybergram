@@ -1,0 +1,30 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/fp_pos = Vector3(0.1500, -0.1650, -0.2000)
+metadata/sockets = {
+"fx_muzzle": Vector3(0.0768, -0.1398, -0.6346),
+"grip_l": Vector3(0.1346, -0.1866, -0.3590),
+"socket_barrel": Vector3(0.0861, -0.1092, -0.4950),
+"socket_chamber": Vector3(0.1454, -0.1307, -0.3212),
+"socket_core": Vector3(0.1060, -0.0919, -0.3163),
+"socket_frame": Vector3(0.1077, -0.1462, -0.2651)
+}
+metadata/clip_length = {
+"cast": 0.6667,
+"cast_ult": 1.2000,
+"draw": 0.4667,
+"fire": 0.2667,
+"holster": 0.4000,
+"idle": 3.0000,
+"inspect": 3.2000,
+"jump": 0.4667,
+"land": 0.4667,
+"reload": 1.8000,
+"sprint": 0.6667,
+"walk": 1.0667
+}
+metadata/fp_scale = 0.740
+metadata/tris = 9400
+metadata/weapon = "whisperfang_w16"
+metadata/fallback = false

@@ -228,11 +228,10 @@ func _muzzle_of(shooter: int) -> Variant:
 	if shooter == _own_id():
 		var rig: Variant = client.get("rig")
 		if rig != null:
-			var wm: Variant = (rig as Object).get("weapon_model")
-			if wm != null:
-				var m: Variant = (wm as Object).call("socket", &"fx_muzzle")
+			if (rig as Object).has_method("muzzle_global"):
+				var m: Variant = (rig as Object).call("muzzle_global")
 				if m != null:
-					return (m as Node3D).global_position
+					return m
 			var cam: Variant = (rig as Object).get("camera")
 			if cam != null:
 				return (cam as Node3D).global_position

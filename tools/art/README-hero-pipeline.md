@@ -158,3 +158,33 @@ the tri budget, clips, cloth bones and death_back).
   before the unwrap.
 - **Big flat dark areas break the art-bible value rule.** Keep the bodysuit mid-dark and
   saturated (Vesper `#3D2C5F`), never ink black.
+
+## First-person viewmodels (W19-VM)
+Each hero has a separate FP set built from the SAME weapon builder as its 3P glb, at FP
+detail (denser primitives, 2-segment bevels, per-hero `detail`), plus gloved hands with
+real fingers and hero sleeves:
+```bash
+/tmp/venv/bin/python tools/art/build_fp.py vesper          # -> assets/models/heroes/vesper/vesper_fp.*
+#   --notex   flat vertex colours, ~5 s (render with -- --flat to ignore stale maps)
+godot --headless --path . --import && tools/art/tex_import.sh && godot --headless --path . --import
+xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --resolution 1280x720 \
+  -s res://tools/art/render_fp.gd -- --hero vesper --out production/qa/evidence/w19-vm
+```
+Files: `fp_defs.py` (per hero: grip, hand fits, sleeves, sockets, reload part),
+`fp_rig.py` (hand canon, grip-wrap finger solver, 37-bone FP skeleton, forearm IK from a
+fixed shoulder), `fp_anims.py` (12 clips), `fp_weapons_w16.py` (the six W16 weapons
+read from the hero branches until they merge). Output: `<id>_fp.glb`, `<id>_fp_albedo /
+_normal / _mask.png` (1024, FP light from above and behind the eye) and `<id>_fp.tres`
+(fp_pos, sockets, clip lengths, tris).
+
+Runtime: `FpViewmodel` (src/gameplay/views/models/fp_viewmodel.gd) under
+`FirstPersonRig`; heroes without an FP glb (or `--box-heroes`) keep the box weapon.
+Clip timing follows gameplay: reload is scaled to `WeaponDef.reload_s` (Mana guns: the
+Burnout lock), fire to the fire rate. Budget: ~15k tris weapon + arms, 1 mesh, 1 material
+(+ the ink hull pass at 1.4 px).
+
+Adding a hero: copy a `_two(...)` entry (two-handed) or the Vesper entry (one-handed).
+`grip_shapes` are the rounded boxes the right hand wraps (copy the weapon's grip box);
+`hand_l` + `grip_l_shapes` the support hold (`_left_vertical` for a fore / side grip,
+`_left_under` for a handguard); `mag.region` picks the reload part's faces in weapon
+space and `mag.eject` its direction.
