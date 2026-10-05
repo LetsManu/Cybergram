@@ -7,7 +7,7 @@ config_version=5
 
 config/name="Cybergram"
 config/description="PvP first-person MOBA shooter"
-config/version="0.8.0"
+config/version="0.9.0"
 run/main_scene="res://src/core/app/app_root.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 

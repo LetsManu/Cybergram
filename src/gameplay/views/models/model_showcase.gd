@@ -142,7 +142,7 @@ func _heroes(walk: bool, silhouette: bool) -> void:
 		var team := ModelPalette.TEAM_CONCORD if row == 0 else ModelPalette.TEAM_SYNDICATE
 		for i in n:
 			var k := ModelCatalog.HERO_KEYS[i]
-			var m := HeroModelBuilder.build(k, team)
+			var m := HeroModelLoader.build(k, team)
 			add_child(m)
 			m.position = Vector3((i - (n - 1) * 0.5) * gap, 0.0 if row == 0 else 2.5, 0.0 if row == 0 else -2.0)
 			m.rotation_degrees.y = _yaw_arg(180.0 + 24.0)
@@ -168,7 +168,7 @@ func _hero_closeup(args: PackedStringArray) -> void:
 	var k := StringName(args[i + 1]) if i >= 0 and i + 1 < args.size() else &"hex"
 	_floor(Vector2(20, 10))
 	for j in 4:
-		var m := HeroModelBuilder.build(k, j % 2)
+		var m := HeroModelLoader.build(k, j % 2)
 		add_child(m)
 		m.position = Vector3(-2.7 + j * 1.8, 0, 0)
 		m.rotation_degrees.y = [180.0 + 25.0, 90.0, 0.0, 270.0][j]
@@ -273,7 +273,7 @@ func _perf() -> void:
 	_floor(Vector2(120, 120))
 	for i in 10:
 		var k := ModelCatalog.HERO_KEYS[i % ModelCatalog.HERO_KEYS.size()]
-		var m := HeroModelBuilder.build(k, i % 2)
+		var m := HeroModelLoader.build(k, i % 2)
 		add_child(m)
 		m.position = Vector3(-8 + (i % 5) * 4.0, 0, -6.0 - (i / 5) * 6.0)
 		_perf_heroes.append(m)

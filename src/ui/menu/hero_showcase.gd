@@ -354,7 +354,7 @@ func _show_model(stem: String) -> void:
 	var key := ModelCatalog.hero_key_from_id(stem)
 	if key == &"":
 		return
-	_model = HeroModelBuilder.build(key, ModelPalette.TEAM_NEUTRAL)
+	_model = HeroModelLoader.build(key, ModelPalette.TEAM_NEUTRAL)  # rigged toon model, box fallback
 	_turn.add_child(_model)
 	_turn.rotation.y = deg_to_rad(205.0)  # the portrait's three-quarter view
 
