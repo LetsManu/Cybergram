@@ -108,10 +108,12 @@ class Poser:
 
     def key(self, frame):
         for pb in self.pb:
-            if pb.name.startswith("Sec_"):  # spring bones: rest pose only, owned by the runtime simulator
+            if pb.name.startswith(("Sec_", "Cloth_")):  # spring bones: runtime simulator; cloth: cloth_bake.py
                 continue
             pb.keyframe_insert("rotation_quaternion", frame=frame)
         self.pb["Hips"].keyframe_insert("location", frame=frame)
+        if "Weapon" in self.pb:  # W16: set_M moves the weapon too (death, kick); keep the translation
+            self.pb["Weapon"].keyframe_insert("location", frame=frame)
 
 
 def _frame(y, n):
@@ -333,7 +335,7 @@ def author_all(h, use_mocap=True):
         p.hips((0.012 * w * p.k, 0, -0.004 * abs(w) * p.k))
         p.rot("Spine", [("y", 2 * w), ("x", math.sin(2 * ph) * 0.8)])
         p.rot("Chest", [("x", math.sin(2 * ph) * 0.6)])
-    loco_clip_m(h, "idle", 120, idle)
+    loco_clip_m(h, "idle", 120, h.d.get("idle", idle))  # W16: optional per-hero idle(p, ph, f)
     loco_clip_m(h, "walk", 32, lambda p, ph, f: (legs(p, ph, 24, 30),
                                                torso(p, lean=3, twist=math.sin(ph) * 5, bob=-abs(math.cos(ph)) * 0.02 * p.k)))
     loco_clip_m(h, "run", 20, lambda p, ph, f: (legs(p, ph, run_amp, 70),

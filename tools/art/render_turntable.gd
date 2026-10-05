@@ -55,8 +55,9 @@ func _run() -> void:
 	_root3d.add_child(old)
 	old.position.x = 0.75
 	m.position.x = -0.75
-	old.rotation_degrees.y = 180.0 + 25.0
-	m.rotation_degrees.y = 180.0 + 25.0
+	var vs_yaw := float(_arg("--vs-yaw", "25"))  # W16: e.g. 60 shows a one-hand weapon in profile
+	old.rotation_degrees.y = 180.0 + vs_yaw
+	m.rotation_degrees.y = 180.0 + vs_yaw
 	_frame_cam(h, 5.4, h * 0.5, 30.0)
 	await _frames(6)
 	await _save("%s/%s_vs_old.png" % [out, key])
@@ -88,7 +89,13 @@ func _strip(glb: String, clip: String, out: String, tag: String) -> void:
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat
 	inst.rotation_degrees.y = 90.0
-	_frame_cam(1.9, 4.0, 0.95, 32.0)
+	# Frame by the hero's actual height (Brannoc is 2.2 m): skinned mesh AABBs in rest pose.
+	var top := 1.9
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var bb := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		top = maxf(top, bb.end.y)
+	top = minf(top, 2.6)
+	_frame_cam(top, 4.4 * top / 1.9, top * 0.52, 32.0)
 	var n := 6
 	var tiles: Array[Image] = []
 	var length := ap.get_animation(clip).length

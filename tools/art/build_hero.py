@@ -593,8 +593,10 @@ def _paint_face(f, col, uv, rgba, ch):
 
 
 def _activate(ob):
+    bpy.context.view_layer.update()  # W16: no stale entries after bpy.data.objects.remove()
     for o in bpy.context.view_layer.objects:
-        o.select_set(False)
+        if o is not None:
+            o.select_set(False)
     bpy.context.view_layer.objects.active = ob
     ob.select_set(True)
 
@@ -616,6 +618,11 @@ def build(key):
     import hero_anims
     import hero_hd
     hd = dict(hero_defs.HEROES[key])
+    if hd.get("pipeline") == "gen":
+        if "--legacy" not in sys.argv:
+            import hero_gen  # W16: bespoke body + painted textures + baked cloth
+            return hero_gen.build(key, hd, OUT_DIR)
+        hd = dict(hd["legacy"])  # the MakeHuman build of a migrated hero (before/after renders)
     lowpoly = "--lowpoly" in sys.argv
     if not lowpoly:
         hd["decimate"] = min(1.0, hd.get("decimate", 0.19) * HD_SCALE_HERO.get(key, HD_DECIMATE_SCALE))
@@ -656,26 +663,38 @@ def build(key):
         body.data.attributes.remove(body.data.attributes["hd_kind"])
     mat = bpy.data.materials.new("Toon_" + h.key)
     body.data.materials.append(mat)
-    lod = None
-    if not lowpoly:
-        # W14: ~8k-tri skinned LOD; at runtime it carries the ink hull up close and replaces
-        # the body beyond RiggedHeroModel.LOD_M (design/art/hero-art-bible.md §8).
-        lod = body.copy()
-        lod.data = body.data.copy()
-        lod.name = lod.data.name = h.key + "_lod"
-        bpy.context.scene.collection.objects.link(lod)
-        _activate(lod)
-        dec = lod.modifiers.new("dec", "DECIMATE")
-        dec.ratio = min(1.0, LOD_TRIS / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons)))
-        bpy.ops.object.modifier_apply(modifier=dec.name)
+    lod = None if lowpoly else make_lod(h, body)
+    attach_rig(rig, body, lod)
+    mocap_info = hero_anims.author_all(h, use_mocap="--scripted" not in sys.argv)
+    export(h, rig, body, lod, mocap_info, tex_sizes)
+
+
+def make_lod(h, body):
+    """W14: ~8k-tri skinned LOD; at runtime it carries the ink hull up close and replaces
+    the body beyond RiggedHeroModel.LOD_M (design/art/hero-art-bible.md §8)."""
+    lod = body.copy()
+    lod.data = body.data.copy()
+    lod.name = lod.data.name = h.key + "_lod"
+    bpy.context.scene.collection.objects.link(lod)
+    _activate(lod)
+    dec = lod.modifiers.new("dec", "DECIMATE")
+    dec.ratio = min(1.0, LOD_TRIS / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons)))
+    bpy.ops.object.modifier_apply(modifier=dec.name)
+    return lod
+
+
+def attach_rig(rig, body, lod):
     for ob in [body] + ([lod] if lod else []):
         ob.parent = rig
         mod = ob.modifiers.new("Armature", "ARMATURE")
         mod.object = rig
     body.data.color_attributes.active_color = body.data.color_attributes["Color"]
+
+
+def export(h, rig, body, lod, mocap_info, tex_sizes, out_dir=None):
+    """Writes <id>.glb, <id>.anim.json and <id>_anim.tres; returns the glb path."""
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
-    mocap_info = hero_anims.author_all(h, use_mocap="--scripted" not in sys.argv)
-    out = os.path.join(OUT_DIR, h.key, h.key + ".glb")
+    out = os.path.join(out_dir or OUT_DIR, h.key, h.key + ".glb")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     _activate(rig)
     body.select_set(True)
@@ -698,14 +717,23 @@ def build(key):
         fh.write('[gd_resource type="Resource" format=3]\n\n[resource]\nmetadata/clip_speed = {\n')
         fh.write(",\n".join('"%s": %.3f' % (k, speeds[k]) for k in sorted(speeds)))
         fh.write("\n}\n")
+        shader = h.d.get("paint", {}).get("shader", {})  # W16: per-hero toon shader overrides
+        if shader:
+            fh.write("metadata/shader = {\n")
+            fh.write(",\n".join('"%s": %s' % (k, repr(float(v))) for k, v in sorted(shader.items())))
+            fh.write("\n}\n")
     print("built %s: %d tris, %d bones, %d clips, %.2f MB glb, textures %s" % (
         out, tris, len(rig.data.bones), len(bpy.data.actions), os.path.getsize(out) / 1e6,
         {k: round(v / 1e6, 2) for k, v in tex_sizes.items()}))
+    return out
 
 
 if __name__ == "__main__":
     if "--out" in sys.argv:
         OUT_DIR = sys.argv[sys.argv.index("--out") + 1]
     keys = [a for i, a in enumerate(sys.argv[1:]) if not a.startswith("--") and sys.argv[i] != "--out"]
+    import time
     for k in keys or ["ryker", "vesper"]:
+        t0 = time.time()
         build(k)
+        print("build time %s: %.0f s" % (k, time.time() - t0))

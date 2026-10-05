@@ -183,3 +183,21 @@ On the xvfb llvmpipe software renderer the inverted hull is the dominant per-her
 - **Look-dev loop:** `HERO_DEBUG=<dir> build_hero.py <key>` saves the Cycles passes;
   `tools/art/recompose.py <dir>/<key>_passes.npz <key>` re-runs only the albedo composite.
 - Size rule: glb + textures <= 6 MB per hero. Build time ~2 min per hero (4-core CPU).
+
+## 9. W16 pipeline (bespoke bodies, painted textures, baked cloth)
+
+Owner direction (2026-10-05): Borderlands look on bespoke bodies, no MakeHuman base. Masks or
+helmets on every hero, thick ink, hard two-band cel, hatching, bright colours.
+
+- **Body:** `tools/art/body_gen.py` builds a parametric quad cage (socketed limbs, mitt
+  hands with a thumb, chunky boots) on the same GAME_BONES skeleton, subdivides, sculpts,
+  then heat-weights it with explicit joint falloffs. Mocap and the game code are unchanged.
+- **Texture:** `tools/art/hero_paint.py`. The light is painted into the albedo (top-down
+  key, warm lit / cool shadow, crease AO, hatching in the shadow zone, edge strokes, ink on
+  colour borders); the normal map carries small detail only. The atlas is >= 75 % used.
+  Same file names and shader contract as §8.
+- **Cloth:** `tools/art/cloth_bake.py`, contract in `design/art/baked-cloth.md`.
+- **Death direction:** `death_back` plays when the killing blow comes from the front
+  (KILL event -> HeroView -> `RiggedHeroModel.set_death_dir`).
+- **How-to:** `tools/art/README-hero-pipeline.md`. Selected per hero by
+  `"pipeline": "gen"`; Vesper is the reference.

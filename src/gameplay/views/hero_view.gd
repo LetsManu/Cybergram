@@ -218,6 +218,8 @@ func _bind_client() -> void:
 		cw.connect("hit_confirmed", _on_hit_event)
 	if cw.has_signal("skill_cast_received"):
 		cw.connect("skill_cast_received", _on_cast_event)
+	if cw.has_signal("kill_received"):  # W16: killing-blow direction picks the death clip
+		cw.connect("kill_received", _on_kill_event)
 
 
 func _on_shot_event(e: GameEvent) -> void:
@@ -231,6 +233,30 @@ func _on_hit_event(e: GameEvent) -> void:
 	var cw := get_parent()
 	var from: Variant = cw.call("hero_view_position", e.source_net_id) if cw != null else null
 	model.flinch(clampf(e.amount / maxf(1.0, float(max_hp)) * 6.0, 0.35, 1.0), from if from != null else Vector3.INF)
+
+
+## W16: KILL (to every client) carries victim + killer; the killer's position picks
+## RiggedHeroModel's forward or backward death. Presentation only, no protocol change.
+func _on_kill_event(e: GameEvent) -> void:
+	if not (model is RiggedHeroModel) or _net_id == 0 or e.target_net_id != _net_id:
+		return
+	(model as RiggedHeroModel).set_death_dir(killer_position(get_parent(), e.source_net_id))
+
+
+## World position of a killer: a remote hero's view, else the own player's body,
+## else Vector3.INF (minions, towers, unknown).
+static func killer_position(cw: Node, killer_id: int) -> Vector3:
+	if cw == null or killer_id == 0:
+		return Vector3.INF
+	if cw.has_method("hero_view_position"):
+		var p: Variant = cw.call("hero_view_position", killer_id)
+		if p != null:
+			return p
+	var session: Variant = cw.get("session")
+	var body: Variant = cw.get("body")
+	if session != null and body != null and int((session as Object).get("own_net_id")) == killer_id:
+		return (body as Node3D).global_position + Vector3(0.0, 1.45, 0.0)
+	return Vector3.INF
 
 
 func _on_cast_event(e: GameEvent) -> void:
