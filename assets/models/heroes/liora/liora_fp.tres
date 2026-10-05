@@ -1,14 +1,14 @@
 [gd_resource type="Resource" format=3]
 
 [resource]
-metadata/fp_pos = Vector3(0.1500, -0.2000, -0.2100)
+metadata/fp_pos = Vector3(0.1500, -0.1650, -0.2000)
 metadata/sockets = {
-"fx_muzzle": Vector3(0.1100, -0.1363, -0.7560),
-"grip_l": Vector3(0.1333, -0.2163, -0.4707),
-"socket_barrel": Vector3(0.1204, -0.1153, -0.5849),
-"socket_chamber": Vector3(0.1814, -0.1684, -0.2105),
-"socket_core": Vector3(0.1379, -0.0756, -0.2930),
-"socket_frame": Vector3(0.1157, -0.1718, -0.2061)
+"fx_muzzle": Vector3(0.0615, -0.1417, -0.7435),
+"grip_l": Vector3(0.1240, -0.1977, -0.4584),
+"socket_barrel": Vector3(0.0750, -0.1106, -0.5742),
+"socket_chamber": Vector3(0.1705, -0.1255, -0.2036),
+"socket_core": Vector3(0.0966, -0.0538, -0.2853),
+"socket_frame": Vector3(0.1091, -0.1481, -0.1945)
 }
 metadata/clip_length = {
 "cast": 0.6667,
@@ -24,6 +24,7 @@ metadata/clip_length = {
 "sprint": 0.6667,
 "walk": 1.0667
 }
-metadata/tris = 10836
+metadata/fp_scale = 0.740
+metadata/tris = 10932
 metadata/weapon = "mender_w16"
 metadata/fallback = false

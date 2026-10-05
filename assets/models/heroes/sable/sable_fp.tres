@@ -1,14 +1,14 @@
 [gd_resource type="Resource" format=3]
 
 [resource]
-metadata/fp_pos = Vector3(0.1500, -0.2000, -0.2100)
+metadata/fp_pos = Vector3(0.1500, -0.1650, -0.2000)
 metadata/sockets = {
-"fx_muzzle": Vector3(0.1176, -0.1421, -0.6464),
-"grip_l": Vector3(0.1398, -0.2116, -0.3705),
-"socket_barrel": Vector3(0.1259, -0.1195, -0.5052),
-"socket_chamber": Vector3(0.1641, -0.1625, -0.3295),
-"socket_core": Vector3(0.1378, -0.1139, -0.3251),
-"socket_frame": Vector3(0.1198, -0.1677, -0.2765)
+"fx_muzzle": Vector3(0.0768, -0.1398, -0.6346),
+"grip_l": Vector3(0.1346, -0.1866, -0.3590),
+"socket_barrel": Vector3(0.0861, -0.1092, -0.4950),
+"socket_chamber": Vector3(0.1454, -0.1307, -0.3212),
+"socket_core": Vector3(0.1060, -0.0919, -0.3163),
+"socket_frame": Vector3(0.1077, -0.1462, -0.2651)
 }
 metadata/clip_length = {
 "cast": 0.6667,
@@ -24,6 +24,7 @@ metadata/clip_length = {
 "sprint": 0.6667,
 "walk": 1.0667
 }
-metadata/tris = 9304
+metadata/fp_scale = 0.740
+metadata/tris = 9400
 metadata/weapon = "whisperfang_w16"
 metadata/fallback = false

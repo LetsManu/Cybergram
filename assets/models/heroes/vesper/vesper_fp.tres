@@ -24,6 +24,7 @@ metadata/clip_length = {
 "sprint": 0.6667,
 "walk": 1.0667
 }
-metadata/tris = 14092
+metadata/fp_scale = 1.000
+metadata/tris = 14188
 metadata/weapon = "threadcaster_w16"
 metadata/fallback = false
