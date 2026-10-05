@@ -271,8 +271,36 @@ def cast_clip(h, name, gesture, frames=24, chest=()):
     upper_clip(h, name, frames, fn)
 
 
-def author_all(h):
+def mocap_clips(h):
+    """CMU mocap locomotion (tools/art/mocap.py); returns {clip: (trial, speed m/s)}."""
+    import mocap
+    p0 = Poser(h)
+    p0.reset()
+    upper_pose(h, p0, 0.0)
+    off = p0.M("Hand_R").inverted() @ p0.M("Weapon")
+    leg = (h.jh("UpperLeg_L") - h.jh("LowerLeg_L")).length + (h.jh("LowerLeg_L") - h.jh("Foot_L")).length
+    hips_rest = h.jh("Hips").z
+    info = {}
+    for name in mocap.CLIPS:
+        clip = mocap.Clip(name, 1)
+        scale = leg / clip.leg_len
+        p = Poser(h)
+        _new_action(h.rig, name)
+        after = (lambda q: q.set_M("Weapon", q.M("Hand_R") @ off)) if name == "death" else None
+        for f in range(clip.frames()):
+            mocap.retarget(h, p, clip, f, scale, hips_rest - h.jh("Foot_L").z * 0.0, after)
+        info[name] = {"trial": clip.trial, "speed": round(clip.speed * scale, 3), "frames": clip.frames()}
+    return info
+
+
+def author_all(h, use_mocap=True):
     st = h.d["stance"]
+    mocap_info = mocap_clips(h) if use_mocap else {}
+    skip = set(mocap_info)
+
+    def loco_clip_m(h, name, frames, fn):
+        if name not in skip:
+            loco_clip(h, name, frames, fn)
     sty = h.d.get("gait", {})
     run_amp = sty.get("run_amp", 38)
     lean = sty.get("lean", 8)
@@ -282,20 +310,20 @@ def author_all(h):
         p.rot("UpperLeg_L", [("y", 4), ("z", -6)])
         p.rot("UpperLeg_R", [("y", -4), ("z", 8)])
         torso(p, lean=2, bob=math.sin(ph) * 0.006 * p.k, breathe=math.sin(ph) * 1.2)
-    loco_clip(h, "idle", 60, idle)
-    loco_clip(h, "walk", 32, lambda p, ph, f: (legs(p, ph, 24, 30),
+    loco_clip_m(h, "idle", 60, idle)
+    loco_clip_m(h, "walk", 32, lambda p, ph, f: (legs(p, ph, 24, 30),
                                                torso(p, lean=3, twist=math.sin(ph) * 5, bob=-abs(math.cos(ph)) * 0.02 * p.k)))
-    loco_clip(h, "run", 20, lambda p, ph, f: (legs(p, ph, run_amp, 70),
+    loco_clip_m(h, "run", 20, lambda p, ph, f: (legs(p, ph, run_amp, 70),
                                               torso(p, lean=lean, twist=math.sin(ph) * 8, bob=-abs(math.cos(ph)) * 0.045 * p.k)))
-    loco_clip(h, "run_back", 22, lambda p, ph, f: (legs(p, ph, 26, 45, back=True),
+    loco_clip_m(h, "run_back", 22, lambda p, ph, f: (legs(p, ph, 26, 45, back=True),
                                                    torso(p, lean=-3, bob=-abs(math.cos(ph)) * 0.03 * p.k)))
-    loco_clip(h, "strafe_l", 22, lambda p, ph, f: (legs(p, ph, 0, 45, side_amp=18),
+    loco_clip_m(h, "strafe_l", 22, lambda p, ph, f: (legs(p, ph, 0, 45, side_amp=18),
                                                    torso(p, lean=4, roll=math.sin(ph) * 3, bob=-abs(math.cos(ph)) * 0.03 * p.k)))
-    loco_clip(h, "strafe_r", 22, lambda p, ph, f: (legs(p, ph + math.pi, 0, 45, side_amp=18),
+    loco_clip_m(h, "strafe_r", 22, lambda p, ph, f: (legs(p, ph + math.pi, 0, 45, side_amp=18),
                                                    torso(p, lean=4, roll=-math.sin(ph) * 3, bob=-abs(math.cos(ph)) * 0.03 * p.k)))
-    loco_clip(h, "crouch_idle", 40, lambda p, ph, f: (legs(p, 0, 0, 0, crouch=1.0),
+    loco_clip_m(h, "crouch_idle", 40, lambda p, ph, f: (legs(p, 0, 0, 0, crouch=1.0),
                                                       torso(p, lean=14, bob=-0.36 * p.k + math.sin(ph) * 0.004)))
-    loco_clip(h, "crouch_walk", 30, lambda p, ph, f: (legs(p, ph, 18, 25, crouch=1.0),
+    loco_clip_m(h, "crouch_walk", 30, lambda p, ph, f: (legs(p, ph, 18, 25, crouch=1.0),
                                                       torso(p, lean=16, bob=-0.36 * p.k - abs(math.cos(ph)) * 0.015)))
 
     def jump(p, ph, f):
@@ -306,7 +334,7 @@ def author_all(h):
             p.rot("LowerLeg_" + side, [("x", kn * tuck)])
             p.rot("Foot_" + side, [("x", 25 * tuck)])
         torso(p, lean=6 * tuck, bob=0.05 * tuck * p.k)
-    loco_clip(h, "jump", 14, jump)
+    loco_clip_m(h, "jump", 14, jump)
 
     for name, pitch in PITCH.items():
         upper_clip(h, name, 1, lambda p, t, f, pitch=pitch: upper_pose(h, p, pitch))
@@ -365,6 +393,8 @@ def author_all(h):
              (1, 0, -1))
         p.ik("L", chest.to_3x3() @ Vector((-0.45 * k, 0.1 * k, 0.25 * k)) + chest.translation, (-1, 0, -1))
         p.set_M("Weapon", p.M("Hand_R") @ off)
-    upper_clip(h, "death", 36, death)
+    if "death" not in skip:
+        upper_clip(h, "death", 36, death)
     h.rig.animation_data.action = None
     Poser(h).reset()
+    return mocap_info

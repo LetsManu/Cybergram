@@ -607,7 +607,7 @@ def build(key):
     mod.object = rig
     body.data.color_attributes.active_color = body.data.color_attributes["Color"]
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
-    hero_anims.author_all(h)
+    mocap_info = hero_anims.author_all(h, use_mocap="--scripted" not in sys.argv)
     out = os.path.join(OUT_DIR, h.key, h.key + ".glb")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     _activate(rig)
@@ -618,10 +618,17 @@ def build(key):
                               export_force_sampling=True, export_optimize_animation_size=True,
                               export_materials="EXPORT", export_image_format="NONE", export_tangents=False,
                               export_def_bones=False, export_leaf_bone=False)
+    side = {"clips": mocap_info, "credit": "The data used in this project was obtained from mocap.cs.cmu.edu. "
+            "The database was created with funding from NSF EIA-0196217."} if mocap_info else {"clips": {}}
+    with open(out[:-4] + ".anim.json", "w") as fh:
+        json.dump(side, fh, indent=1, sort_keys=True)
     print("built %s: %d tris, %d bones, %d clips, %.2f MB" % (out, tris, len(rig.data.bones), len(bpy.data.actions),
                                                              os.path.getsize(out) / 1e6))
 
 
 if __name__ == "__main__":
-    for k in sys.argv[1:] or ["ryker", "vesper"]:
+    if "--out" in sys.argv:
+        OUT_DIR = sys.argv[sys.argv.index("--out") + 1]
+    keys = [a for i, a in enumerate(sys.argv[1:]) if not a.startswith("--") and sys.argv[i] != "--out"]
+    for k in keys or ["ryker", "vesper"]:
         build(k)
