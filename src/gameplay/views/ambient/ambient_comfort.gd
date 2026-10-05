@@ -28,12 +28,12 @@ static func budget(lvl: int) -> Dictionary:
 	match clampi(lvl, LOW, HIGH):
 		LOW:
 			return {traffic_lanes = 3, cars_per_lane = 10, drones = 0, train = true, trails = false,
-				billboards = 2, signs = 4, shafts = 0, fog_cards = 0, motes = 60, rain = 300, birds = 0}
+				billboards = 2, signs = 4, neon = 16, steam = 0, shafts = 0, fog_cards = 0, motes = 60, rain = 300, birds = 0}
 		MEDIUM:
 			return {traffic_lanes = 5, cars_per_lane = 16, drones = 6, train = true, trails = true,
-				billboards = 4, signs = 6, shafts = 3, fog_cards = 6, motes = 140, rain = 800, birds = 0}
+				billboards = 4, signs = 8, neon = 32, steam = 64, shafts = 3, fog_cards = 6, motes = 140, rain = 800, birds = 0}
 	return {traffic_lanes = 7, cars_per_lane = 22, drones = 12, train = true, trails = true,
-		billboards = 6, signs = 8, shafts = 6, fog_cards = 10, motes = 260, rain = 1600, birds = 14}
+		billboards = 8, signs = 12, neon = 64, steam = 128, shafts = 6, fog_cards = 10, motes = 260, rain = 1600, birds = 14}
 
 
 ## Flicker depth 0..FLICKER_MAX_DIP: 0 (steady) with reduce motion or at low

@@ -55,9 +55,23 @@ func test_debug_args() -> void:
 	assert_bool(AmbientWorld.parse_debug_args(PackedStringArray()).is_empty()).is_true()
 
 
-func test_online_seed_agrees_across_clients() -> void:
-	# Two clients see the same match start at different snapshot ticks.
-	var hz := 60
-	var a := AmbientWorld.seed_from_match_clock(90000 + 600, 10.0, hz)
-	var b := AmbientWorld.seed_from_match_clock(90000 + 3600, 60.0, hz)
-	assert_int(a).is_equal(b)
+func test_seed_priority_server_then_local() -> void:
+	# Debug override wins; then the server's Welcome mood seed; then the local seed.
+	assert_int(AmbientWorld.pick_seed(5, 777, 1)).is_equal(5)
+	assert_int(AmbientWorld.pick_seed(-1, 777, 1)).is_equal(777)
+	assert_int(AmbientWorld.pick_seed(-1, 0, 42)).is_equal(42)
+	# Two clients of one match get the same mood from the same Welcome seed.
+	assert_int(AmbientMood.pick_mood(AmbientWorld.pick_seed(-1, 777, 3))).is_equal(
+		AmbientMood.pick_mood(AmbientWorld.pick_seed(-1, 777, 99)))
+
+
+func test_spread_and_fit() -> void:
+	assert_array(AmbientWorld.spread(17, 8)).has_size(8)
+	assert_array(AmbientWorld.spread(17, 8)).contains_exactly([0, 2, 4, 6, 8, 10, 12, 14])
+	assert_array(AmbientWorld.spread(3, 8)).contains_exactly([0, 1, 2])
+	assert_array(AmbientWorld.spread(0, 8)).is_empty()
+	# "LEYFALL LINE" / tagline must fit a 5.6 x 4.5 m GEO billboard text area.
+	var lines := PackedStringArray(["LEYFALL LINE", "Ride above it all."])
+	var px := AmbientWorld.fit_pixel_size(lines, 96, Vector2(5.6 * 0.58, 4.5 * 0.75))
+	assert_float(18 * 0.6 * 96 * px).is_less_equal(5.6 * 0.58 + 0.001)
+	assert_float(2 * 1.25 * 96 * px).is_less_equal(4.5 * 0.75 + 0.001)

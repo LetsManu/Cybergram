@@ -26,6 +26,7 @@ const TRAIL_SHADER := "res://assets/shaders/spatial_env_ambient_trail.gdshader"
 const HOLO_SHADER := "res://assets/shaders/spatial_env_ambient_holo.gdshader"
 const SHAFT_SHADER := "res://assets/shaders/spatial_env_ambient_shaft.gdshader"
 const FOG_SHADER := "res://assets/shaders/spatial_env_ambient_fog.gdshader"
+const NEON_SHADER := "res://assets/shaders/spatial_env_ambient_neon.gdshader"
 const FONT_PATH := "res://assets/fonts/chakrapetch/ChakraPetch-SemiBold.ttf"
 
 ## Anchor groups / name prefixes (contract with the map builder).
@@ -35,10 +36,12 @@ const G_SHOP_SIGN := &"ambient_shop_sign"
 const G_TRAFFIC := &"ambient_traffic_path"
 const G_DRONE := &"ambient_drone_path"
 const G_TRAIN := &"ambient_skytrain"
+const G_STEAM := &"ambient_steam_vent"
 const ANCHOR_NODE := "AmbientAnchors"
 const PREFIXES := {
 	&"ambient_billboard": "Billboard", &"ambient_neon": "Neon", &"ambient_shop_sign": "ShopSign",
 	&"ambient_traffic_path": "TrafficPath", &"ambient_drone_path": "DronePath", &"ambient_skytrain": "SkyTrain",
+	&"ambient_steam_vent": "SteamVent",
 }
 
 ## Fictional in-world ads: [name key, tagline key, motif, colour a, colour b].
@@ -79,6 +82,8 @@ var _sign_colors: Array[Color] = []
 ## Label -> its hud.csv keys; re-translated until the HUD string table is loaded
 ## (the UI layer loads it, possibly after the map is built).
 var _label_keys: Dictionary = {}
+var _steam: GPUParticles3D
+var _neon_mat: ShaderMaterial
 var _rain: GPUParticles3D
 var _motes: GPUParticles3D
 var _schedule: SkyTrainSchedule
@@ -92,7 +97,6 @@ var _anim: float = 1.0
 var _move_k: float = 1.0
 var _comfort_sig: String = ""
 var _poll: int = 0
-var _seed_from_snapshot: bool = false
 var _env: Environment
 var _sun: DirectionalLight3D
 
@@ -180,6 +184,8 @@ func _rebuild() -> void:
 	_sign_frames = null
 	_rain = null
 	_motes = null
+	_steam = null
+	_neon_mat = null
 	if int(debug.get("level", -1)) >= 0:
 		level = int(debug.level)
 	else:
@@ -198,6 +204,8 @@ func _rebuild() -> void:
 	_build_train()
 	_build_billboards(b)
 	_build_signs(b)
+	_build_neon(b)
+	_build_steam(b)
 	_build_shafts(b, lk)
 	_build_fog(b)
 	_build_particles(b)
@@ -268,24 +276,29 @@ func _session() -> Node:
 	return null
 
 
-## Seed: --ambient-seed, else the launch seed (offline / local matches), else
-## (online client) derived from the first match snapshot (see _poll_settings).
+## Seed priority: --ambient-seed, else the server's Welcome `mood_seed`
+## (ClientSession.mood_seed; the same for every client of a match, 0 = not
+## sent / not yet welcomed), else the local launch seed (offline / local).
+static func pick_seed(debug_seed: int, server_mood_seed: int, launch_seed: int) -> int:
+	if debug_seed >= 0:
+		return debug_seed
+	if server_mood_seed != 0:
+		return server_mood_seed
+	return launch_seed
+
+
 func _resolve_seed() -> int:
-	if debug.has("seed"):
-		return int(debug.seed)
 	var gs := _session() as GameSession
-	if gs != null and gs.remote != null:
-		_seed_from_snapshot = true
-	if gs != null and gs.launch_config != null:
-		return gs.launch_config.match_seed
-	return 1
+	var launch := gs.launch_config.match_seed if gs != null and gs.launch_config != null else 1
+	return pick_seed(int(debug.get("seed", -1)), _server_mood_seed(), launch)
 
 
-## Online clients: the match start tick (snapshot tick minus match clock), in
-## 30 s buckets, is the same number on every client of one match.
-static func seed_from_match_clock(snapshot_tick: int, match_time_s: float, tick_hz: int) -> int:
-	var start := snapshot_tick - roundi(match_time_s * tick_hz)
-	return roundi(start / float(maxi(1, tick_hz) * 30))
+## The Welcome's mood seed from this client's session (0 when absent).
+func _server_mood_seed() -> int:
+	var cw := _client_world() as ClientWorld
+	if cw == null or cw.session == null:
+		return 0
+	return cw.session.mood_seed
 
 
 func _find_env() -> void:
@@ -300,19 +313,11 @@ func _find_env() -> void:
 
 
 func _poll_settings() -> void:
-	if _seed_from_snapshot:
-		var cw := _client_world()
-		var ms: Variant = cw.get("match_state") if cw != null else null
-		var gs := _session() as GameSession
-		if ms != null and gs != null and gs.remote != null:
-			var hz := int(cw.get("net").get("tick_rate_hz"))
-			var snap_tick := int(cw.get("server_tick_estimate"))
-			_seed_from_snapshot = false
-			var s := seed_from_match_clock(snap_tick, float(ms.get("time_s")), hz)
-			if s != match_seed:
-				match_seed = s
-				_rebuild()
-				return
+	var seed_now := _resolve_seed()  # the Welcome may land after the map is built
+	if seed_now != match_seed:
+		match_seed = seed_now
+		_rebuild()
+		return
 	var want := AmbientComfort.level(_settings.ambient_level, _settings.graphics_quality)
 	if int(debug.get("level", -1)) < 0 and (want != level or _rain_setting_changed()):
 		_rebuild()
@@ -357,6 +362,11 @@ func _apply_comfort() -> void:
 		_rain.visible = n > 0
 		if n > 0:
 			_rain.amount = n
+	if _neon_mat != null:
+		_neon_mat.set_shader_parameter("flicker", _flicker)
+		_neon_mat.set_shader_parameter("gain", float(lk.neon_gain) * _glow * 1.5)
+	if _steam != null:
+		_steam.speed_scale = 0.4 if rm else 1.0
 	if _audio != null:
 		_audio.set_level(level)
 
@@ -370,7 +380,34 @@ func _translate(label: Label3D) -> bool:
 		ok = ok and t != k
 		parts.append(t)
 	label.text = "\n".join(parts)
+	if label.has_meta(&"fit"):
+		label.pixel_size = fit_pixel_size(parts, label.font_size, label.get_meta(&"fit"))
 	return ok
+
+
+## Pixel size that fits `lines` (font size `font_px`) into `area` metres.
+## Chakra Petch averages ~0.6 em per glyph; line height ~1.25 em.
+static func fit_pixel_size(lines: PackedStringArray, font_px: int, area: Vector2) -> float:
+	var longest := 1
+	for l in lines:
+		longest = maxi(longest, l.length())
+	var by_w := area.x / (longest * 0.6 * font_px)
+	var by_h := area.y / (maxi(1, lines.size()) * 1.25 * font_px)
+	return minf(by_w, by_h)
+
+
+## `n` indices spread evenly over `count` anchors (all of them when n >= count).
+static func spread(count: int, n: int) -> Array[int]:
+	var out: Array[int] = []
+	if count <= 0 or n <= 0:
+		return out
+	if n >= count:
+		for i in count:
+			out.append(i)
+		return out
+	for i in n:
+		out.append(int(floor(i * count / float(n))))
+	return out
 
 
 ## Re-translates labels whose keys were not resolvable yet; stops once all are.
@@ -390,9 +427,11 @@ func anchors(group: StringName) -> Array[Node]:
 	var out: Array[Node] = []
 	if _map_root == null:
 		return out
-	for n in _map_root.find_children("*", "Node3D", true, false):
-		if n.is_in_group(group):
-			out.append(n)
+	# Group members of THIS map only (offline, the server's map copy is in the tree too).
+	if _map_root.is_inside_tree():
+		for n in _map_root.get_tree().get_nodes_in_group(group):
+			if n is Node3D and _map_root.is_ancestor_of(n):
+				out.append(n)
 	var holder := _map_root.get_node_or_null(ANCHOR_NODE)
 	if holder != null:
 		for n in holder.find_children(String(PREFIXES[group]) + "*", "Node3D", true, false):
@@ -471,14 +510,16 @@ func _build_traffic(b: Dictionary, lk: Dictionary) -> void:
 			custom.append(Color(r, rng.randf(), dir * v / len_m, dir * 4.0))
 	var cars := _mover_mat(0, tex, true)
 	cars.set_shader_parameter("size", Vector3(4.5, 1.8, 9.0))
-	cars.set_shader_parameter("light_gain", 1.4 + float(lk.neon_gain) * 0.5)
+	# Lights stay near 1.0 (barely over the bloom threshold): lamps, not muzzle flashes.
+	cars.set_shader_parameter("light_gain", 1.0 + float(lk.neon_gain) * 0.1)
 	_custom_mm("Traffic", _unit_box(), cars, custom)
 	if b.trails and float(lk.trail_gain) > 0.0:
 		_trail_mat = ShaderMaterial.new()
 		_trail_mat.shader = load(TRAIL_SHADER)
 		_trail_mat.set_shader_parameter("path_tex", tex)
 		_trail_mat.set_shader_parameter("path_samples", TrafficPaths.SAMPLES)
-		_trail_mat.set_shader_parameter("trail_size", Vector2(1.6, 0.6))
+		_trail_mat.set_shader_parameter("trail_size", Vector2(1.2, 0.35))
+		_trail_mat.set_shader_parameter("trail_len", 10.0)
 		_trail_mat.set_meta(&"mover", true)
 		_anim_mats.append(_trail_mat)
 		_custom_mm("TrafficTrails", _unit_box(), _trail_mat, custom)
@@ -568,9 +609,10 @@ func _build_billboards(b: Dictionary) -> void:
 		return
 	var xfs: Array[Transform3D] = []
 	var sizes: Array[Vector2] = []
-	for a in anchors(G_BILLBOARD):
-		xfs.append((a as Node3D).global_transform)
-		sizes.append(a.get_meta("size", Vector2(32.0, 12.0)))
+	var found := anchors(G_BILLBOARD)
+	for k in spread(found.size(), n):
+		xfs.append((found[k] as Node3D).global_transform)
+		sizes.append(found[k].get_meta("size", Vector2(32.0, 12.0)))
 	if xfs.is_empty():
 		xfs = _fallback_billboards(n)
 		for i in xfs.size():
@@ -602,11 +644,11 @@ func _build_billboards(b: Dictionary) -> void:
 		if font != null:
 			label.font = font
 		label.font_size = 96
-		label.pixel_size = sizes[i].y / 9.0 * 0.04
 		label.outline_size = 0
 		label.modulate = Color(1.0, 1.0, 1.0)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		label.position = Vector3(sizes[i].x * 0.14, 0.0, 0.15)
+		# Glyph on the left 36 %, text fitted into the rest.
+		label.position = Vector3(sizes[i].x * 0.18, 0.0, 0.06)
+		label.set_meta(&"fit", Vector2(sizes[i].x * 0.58, sizes[i].y * 0.75))
 		label.render_priority = 1
 		label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		panel.add_child(label)
@@ -631,32 +673,38 @@ func _build_signs(b: Dictionary) -> void:
 	if n <= 0:
 		return
 	var xfs: Array[Transform3D] = []
-	for a in anchors(G_SHOP_SIGN) + anchors(G_NEON):
-		xfs.append((a as Node3D).global_transform)
+	var sizes: Array[Vector2] = []
+	var found := anchors(G_SHOP_SIGN)
+	for k in spread(found.size(), n):
+		xfs.append((found[k] as Node3D).global_transform)
+		sizes.append(found[k].get_meta("size", Vector2(6.0, 1.4)))
 	if xfs.is_empty():
 		xfs = _fallback_signs(n)
+		for i in xfs.size():
+			sizes.append(Vector2(4.0, 1.0))
 	var font := _font()
 	var frames: Array[Transform3D] = []
 	for i in mini(n, xfs.size()):
 		var c := NEON_COLORS[(i * 3 + match_seed) % NEON_COLORS.size()]
 		var label := Label3D.new()
 		label.name = "ShopSign%d" % i
-		_label_keys[label] = [SHOP_SIGNS[i % SHOP_SIGNS.size()]]
-		_translate(label)
+		_label_keys[label] = [SHOP_SIGNS[(i + match_seed) % SHOP_SIGNS.size()]]
 		if font != null:
 			label.font = font
 		label.font_size = 64
-		label.pixel_size = 0.012
 		label.outline_size = 0
-		label.transform = xfs[i]
+		label.set_meta(&"fit", Vector2(sizes[i].x * 0.9, sizes[i].y * 0.62))
+		_translate(label)
+		# Text 6 cm off the wall so it never z-fights the facade.
+		label.transform = xfs[i] * Transform3D(Basis(), Vector3(0.0, 0.0, 0.06))
 		label.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(label)
 		_signs.append(label)
 		_sign_colors.append(c)
-		# Neon tube frame: top and bottom bars just behind the text.
-		var w := maxf(2.0, label.text.length() * 0.48)
-		for y in [0.42, -0.42]:
-			frames.append(xfs[i] * Transform3D(Basis().scaled(Vector3(w, 0.06, 0.06)), Vector3(0.0, y, -0.05)))
+		# Neon tube frame: top and bottom bars around the text.
+		var w := sizes[i].x * 0.96
+		for y in [0.45, -0.45]:
+			frames.append(xfs[i] * Transform3D(Basis().scaled(Vector3(w, 0.06, 0.06)), Vector3(0.0, y * sizes[i].y, 0.05)))
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
@@ -837,6 +885,119 @@ func _build_particles(b: Dictionary) -> void:
 		_rain.draw_pass_1 = _particle_quad(Color(0.78, 0.82, 1.0, 0.22), Vector2(0.025, 0.7), true)
 		_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(_rain)
+
+
+## Neon sign mounts (ambient_neon anchors): glowing tube outlines in one
+## MultiMesh; the flicker runs in the shader (same curve as
+## AmbientComfort.flicker), steady when the comfort settings say so.
+func _build_neon(b: Dictionary) -> void:
+	var found := anchors(G_NEON)
+	var pick := spread(found.size(), int(b.neon))
+	if pick.is_empty():
+		return
+	var xf: Array[Transform3D] = []
+	var cols: Array[Color] = []
+	var custom: Array[Color] = []
+	for j in pick.size():
+		var a := found[pick[j]] as Node3D
+		var size: Vector2 = a.get_meta("size", Vector2(3.0, 1.0))
+		var c := NEON_COLORS[(pick[j] * 5 + match_seed) % NEON_COLORS.size()]
+		var t := 0.07
+		# Outline (4 tubes) plus one inner "lettering" tube at 60 % width.
+		var bars := [[Vector3(0, size.y * 0.5, 0), Vector3(size.x, t, t)], [Vector3(0, -size.y * 0.5, 0), Vector3(size.x, t, t)],
+			[Vector3(size.x * 0.5, 0, 0), Vector3(t, size.y, t)], [Vector3(-size.x * 0.5, 0, 0), Vector3(t, size.y, t)],
+			[Vector3(-size.x * 0.1, 0, 0), Vector3(size.x * 0.6, t * 1.4, t)]]
+		for bar in bars:
+			xf.append(a.global_transform * Transform3D(Basis().scaled(bar[1]), bar[0] + Vector3(0, 0, 0.06)))
+			cols.append(c)
+			custom.append(Color(fposmod(pick[j] * 0.618, 1.0), 0, 0, 0))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = _unit_box()
+	mm.instance_count = xf.size()
+	for i in xf.size():
+		mm.set_instance_transform(i, xf[i])
+		mm.set_instance_color(i, cols[i])
+		mm.set_instance_custom_data(i, custom[i])
+	_neon_mat = ShaderMaterial.new()
+	_neon_mat.shader = load(NEON_SHADER)
+	_anim_mats.append(_neon_mat)
+	var mi := MultiMeshInstance3D.new()
+	mi.name = "NeonMounts"
+	mi.multimesh = mm
+	mi.material_override = _neon_mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+
+## Steam vents (ambient_steam_vent anchors, jungle alley floors): one
+## GPUParticles3D emitting from every vent point. Low, faint plumes (about
+## 2.5 m, alpha <= 0.12) so they never hide a player; slower with reduce motion.
+func _build_steam(b: Dictionary) -> void:
+	var found := anchors(G_STEAM)
+	if found.is_empty() or int(b.steam) <= 0:
+		return
+	var img := Image.create(found.size(), 1, false, Image.FORMAT_RGBF)
+	for i in found.size():
+		var p := (found[i] as Node3D).global_position
+		img.set_pixel(i, 0, Color(p.x, p.y, p.z))
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_POINTS
+	pm.emission_point_texture = ImageTexture.create_from_image(img)
+	pm.emission_point_count = found.size()
+	pm.direction = Vector3(0.0, 1.0, 0.0)
+	pm.spread = 14.0
+	pm.initial_velocity_min = 0.8
+	pm.initial_velocity_max = 1.2
+	pm.gravity = Vector3(0.15, 0.1, 0.0)
+	pm.damping_min = 0.2
+	pm.damping_max = 0.4
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.35))
+	grow.add_point(Vector2(1.0, 1.0))
+	var grow_tex := CurveTexture.new()
+	grow_tex.curve = grow
+	pm.scale_curve = grow_tex
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0))
+	fade.set_color(1, Color(1, 1, 1, 0))
+	fade.add_point(0.25, Color(1, 1, 1, 1))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = fade
+	pm.color_ramp = ramp
+	_steam = GPUParticles3D.new()
+	_steam.name = "SteamVents"
+	_steam.amount = int(b.steam)
+	_steam.lifetime = 2.4
+	_steam.preprocess = 2.4
+	_steam.local_coords = false
+	_steam.process_material = pm
+	_steam.visibility_aabb = AABB(Vector3(-80, -10, -360), Vector3(160, 30, 300))
+	var q := QuadMesh.new()
+	q.size = Vector2(1.1, 1.1)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = Color(0.86, 0.86, 0.94, 0.12)
+	var puff := GradientTexture2D.new()
+	puff.fill = GradientTexture2D.FILL_RADIAL
+	puff.fill_from = Vector2(0.5, 0.5)
+	puff.fill_to = Vector2(0.5, 0.0)
+	var pg := Gradient.new()
+	pg.set_color(0, Color(1, 1, 1, 1))
+	pg.set_color(1, Color(1, 1, 1, 0))
+	puff.gradient = pg
+	puff.width = 32
+	puff.height = 32
+	m.albedo_texture = puff
+	q.material = m
+	_steam.draw_pass_1 = q
+	_steam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_steam)
 
 
 func _build_birds(b: Dictionary) -> void:

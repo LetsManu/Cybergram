@@ -77,7 +77,7 @@ static func look(mood: int) -> Dictionary:
 				ground_horizon = Color(0.2, 0.1, 0.38), sun_color = Color(0.7, 0.78, 1.0),
 				sun_energy = 0.5, ambient_color = Color(0.42, 0.44, 0.78), ambient_energy = 0.62,
 				fog_color = Color(0.22, 0.17, 0.42), fog_density = 0.0032,
-				neon_gain = 1.5, trail_gain = 1.0, shaft_gain = 0.9,
+				neon_gain = 1.5, trail_gain = 0.45, shaft_gain = 0.9,
 			}
 		Mood.OVERCAST:
 			return {
@@ -92,7 +92,7 @@ static func look(mood: int) -> Dictionary:
 		ground_horizon = Color(0.5, 0.34, 0.74), sun_color = Color(1.0, 0.86, 0.72),
 		sun_energy = 0.9, ambient_color = Color(0.54, 0.48, 0.8), ambient_energy = 0.6,
 		fog_color = Color(0.56, 0.4, 0.72), fog_density = 0.0028,
-		neon_gain = 1.0, trail_gain = 0.35, shaft_gain = 1.0,
+		neon_gain = 1.0, trail_gain = 0.18, shaft_gain = 1.0,
 	}
 
 

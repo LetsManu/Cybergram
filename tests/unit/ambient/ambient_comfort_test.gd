@@ -11,7 +11,7 @@ func test_level_is_capped_by_graphics_quality() -> void:
 
 
 func test_budgets_grow_with_level() -> void:
-	for key in ["traffic_lanes", "cars_per_lane", "drones", "billboards", "signs", "shafts", "motes", "rain", "birds"]:
+	for key in ["traffic_lanes", "cars_per_lane", "drones", "billboards", "signs", "neon", "steam", "shafts", "motes", "rain", "birds"]:
 		assert_int(int(AmbientComfort.budget(0)[key])).is_less_equal(int(AmbientComfort.budget(1)[key]))
 		assert_int(int(AmbientComfort.budget(1)[key])).is_less_equal(int(AmbientComfort.budget(2)[key]))
 

@@ -3,16 +3,19 @@ extends Node3D
 ## named camera. Used with tools/ci/capture_scene.sh, e.g.
 ##   tools/ci/capture_scene.sh res://tools/maps/ambient_preview.tscn out.png 40 \
 ##     --ambient-cam skyline --ambient-time night
-## Cameras: skyline, market, train, lane, wide. Ambient debug args: see
+## Cameras: skyline, market, train, lane, center, south, jungle, wide. Ambient debug args: see
 ## AmbientWorld.parse_debug_args().
 
 const MAP := "res://assets/maps/front/shardline_front.tscn"
 ## name -> [eye, look-at] (world space, z = -L).
 const CAMS := {
-	"skyline": [Vector3(-88.0, 7.0, -150.0), Vector3(-260.0, 45.0, -260.0)],
-	"market": [Vector3(0.0, 2.2, -70.0), Vector3(0.0, 4.5, -170.0)],
-	"train": [Vector3(-88.0, 5.0, -150.0), Vector3(-134.0, 60.0, -215.0)],
-	"lane": [Vector3(-80.0, 2.0, -104.0), Vector3(-80.0, 2.0, -200.0)],
+	"skyline": [Vector3(-78.0, 2.5, -150.0), Vector3(-185.0, 64.0, -235.0)],
+	"market": [Vector3(0.0, 1.0, -94.0), Vector3(0.0, 4.5, -125.0)],
+	"train": [Vector3(-78.0, 2.5, -150.0), Vector3(-146.0, 44.0, -215.0)],
+	"lane": [Vector3(-80.0, 1.7, -104.0), Vector3(-80.0, 1.0, -200.0)],
+	"center": [Vector3(-3.0, 1.7, -112.0), Vector3(0.0, 1.0, -160.0)],
+	"south": [Vector3(83.0, 1.7, -108.0), Vector3(80.0, 1.0, -160.0)],
+	"jungle": [Vector3(36.0, 1.7, -80.0), Vector3(42.0, 1.0, -104.0)],
 	"wide": [Vector3(110.0, 26.0, 20.0), Vector3(-60.0, 10.0, -220.0)],
 }
 

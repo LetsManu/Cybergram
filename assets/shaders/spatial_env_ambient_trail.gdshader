@@ -1,17 +1,19 @@
-// W18-LIFE: additive light trails behind the flying cars (night look).
-// Same route data and INSTANCE_CUSTOM layout as spatial_amb_mover; the mesh is a
-// unit box stretched backwards along the route by trail_len.
+// W18-LIFE: faint light trails behind the flying cars (night look).
+// Deliberately NOT tracer-like: short (trail_len), dim (gain <= ~0.45), soft at
+// both ends (no bright head), warm amber or desaturated lilac rather than a
+// saturated streak. Same route data and INSTANCE_CUSTOM layout as
+// spatial_env_ambient_mover; the mesh is a unit box stretched back along the route.
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
 #include "res://assets/shaders/env_ambient_path.gdshaderinc"
 
 uniform float anim_time = 0.0;
-uniform float trail_len = 26.0;
-uniform float gain = 1.0;
-uniform vec2 trail_size = vec2(1.0, 0.4);
-uniform vec3 color_a : source_color = vec3(1.0, 0.3, 0.32);
-uniform vec3 color_b : source_color = vec3(0.3, 0.75, 1.0);
+uniform float trail_len = 10.0;
+uniform float gain = 0.3;
+uniform vec2 trail_size = vec2(1.2, 0.35);
+uniform vec3 color_a : source_color = vec3(0.62, 0.42, 0.28);
+uniform vec3 color_b : source_color = vec3(0.46, 0.42, 0.52);
 
 varying float v_k;
 varying float v_side;
@@ -30,6 +32,7 @@ void vertex() {
 }
 
 void fragment() {
-	float a = (1.0 - v_k) * (1.0 - v_k) * gain;
+	// Soft hump: zero at the car and at the tail, peak a third of the way back.
+	float a = smoothstep(0.0, 0.35, v_k) * (1.0 - smoothstep(0.35, 1.0, v_k)) * gain;
 	ALBEDO = mix(color_a, color_b, v_side) * a;
 }
