@@ -383,8 +383,8 @@ def sable_parts(h):
     band(h, sh, 1.048, "deep", z0=ze - 0.1, z1=ze + 0.1, y0=0.12)                      # slit socket
     band(h, sh, 1.058, "team", "team_emit", z0=ze - 0.022, z1=ze + 0.022, y0=0.3)      # the slit
     # --- hood cowl over the mask (charcoal, deep lining, jade edge) with a drooping point.
-    hcen = Vector((0, hc.y - 0.004, hc.z + 0.012))
-    hood_r = Vector((hr.x * 1.42, hr.y * 1.34, hr.z * 1.26))
+    hcen = Vector((0, hc.y - 0.004, hc.z + 0.02))  # crown >= 1.70 m (the model height test)
+    hood_r = Vector((hr.x * 1.42, hr.y * 1.34, hr.z * 1.34))
     cut = [((0, 0.62, -0.1), (0, 1, -0.3)), ((0, 0, -0.78), (0, 0, -1))]
     h.sphere("Head", hcen, hood_r, "charcoal", seg=(22, 14), clip=cut)
     h.sphere("Head", hcen, hood_r * 0.96, "deep", seg=(22, 14), clip=cut)
@@ -859,7 +859,7 @@ HEROES["juniper"] = {
              "deltoid": 0.9, "pecs": 0.0, "bust": 0.3, "glutes": 0.6, "calves": 0.7, "forearms": 0.8,
              "traps": 0.4, "arm_angle": 46.0, "stance": 0.03},
     "paint": {"hatch_density": 0.5, "hatch_threshold": -0.05, "shader": {"hatch_strength": 0.1},
-              "uv_head": 1.6, "detail": lambda ctx: juniper_paint(ctx)},
+              "uv_head": 1.6, "uv_margin": 0.0015, "detail": lambda ctx: juniper_paint(ctx)},
     "palette": {"mustard": "#F2B12A", "olive": "#7F9B38", "rubber": "#5A4636", "brass": "#D9A23E",
                 "chrome": "#C9D4E2", "bone": "#F3E6C6", "hair": "#B5462A", "wood": "#8A5A34",
                 "trousers": "#6E5640", "ink": "#2B2530", "team": TEAM, "eye": "#101014"},
