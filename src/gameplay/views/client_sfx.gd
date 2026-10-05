@@ -31,7 +31,7 @@ var _pool_ui: Array[AudioStreamPlayer] = []
 var _next_ui: int = 0
 var _loops: Dictionary = {}  # fx id -> AudioStreamPlayer3D (heal-beam loops)
 var _loop_free: Array[AudioStreamPlayer3D] = []
-var _voice_cache: Dictionary = {}  # hero id -> weapon voice dict
+var _def_cache: Dictionary = {}  # hero id -> HeroDef
 var _prev_cd: PackedInt32Array = PackedInt32Array()
 var _prev_flags: PackedInt32Array = PackedInt32Array()
 var _prev_level: int = -1
@@ -83,6 +83,7 @@ func _ready() -> void:
 	if client != null:
 		client.session.snapshot_received.connect(_on_snapshot)
 		client.shot_received.connect(_on_shot)
+		client.skill_cast_received.connect(_on_remote_cast)
 		client.hit_confirmed.connect(_on_hit)
 		client.kill_received.connect(_on_kill)
 
@@ -107,14 +108,35 @@ func _on_shot(e: GameEvent) -> void:
 
 
 func _remote_weapon(net_id: int) -> WeaponDef:
+	var h := _remote_def(net_id)
+	return h.weapon if h != null else null
+
+
+## HeroDef of a remote hero (cached by hero id), or null.
+func _remote_def(net_id: int) -> HeroDef:
 	var id: StringName = client.hero_id_of(net_id)
 	if id == &"":
 		return null
-	if not _voice_cache.has(id):
+	if not _def_cache.has(id):
 		var path := "%s/%s.tres" % [ContentDB.SOURCES[ContentDB.HERO][0], id]
-		var h := load(path) as HeroDef if ResourceLoader.exists(path) else null
-		_voice_cache[id] = h.weapon if h != null else null
-	return _voice_cache[id]
+		_def_cache[id] = load(path) as HeroDef if ResourceLoader.exists(path) else null
+	return _def_cache[id]
+
+
+## W11-V1: another hero's skill cast (SKILL_CAST event), played 3D at the caster. Own
+## casts are skipped here: they are already played from the own cooldowns (_on_own_cast).
+func _on_remote_cast(e: GameEvent) -> void:
+	if e.source_net_id == client.session.own_net_id:
+		return
+	var h := _remote_def(e.source_net_id)
+	var slot := e.cast_slot()
+	if h == null or slot >= h.skills.size() or h.skills[slot] == null:
+		return
+	var c := bank.skill_cast(h.skills[slot].id)
+	if c.is_empty():
+		return
+	var at: Variant = client.call("hero_view_position", e.source_net_id)
+	play_3d(c["stream"], at if at != null else e.position, bank.def.cast_db, c["pitch"])
 
 
 ## Bank voice for a weapon ({} = generic fallback shot).

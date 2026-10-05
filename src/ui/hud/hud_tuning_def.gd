@@ -45,6 +45,10 @@ const DEFAULT_PATH := "res://assets/ui/hud_tuning.tres"
 ## Plates are hidden beyond this distance.
 @export var plate_max_distance_m: float = 70.0
 @export var plate_height_m: float = 2.2
+## W11-V1: allies' plates (name + bar) stay visible out to this range, through walls.
+@export var plate_ally_max_distance_m: float = 250.0
+## Name text size in px at 1080p.
+@export var plate_name_size: int = 13
 
 @export_group("Objective tracker")
 ## Show the nearest task within this range (hud.md §4.9, §18: 40 m).

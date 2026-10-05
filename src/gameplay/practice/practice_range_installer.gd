@@ -39,7 +39,7 @@ func _ready() -> void:
 		overlay = TutorialOverlay.new()
 		overlay.setup(client, range_def, load(TUTORIAL_PATH) as TutorialDef)
 		add_child(overlay)
-		if _cmdline_has("--practice-tutorial"):
+		if PracticeRange.consume_tutorial() or _cmdline_has("--practice-tutorial"):
 			overlay.start()  # evidence / debug: skip the offer
 		elif not GameSettings.shared().tutorial_done:
 			overlay.offer()

@@ -54,7 +54,7 @@ func _team_block(rows: Array, team: int, x: float, y: float, own: bool) -> float
 		if u.exposed:
 			title += "  " + tr("HUD_EXPOSED")
 	text(title, Vector2(x + 6.0, y + 21.0), 17, HudPalette.TEXT, ctx.font_display)
-	text(HudFormat.kd(tot.x, tot.y), Vector2(x + 420.0, y + 21.0), 15, HudPalette.TEXT_DIM, ctx.font_numbers)
+	text(HudFormat.kd(tot.x, tot.y), Vector2(x + 380.0, y + 21.0), 15, HudPalette.TEXT_DIM, ctx.font_numbers)
 	y += HEAD_H + 6.0
 	_cols(x, y)
 	y += 6.0
@@ -73,20 +73,33 @@ func _team_block(rows: Array, team: int, x: float, y: float, own: bool) -> float
 		var tag := tr("HUD_YOU") if row.is_self else (tr("HUD_BOT") if row.is_bot else "")
 		if tag != "":
 			text(tag, Vector2(x + 34.0 + text_width(name, 16), mid), 12, HudPalette.TEXT_DIM, ctx.font_display)
-		text(str(row.level) if row.level > 0 else "-", Vector2(x + 300.0, mid), 16, HudPalette.RESONANCE, ctx.font_numbers)
-		text(HudFormat.kd(row.kills, row.deaths), Vector2(x + 420.0, mid), 16, HudPalette.TEXT, ctx.font_numbers)
+		text(str(row.level) if row.level > 0 else "-", Vector2(x + 290.0, mid), 16, HudPalette.RESONANCE, ctx.font_numbers)
+		text(HudFormat.kd(row.kills, row.deaths), Vector2(x + 380.0, mid), 16, HudPalette.TEXT, ctx.font_numbers)
 		var lumen := HudFormat.thousands(row.lumen) if own and row.lumen >= 0 else "-"
-		text(lumen, Vector2(x + 540.0, mid), 16, HudPalette.LUMEN if own else HudPalette.TEXT_OFF, ctx.font_numbers)
-		text(tr("HUD_ALIVE") if row.alive else tr("HUD_DEAD"), Vector2(x + 680.0, mid), 14,
+		text(lumen, Vector2(x + 470.0, mid), 16, HudPalette.LUMEN if own else HudPalette.TEXT_OFF, ctx.font_numbers)
+		text(tr("HUD_ALIVE") if row.alive else tr("HUD_DEAD"), Vector2(x + 560.0, mid), 14,
 			HudPalette.TEXT_DIM if row.alive else HudPalette.DANGER.lightened(0.2), ctx.font_display)
+		_fork_cell(row, x + 660.0, mid)
 		y += ROW_H
 	return y
+
+
+## W11-V1: Fork choices of the 3 basic skills: A cool / B warm (team palette), Mastery *.
+func _fork_cell(row: ScoreboardModel.Row, x: float, mid: float) -> void:
+	for slot in 3:
+		var f := NamePlateModel.fork_of(row.fork_bits, slot)
+		var t := "-" if f == 0 else ("A" if f == 1 else "B")
+		if ((row.fork_bits >> (slot * 3 + 2)) & 1) != 0:
+			t += "*"
+		var col := HudPalette.TEXT_OFF if f == 0 else FxForkTint.tint_for(row.team, f)
+		text(t, Vector2(x + slot * 34.0, mid), 15, col, ctx.font_numbers)
 
 
 func _cols(x: float, y: float) -> void:
 	var c := HudPalette.TEXT_DIM
 	text(tr("HUD_COL_HERO"), Vector2(x + 26.0, y), 12, c, ctx.font_display)
-	text(tr("HUD_COL_LEVEL"), Vector2(x + 300.0, y), 12, c, ctx.font_display)
-	text(tr("HUD_COL_KD"), Vector2(x + 420.0, y), 12, c, ctx.font_display)
-	text(tr("HUD_COL_LUMEN"), Vector2(x + 540.0, y), 12, c, ctx.font_display)
-	text(tr("HUD_COL_STATUS"), Vector2(x + 680.0, y), 12, c, ctx.font_display)
+	text(tr("HUD_COL_LEVEL"), Vector2(x + 290.0, y), 12, c, ctx.font_display)
+	text(tr("HUD_COL_KD"), Vector2(x + 380.0, y), 12, c, ctx.font_display)
+	text(tr("HUD_COL_LUMEN"), Vector2(x + 470.0, y), 12, c, ctx.font_display)
+	text(tr("HUD_COL_FORKS"), Vector2(x + 660.0, y), 12, c, ctx.font_display)
+	text(tr("HUD_COL_STATUS"), Vector2(x + 560.0, y), 12, c, ctx.font_display)

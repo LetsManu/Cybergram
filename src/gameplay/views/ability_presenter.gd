@@ -33,6 +33,12 @@ var _stealthed: Dictionary = {}
 var _faded: Dictionary = {}  # net id -> true while its model is faded by us
 var _blind_rect: ColorRect
 var _blind: bool = false
+## W11-V1: recent SKILL_CAST events [team, fork, position, msec] and young, untinted FX
+## [node, team, position, msec]; matched either way round (event / snapshot order varies).
+var _recent_casts: Array = []
+var _young_fx: Array = []
+const _MATCH_MS: int = 600
+const _MATCH_RANGE_M: float = 45.0
 
 
 func apply_snapshot(s: SnapshotData) -> void:
@@ -52,6 +58,8 @@ func apply_snapshot(s: SnapshotData) -> void:
 				(rec[0] as Node3D).queue_free()
 			rec = [_build(f), f.kind]
 			_nodes[f.id] = rec
+			_young_fx.append([rec[0], f.team, f.position, Time.get_ticks_msec()])
+			_match_tints()
 			fx_started.emit(f.kind, f.position, f.id)
 		elif f.kind == SkillEntities.FX_BEAM:
 			fx_moved.emit(f.kind, f.position, f.id)
@@ -61,6 +69,33 @@ func apply_snapshot(s: SnapshotData) -> void:
 			(_nodes[id][0] as Node3D).queue_free()
 			fx_ended.emit(_nodes[id][1], id)
 			_nodes.erase(id)
+
+
+## W11-V1: a hero cast a skill (GameEvent.SKILL_CAST); its Fork tints the FX it spawns.
+## `team` is the caster's team (from the replicated snapshot).
+func on_skill_cast(fork: int, team: int, at: Vector3) -> void:
+	if fork < 1:
+		return
+	_recent_casts.append([team, fork, at, Time.get_ticks_msec()])
+	_match_tints()
+
+
+func _match_tints() -> void:
+	var now := Time.get_ticks_msec()
+	_recent_casts = _recent_casts.filter(func(c: Array) -> bool: return now - c[3] <= _MATCH_MS)
+	_young_fx = _young_fx.filter(func(f: Array) -> bool: return now - f[3] <= _MATCH_MS and is_instance_valid(f[0]))
+	for f in _young_fx.duplicate():
+		var best := -1
+		var best_d := _MATCH_RANGE_M
+		for i in _recent_casts.size():
+			var c: Array = _recent_casts[i]
+			var d := (c[2] as Vector3).distance_to(f[2])
+			if c[0] == f[1] and d <= best_d:
+				best = i
+				best_d = d
+		if best >= 0:
+			FxForkTint.tint_tree(f[0], f[1], _recent_casts[best][1])
+			_young_fx.erase(f)
 
 
 func _process(_delta: float) -> void:

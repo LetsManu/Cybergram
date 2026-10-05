@@ -68,11 +68,9 @@ func _plates(c: ClientWorld, cam: Camera3D) -> void:
 		if h == null or h.dead or not v.visible or h.max_hp <= 0:
 			continue
 		var enemy := h.team != ctx.own_team()
-		if enemy and not _los.get(id, true):
-			continue
 		var head := v.global_position + Vector3(0.0, t.plate_height_m, 0.0)
 		var dist := cam.global_position.distance_to(head)
-		if dist > t.plate_max_distance_m or cam.is_position_behind(head):
+		if not NamePlateModel.is_visible(not enemy, _los.get(id, true), dist, t) or cam.is_position_behind(head):
 			continue
 		var k := clampf((dist - t.plate_near_m) / maxf(t.plate_far_m - t.plate_near_m, 0.01), 0.0, 1.0)
 		var w := lerpf(t.plate_max_width, t.plate_min_width, k) * s
@@ -90,9 +88,25 @@ func _plates(c: ClientWorld, cam: Camera3D) -> void:
 			draw_colored_polygon(_diamond(g, 4.0 * s), col)
 		else:
 			_chev(g, 5.0 * s, col)
+		_name_label(h, id, Vector2(p.x, r.position.y - 3.0 * s), s)
 		if ctx.settings.plate_numbers:
 			var fs := maxi(10, roundi(12.0 * s))
 			text(str(h.hp), Vector2(r.end.x + 4.0 * s, r.end.y + 1.0 * s), fs, HudPalette.TEXT, ctx.font_numbers)
+
+
+## Player / hero name centred above the bar, with a small diamond per Mastery.
+func _name_label(h: RosterTracker.Hero, id: int, anchor: Vector2, s: float) -> void:
+	var n := h.name if h.name != "" else tr("HUD_HERO_N") % id
+	var fs := maxi(10, roundi(ctx.tuning.plate_name_size * s))
+	var masteries := NamePlateModel.mastery_count(h.fork_bits)
+	var w := text_width(n, fs)
+	var gw := masteries * 9.0 * s
+	var x := anchor.x - (w + gw) * 0.5
+	text(n, Vector2(x, anchor.y), fs, HudPalette.TEXT)
+	for i in masteries:
+		var gc := Vector2(x + w + 6.0 * s + i * 9.0 * s, anchor.y - fs * 0.35)
+		draw_colored_polygon(_diamond(gc, 4.5 * s), Color(0, 0, 0, 0.8))
+		draw_colored_polygon(_diamond(gc, 3.2 * s), HudPalette.CRIT)
 
 
 func _numbers(c: ClientWorld, cam: Camera3D) -> void:

@@ -422,7 +422,9 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		# Fell through the map: kill so respawn and Cell drop logic run.
 		damage_hero(h, DamageInfo.make(c.health.max_hp * 10.0, 0, -1, 0, DamageInfo.Type.TRUE))
 		return
+	var casts_before := _cast_counts(h)
 	abilities.post_move(h, cmd)  # E10: charge contact, skill casts
+	_broadcast_casts(h, casts_before)
 	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
 		wardlings.issue_command(h, cmd)
 	if c.dead or c.weapon == null:
@@ -773,6 +775,40 @@ func _broadcast_tracers(shooter: int, ends: Array[Vector3]) -> void:
 			_queue_event(peer, ev)
 
 
+## W11-V1: Fork / Mastery of the 3 basic skills as SnapshotData.EntityState.fork_bits.
+func _fork_bits(h: HeroBody) -> int:
+	var bits := 0
+	for slot in 3:
+		var sk := h.combat.abilities.skill(slot)
+		if sk != null:
+			bits = SnapshotData.EntityState.with_slot(bits, slot, sk.fork(), sk.has_mastery())
+	return bits
+
+
+func _cast_counts(h: HeroBody) -> PackedInt32Array:
+	var out := PackedInt32Array([0, 0, 0, 0])
+	for slot in 4:
+		var sk := h.combat.abilities.skill(slot)
+		if sk != null:
+			out[slot] = sk.casts
+	return out
+
+
+## W11-V1: one SKILL_CAST event to every client per skill cast this tick (the caster's own
+## client ignores it: it plays own casts from its cooldowns).
+func _broadcast_casts(h: HeroBody, before: PackedInt32Array) -> void:
+	if session.clients.is_empty():
+		return
+	for slot in 4:
+		var sk := h.combat.abilities.skill(slot)
+		if sk == null or sk.casts <= before[slot]:
+			continue
+		var fk := 0 if sk.def.ultimate else sk.fork()
+		var ev := GameEvent.skill_cast(h.net_id, slot, fk, not sk.def.ultimate and sk.has_mastery(), h.state.position)
+		for peer in session.clients:
+			_queue_event(peer, ev)
+
+
 func _queue_event(peer: int, ev: GameEvent) -> void:
 	if peer == 0 or not session.clients.has(peer):
 		return
@@ -812,6 +848,7 @@ func _send_snapshots() -> void:
 		e.status = abilities.status_bits(h)  # E10
 		if h.combat.def != null:
 			e.hero_index = content.index_of(ContentDB.HERO, h.combat.def.id)  # M1 remote hero models
+		e.fork_bits = _fork_bits(h)  # W11-V1 Pillar 4: everyone sees Fork / Mastery
 		entities.append(e)
 	for peer in session.clients:
 		var c: ServerSession.ClientConnection = session.clients[peer]

@@ -96,6 +96,7 @@ func _ready() -> void:
 	col.add_child(MenuStyle.spacer(6))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_TEST_COURSE"), _course, false, 44))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_PRACTICE"), _practice, false, 44))
+	col.add_child(MenuStyle.button(tr("HUD_MENU_TUTORIAL"), _tutorial, false, 44))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_PROFILE"), func() -> void: _with_session(_show_profile), false, 44))
 	col.add_child(MenuStyle.button(tr("HUD_MENU_SETTINGS"), func() -> void:
 		col.visible = false
@@ -520,6 +521,10 @@ func _course() -> void:
 
 func _practice() -> void:
 	_start(PracticeRange.begin(_hero_id()))
+
+
+func _tutorial() -> void:
+	_start(PracticeRange.begin_tutorial(_hero_id()))
 
 
 func _start(args: PackedStringArray) -> void:
