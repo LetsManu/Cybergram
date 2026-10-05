@@ -72,5 +72,6 @@ ui = {
 &"level_up": &"ui_levelup",
 &"fork": &"ui_fork",
 &"hover": &"ui_hover",
-&"click": &"ui_click"
+&"click": &"ui_click",
+&"lock": &"ui_lock"
 }
