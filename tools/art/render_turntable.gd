@@ -25,6 +25,10 @@ func _run() -> void:
 	var key := StringName(_arg("--hero", "ryker"))
 	var out := _arg("--out", "production/qa/evidence/w13-heroes")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + out))
+	if _arg("--map", "") != "":
+		await _in_map(_arg("--map", ""), out)
+		quit()
+		return
 	_stage()
 	var team := int(_arg("--team", "0"))
 	var m := HeroModelLoader.build(key, team)
@@ -67,6 +71,39 @@ func _run() -> void:
 		await _frames(28 if p[0] in ["death"] else 12)
 		await _save("%s/%s_pose_%s.png" % [out, key, p[0]])
 	quit()
+
+
+## In-map shot: both pilots per team + a box-model hero on the lane at --at x,z,
+## seen from a player's eye height.
+func _in_map(map_path: String, out: String) -> void:
+	_root3d = Node3D.new()
+	root.add_child(_root3d)
+	_root3d.add_child((load(map_path) as PackedScene).instantiate())
+	_cam = Camera3D.new()
+	_root3d.add_child(_cam)
+	_cam.current = true
+	await _frames(5)
+	var at := _arg("--at", "0,-85").split(",")
+	var c := Vector3(float(at[0]), 0.0, float(at[1]))
+	var space := _root3d.get_world_3d().direct_space_state
+	var lineup := [[&"ryker", 0, Vector3(-1.6, 0, 0)], [&"vesper", 0, Vector3(-0.4, 0, 0.6)],
+		[&"brannoc", 0, Vector3(-3.0, 0, 1.0)], [&"ryker", 1, Vector3(1.4, 0, -2.5)],
+		[&"vesper", 1, Vector3(2.8, 0, -1.6)]]
+	for e in lineup:
+		var p: Vector3 = c + e[2]
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3(0, 40, 0), p - Vector3(0, 40, 0)))
+		var m := HeroModelLoader.build(e[0], e[1])
+		_root3d.add_child(m)
+		m.position = hit.position if not hit.is_empty() else p
+		m.rotation_degrees.y = 180.0 + (20.0 if e[1] == 0 else -150.0)
+		if e[0] == &"vesper" and e[1] == 1:
+			m.play_cast(3)
+	var g: Vector3 = _root3d.get_child(_root3d.get_child_count() - 1).position
+	_cam.fov = 75.0
+	_cam.position = c + Vector3(0.5, g.y + 1.7, 5.5)
+	_cam.look_at(c + Vector3(0, g.y + 1.1, -0.5))
+	await _frames(20)
+	await _save("%s/in_map_lane.png" % out)
 
 
 func _stage() -> void:
