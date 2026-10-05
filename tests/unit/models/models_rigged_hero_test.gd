@@ -56,14 +56,22 @@ func test_rigged_model_markers_clips_and_budget() -> void:
 		assert_float(m.height_m).is_between(1.7, 2.3)
 
 
+## W14: one shared material per (hero, team) - each hero binds its own baked texture
+## set - and the ink hull rides on the hero's 8k LOD mesh (design/art/hero-art-bible.md §8).
 func test_rigged_team_material_shared_per_team() -> void:
 	var a := _build(&"ryker", ModelPalette.TEAM_CONCORD) as RiggedHeroModel
+	var a2 := _build(&"ryker", ModelPalette.TEAM_CONCORD) as RiggedHeroModel
 	var b := _build(&"vesper", ModelPalette.TEAM_CONCORD) as RiggedHeroModel
 	var c := _build(&"ryker", ModelPalette.TEAM_SYNDICATE) as RiggedHeroModel
 	var ma := a._meshes[0].material_override as ShaderMaterial
-	assert_object(ma).is_same(b._meshes[0].material_override)
+	assert_object(ma).is_same(a2._meshes[0].material_override)
+	assert_object(ma).is_not_same(b._meshes[0].material_override)
 	assert_object(ma).is_not_same(c._meshes[0].material_override)
-	assert_object(ma.next_pass).is_not_null()
+	assert_float(float(ma.get_shader_parameter("use_maps"))).is_equal(1.0)
+	assert_object(ma.get_shader_parameter("albedo_map")).is_not_null()
+	assert_bool(a._lod_meshes.is_empty()).is_false()
+	var hull := a._lod_meshes[0].material_override as ShaderMaterial
+	assert_object(hull).is_same(RiggedHeroModel.hull_material(ModelPalette.TEAM_CONCORD))
 	c.set_team(ModelPalette.TEAM_CONCORD)
 	assert_object(c._meshes[0].material_override).is_same(ma)
 

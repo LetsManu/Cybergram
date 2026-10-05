@@ -606,6 +606,7 @@ def reset_scene():
 
 # W14: body decimation budget x2.4 (~20-30k tris in view); `--lowpoly` keeps the W13 budget.
 HD_DECIMATE_SCALE = 1.5
+HD_SCALE_HERO = {"ryker": 1.1}  # keeps every hero under ModelCatalog.HERO_TRI_BUDGET (30k)
 LOD_TRIS = 8000
 
 
@@ -617,7 +618,7 @@ def build(key):
     hd = dict(hero_defs.HEROES[key])
     lowpoly = "--lowpoly" in sys.argv
     if not lowpoly:
-        hd["decimate"] = min(1.0, hd.get("decimate", 0.19) * HD_DECIMATE_SCALE)
+        hd["decimate"] = min(1.0, hd.get("decimate", 0.19) * HD_SCALE_HERO.get(key, HD_DECIMATE_SCALE))
     reset_scene()
     h = Hero(hd)
     h.build_body()
