@@ -104,7 +104,7 @@ func _ready() -> void:
 func _build() -> void:
 	# v0.12 top-centre unit (variant D): clock plate + framed Uplink bars, then
 	# the single lane line under the plate.
-	var z_top := _zone("TopCentre", 0.2, -0.03, 0.8, 0.17)
+	var z_top := _zone("TopCentre", 0.235, -0.03, 0.765, 0.17)
 	_header = _add(MatchHeader.new(), z_top, Rect2(0, 0, 1, 0), Vector2(0, MatchHeader.H)) as MatchHeader
 	_front = _add(FrontStrip.new(), z_top, Rect2(0, 0, 1, 0), Vector2(MatchHeader.H + 8.0, MatchHeader.H + 8.0 + FrontStrip.HEIGHT)) as FrontStrip
 	_minimap = _fill(LaneMinimap.new(), _zone("TopLeft", -0.012, -0.012, 0.2, 0.25)) as LaneMinimap

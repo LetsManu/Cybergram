@@ -45,16 +45,13 @@ func _process(delta: float) -> void:
 
 
 ## Phase treatment for the match state (Sudden Death, Capture Overtime or normal).
-static func phase_of(m: SnapshotData.MatchState, hardpoints: Array) -> int:
+static func phase_of(m: SnapshotData.MatchState, _hardpoints: Array = []) -> int:
 	if m == null:
 		return Phase.NORMAL
 	if m.phase == MatchRules.Phase.SUDDEN_DEATH:
 		return Phase.SUDDEN_DEATH
 	if m.phase == MatchRules.Phase.TIME_OUT:
-		return Phase.OVERTIME
-	for st in hardpoints:
-		if st.overtime:
-			return Phase.OVERTIME
+		return Phase.OVERTIME  # Capture Overtime (hud.md §12); per-task OT only rings its chip
 	return Phase.NORMAL
 
 
@@ -77,10 +74,17 @@ func _draw() -> void:
 	var ph := phase_of(m, c.hardpoints)
 	var cx := size.x * 0.5
 	radial_backdrop(Rect2(cx - 480.0, -60.0, 960.0, 300.0), 0.55)
-	var bx := cx - PLATE_W * 0.5 - BLOCK_GAP - BLOCK_W
-	_uplink(c.uplink_state(team), team, bx, false)
-	_uplink(c.uplink_state(1 - team), 1 - team, cx + PLATE_W * 0.5 + BLOCK_GAP, true)
+	var bw := block_w()
+	var bx := cx - PLATE_W * 0.5 - BLOCK_GAP - bw
+	_uplink(c.uplink_state(team), team, bx, bw, false)
+	_uplink(c.uplink_state(1 - team), 1 - team, cx + PLATE_W * 0.5 + BLOCK_GAP, bw, true)
 	_plate(Rect2(cx - PLATE_W * 0.5, PLATE_Y, PLATE_W, PLATE_H), m, ph, c)
+
+
+## Uplink block width: 340 at 1080p, narrower when the zone is (720p floor
+## scale, small windows) so the unit never runs into the minimap / kill feed.
+func block_w() -> float:
+	return clampf((size.x - PLATE_W - 2.0 * BLOCK_GAP) * 0.5, 180.0, BLOCK_W)
 
 
 func _plate(r: Rect2, m: SnapshotData.MatchState, ph: int, c: ClientWorld) -> void:
@@ -128,7 +132,7 @@ func _next_text(m: SnapshotData.MatchState) -> String:
 	return tr("HUD_NEXT_PHASE") % left
 
 
-func _uplink(u: SnapshotData.UplinkState, team: int, x: float, right: bool) -> void:
+func _uplink(u: SnapshotData.UplinkState, team: int, x: float, bw: float, right: bool) -> void:
 	if u == null:
 		return
 	var own := team == ctx.own_team()
@@ -138,7 +142,7 @@ func _uplink(u: SnapshotData.UplinkState, team: int, x: float, right: bool) -> v
 	var mid := y + 14.0
 	# Header: glyph, name, tag, % (mirrored for the enemy side).
 	var name := tr(TEAM_KEYS[team])
-	var gx := x + BLOCK_W - 8.0 if right else x + 8.0
+	var gx := x + bw - 8.0 if right else x + 8.0
 	if own:
 		chevron(Vector2(gx, mid), 8.0, col)
 	else:
@@ -157,13 +161,13 @@ func _uplink(u: SnapshotData.UplinkState, team: int, x: float, right: bool) -> v
 	var pct := str(HudFormat.percent(frac))
 	var pw := text_width(pct, 30, ctx.font_numbers)
 	var sw := text_width("%", 16, ctx.font_numbers)
-	var px := x if right else x + BLOCK_W - pw - sw
+	var px := x if right else x + bw - pw - sw
 	text(pct, Vector2(px, mid + 10.0), 30, HudPalette.IVORY, ctx.font_numbers)
 	text("%", Vector2(px + pw + 1.0, mid + 10.0), 16, HudPalette.MUTED, ctx.font_numbers)
 	if u.integrity <= 0.0:
 		caps(tr("HUD_DESTROYED"), Vector2(x, y + 70.0), 13, HudPalette.DIM, 0.22,
-			HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT, BLOCK_W)
-	_bar(Rect2(x, y + 39.0, BLOCK_W, BAR_H), frac, maxf(_trail[team], frac), col, right, u.exposed)
+			HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT, bw)
+	_bar(Rect2(x, y + 39.0, bw, BAR_H), frac, maxf(_trail[team], frac), col, right, u.exposed)
 
 
 ## Framed bar: frame chamfered at the outer end, fill anchored there.
