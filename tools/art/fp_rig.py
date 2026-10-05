@@ -365,7 +365,9 @@ class ArmBuilder:
 
         def w(dd):
             return {fore: 0.5, hand: 0.5} if dd < 0.01 else {fore: 1.0}
-        for d0, d1, col, off, flare, rim in self.arm["bands"]:
+        for band in self.arm["bands"]:
+            d0, d1, col, off, flare, rim = band[:6]
+            bch = band[6] if len(band) > 6 else "flat"
             n = max(2, int((d1 - d0) / 0.04) + 2)
             ds = [d0 + (d1 - d0) * i / (n - 1) for i in range(n)]
             rings = []
@@ -375,7 +377,7 @@ class ArmBuilder:
                 rings.append(ring(Vector((0, -dd, 0)), X, Z, rx + off + fl, rz + off + fl * 0.8, 16, 2.4))
             inner = [ring(Vector((0, -dd, 0)), X, Z, rad(dd)[0] + off * 0.3, rad(dd)[1] + off * 0.3, 16, 2.4)
                      for dd in (d0,)]
-            self.a.loft(inner + rings, [w(d0)] + [w(dd) for dd in ds], col, M=self.H, flip=True)
+            self.a.loft(inner + rings, [w(d0)] + [w(dd) for dd in ds], col, bch, M=self.H, flip=True)
             if rim:
                 rx, rz = rad(d0)
                 r0 = [ring(Vector((0, -d0 + dy, 0)), X, Z, rx + off + flare + dr, rz + off + flare * 0.8 + dr, 16, 2.4)
@@ -516,7 +518,9 @@ class FpRig:
         self._split_mag(n0, n1)
         adder = MeshAdder(h)
         for s in ("R", "L"):
-            ArmBuilder(h, self.canon[s], self.Hrest[s], self.fd["arm"], adder).build()
+            arm = dict(self.fd["arm"])
+            arm["bands"] = arm.get("bands_" + s, arm["bands"])  # per-side sleeves (Ryker's chrome arm)
+            ArmBuilder(h, self.canon[s], self.Hrest[s], arm, adder).build()
         parts = h.finish_parts()
         hero_hd.harden_parts(parts)
         return parts
@@ -550,7 +554,7 @@ class FpRig:
         return P["L"]
 
     def solve_arm(self, side, wristM):
-        S = SHOULDER[side]
+        S = Vector(self.fd.get("shoulder_" + side, SHOULDER[side]))
         w = wristM.translation
         to = w - S
         d = max(0.05, min(to.length, (UPPER_ARM + FOREARM) * 0.999))

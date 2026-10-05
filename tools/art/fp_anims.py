@@ -174,19 +174,26 @@ def _reload_spool(c, t):
 
 
 def _reload_mag(c, t):
-    """Magazine guns: tilt, the mag drops, the left hand seats a new one and slaps it."""
+    """Magazine / drum / cell guns: tilt, the part ejects along `mag.eject`, the off hand
+    brings it back, seats it and slaps it home."""
+    rig = c.rig
+    ej = Vector(c.fd["mag"].get("eject", (0.0, -0.02, -0.35)))
+    side = ej.normalized()
     a = env(t, 0.0, 0.15) - env(t, 0.85, 1.0)
     slap = kf(t, [(0, 0), (0.62, 0), (0.66, 1), (0.74, 0), (1, 0)])
-    W = c.W(-0.04 * a, 0.02 * a, 0.03 * a + 0.01 * slap, 10 * a + 3 * slap, -30 * a, 10 * a)
-    drop = env(t, 0.15, 0.3) * (1 - env(t, 0.42, 0.62))
-    mag = Matrix.Translation(Vector((0, -0.02, -0.35)) * drop)
-    under = mat((-0.02, -0.04, -0.17), (0.15, 0.55, 0.85), (-0.9, -0.1, 0.4))
-    away = mat((-0.10, -0.12, -0.45), (0.2, 0.6, 0.8), (-0.9, 0.0, 0.4))
-    Lw = blend(away, Matrix.Translation(c.rig.mag_c) @ under, env(t, 0.3, 0.6))
+    tilt = (-0.04 * a, 0.02 * a, 0.03 * a, 10 * a, -30 * a, 10 * a)
+    W = c.W(tilt[0], tilt[1], tilt[2] + 0.01 * slap, tilt[3] + 3 * slap, tilt[4], tilt[5])
+    out = env(t, 0.15, 0.3) * (1 - env(t, 0.42, 0.62))
+    mag = Matrix.Translation(ej * out)
+    dorsal = (side * 0.8 + Vector((-0.6, 0.0, 0.0))).normalized()
+    fingers = (-side + Vector((0.0, 0.35, 0.0))).normalized()
+    at = mat(rig.mag_c + side * 0.11 + Vector((-0.02, -0.03, 0.0)), fingers, dorsal)
+    away = Matrix.Translation(ej * 1.1) @ at
+    Lw = blend(away, Matrix.Translation(ej * out) @ at, env(t, 0.3, 0.6))
     wL = env(t, 0.12, 0.3) - env(t, 0.72, 0.9)
-    base = c.W(-0.04 * a, 0.02 * a, 0.03 * a, 10 * a, -30 * a, 10 * a) @ c.rig.G["L"] if c.two else c.L_eye()
+    base = c.W(*tilt) @ rig.G["L"] if c.two else c.L_eye()
     L = blend(base, W @ Lw, wL)
-    shape = mix(c.rig.curl["L"] if c.two else c.left_shape, SHAPES["claw"], wL)
+    shape = mix(rig.curl["L"] if c.two else c.left_shape, SHAPES["claw"], wL)
     return c.pose(W, L, shape, mag=mag)
 
 

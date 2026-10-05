@@ -41,6 +41,8 @@ def build(key, out_root=None):
     t0 = time.time()
     fd = fp_defs.HEROES[key]
     hd = dict(hero_defs.HEROES[fd["hero"]])
+    if fd.get("palette"):  # W16 palette of a hero whose gen def lives on its own branch (fp_weapons_w16)
+        hd["palette"] = fd["palette"]
     paint = {k: v for k, v in hd.get("paint", {}).items() if k != "shader"}
     paint.update(fp_defs.FP_PAINT)
     paint.update(fd.get("paint", {}))
@@ -50,7 +52,8 @@ def build(key, out_root=None):
     h = fp_rig.FpHero(fk, hd, fd)
     rig = fp_rig.FpRig(h, fd)
     wkey = fd.get("weapon") or hd["weapon"]
-    parts = rig.build_meshes(hero_defs.WEAPONS[wkey])
+    import fp_weapons_w16
+    parts = rig.build_meshes(hero_defs.WEAPONS.get(wkey) or fp_weapons_w16.WEAPONS[wkey])
     parts.name = parts.data.name = fk
     for p in parts.data.polygons:
         p.use_smooth = True
