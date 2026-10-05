@@ -48,7 +48,20 @@ func _draw() -> void:
 
 func _crosshair(c: Vector2) -> void:
 	var gs := GameSettings.shared()
-	SettingsCrosshair.draw(self, c, gs.crosshair_style, GameSettings.CROSSHAIR_COLORS[gs.crosshair_color])
+	SettingsCrosshair.draw(self, c + _recoil_offset(), gs.crosshair_style, GameSettings.CROSSHAIR_COLORS[gs.crosshair_color])
+
+
+## W16-COMFORT: the part of the recoil kick the camera does not show (camera
+## recoil < 100%) moves the crosshair to where the shot will land. HUD units.
+func _recoil_offset() -> Vector2:
+	var client: Variant = ctx.client
+	if client == null or client.player_input == null or client.rig == null or client.rig.camera == null:
+		return Vector2.ZERO
+	var kick: Vector2 = client.player_input.hidden_kick()
+	if kick == Vector2.ZERO:
+		return Vector2.ZERO
+	var px := ComfortMath.kick_to_screen_px(kick, client.rig.camera.fov, get_viewport().get_visible_rect().size)
+	return px / get_global_transform_with_canvas().get_scale()
 
 
 func _marker(c: Vector2, t: float) -> void:

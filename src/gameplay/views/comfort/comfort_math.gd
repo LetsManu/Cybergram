@@ -23,3 +23,14 @@ static func ramp(v: float, start: float, full: float) -> float:
 	if full <= start:
 		return 1.0 if v >= start else 0.0
 	return clampf((v - start) / (full - start), 0.0, 1.0)
+
+
+## Screen offset (pixels, +x right, +y down) of where a shot lands relative to the
+## screen centre when the camera does not show `kick` (x yaw, + left; y pitch, +
+## up; radians). Perspective projection with the camera's vertical `fov_deg`:
+## offset = tan(angle) / tan(half_fov) * half_extent. Zero kick = zero offset.
+static func kick_to_screen_px(kick: Vector2, fov_deg: float, viewport: Vector2) -> Vector2:
+	var tan_v := tan(deg_to_rad(clampf(fov_deg, 30.0, 170.0)) * 0.5)
+	var aspect := viewport.x / maxf(viewport.y, 1.0)
+	var tan_h := tan_v * aspect
+	return Vector2(-tan(kick.x) / tan_h * viewport.x * 0.5, -tan(kick.y) / tan_v * viewport.y * 0.5)

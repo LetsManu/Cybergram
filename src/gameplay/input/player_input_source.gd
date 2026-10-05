@@ -49,12 +49,14 @@ var has_pause_menu: bool = false
 ## W11-C1 view punch (client-side only; see RecoilKick).
 var recoil := RecoilKick.new()
 ## W16-COMFORT camera recoil (GameSettings.comfort_camera_recoil, set by ClientWorld).
-## Scales the kick that moves the camera AND the aim sent in the InputCommand, so
-## the aim always equals the view (no hidden offset between what you see and
-## what you shoot). The server's own spread is separate and untouched. Fair
-## because it is WYSIWYG: at 0% you simply do not have to pull the view back
-## down after a burst; hits still land where the (unmoving) crosshair points.
+## FAIR for everyone: the aim sent in the InputCommand ALWAYS includes the full
+## kick (aim_yaw / aim_pitch). The slider only scales how much of the kick the
+## CAMERA shows (view_yaw / view_pitch); the remainder (hidden_kick) is shown by
+## moving the crosshair to where the shot will land (CenterFeedback). The server
+## spread is separate and untouched.
 var camera_recoil_scale: float = 1.0
+## Debug (evidence, `--debug-recoil-demo`): hold fire without mouse capture.
+var debug_fire: bool = false
 ## Weapon whose recovery values apply while no shot is kicking (ClientWorld sets it).
 var recoil_def: WeaponDef
 var pad_active: bool = false
@@ -72,6 +74,7 @@ func setup(look_settings: LookSettings, movement: MovementDef) -> void:
 	look = look_settings
 	GameSettings.shared()  # first use applies the saved key bindings to the InputMap
 	max_pitch_rad = deg_to_rad(movement.max_pitch_deg)
+	debug_fire = OS.get_cmdline_user_args().has("--debug-recoil-demo")
 
 
 func _input(event: InputEvent) -> void:
@@ -111,8 +114,17 @@ func request_action(action: int, arg: int = 0) -> void:
 	_actions.append([action, arg])
 
 
-## Aim yaw / pitch = player look + recoil kick scaled by the comfort option
-## (camera and InputCommand agree).
+## Aim sent to the server: player look + the FULL recoil kick (same for everyone,
+## independent of the comfort slider).
+func aim_yaw() -> float:
+	return fposmod(live_yaw + recoil.kick.x, TAU)
+
+
+func aim_pitch() -> float:
+	return clampf(live_pitch + recoil.kick.y, -max_pitch_rad, max_pitch_rad)
+
+
+## Camera yaw / pitch: player look + the kick scaled by the comfort option.
 func view_yaw() -> float:
 	return fposmod(live_yaw + recoil.kick.x * camera_recoil_scale, TAU)
 
@@ -121,7 +133,8 @@ func view_pitch() -> float:
 	return clampf(live_pitch + recoil.kick.y * camera_recoil_scale, -max_pitch_rad, max_pitch_rad)
 
 
-## The kick the camera does not show (full - scaled), for the viewmodel.
+## The kick the camera does not show (full - scaled): the crosshair (and the
+## viewmodel) show it, so the crosshair marks where the shot lands.
 func hidden_kick() -> Vector2:
 	return ComfortMath.hidden_kick(recoil.kick, camera_recoil_scale)
 
@@ -224,7 +237,7 @@ func stick_look_step(raw: Vector2, delta: float, targets: Array = []) -> Vector2
 
 ## Fire / alt-fire need the mouse captured, except while the pad is in use.
 func _can_shoot() -> bool:
-	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or pad_active
+	return debug_fire or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or pad_active
 
 
 ## True while the gamepad spec bound to `action` is held (device 0). Used for
@@ -254,8 +267,8 @@ func sample(seq: int, out: InputCommand) -> void:
 		_sample_neutral(out)
 		return
 	out.move = _move_vector()
-	out.yaw = view_yaw()
-	out.pitch = view_pitch()
+	out.yaw = aim_yaw()
+	out.pitch = aim_pitch()
 	out.buttons = 0
 	if _pressed("jump", KEY_SPACE):
 		out.buttons |= InputCommand.BTN_JUMP
@@ -320,6 +333,8 @@ func _alt_fire_down() -> bool:
 
 
 func _fire_down() -> bool:
+	if debug_fire:
+		return true
 	if InputMap.has_action(&"fire"):
 		return Input.is_action_pressed(&"fire")
 	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)

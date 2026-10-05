@@ -75,9 +75,9 @@ var tutorial_done: bool = false
 ## turntable (design/ux/ui-kit.md §5). Video tab.
 var reduce_motion: bool = false
 ## Comfort (W16-COMFORT, [comfort] section). Scales are 0..1 (UI shows percent).
-## Camera recoil: share of the view punch applied to the camera AND to the aim
-## sent in the InputCommand (what you see is what you shoot). The server's spread
-## is separate and never scaled. The gun still kicks visually at 0.
+## Camera recoil: share of the view punch the CAMERA shows. The aim sent to the
+## server always includes the full kick (fair for everyone); the remainder moves
+## the crosshair to where the shot lands. The server's spread is never scaled.
 var comfort_camera_recoil: float = 1.0
 ## Weapon (viewmodel) walk bob.
 var comfort_weapon_bob: bool = true

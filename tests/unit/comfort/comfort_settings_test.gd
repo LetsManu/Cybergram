@@ -95,16 +95,35 @@ func test_preset() -> void:
 	assert_float(s.fov_deg).is_equal(115.0)  # never lowered
 
 
-func test_camera_recoil_scales_view_and_aim_together() -> void:
+func test_aim_is_full_kick_camera_is_scaled() -> void:
 	var p := PlayerInputSource.new()
 	p.recoil.kick = Vector2(0.02, 0.04)
-	p.camera_recoil_scale = 0.5
-	assert_float(p.view_pitch()).is_equal_approx(0.02, 0.0001)
 	var cmd := InputCommand.new()
-	p.sample(1, cmd)
-	assert_float(cmd.pitch).is_equal_approx(p.view_pitch(), 0.001)
-	assert_float(cmd.yaw).is_equal_approx(p.view_yaw(), 0.001)
-	p.camera_recoil_scale = 0.0
-	assert_float(p.view_pitch()).is_equal(0.0)
-	assert_float(p.hidden_kick().y).is_equal_approx(0.04, 0.0001)  # the gun still kicks
+	for scale in [1.0, 0.5, 0.0]:
+		p.camera_recoil_scale = scale
+		p.sample(1, cmd)
+		# the aim sent always includes the FULL kick (independent of the slider)
+		assert_float(cmd.pitch).is_equal_approx(0.04, 0.001)
+		assert_float(cmd.yaw).is_equal_approx(0.02, 0.001)
+		# the camera shows kick * scale
+		assert_float(p.view_pitch()).is_equal_approx(0.04 * scale, 0.0001)
+		assert_float(p.view_yaw()).is_equal_approx(0.02 * scale, 0.0001)
+		# the remainder is what the crosshair shows
+		assert_float(p.hidden_kick().y).is_equal_approx(0.04 * (1.0 - scale), 0.0001)
+		assert_float(p.hidden_kick().x).is_equal_approx(0.02 * (1.0 - scale), 0.0001)
 	p.free()
+
+
+func test_crosshair_offset_is_remaining_kick_projected() -> void:
+	var vp := Vector2(1280, 720)
+	assert_vector(ComfortMath.kick_to_screen_px(Vector2.ZERO, 90.0, vp)).is_equal(Vector2.ZERO)
+	# 45 degrees up at 90 deg vertical FOV = the top edge: half the viewport height up.
+	var up := ComfortMath.kick_to_screen_px(Vector2(0.0, deg_to_rad(45.0)), 90.0, vp)
+	assert_float(up.y).is_equal_approx(-360.0, 0.01)
+	assert_float(up.x).is_equal_approx(0.0, 0.001)
+	# yaw + is left: negative x
+	assert_float(ComfortMath.kick_to_screen_px(Vector2(0.05, 0.0), 90.0, vp).x).is_less(0.0)
+	# a wider FOV shrinks the same kick on screen
+	var a := ComfortMath.kick_to_screen_px(Vector2(0.0, 0.05), 90.0, vp).y
+	var b := ComfortMath.kick_to_screen_px(Vector2(0.0, 0.05), 120.0, vp).y
+	assert_float(absf(b)).is_less(absf(a))

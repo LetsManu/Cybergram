@@ -729,6 +729,6 @@ HUD_SET_COMFORT_SMOOTH,Smooth corrections
 HUD_SET_COMFORT_VIGNETTE,Comfort vignette
 HUD_SET_COMFORT_PRESET,Apply motion comfort preset
 HUD_SET_COMFORT_PRESET_DONE,Preset applied
-HUD_SET_COMFORT_NOTE,"Camera recoil also scales the aim you send, so what you see is what you shoot."
+HUD_SET_COMFORT_NOTE,"Recoil is the same for everyone; lower values move the crosshair instead of the screen."
 HUD_COMFORT_HINT,Prone to motion sickness? See Settings > Comfort.
 HUD_COMFORT_HINT_DISMISS,Dismiss
