@@ -8,7 +8,7 @@ extends Control
 ##   add_child(UiIcon.make(&"gear", 18.0, UiKit.tokens().text_dim))
 
 const KINDS: Array[StringName] = [&"gear", &"close", &"minus", &"left", &"right", &"up", &"down",
-	&"friends", &"play", &"check", &"ring", &"target", &"diamond", &"add_friend", &"search"]
+	&"friends", &"play", &"check", &"ring", &"target", &"diamond", &"add_friend", &"search", &"home", &"notes"]
 
 @export var kind: StringName = &"gear":
 	set(v):
@@ -40,6 +40,22 @@ func _draw() -> void:
 			for k in 8:
 				var d := Vector2.from_angle(TAU * k / 8.0)
 				draw_line(c + d * r * 0.62, c + d * r * 0.95, color, w, true)
+		&"home":  # mockup path M4 11l8-7 8 7M6 10v10h12V10 on a 24 grid
+			var k := s / 24.0
+			var o := c - Vector2(12, 12) * k
+			draw_polyline(PackedVector2Array([o + Vector2(4, 11) * k, o + Vector2(12, 4) * k, o + Vector2(20, 11) * k]),
+				color, w, true)
+			draw_polyline(PackedVector2Array([o + Vector2(6, 10) * k, o + Vector2(6, 20) * k, o + Vector2(18, 20) * k,
+				o + Vector2(18, 10) * k]), color, w, true)
+		&"notes":  # M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5
+			var k := s / 24.0
+			var o := c - Vector2(12, 12) * k
+			draw_polyline(PackedVector2Array([o + Vector2(7, 3) * k, o + Vector2(14, 3) * k, o + Vector2(18, 7) * k,
+				o + Vector2(18, 21) * k, o + Vector2(7, 21) * k, o + Vector2(7, 3) * k]), color, w, true)
+			draw_polyline(PackedVector2Array([o + Vector2(14, 3) * k, o + Vector2(14, 7) * k, o + Vector2(18, 7) * k]),
+				color, w, true)
+			draw_line(o + Vector2(10, 12) * k, o + Vector2(15, 12) * k, color, w, true)
+			draw_line(o + Vector2(10, 16) * k, o + Vector2(15, 16) * k, color, w, true)
 		&"diamond":
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r),
 				c + Vector2(-r, 0)]), color)

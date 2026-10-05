@@ -172,6 +172,39 @@ static func progress_text(got: int, total: int, bytes_per_s: float) -> String:
 	return s
 
 
+
+## Home headline from a notes title: the part after "Cybergram vX.Y.Z:" with
+## a capital first letter ("polished client" -> "Polished client").
+static func headline_title(title: String) -> String:
+	var t: String = title.strip_edges()
+	var cut: int = t.find(": ")
+	if cut >= 0:
+		t = t.substr(cut + 2).strip_edges()
+	return t.left(1).to_upper() + t.substr(1) if t != "" else title
+
+
+## Markdown paragraph as one plain line (no emphasis marks, joined lines).
+static func plain_text(md: String) -> String:
+	var out: PackedStringArray = PackedStringArray()
+	for raw in md.split("\n"):
+		var l: String = raw.strip_edges()
+		if l != "":
+			out.append(l.replace("**", "").replace("`", "").replace("*", ""))
+	return " ".join(out)
+
+
+## First bullet of a notes section as plain text, without a leading "Label:".
+static func first_bullet(md: String) -> String:
+	for raw in md.split("\n"):
+		var l: String = raw.strip_edges()
+		if l.begins_with("- ") or l.begins_with("* "):
+			var t: String = l.substr(2).replace("**", "").replace("`", "").strip_edges()
+			var colon: int = t.find(": ")
+			if colon > 0 and colon < 28:
+				t = t.substr(colon + 2)
+			return t.left(1).to_upper() + t.substr(1)
+	return ""
+
 ## Splits release notes markdown for the news cards: `headline` (first "# "
 ## line), `intro` (text before the first "## "), `sections` = [{title, md}].
 static func split_notes(md: String) -> Dictionary:
