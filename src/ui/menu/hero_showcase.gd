@@ -356,6 +356,8 @@ func _show_model(stem: String) -> void:
 		return
 	_model = HeroModelLoader.build(key, ModelPalette.TEAM_NEUTRAL)  # rigged toon model, box fallback
 	_turn.add_child(_model)
+	if _model.has_method(&"play_showcase"):
+		_model.call(&"play_showcase")  # menu idle clip; box models have none
 	_turn.rotation.y = deg_to_rad(205.0)  # the portrait's three-quarter view
 
 

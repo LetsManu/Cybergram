@@ -44,9 +44,11 @@ var _hooked_wardlings: bool = false
 var _last_s: float = 0.0
 var _last_capture: Dictionary = {}  # "id:team" -> match seconds
 var _last_defence: Dictionary = {}  # id -> match seconds
-var _mid: HardpointSim
-var _mid_owner: int = -2
-var _mid_since: float = -1e9
+## Forward Beacons (§3.5): every Mid hardpoint (1 on the slice, 3 on the full
+## map), its last seen owner and when that owner took it.
+var _mids: Array[HardpointSim] = []
+var _mid_owner: Dictionary = {}  # HardpointSim -> owner
+var _mid_since: Dictionary = {}  # HardpointSim -> match seconds
 
 
 func _init(world: ServerWorld, rules_: EconomyRulesDef, catalog_: ArmoryCatalogDef, map: MapDef) -> void:
@@ -320,27 +322,57 @@ func set_spawn_choice(h: HeroBody, choice: int) -> int:
 	return HeroProgress.Result.OK
 
 
-## The Mid is held by `team`, attuned (15 s) and not under attack.
+## True if any Mid Beacon of `team` is ready (held, attuned 15 s, not under attack).
 func beacon_ready(team: int) -> bool:
-	if _mid == null or _mid.owner != team or server.match_seconds() - _mid_since < rules.beacon_attune_s:
+	return not ready_beacons(team).is_empty()
+
+
+## The Mid hardpoints whose Forward Beacon `team` can spawn at now.
+func ready_beacons(team: int) -> Array[HardpointSim]:
+	var out: Array[HardpointSim] = []
+	for m in _mids:
+		if _mid_ready(m, team):
+			out.append(m)
+	return out
+
+
+func _mid_ready(m: HardpointSim, team: int) -> bool:
+	if m.owner != team or server.match_seconds() - float(_mid_since.get(m, -1e9)) < rules.beacon_attune_s:
 		return false
-	if _mid.capturing_team == 1 - team and _mid.progress > 0.0:
+	if m.capturing_team == 1 - team and m.progress > 0.0:
 		return false
 	for h in heroes():
 		if h.combat.team != team and not h.combat.dead \
-				and _flat(h.state.position, _mid.def.position) <= rules.beacon_threat_radius_m:
+				and _flat(h.state.position, m.def.position) <= rules.beacon_threat_radius_m:
 			return false
 	return true
 
 
-## Beacon spawn point: inside the Mid zone, on the side toward `team`'s HQ.
-func beacon_point(team: int) -> Vector3:
-	var at := _mid.def.position
+## Beacon spawn point of `team`: inside a ready Mid zone, on the side toward the
+## team's HQ. With several ready Mids (full map) the one in `lane` wins (the
+## lane the hero fell in), else the Center Mid, else the first ready one.
+func beacon_point(team: int, lane: int = -1) -> Vector3:
+	var ready := ready_beacons(team)
+	var m: HardpointSim = null
+	for r in ready:
+		if r.lane == lane:
+			m = r
+	if m == null and not ready.is_empty():
+		m = ready[0]
+		var centre := (server.objectives.lanes.size() - 1) / 2 if server.objectives != null else 0
+		for r in ready:
+			if r.lane == centre:
+				m = r
+	if m == null:
+		m = _mids[0] if not _mids.is_empty() else null
+	if m == null:
+		return Vector3.ZERO
+	var at := m.def.position
 	var hq := map_def.hq(team) if map_def != null else null
 	var toward := Vector3.BACK
 	if hq != null:
 		toward = Vector3(hq.sanctum.x - at.x, 0.0, hq.sanctum.z - at.z).normalized()
-	return at + toward * _mid.def.zone_radius * 0.5 + Vector3(0.0, 0.05, 0.0)
+	return at + toward * m.def.zone_radius * 0.5 + Vector3(0.0, 0.05, 0.0)
 
 
 ## Respawn position for `h`, or null for the Sanctum (also when the Beacon
@@ -348,20 +380,22 @@ func beacon_point(team: int) -> Vector3:
 func respawn_point(h: HeroBody) -> Variant:
 	var p := progress_of(h)
 	if p.spawn_choice == HeroProgress.SPAWN_BEACON and beacon_ready(h.combat.team):
-		return beacon_point(h.combat.team)
+		var lane := map_def.nearest_lane(h.state.position) if map_def != null else -1
+		return beacon_point(h.combat.team, lane)
 	return null
 
 
 func _track_mid(now_s: float) -> void:
-	if _mid == null and server.objectives != null:
+	if _mids.is_empty() and server.objectives != null:
 		for hp in server.objectives.all:
 			if hp.def.tier == HardpointDef.Tier.MID:
-				_mid = hp
-				_mid_owner = hp.owner
-				break
-	if _mid != null and _mid.owner != _mid_owner:
-		_mid_owner = _mid.owner
-		_mid_since = now_s
+				_mids.append(hp)
+				_mid_owner[hp] = hp.owner
+				_mid_since[hp] = -1e9
+	for m in _mids:
+		if m.owner != int(_mid_owner.get(m, -2)):
+			_mid_owner[m] = m.owner
+			_mid_since[m] = now_s
 
 
 # --- Input actions ------------------------------------------------------------------

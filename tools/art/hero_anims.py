@@ -108,6 +108,8 @@ class Poser:
 
     def key(self, frame):
         for pb in self.pb:
+            if pb.name.startswith("Sec_"):  # spring bones: rest pose only, owned by the runtime simulator
+                continue
             pb.keyframe_insert("rotation_quaternion", frame=frame)
         self.pb["Hips"].keyframe_insert("location", frame=frame)
 
@@ -244,7 +246,15 @@ def cast_clip(h, name, gesture, frames=24, chest=()):
 
     def fn(p, t, f):
         lower = _env(t, 0.0, 1.0)
-        extra = Matrix.Rotation(math.radians(-25 * lower), 4, "X")
+        # W14 timing: anticipation coil (0-0.18), snap release, overshoot (~0.45), settle.
+        coil = _env(t, 0.0, 0.3)
+        snap = _env(t, 0.15, 0.62)
+        settle = _env(t, 0.5, 1.0)
+        extra = Matrix.Rotation(math.radians(-25 * lower + 8 * coil), 4, "X")
+        p.hips((0, -0.015 * coil * p.k + 0.012 * snap * p.k, -0.03 * coil * p.k - 0.01 * settle * p.k))
+        p.rot("Spine", [("x", -6 * coil + 9 * snap - 2 * settle), ("z", 10 * coil - 14 * snap + 3 * settle)])
+        p.rot("Chest", [("x", -4 * coil + 6 * snap), ("z", 6 * coil - 8 * snap)])
+        legs(p, 0, 0, 0, crouch=0.18 * coil + 0.08 * settle)
         # Find the bracketing keys; None = the stance hand position.
         pts = []
         for kt, val in keys:
@@ -266,7 +276,11 @@ def cast_clip(h, name, gesture, frames=24, chest=()):
                 pos = base.lerp(pos, w)
             left = (pos, yd, nd)
         p.reset()
-        ch = [(a, d * lower) for a, d in chest]
+        p.hips((0, -0.015 * coil * p.k + 0.012 * snap * p.k, -0.03 * coil * p.k - 0.01 * settle * p.k))
+        p.rot("Spine", [("x", -6 * coil + 9 * snap - 2 * settle), ("z", 10 * coil - 14 * snap + 3 * settle)])
+        p.rot("Chest", [("x", -4 * coil + 6 * snap), ("z", 6 * coil - 8 * snap)])
+        legs(p, 0, 0, 0, crouch=0.18 * coil + 0.08 * settle)
+        ch = [(a, d * (lower + 0.25 * snap)) for a, d in chest]
         upper_pose(h, p, 0.0, extra, left=left, chest=ch)
 
     upper_clip(h, name, frames, fn)
@@ -349,9 +363,13 @@ def author_all(h, use_mocap=True):
         upper_clip(h, name, 1, lambda p, t, f, pitch=pitch: upper_pose(h, p, pitch))
 
     def shoot(p, t, f):
-        kick = math.exp(-t * 5.0) * (1.0 if f > 0 else 0.0)
-        p.rot("Chest", [("x", 4 * kick), ("z", 2 * kick)])
-    upper_clip(h, "shoot", 6, shoot)
+        # W14 recoil: 1-frame snap back + muzzle climb, damped return with a small overshoot.
+        kick = (math.exp(-t * 6.0) - 0.12 * math.sin(min(1.0, t * 1.4) * math.pi)) * (1.0 if f > 0 else 0.0)
+        extra = Matrix.Translation(Vector((0, -0.045 * kick, 0.006 * kick))) @ Matrix.Rotation(math.radians(7 * kick), 4, "X")
+        p.rot("Chest", [("x", 7 * kick), ("z", 3 * kick)])
+        upper_pose(h, p, 0.0, extra, chest=[("x", 3 * kick)])
+        p.rot("Clavicle_R", [("y", -4 * kick)])
+    upper_clip(h, "shoot", 8, shoot)
 
     def hit(p, t, f):
         e = math.sin(math.pi * t)
@@ -404,6 +422,48 @@ def author_all(h, use_mocap=True):
         p.set_M("Weapon", p.M("Hand_R") @ off)
     if "death" not in skip:
         upper_clip(h, "death", 36, death)
+    # W14: second death variant (mocap "death" falls forward): knocked backward.
+    upper_clip(h, "death_back", 36, death)
+    showcase_clip(h)
     h.rig.animation_data.action = None
     Poser(h).reset()
     return mocap_info
+
+
+# W14: hero-specific menu showcase idle (confident pose loop; key "showcase" in the stance).
+SHOWCASE = {
+    # weapon_extra (deg about X, deg about Y, lift m), chest twist, head turn, hip shift, weight leg
+    "default": {"port": (-38, 18, 0.02), "twist": 12, "head": -10, "shift": 0.035, "lean": -4},
+    "brannoc": {"port": (-55, 30, 0.06), "twist": 18, "head": -6, "shift": 0.03, "lean": -7},
+    "ryker": {"port": (-42, 22, 0.03), "twist": 14, "head": -12, "shift": 0.04, "lean": -3},
+    "vesper": {"port": (-20, 8, 0.0), "twist": 8, "head": -16, "shift": 0.05, "lean": -2},
+    "liora": {"port": (-30, 10, 0.01), "twist": 6, "head": -8, "shift": 0.03, "lean": -5},
+    "sable": {"port": (-60, 12, 0.0), "twist": 20, "head": -18, "shift": 0.045, "lean": 2},
+    "juniper": {"port": (-48, 26, 0.04), "twist": 10, "head": -4, "shift": 0.03, "lean": -3},
+    "hex": {"port": (-25, 34, 0.02), "twist": 16, "head": -14, "shift": 0.05, "lean": 3},
+}
+
+
+def showcase_clip(h, frames=150):
+    """Menu idle: weapon at port arms, chest open, weight on one leg, slow breathing and a
+    glance aside then back (loops)."""
+    sc = dict(SHOWCASE["default"], **SHOWCASE.get(h.key, {}))
+    ax, ay, lift = sc["port"]
+
+    def fn(p, t, f):
+        ph = 2 * math.pi * t
+        br = math.sin(ph * 2)
+        glance = _env(t, 0.35, 0.8)
+        legs(p, 0, 0, 0)
+        p.rot("UpperLeg_L", [("y", 5), ("z", -9), ("x", 3)])
+        p.rot("UpperLeg_R", [("y", -6), ("z", 11), ("x", -2)])
+        p.rot("LowerLeg_R", [("x", -9)])
+        p.rot("Hips", [("y", -6), ("z", -4)])
+        p.hips((sc["shift"] * p.k, 0, -0.008 * p.k + 0.002 * br * p.k))
+        p.rot("Spine", [("y", 4), ("x", sc["lean"] + 0.8 * br), ("z", sc["twist"] * 0.4)])
+        p.rot("Chest", [("x", -3 + 0.6 * br), ("z", sc["twist"] * 0.3)])
+        extra = (Matrix.Translation(Vector((0, 0, lift * p.k))) @ Matrix.Rotation(math.radians(ax + 1.5 * br), 4, "X")
+                 @ Matrix.Rotation(math.radians(ay), 4, "Z"))
+        upper_pose(h, p, 0.0, extra, chest=[("x", -4 + br)])
+        p.rot("Head", [("z", sc["head"] + 22 * glance), ("x", -4 + 3 * glance)])
+    upper_clip(h, "showcase", frames, fn)

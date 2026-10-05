@@ -30,6 +30,8 @@ func _draw() -> void:
 			reason = tr("HUD_END_UPLINK_DAMAGE") % winner_name
 		MatchRules.EndReason.DRAW:
 			reason = tr("HUD_END_DRAW")
+		MatchRules.EndReason.SUDDEN_DEATH:
+			reason = tr("HUD_END_SUDDEN_DEATH") % winner_name
 	var r := Rect2(Vector2(0.0, 0.0), Vector2(size.x, 132.0))
 	panel(r, ctx.panel_strong)
 	text(title, Vector2(0.0, 78.0), 68, col, ctx.font_numbers, HORIZONTAL_ALIGNMENT_CENTER, size.x)

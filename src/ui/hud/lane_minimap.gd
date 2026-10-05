@@ -1,0 +1,90 @@
+class_name LaneMinimap
+extends HudWidget
+## W14 lane minimap (top-left): the map's lanes, flank tunnels and hardpoints in
+## schematic top-down form, rotated 180° for the Syndicate so the own HQ is
+## always on the left. Chips use the FrontStrip glyphs' colours (own / enemy /
+## neutral) with a white outline while contested; the own team's front in each
+## lane gets a white tick; the local hero is a white arrow. Presentation only:
+## it reads ClientWorld.map_def (static layout), .hardpoints and .fronts
+## (replicated) and the local body; no gameplay state.
+
+const PAD: float = 10.0
+const CHIP_R: float = 4.5
+
+
+func _draw() -> void:
+	var c := ctx.client
+	if c == null or c.map_def == null or c.map_def.lanes.is_empty() or c.hardpoints.is_empty():
+		return
+	var md := c.map_def
+	var team := ctx.own_team()
+	var bounds := _bounds(md)
+	var r := Rect2(Vector2.ZERO, size)
+	panel(r)
+	var inner := r.grow(-PAD)
+	var flip := team == MapDef.TEAM_SYNDICATE
+	var to_px := func(p: Vector3) -> Vector2:
+		var u := (-p.z - bounds.position.x) / maxf(bounds.size.x, 1.0)
+		var v := (p.x - bounds.position.y) / maxf(bounds.size.y, 1.0)
+		if flip:
+			u = 1.0 - u
+			v = 1.0 - v
+		return inner.position + Vector2(u * inner.size.x, v * inner.size.y)
+	var line_col := Color(1, 1, 1, 0.28)
+	for hq in md.hqs:
+		var gates: PackedVector3Array = hq.lane_gates if not hq.lane_gates.is_empty() else PackedVector3Array([hq.lane_gate])
+		for li in md.lanes.size():
+			var hps := md.lanes[li].hardpoints
+			if hps.is_empty():
+				continue
+			var near: HardpointDef = hps[0] if hq.team == MapDef.TEAM_CONCORD else hps[hps.size() - 1]
+			var g: Vector3 = gates[mini(li, gates.size() - 1)]
+			draw_line(to_px.call(hq.sanctum), to_px.call(g), line_col, 2.0)
+			draw_line(to_px.call(g), to_px.call(near.position), line_col, 2.0)
+		draw_circle(to_px.call(hq.uplink), 5.0, ctx.team_color(hq.team))
+	for lane in md.lanes:
+		for k in lane.hardpoints.size() - 1:
+			draw_line(to_px.call(lane.hardpoints[k].position), to_px.call(lane.hardpoints[k + 1].position), line_col, 2.0)
+		for f in lane.flank_loops:
+			for k in f.waypoints.size() - 1:
+				draw_line(to_px.call(f.waypoints[k]), to_px.call(f.waypoints[k + 1]), Color(0.7, 0.55, 1.0, 0.35), 1.0)
+	var base := 0
+	for li in md.lanes.size():
+		var hps := md.lanes[li].hardpoints
+		var fi := li * 2 + team
+		var front := c.fronts[fi] if fi < c.fronts.size() else -1
+		for k in hps.size():
+			var i := base + k
+			if i >= c.hardpoints.size():
+				break
+			var st := c.hardpoints[i]
+			var p: Vector2 = to_px.call(hps[k].position)
+			var col := ctx.team_color(st.owner) if st.owner >= 0 else Color(0.2, 0.2, 0.25)
+			draw_circle(p, CHIP_R, col)
+			draw_arc(p, CHIP_R + 1.0, 0.0, TAU, 12, Color.WHITE if st.contested else Color(1, 1, 1, 0.5),
+				2.0 if st.contested else 1.0, true)
+			if k == front:
+				draw_arc(p, CHIP_R + 4.0, 0.0, TAU, 16, Color.WHITE, 1.5, true)
+		base += hps.size()
+	if c.body != null:
+		var me: Vector2 = to_px.call(c.body.global_position)
+		var yaw: float = c.body.look_yaw if "look_yaw" in c.body else 0.0
+		var fwd3 := Vector3(-sin(yaw), 0.0, -cos(yaw))
+		var ahead: Vector2 = to_px.call(c.body.global_position + fwd3 * 12.0)
+		var d := (ahead - me).normalized()
+		var side := Vector2(-d.y, d.x)
+		draw_colored_polygon(PackedVector2Array([me + d * 7.0, me - d * 4.0 + side * 4.0, me - d * 4.0 - side * 4.0]), Color.WHITE)
+
+
+## Layout bounds in (lane distance -z, lateral x), padded.
+static func _bounds(md: MapDef) -> Rect2:
+	var pts: Array[Vector3] = []
+	for hq in md.hqs:
+		pts.append(hq.sanctum)
+	for lane in md.lanes:
+		for h in lane.hardpoints:
+			pts.append(h.position)
+	var r := Rect2(Vector2(-pts[0].z, pts[0].x), Vector2.ZERO)
+	for p in pts:
+		r = r.expand(Vector2(-p.z, p.x))
+	return r.grow_individual(4.0, 18.0, 4.0, 18.0)

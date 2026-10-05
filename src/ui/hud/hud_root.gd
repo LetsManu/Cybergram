@@ -30,6 +30,8 @@ var _root: Control
 var _safe: Control
 var _header: MatchHeader
 var _front: FrontStrip
+## W14: lane minimap (all lanes' hardpoints and fronts).
+var _minimap: LaneMinimap
 var _kill_feed: KillFeed
 var _tracker: ObjectiveTracker
 var _toasts: ToastLane
@@ -83,6 +85,7 @@ func _build() -> void:
 	var z_top := _zone("TopCentre", 0.26, 0.0, 0.74, 0.16)
 	_header = _add(MatchHeader.new(), z_top, Rect2(0, 0, 1, 0), Vector2(0, 62)) as MatchHeader
 	_front = _add(FrontStrip.new(), z_top, Rect2(0, 0, 1, 0), Vector2(68, 120)) as FrontStrip
+	_minimap = _fill(LaneMinimap.new(), _zone("TopLeft", 0.01, 0.02, 0.2, 0.2)) as LaneMinimap
 	_kill_feed = _fill(KillFeed.new(), _zone("TopRight", 0.76, 0.0, 1.0, 0.22)) as KillFeed
 	_tracker = _fill(ObjectiveTracker.new(), _zone("RightMiddle", 0.76, 0.26, 1.0, 0.40)) as ObjectiveTracker
 	# E14: minimal Plant / Breach cue under the tracker (Cell carried, channel, Generator).

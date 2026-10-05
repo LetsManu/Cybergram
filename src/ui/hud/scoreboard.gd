@@ -36,9 +36,33 @@ func _draw() -> void:
 		text("%s   %s" % [HudFormat.clock(m.time_s), phase], Vector2(r.position.x, y), 18, HudPalette.TEXT_DIM,
 			ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, W - 20.0)
 	y += 18.0
+	y = _fronts_line(x, y, team)
 	y = _team_block(own, team, x, y, true)
 	y += 8.0
 	_team_block(enemy, 1 - team, x, y, false)
+
+
+## W14: the own team's front per lane ("FRONT  N N-MID  C C-AO  S S-AO").
+func _fronts_line(x: float, y: float, team: int) -> float:
+	var client := ctx.client
+	var md := client.map_def
+	if md == null or md.lanes.is_empty():
+		return y
+	var parts: Array[String] = []
+	var base := 0
+	var defs := client.hardpoint_defs()
+	for li in md.lanes.size():
+		var fi := li * 2 + team
+		var front := client.fronts[fi] if fi < client.fronts.size() else -1
+		var tag := tr(FrontStrip.LANE_TAGS[li]) if md.lanes.size() > 1 and li < FrontStrip.LANE_TAGS.size() else ""
+		var hp := tr("HUD_SCOREBOARD_NO_FRONT")
+		if front >= 0 and base + front < defs.size():
+			hp = FrontStrip.tag_of(defs[base + front].id, md.lanes.size())
+		parts.append(("%s %s" % [tag, hp]).strip_edges())
+		base += md.lanes[li].hardpoints.size()
+	y += 14.0
+	text("%s   %s" % [tr("HUD_SCOREBOARD_FRONTS"), "   ".join(parts)], Vector2(x, y), 14, HudPalette.TEXT_DIM, ctx.font_display)
+	return y + 6.0
 
 
 func _team_block(rows: Array, team: int, x: float, y: float, own: bool) -> float:

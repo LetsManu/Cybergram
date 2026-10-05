@@ -154,5 +154,20 @@ func _init() -> void:
 	var bad_exe: String = good.replace('"exe":"g"', '"exe":"../../bin/sh"')
 	_check(not LauncherCore.parse_manifest(bad_exe)["ok"], "manifest unsafe exe path")
 
+	_check(not LauncherCore.is_appimage("") and LauncherCore.is_appimage("/x/C.AppImage"), "appimage: env detection")
+	_check(LauncherCore.appimage_data_root("", "/home/u") == "/home/u/.local/share/cybergram", "appimage: default data root")
+	_check(LauncherCore.appimage_data_root("/xdg", "/home/u") == "/xdg/cybergram", "appimage: XDG data root")
+	var sd: String = OS.get_environment("TMPDIR") if OS.get_environment("TMPDIR") != "" else "/tmp"
+	sd = sd.path_join("cg_seed_test")
+	LauncherCore.remove_tree(sd)
+	DirAccess.make_dir_recursive_absolute(sd + "/b/game/data")
+	FileAccess.open(sd + "/b/game/installed_version.txt", FileAccess.WRITE).store_string("1.0.0\n")
+	FileAccess.open(sd + "/b/game/data/x", FileAccess.WRITE).store_string("x")
+	_check(LauncherCore.seed_bundled_game(sd + "/b", sd + "/r") == "" and FileAccess.file_exists(sd + "/r/game/data/x"), "appimage: bundled game seeded")
+	FileAccess.open(sd + "/r/game/mine", FileAccess.WRITE).store_string("m")
+	LauncherCore.seed_bundled_game(sd + "/b", sd + "/r")
+	_check(FileAccess.file_exists(sd + "/r/game/mine"), "appimage: existing install not overwritten")
+	LauncherCore.remove_tree(sd)
+
 	print("launcher core tests: %d checks, %d failed" % [_checks, _fails])
 	quit(1 if _fails > 0 else 0)

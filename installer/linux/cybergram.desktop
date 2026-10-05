@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Cybergram
+Comment=PvP first-person MOBA shooter
+Exec=CybergramLauncher
+Icon=cybergram
+Categories=Game;
+Terminal=false

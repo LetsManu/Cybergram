@@ -88,6 +88,7 @@ var _install_label: Label
 var _repair: Button
 var _dialog: FileDialog
 var _confirm: ConfirmationDialog
+var _launcher_notice: String = ""
 var _pending_root: String = ""
 
 
@@ -106,6 +107,16 @@ func _ready() -> void:
 	var root: String = OS.get_executable_path().get_base_dir()
 	if _settings.install_root != "":
 		root = _settings.install_root
+	if LauncherCore.is_appimage(OS.get_environment("APPIMAGE")):
+		# An AppImage is read-only: keep (and update) the game in a per-user folder,
+		# seeded from the copy bundled inside the image on first run.
+		if _settings.install_root == "":
+			root = LauncherCore.appimage_data_root(OS.get_environment("XDG_DATA_HOME"), OS.get_environment("HOME"))
+		var bundle: String = OS.get_environment("APPDIR")
+		if bundle != "" and not args.has("update-to"):
+			var serr: String = LauncherCore.seed_bundled_game(bundle.path_join("usr/share/cybergram"), String(args.get("install-root", root)))
+			if serr != "":
+				print("LAUNCHER: %s" % serr)
 	root = String(args.get("install-root", root))
 	if args.has("update-to"):
 		root = String(args["update-to"])
@@ -163,6 +174,15 @@ func _on_manifest() -> void:
 			get_tree().quit(11)
 		return
 	_self_done = true
+	if LauncherCore.is_appimage(OS.get_environment("APPIMAGE")):
+		# The AppImage is a single read-only file and the feed only carries the bare
+		# launcher, so it cannot be swapped in place: tell the player instead.
+		print("LAUNCHER: self-update: launcher %s is available (AppImage: download the new AppImage)" % entry["version"])
+		if _headless_mode == "selfupdate":
+			get_tree().quit(12)
+		elif _status != null:
+			_launcher_notice = "Launcher %s is available. Download the new AppImage from the Releases page." % entry["version"]
+		return
 	print("LAUNCHER: self-update %s -> %s" % [_own_version, entry["version"]])
 	if _status != null:
 		_status.text = "Updating the launcher to %s..." % entry["version"]
@@ -440,7 +460,10 @@ func _version_text() -> String:
 	var s: String = "Installed %s" % (inst if inst != "" else "none")
 	if _updater.latest_version != "":
 		s += "  \u00b7  Latest %s" % _updater.latest_version
-	return s + "  \u00b7  Launcher %s" % _own_version
+	s += "  \u00b7  Launcher %s" % _own_version
+	if _launcher_notice != "":
+		s += "\n" + _launcher_notice
+	return s
 
 
 ## Second status line (mono): what the play button will do.

@@ -73,12 +73,23 @@ The roadmap is in [`production/milestones/roadmap.md`](production/milestones/roa
 **Download:** get the latest build from
 [**Releases**](https://github.com/LetsManu/Cybergram/releases):
 
+**Recommended: the installer** (includes the launcher, keeps the game up to date;
+details, uninstalling and the unsigned-installer warning in [`docs/INSTALL.md`](docs/INSTALL.md)):
+
+| Platform | File | How to start |
+|---|---|---|
+| Windows 10/11 (x86_64) | `CybergramSetup-<version>.exe` | Run it (per-user, no admin) |
+| Linux (x86_64) | `Cybergram-<version>-x86_64.AppImage` | `chmod +x`, run it |
+| Linux (x86_64) | `CybergramInstaller-<version>-linux-x86_64.tar.gz` | Extract, run `./install.sh` |
+
+**Portable builds** (advanced users, no install):
+
 | Platform | File | How to start |
 |---|---|---|
 | Windows 10/11 (x86_64) | `Cybergram-<version>-windows-x86_64.zip` | Unzip, run `Cybergram.exe` |
 | Linux (x86_64) | `Cybergram-<version>-linux-x86_64.tar.gz` | Extract, run `./Cybergram.x86_64` |
 
-No install is needed, but a Vulkan-capable GPU is. The Windows build isn't
+The portable builds need no install, but a Vulkan-capable GPU is needed. The Windows builds aren't
 code-signed, so SmartScreen may warn: choose *More info → Run anyway*.
 Builds for every commit are also attached to each **Build** run under the
 *Actions* tab.

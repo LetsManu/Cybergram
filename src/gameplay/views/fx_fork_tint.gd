@@ -33,6 +33,12 @@ static func tint_tree(root: Node, team: int, fork: int) -> void:
 	if fork < 1 or fork > 2:
 		return
 	for n in root.find_children("*", "MeshInstance3D", true, false):
+		var sm := (n as MeshInstance3D).material_override as ShaderMaterial
+		if sm != null and sm.shader != null and sm.shader.resource_path == ToonFx.CEL_SHADER:  # W14 cel FX
+			sm = sm.duplicate() as ShaderMaterial
+			sm.set_shader_parameter("color", apply(sm.get_shader_parameter("color"), team, fork))
+			(n as MeshInstance3D).material_override = sm
+			continue
 		var m := (n as MeshInstance3D).material_override as StandardMaterial3D
 		if m == null:
 			continue

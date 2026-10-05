@@ -62,7 +62,7 @@ static func rules() -> WardlingRulesDef:
 ## Builds the server under `parent` (own World3D) and returns [server, link, director].
 ## `match_rules` null = the slice .tres (3v3 since M1); pass own rules for 5v5.
 static func slice_server(parent: Node, rules_: WardlingRulesDef, vanguard: bool,
-		match_rules: MatchRulesDef = null) -> Array:
+		match_rules: MatchRulesDef = null, map: MapDef = null) -> Array:
 	var net := NetFixtures.net_config()
 	var link := LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
 	var vp := SubViewport.new()
@@ -71,7 +71,7 @@ static func slice_server(parent: Node, rules_: WardlingRulesDef, vanguard: bool,
 	parent.add_child(vp)
 	var server := ServerWorld.new()
 	vp.add_child(server)
-	var def := map_def()
+	var def := map if map != null else map_def()
 	server.setup(net, load("res://assets/data/movement/movement_default.tres") as MovementDef, def.scene,
 		link.create_endpoint(1), CombatFixtures.vesper(),
 		match_rules if match_rules != null else load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef)
@@ -84,8 +84,8 @@ static func slice_server(parent: Node, rules_: WardlingRulesDef, vanguard: bool,
 
 
 ## Waits until the server world's navmesh answers path queries.
-static func await_nav(tree: SceneTree, server: ServerWorld) -> bool:
-	var def := map_def()
+static func await_nav(tree: SceneTree, server: ServerWorld, map: MapDef = null) -> bool:
+	var def := map if map != null else map_def()
 	var a := def.hq(MapDef.TEAM_CONCORD).sanctum
 	var b := def.hq(MapDef.TEAM_SYNDICATE).sanctum
 	for i in 180:

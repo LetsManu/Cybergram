@@ -84,7 +84,7 @@ func _strip(glb: String, clip: String, out: String, tag: String) -> void:
 	var inst := (load(glb) as PackedScene).instantiate()
 	_root3d.add_child(inst)
 	var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	var mat := RiggedHeroModel.material(ModelPalette.TEAM_CONCORD)
+	var mat := RiggedHeroModel.material(ModelPalette.TEAM_CONCORD, false, false, StringName(glb.get_file().get_basename()))
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat
 	inst.rotation_degrees.y = 90.0

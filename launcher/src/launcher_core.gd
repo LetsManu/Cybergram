@@ -393,3 +393,46 @@ static func launcher_update_for(launcher: Dictionary, platform: String, own_vers
 	if compare_versions(own_version, v) >= 0:
 		return {}
 	return {"version": v, "file": f, "sha256": e["sha256"], "exe": exe, "size": int(e.get("size", 0))}
+
+
+# --- AppImage (read-only bundle) support ------------------------------------
+
+## True when `appimage_env` (the APPIMAGE variable) names the running AppImage.
+static func is_appimage(appimage_env: String) -> bool:
+	return appimage_env.strip_edges() != ""
+
+
+## Writable per-user folder an AppImage keeps its game in:
+## $XDG_DATA_HOME/cybergram or ~/.local/share/cybergram.
+static func appimage_data_root(xdg_data_home: String, home: String) -> String:
+	var base: String = xdg_data_home.strip_edges()
+	if base == "":
+		base = home.path_join(".local/share")
+	return base.path_join("cybergram")
+
+
+## First run of an AppImage: copies the bundled game (<bundle>/game) into
+## <root>/game unless a game is already there. Returns "" (also when there was
+## nothing to do) or an error text.
+static func seed_bundled_game(bundle_dir: String, root: String) -> String:
+	var src: String = bundle_dir.path_join(GAME_DIR)
+	var dst: String = root.path_join(GAME_DIR)
+	if not FileAccess.file_exists(src.path_join(VERSION_FILE)):
+		return ""
+	if FileAccess.file_exists(dst.path_join(VERSION_FILE)):
+		return ""
+	DirAccess.make_dir_recursive_absolute(root)
+	var staging: String = root.path_join("game.seed")
+	remove_tree(staging)
+	var err: String = copy_tree(src, staging)
+	if err == "":
+		remove_tree(dst)
+		if DirAccess.rename_absolute(staging, dst) != OK:
+			err = "cannot move the bundled game into place"
+	if err != "":
+		remove_tree(staging)
+		return "Could not copy the bundled game: %s" % err
+	var exe: String = dst.path_join("Cybergram.x86_64")
+	if FileAccess.file_exists(exe):
+		FileAccess.set_unix_permissions(exe, 493)  # 0755
+	return ""

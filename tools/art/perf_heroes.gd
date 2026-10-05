@@ -13,6 +13,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	var ua := OS.get_cmdline_user_args()
+	if ua.has("--tier"):  # W14-P2: GfxQuality tier 0..3 (hit reaction / foot IK / spring bones follow it)
+		GameSettings.shared().set("graphics_quality", int(ua[ua.find("--tier") + 1]))
 	var stage := Node3D.new()
 	root.add_child(stage)
 	var sun := DirectionalLight3D.new()
