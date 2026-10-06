@@ -1,0 +1,99 @@
+[gd_resource type="Resource" script_class="WorldPropsDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/world_props_def.gd" id="1_wpdef"]
+[ext_resource type="NavigationMesh" path="res://assets/maps/front/shardline_front_navmesh.res" id="2_wpnav"]
+[ext_resource type="NavigationMesh" path="res://assets/maps/front/shardline_front_navmesh_jungle.res" id="3_wpjun"]
+
+[resource]
+script = ExtResource("1_wpdef")
+model_key = &"world_props"
+map_id = &"map_front"
+navmesh = ExtResource("2_wpnav")
+placement_seed = 7301
+edge_step_m = 2.0
+wall_search_m = 1.6
+max_wall_depth_m = 1.2
+wall_gap_m = 0.04
+max_floor_spread_m = 0.12
+min_spacing_m = 3.5
+density = {
+&"flank": 0.3,
+&"hq": 0.55,
+&"lane": 0.3,
+&"plaza": 0.4
+}
+weights = {
+&"flank": {
+&"barrel": 2.0,
+&"cable_run": 3.0,
+&"debris": 2.0,
+&"pipe_cluster": 2.0,
+&"puddle": 2.0
+},
+&"hq": {
+&"ac_unit": 1.0,
+&"bench": 2.0,
+&"cable_run": 1.0,
+&"cargo": 3.0,
+&"kiosk": 2.0,
+&"planter": 3.0,
+&"street_lamp": 2.0
+},
+&"lane": {
+&"barrel": 1.0,
+&"barrier": 2.0,
+&"crate": 2.0,
+&"crate_stack": 1.0,
+&"debris": 1.0,
+&"street_lamp": 1.0
+},
+&"lane_center": {
+&"bench": 2.0,
+&"crate": 2.0,
+&"crate_stack": 2.0,
+&"holo_sign": 2.0,
+&"planter": 3.0,
+&"puddle": 1.0,
+&"street_lamp": 2.0
+},
+&"lane_north": {
+&"barrier": 3.0,
+&"cable_run": 2.0,
+&"crate": 1.0,
+&"debris": 2.0,
+&"holo_sign": 1.0,
+&"street_lamp": 3.0
+},
+&"lane_south": {
+&"ac_unit": 1.0,
+&"barrel": 3.0,
+&"crate_stack": 2.0,
+&"pipe_cluster": 3.0,
+&"puddle": 2.0,
+&"street_lamp": 1.0
+},
+&"plaza": {
+&"barrier": 2.0,
+&"bench": 2.0,
+&"crate": 2.0,
+&"crate_stack": 1.0,
+&"planter": 2.0,
+&"street_lamp": 2.0
+},
+&"roof": {
+&"ac_unit": 2.0,
+&"antenna": 2.0,
+&"roof_vent": 3.0
+}
+}
+foot_override = {
+&"holo_sign": Vector2(0.5, 0.5),
+&"street_lamp": Vector2(0.5, 0.5)
+}
+wall_mounted = Array[StringName]([&"ac_unit", &"cable_run", &"pipe_cluster"])
+team_pieces = Array[StringName]([&"cargo", &"kiosk"])
+roof_step_m = 7.0
+roof_min_y = 7.5
+walk_navmeshes = Array[NavigationMesh]([ExtResource("2_wpnav"), ExtResource("3_wpjun")])
+roof_density = 0.35
+max_props = 900

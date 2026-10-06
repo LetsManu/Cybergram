@@ -248,6 +248,7 @@ func _add_views(md: MapDef, map: Node3D) -> void:
 		var am := ArmoryMarkerView.new()
 		am.setup(hq, null)
 		map.add_child(am)
+	WorldProps.spawn(map, md)  # P7: world props (visual only)
 
 
 ## Vesper as the game builds her (HeroModelLoader, idle) plus a Tier II Picket
