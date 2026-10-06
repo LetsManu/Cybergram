@@ -35,6 +35,24 @@ static func instantiate(key: StringName, team: int) -> Node3D:
 	return inst
 
 
+## Outline width against the heroes' (docs/shading-audit.md "Outlines"):
+## gameplay-critical objects read first (x1.25), dressing stays behind the
+## action (x0.6); everything else (Wardling props) matches the heroes.
+const OUTLINE_CRITICAL := [&"uplink", &"holdstone", &"cell_cradle", &"mana_cell", &"charge_cradle", &"armory_stall"]
+const OUTLINE_DRESSING := [&"world_props"]
+const OUTLINE_CRITICAL_SCALE: float = 1.25
+const OUTLINE_DRESSING_SCALE: float = 0.6
+
+
+## Outline width multiplier for asset `key` (pure).
+static func outline_scale(key: StringName) -> float:
+	if OUTLINE_CRITICAL.has(key):
+		return OUTLINE_CRITICAL_SCALE
+	if OUTLINE_DRESSING.has(key):
+		return OUTLINE_DRESSING_SCALE
+	return 1.0
+
+
 ## One shared material per (asset, team): the hero toon shader with the asset's
 ## baked maps and the ink hull; flat colours when the maps are missing.
 static func material(key: StringName, team: int) -> ShaderMaterial:
@@ -42,7 +60,11 @@ static func material(key: StringName, team: int) -> ShaderMaterial:
 	if _materials.has(k):
 		return _materials[k]
 	var m := RiggedHeroModel.material(team).duplicate() as ShaderMaterial
-	m.next_pass = RiggedHeroModel.hull_material(team)
+	var hull := RiggedHeroModel.hull_material(team)
+	if outline_scale(key) != 1.0:
+		hull = hull.duplicate() as ShaderMaterial
+		hull.set_shader_parameter("width_px", float(hull.get_shader_parameter("width_px")) * outline_scale(key))
+	m.next_pass = hull
 	RiggedHeroModel.bind_maps_from(m, (ROOT % [key, key]) + "_")
 	_materials[k] = m
 	return m

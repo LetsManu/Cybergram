@@ -31,7 +31,9 @@
 // the shader's default textures at runtime, so every existing material picks them
 // up. Unbound maps (mask alpha = 0, hint_default_transparent) give the v1 look.
 shader_type spatial;
-render_mode diffuse_burley, specular_disabled;
+render_mode diffuse_lambert, specular_disabled;
+#include "res://assets/shaders/toon_common.gdshaderinc"
+
 
 uniform vec3 base_color : source_color = vec3(0.5, 0.5, 0.55);
 uniform vec3 seam_color : source_color = vec3(0.12, 0.13, 0.2);
@@ -86,6 +88,15 @@ uniform float tile_min_panel = 1.25;
 // View distance (m) where the tiles start / finish fading to the flat look.
 uniform float tile_fade_start = 28.0;
 uniform float tile_fade_end = 65.0;
+// Cel lighting shared with the heroes (toon_common.gdshaderinc, docs/shading-audit.md).
+uniform bool toon = true;
+uniform float shadow_value = TOON_SHADOW_VALUE;
+uniform vec3 shadow_tint : source_color = TOON_SHADOW_TINT;
+uniform float shadow_tint_mix = TOON_SHADOW_TINT_MIX;
+uniform float highlight_boost = TOON_HIGHLIGHT_BOOST;
+uniform float band_lo = TOON_BAND_LO;
+uniform float band_hi = TOON_BAND_HI;
+uniform float band_softness = TOON_BAND_SOFTNESS;
 
 varying vec3 v_pos;
 varying vec3 v_nrm;
@@ -243,5 +254,19 @@ void fragment() {
 		float t = 1.0 - smoothstep(0.0, 0.08, abs(v_pos.y - trim_height));
 		EMISSION = trim_color * t * trim_energy;
 		ALBEDO = mix(ALBEDO, trim_color * 0.4, t);
+	}
+}
+
+
+void light() {
+	vec3 lc = LIGHT_COLOR / PI;
+	float ndl = dot(NORMAL, LIGHT);
+	if (toon) {
+		vec3 shade = toon_shade(toon_shadow(shadow_value, shadow_tint, shadow_tint_mix), ndl * ATTENUATION,
+			band_lo, band_hi, band_softness, highlight_boost);
+		// Godot multiplies DIFFUSE_LIGHT by the albedo itself (docs/shading-audit.md).
+		DIFFUSE_LIGHT += lc * shade * (LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION);
+	} else {
+		DIFFUSE_LIGHT += lc * clamp(ndl, 0.0, 1.0) * ATTENUATION;
 	}
 }

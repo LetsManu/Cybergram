@@ -9,6 +9,7 @@
 // then lives in COLOR.a. Without maps the W13 flat vertex-colour path is used.
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled, cull_back;
+#include "res://assets/shaders/toon_common.gdshaderinc"
 
 uniform vec3 team_color : source_color = vec3(0.18, 0.525, 1.0);
 uniform vec3 shadow_tint : source_color = vec3(0.52, 0.52, 0.70);
@@ -131,18 +132,16 @@ void light() {
 	float ndl = dot(NORMAL, LIGHT);
 	float lit = ndl * ATTENUATION;
 	float b1 = smoothstep(band_lo - band_softness, band_lo + band_softness, lit);
-	float b2 = smoothstep(band_hi - band_softness, band_hi + band_softness, lit);
 	int ch = int(v_ch + 0.5);
 	float soft = ch == 4 ? 1.0 : 0.0;  // skin: warmer, lighter shadow
-	// Two clear tones (shadow / lit) plus a narrow highlight band.
-	vec3 sh = mix(vec3(shadow_value), shadow_tint * shadow_value * 1.25, shadow_tint_mix);
+	// Two clear tones (shadow / lit) plus a narrow highlight band (toon_common).
+	vec3 sh = toon_shadow(shadow_value, shadow_tint, shadow_tint_mix);
 	sh = mix(sh, vec3(shadow_value + 0.1, shadow_value + 0.03, shadow_value - 0.02), soft);
 	sh *= 1.0 - v_hatch * hatch_strength * (1.0 - soft * 0.5);
-	vec3 shade = mix(sh, vec3(1.0), b1) + vec3(highlight_boost) * b2;
+	vec3 shade = toon_shade(sh, lit, band_lo, band_hi, band_softness, highlight_boost);
 	vec3 lc = LIGHT_COLOR / PI;
 	DIFFUSE_LIGHT += ALBEDO * lc * shade * (LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION);
-	float rim = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-	rim = smoothstep(0.6, 0.66, rim) * clamp(ndl + 0.4, 0.0, 1.0);
+	float rim = toon_rim(NORMAL, VIEW, ndl);
 	vec3 rim_col = mix(vec3(1.0), team_color, team_rim_mix);
 	DIFFUSE_LIGHT += lc * rim_col * rim * rim_strength * (LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION);
 	if (ch == 5) {
