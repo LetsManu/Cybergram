@@ -404,6 +404,9 @@ func _on_snapshot(s: SnapshotData) -> void:
 	_apply_match(s)
 	_apply_progress(s.progress)  # E13/E15
 	wardlings.apply_snapshot(s)
+	for i in mini(_hp_views.size(), hardpoints.size()):  # C5 Garrison sockets
+		if not _hp_views[i].sockets.is_empty():
+			_hp_views[i].apply_garrison(hardpoints[i].owner, s.wardlings, sfx.events if sfx != null else null)
 	abilities.apply_snapshot(s)  # E10
 	if s.own_state != null:
 		own_speed_scale = s.own_state.speed_scale

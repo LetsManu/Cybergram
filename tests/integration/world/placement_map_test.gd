@@ -33,6 +33,10 @@ func test_shipped_map_has_no_unwaived_placement_violations() -> void:
 	# C5: the 15 Supply Cache crates too.
 	var caches := (res[0] as Array).filter(func(it: PlacementValidator.Item) -> bool: return it.id.begins_with("supply_cache_"))
 	assert_int(caches.size()).is_equal(15)
+	# C5: two Garrison sockets per hardpoint (30).
+	var sockets := (res[0] as Array).filter(func(it: PlacementValidator.Item) -> bool: return it.id.begins_with("garrison_socket_"))
+	assert_int(sockets.size()).is_equal(30)
 	for v: PlacementValidator.Violation in report:
-		assert_bool(v.item.begins_with("forward_beacon_") or v.item.begins_with("supply_cache_")) \
+		assert_bool(v.item.begins_with("forward_beacon_") or v.item.begins_with("supply_cache_")
+			or v.item.begins_with("garrison_socket_")) \
 			.override_failure_message(v.text()).is_false()

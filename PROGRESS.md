@@ -265,4 +265,8 @@ summarised here so the plan survives a new session):
 - Owner reports handled the same day: a match that ends while the game is
   closed now takes the player to Offline (was stuck InGame); `/admin/accounts`
   lists the registered accounts (docs/monitoring.md).
+- **Supply Cache** (C5): done. docs/assets/supply_cache.md.
+- **Garrison Sentinels** (C5): done. docs/assets/garrison.md. 12 garrison
+  posts moved to level spots in map_front.tres (tools/maps/level_garrison_posts.gd).
+- Next: Sanctum, Foundry (art); Barricades still need gameplay (owner to decide).
 

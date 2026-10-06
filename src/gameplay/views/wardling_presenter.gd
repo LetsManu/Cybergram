@@ -89,6 +89,8 @@ func apply_snapshot(s: SnapshotData) -> void:
 		if not w.stale:  # W16-NET: deferred Wardlings carry an older sample
 			_buffers[w.net_id].push(s.tick, w.position, w.yaw, false)
 		var kind := 0 if w.vanguard else (2 if w.owner_net_id == s.own_net_id and s.own_net_id != 0 else 1)
+		if (w.state & 7) == WardlingWorld.GARRISON_STATE:
+			kind = 3  # C5 Garrison Sentinel
 		v.set_state(w.team, w.hp_frac, kind)
 		if clampi(w.tier, 1, 3) != v.tier:
 			v.set_tier(w.tier)

@@ -36,6 +36,7 @@ const LABEL_OUTLINE: int = 8
 const LABEL_OBJECTIVE_ALPHA: float = 0.85
 
 var def: HardpointDef
+static var _GARRISON_RULES := WardlingRulesDef.new()
 var _ring_mat: StandardMaterial3D
 var _seg_on: StandardMaterial3D
 var _seg_off: StandardMaterial3D
@@ -70,6 +71,8 @@ var _art_owner: int = -2
 ## Phase 6 Plant art (tools/art/world/plant_kit.py): the Charge Cradle and its
 ## four pad corner brackets, tinted for the owner like the Holdstone.
 var _cradle_art: Array[Node3D] = []
+## C5 Garrison sockets (one per Sentinel post; empty without the asset).
+var sockets: Array[GarrisonSocketView] = []
 ## C5 Supply Cache of this hardpoint (null without a cache spot or the asset).
 var supply_view: SupplyCacheView
 ## Forward Beacon pads of a Mid (one per side; empty elsewhere / without the asset).
@@ -168,6 +171,14 @@ func setup(d: HardpointDef) -> void:
 	# refill): their map markers would promise a feature, so they stay hidden
 	# until the systems exist (docs/assets/plant.md, PROGRESS.md Objective B).
 	_hide_map_nodes.call_deferred(["Placements_" + String(d.id).to_upper()])
+	if GarrisonSocketView.available():  # C5: a socket under each Sentinel post
+		var n := mini(d.garrison_points.size(), _GARRISON_RULES.sentinels_per_hardpoint)
+		for i in n:
+			var sk := GarrisonSocketView.new()
+			sk.setup(i)
+			sk.position = d.garrison_points[i] - d.position
+			add_child(sk)
+			sockets.append(sk)
 	if d.supply_cache.is_finite() and SupplyCacheView.available():  # C5: the baked crate replaces the marker
 		supply_view = SupplyCacheView.new()
 		supply_view.setup(d)
@@ -433,6 +444,20 @@ func _place_beacons(md: MapDef) -> void:
 	var sp := ForwardBeaconView.spots(md, def)
 	for i in mini(sp.size(), beacons.size()):
 		beacons[i].global_transform = ForwardBeaconView.place(space, def.position, sp[i][1], tol)
+
+
+## C5: lights the sockets for hardpoint owner `owner` and the replicated
+## Wardlings `ws` (a Sentinel of the owner within MANNED_M mans a socket).
+func apply_garrison(owner: int, ws: Array, sfx: Object = null) -> void:
+	for sk in sockets:
+		var manned := false
+		if owner != MapDef.TEAM_NEUTRAL:
+			for w: SnapshotData.WardlingState in ws:
+				if (w.state & 7) == WardlingWorld.GARRISON_STATE and w.team == owner \
+						and Vector2(w.position.x - sk.global_position.x, w.position.z - sk.global_position.z).length() <= GarrisonSocketView.MANNED_M:
+					manned = true
+					break
+		sk.apply(owner, manned, sfx)
 
 
 ## Applies the latest replicated state.

@@ -258,6 +258,11 @@ for ev in ("online", "use"):
     e(f"supply_{ev}", st, "world", WORLD, spatial=S3D, max_distance_m=40.0, unit_size=6.0,
       priority=1, max_voices=2, cooldown_ms=1500)
 
+# C5 Garrison: a Sentinel takes its post (the socket clamps on; reuses the supply latch recipe)
+f("world", "world_garrison_post", R.supply, 1, -22.0, event="online")
+e("garrison_post", "world_garrison_post", "world", WORLD, spatial=S3D, max_distance_m=30.0, unit_size=6.0,
+  priority=2, max_voices=2, cooldown_ms=800)
+
 # ------------------------------------------------------------- footsteps
 for surface in ("concrete", "metal", "grate", "water"):
     st = f"footsteps_{surface}_step"

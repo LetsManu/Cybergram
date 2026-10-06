@@ -114,6 +114,19 @@ static func objective_items(md: MapDef, space: PhysicsDirectSpaceState3D) -> Arr
 				it.foot = ForwardBeaconView.pad_foot(xf, ForwardBeaconView.foot_radius())
 				it.waiver = _waiver(it.id)
 				out.append(it)
+	# C5 Garrison sockets: low discs under the Sentinel posts (flat, walkable)
+	var per := WardlingRulesDef.new().sentinels_per_hardpoint
+	for lane: LaneDef in md.lanes:
+		for d: HardpointDef in lane.hardpoints:
+			for i in mini(d.garrison_points.size(), per):
+				var gp := d.garrison_points[i]
+				var g := PlacementKit.ground(space, gp + Vector3.UP, 0.5, 3.0)
+				var xf := Transform3D(Basis(), g.pos if not g.is_empty() else gp)
+				var it := PlacementValidator.Item.new("garrison_socket_%s_%d@%s" % [d.id, i, _at(gp)], &"flat",
+					xf, AABB(Vector3(-0.7, 0.0, -0.7), Vector3(1.4, 0.16, 1.4)))
+				it.foot = ForwardBeaconView.pad_foot(xf, 0.62)
+				it.waiver = _waiver(it.id)
+				out.append(it)
 	# C5 Supply Caches: a solid crate standing inside its own collider (SupplyCacheSystem.add_bodies)
 	for lane: LaneDef in md.lanes:
 		for d: HardpointDef in lane.hardpoints:

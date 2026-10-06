@@ -22,6 +22,8 @@ extends SceneTree
 ##   cradle-close / cradle-mid          a Concord Cell Cradle holding its Cell
 ##   beacon-close / beacon-mid          Concord's Forward Beacon pad at the Center Mid
 ##                                      (--beacon none | attuning:<f> | ready | attack)
+##   garrison-close / garrison-mid      the Garrison sockets of the Center lane's Outer
+##                                      hardpoint (--garrison off | waiting | manned)
 ##   supply-close / supply-mid          the Supply Cache of the Center lane's Outer
 ##                                      hardpoint (--supply neutral | switching | serving)
 ##   wardlings                          Picket lineup: Concord tiers I-III (sash, own
@@ -42,6 +44,8 @@ static var _gen := "shielded"
 ## --beacon state for every Mid (Concord holds it): "none" (default: the map's
 ## owner, pads dormant) | "attuning:<0..1>" | "ready" | "attack".
 static var _beacon := "none"
+## --garrison state for every Garrison socket ("manned" = a Sentinel stands on it).
+static var _garrison := "manned"
 ## --supply state for every Supply Cache ("" = the map's owners).
 static var _supply := ""
 ## --at close-up spots ("x,y,z").
@@ -68,6 +72,9 @@ func _initialize() -> void:
 				# Breach generators: shielded | <hp 0..1> | breached
 				i += 1
 				_gen = args[i]
+			"--garrison":
+				i += 1
+				_garrison = args[i]
 			"--supply":
 				i += 1
 				_supply = args[i]
@@ -214,6 +221,14 @@ static func presets(md: MapDef) -> Array:
 	var bs := hb.cross(Vector3.UP)
 	out.append(["beacon-close", bp + hb * 5.5 + bs * 2.5 + Vector3(0, 2.4, 0), bp + Vector3(0, 0.4, 0)])
 	out.append(["beacon-mid", bp + hb * 17.0 + bs * 7.0 + Vector3(0, 3.0, 0), bp + Vector3(0, 4.5, 0)])
+	# Garrison sockets of the Center lane's Outer hardpoint (--garrison sets their state).
+	var gd: HardpointDef = center.hardpoints[1]
+	if gd.garrison_points.size() >= 2:
+		var gm := (gd.garrison_points[0] + gd.garrison_points[1]) * 0.5
+		var gb := (gm - gd.position) * Vector3(1, 0, 1)
+		gb = gb.normalized() if gb.length() > 0.1 else Vector3.BACK
+		out.append(["garrison-close", gm + gb * 5.0 + Vector3(0, 1.8, 0), gm + Vector3(0, 0.6, 0)])
+		out.append(["garrison-mid", gm + gb * 14.0 + gb.cross(Vector3.UP) * 4.0 + Vector3(0, 3.0, 0), gm + Vector3(0, 0.6, 0)])
 	# Supply Cache of the Center lane's first hardpoint (--supply sets its state).
 	var sd: HardpointDef = center.hardpoints[1]
 	if sd.supply_cache.is_finite():
@@ -275,6 +290,17 @@ func _add_views(md: MapDef, map: Node3D) -> void:
 			v.setup(d)
 			map.add_child(v)
 			v.add_beacons(md)  # Part 6: Forward Beacon pads (Mids)
+			if not v.sockets.is_empty():  # C5 Garrison: --garrison off | waiting | manned (default manned)
+				var go := MapDef.TEAM_NEUTRAL if _garrison == "off" else d.initial_owner
+				for k in v.sockets.size():
+					v.sockets[k].apply(go, _garrison == "manned")
+					if _garrison == "manned" and go != MapDef.TEAM_NEUTRAL:
+						var sn := WardlingModelBuilder.build(&"picket", 1, go)
+						sn.set_owner_kind(3)
+						sn.scale = Vector3.ONE * WardlingView.SENTINEL_SCALE
+						sn.position = d.garrison_points[k] + Vector3(0, 0.15, 0)
+						sn.rotation.y = atan2(d.position.x - sn.position.x, d.position.z - sn.position.z) + PI
+						map.add_child(sn)
 			if v.supply_view != null:  # C5: --supply neutral | switching | serving (default: the map's owner)
 				var so := d.initial_owner if _supply == "" else (MapDef.TEAM_NEUTRAL if _supply == "neutral" else MapDef.TEAM_CONCORD)
 				v.supply_view.apply_owner(so, 0.0)
