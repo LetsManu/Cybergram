@@ -33,8 +33,9 @@ extends RefCounted
 class Item:
 	var id: String
 	## &"floor", &"wall" (stands against a wall), &"mounted" (hangs on a wall),
-	## &"roof", &"flat" (a sheet lying on the floor: no scale / overlap test) or
-	## &"decal".
+	## &"roof", &"flat" (a sheet lying on the floor: no scale / overlap test),
+	## &"cover" (dresses a cover box: it stands inside that box's own
+	## collision, so only grounded / supported / upright apply) or &"decal".
 	var kind: StringName = &"floor"
 	var xform: Transform3D
 	## Local bounds (mesh AABB; decals: the projection box, centred).
@@ -82,7 +83,7 @@ func validate(space: PhysicsDirectSpaceState3D, items: Array) -> Array[Violation
 	var out: Array[Violation] = []
 	var solids: Array = []
 	for it: Item in items:
-		if it.kind != &"decal":
+		if it.kind != &"decal" and it.kind != &"cover":
 			solids.append([it, PlacementKit.obb(it.xform, _solid_box(it), rules.overlap_shrink_m)])
 	for it: Item in items:
 		var found: Array[Violation] = []
@@ -182,6 +183,8 @@ func _check_solid(space: PhysicsDirectSpaceState3D, it: Item, out: Array[Violati
 			if bg > rules.mount_gap_m:
 				out.append(_v(&"mounted", "no wall within %.2f m behind (at %d%% height)" % [rules.mount_gap_m, int(f * 100)]))
 				break
+	if it.kind == &"cover":
+		return
 	if it.kind == &"flat":
 		_keep_out(it, pts, out)
 		return

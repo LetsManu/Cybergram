@@ -21,7 +21,7 @@ func test_shipped_map_has_no_unwaived_placement_violations() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	var space := _map.get_world_3d().direct_space_state
-	var res := MapPlacementAudit.run(md, space, func(p: Vector3) -> Dictionary: return WorldDecals.physics_ground(space, p))
+	var res := MapPlacementAudit.run(md, space, func(p: Vector3) -> Dictionary: return WorldDecals.physics_ground(space, p), _map)
 	var report: Array = res[1]
 	assert_int((res[0] as Array).size()).is_greater(300)
 	if PlacementValidator.unwaived(report) > 0:

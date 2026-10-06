@@ -23,7 +23,7 @@ func _go() -> void:
 	await physics_frame
 	await physics_frame
 	var space := map.get_world_3d().direct_space_state
-	var res := MapPlacementAudit.run(md, space, func(p: Vector3) -> Dictionary: return WorldDecals.physics_ground(space, p))
+	var res := MapPlacementAudit.run(md, space, func(p: Vector3) -> Dictionary: return WorldDecals.physics_ground(space, p), map)
 	var text := PlacementValidator.format(res[1], (res[0] as Array).size())
 	print(text)
 	if out != "":

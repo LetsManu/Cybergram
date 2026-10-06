@@ -6,16 +6,23 @@ extends RefCounted
 ## Used by tools/validate_placement.gd (report) and the integration test that
 ## gates CI.
 ##
-## Waivers: WAIVERS maps an item id prefix to the reason; keep it short and
-## reviewed (each entry is a known, accepted exception).
+## Waivers: WAIVERS maps an id fragment (the "@x,y,z" position works) to the
+## reason; keep it short and reviewed (each entry is a known, accepted exception).
 
 const RULES_PATH := "res://assets/data/world/placement_rules.tres"
 ## Item kinds that face the player and need open floor in front.
 const FACES_WALKABLE: Array[StringName] = [&"kiosk", &"vending", &"terminal", &"holo_sign"]
 ## Kit pieces that are sheets lying on the floor.
 const FLAT: Array[StringName] = [&"puddle"]
-## id prefix -> reason.
-const WAIVERS := {}
+## id fragment -> reason.
+const WAIVERS := {
+	"cover_box#12@-4,2,-58": "map layout: cover box overhangs a step edge (move inward: docs/polish-backlog.md)",
+	"cover_box#19@-4,2,-362": "mirror of the -58 step-edge cover box (docs/polish-backlog.md)",
+	"@-42,1,-98": "map layout: cover box overhangs a ledge by ~0.6 m (docs/polish-backlog.md)",
+	"@42,1,-98": "mirror of the -42,-98 ledge cover box (docs/polish-backlog.md)",
+	"@-42,1,-322": "mirror of the -42,-98 ledge cover box (docs/polish-backlog.md)",
+	"@42,1,-322": "mirror of the -42,-98 ledge cover box (docs/polish-backlog.md)",
+}
 
 
 ## Rules from RULES_PATH (defaults when absent).
@@ -67,8 +74,32 @@ static func decal_items(md: MapDef, ground: Callable, accept: Callable = Callabl
 	return out
 
 
+## Items for the cover boxes CoverDressing dresses (`map_root` = the map, in
+## the tree): one per box, since its crates stand inside the box's own
+## collision; the box's base must be grounded and supported like any prop.
+static func cover_items(map_root: Node3D) -> Array:
+	var out: Array = []
+	var bounds := WorldProps.bounds_of(WorldProps.piece_meshes(CoverDressing.KIT_KEY))
+	if not bounds.has(&"crate"):
+		return out
+	var n := 0
+	for mi: MeshInstance3D in map_root.find_children("*", "MeshInstance3D", true, false):
+		if not CoverDressing.is_cover(mi):
+			continue
+		var size := (mi.mesh as BoxMesh).size
+		var f := CoverDressing.fill(size, bounds)
+		if f.is_empty() or not f.all(func(x: Array) -> bool: return CoverDressing.stretch_ok(x[1])):
+			continue
+		var it := PlacementValidator.Item.new("cover_box#%d@%s" % [n, _at(mi.global_position)], &"cover",
+			mi.global_transform, AABB(-size * 0.5, size))
+		it.waiver = _waiver(it.id)
+		out.append(it)
+		n += 1
+	return out
+
+
 ## Validates props + decals; returns [items, report].
-static func run(md: MapDef, space: PhysicsDirectSpaceState3D, ground: Callable) -> Array:
+static func run(md: MapDef, space: PhysicsDirectSpaceState3D, ground: Callable, map_root: Node3D = null) -> Array:
 	var def := load(WorldProps.DEF_PATH) as WorldPropsDef
 	var corridors := WorldProps.lane_corridors(md)
 	var v := PlacementValidator.new(rules())
@@ -76,12 +107,14 @@ static func run(md: MapDef, space: PhysicsDirectSpaceState3D, ground: Callable) 
 	# the decals the game builds: the runtime filter applied (WorldDecals._ready)
 	var items := prop_items(md, space) + decal_items(md, ground,
 		WorldDecals.plausible_filter(space, load(WorldDecals.DEF_PATH) as WorldDecalsDef))
+	if map_root != null:
+		items += cover_items(map_root)
 	return [items, v.validate(space, items)]
 
 
 static func _waiver(id: String) -> String:
 	for k: String in WAIVERS:
-		if id.begins_with(k):
+		if id.contains(k) and (not k.begins_with("@") or id.ends_with(k)):
 			return WAIVERS[k]
 	return ""
 
