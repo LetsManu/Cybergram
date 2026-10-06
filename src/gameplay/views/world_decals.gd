@@ -407,6 +407,7 @@ static func make_decal(p: Placement, at: Vector3, up: Vector3, def: WorldDecalsD
 	d.normal_fade = def.normal_fade
 	d.upper_fade = 0.3
 	d.lower_fade = 0.3
+	d.cull_mask = GfxQuality.decal_cull_mask()  # never on heroes / Wardlings
 	d.distance_fade_enabled = true
 	d.distance_fade_begin = def.fade_begin
 	d.distance_fade_length = def.fade_length

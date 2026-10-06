@@ -48,8 +48,19 @@ static func muzzle_lights(lvl: int) -> int:
 	return [0, 2, 4, 6][clampi(lvl, LOW, ULTRA)]
 
 
-## Visual layer the hero meshes live on besides layer 1 (the rim light only lights this).
+## Visual layer the characters (heroes, Wardlings) live on, alone: the rim light
+## lights only this layer and floor decals skip it (no decal on boots).
 const HERO_VISUAL_LAYER: int = 2
+
+
+## Render-layer bits of a character mesh (pure).
+static func character_layers() -> int:
+	return 1 << (HERO_VISUAL_LAYER - 1)
+
+
+## Cull mask for world decals: every layer except the characters' (pure).
+static func decal_cull_mask() -> int:
+	return 0xFFFFF & ~character_layers()
 const INK_EDGE_SHADER := "res://assets/shaders/spatial_fx_ink_edges.gdshader"
 ## Premium-dark UI palette (design/ux/mockups/v0.9/README.md): ground ink for the
 ## shadow tint, ivory for the highlight tint. Art-director's values, used as given.

@@ -85,7 +85,9 @@ func build_from_scene(model_key: StringName, scene: PackedScene, team_: int) -> 
 	skeleton = inst.find_child("Skeleton3D", true, false) as Skeleton3D
 	anim_player = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	for n in inst.find_children("*", "MeshInstance3D", true, false):
-		(n as MeshInstance3D).layers = 1 | (1 << (GfxQuality.HERO_VISUAL_LAYER - 1))  # + the rim-light layer
+		# Characters live on the hero layer only: the rim light lights it, floor
+		# decals skip it (WorldDecals cull_mask), cameras and other lights see all.
+		(n as MeshInstance3D).layers = GfxQuality.character_layers()
 		if String(n.name).ends_with("_lod"):
 			_lod_meshes.append(n as MeshInstance3D)
 		else:

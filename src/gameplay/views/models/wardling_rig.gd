@@ -193,6 +193,7 @@ func _build(team_: int) -> void:
 	_ring_own.scale = Vector3(1.0, 0.25, 1.0)
 	_ring_own.position.y = 0.02
 	_ring_own.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ring_own.layers = GfxQuality.character_layers()
 	_ring_own.material_override = _ring_mat(team_)
 	add_child(_ring_own)
 	set_tier(1)
@@ -202,6 +203,7 @@ func _build(team_: int) -> void:
 func _attach(n: StringName, mi: MeshInstance3D, bone: int, rest: Transform3D, at: Vector3) -> void:
 	mi.get_parent().remove_child(mi)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.layers = GfxQuality.character_layers()
 	var att := BoneAttachment3D.new()
 	att.name = "Prop_" + String(n)
 	att.bone_name = body.skeleton.get_bone_name(bone)
