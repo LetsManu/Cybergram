@@ -59,6 +59,7 @@ class WorldAsset(Hero):
             p.setdefault("ink_px", 3)
         self._piece = "main"
         self.pieces = ["main"]
+        self.apart = {}
         self.T = {}
         self._t = time.time()
         build_hero.reset_scene()
@@ -67,18 +68,33 @@ class WorldAsset(Hero):
 
     # ---------------------------------------------------------------- pieces
     @contextlib.contextmanager
-    def piece(self, name):
-        """Faces added inside belong to piece `name` (one mesh node in the glb)."""
+    def piece(self, name, apart=None):
+        """Faces added inside belong to piece `name` (one mesh node in the glb).
+        `apart` = (x, y, z): the piece is built that far away from the rest, so the
+        AO / crease bake does not shade it against parts it is never shown with
+        (alternative or optional pieces), and is exported back in place."""
         prev = self._piece
         if name not in self.pieces:
             self.pieces.append(name)
         self._piece = name
+        n0 = len(self.pbm.faces)
         try:
             yield self
         finally:
             self._piece = prev
+            if apart is not None:
+                self.pbm.faces.ensure_lookup_table()
+                vs = {v for f in list(self.pbm.faces)[n0:] for v in f.verts}
+                for v in vs:
+                    v.co += Vector(apart)
+                self.apart[name] = tuple(apart)
 
     def _add(self, tmp, mat, bone, color, ch, weights=None, kind=None):
+        # Zero-area faces (a clip plane on an existing vertex ring, a cone tip) unwrap
+        # to huge slivers and wreck the atlas pack: drop them before they join.
+        bmesh.ops.dissolve_degenerate(tmp, dist=1e-5, edges=tmp.edges[:])
+        for f in [f for f in tmp.faces if f.calc_area() < 1e-9]:
+            tmp.faces.remove(f)
         n0 = len(self.pbm.faces)
         super()._add(tmp, mat, "Root", color, ch, None, kind)
         self.pbm.faces.ensure_lookup_table()
@@ -117,18 +133,29 @@ class WorldAsset(Hero):
         self._add(t, Matrix.Translation(Vector(center)), "Root", color, ch)
 
     # ---------------------------------------------------------------- build
-    def finish(self, bevel_m=0.02, smooth_deg=40):
-        """Joins the parts into one object, world-scale bevel + weighted normals."""
+    def finish(self, bevel_m=0.02, smooth_deg=40, drop_floor=False):
+        """Joins the parts into one object, world-scale bevel + weighted normals.
+        `drop_floor`: deletes the downward faces lying on the floor (z < 3 cm), which
+        nobody sees on a grounded asset but which take atlas space."""
         ob = self.finish_parts()
         ob.name = ob.data.name = self.key
         _activate(ob)
-        m = ob.modifiers.new("w_bevel", "BEVEL")
-        m.width = bevel_m
-        m.segments = 1
-        m.limit_method = "ANGLE"
-        m.angle_limit = math.radians(smooth_deg)
-        m.use_clamp_overlap = True
-        bpy.ops.object.modifier_apply(modifier=m.name)
+        if drop_floor:
+            bm = bmesh.new()
+            bm.from_mesh(ob.data)
+            gone = [f for f in bm.faces if f.normal.z < -0.99 and all(v.co.z < 0.03 for v in f.verts)]
+            bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
+            bm.to_mesh(ob.data)
+            bm.free()
+            print("finish %s: dropped %d floor faces" % (self.key, len(gone)))
+        if bevel_m > 0:  # 0: the parts' own bevels only (tight budgets, e.g. Wardlings)
+            m = ob.modifiers.new("w_bevel", "BEVEL")
+            m.width = bevel_m
+            m.segments = 1
+            m.limit_method = "ANGLE"
+            m.angle_limit = math.radians(smooth_deg)
+            m.use_clamp_overlap = True
+            bpy.ops.object.modifier_apply(modifier=m.name)
         wn = ob.modifiers.new("w_wn", "WEIGHTED_NORMAL")
         wn.keep_sharp = True
         bpy.ops.object.modifier_apply(modifier=wn.name)
@@ -147,19 +174,27 @@ class WorldAsset(Hero):
         self.lap("texture")
         return sizes
 
-    def export(self, out_dir, sizes=None, centred=()):
+    def export(self, out_dir, sizes=None, centred=(), rebase=None):
         """One mesh node per piece (shared atlas), one material Toon_<key>, glb + report.
         Pieces named in `centred` get their pivot at their bounds centre (moving parts:
-        the node position is then the part's centre); the rest keep the asset origin."""
+        the node position is then the part's centre); the rest keep the asset origin.
+        `rebase` = {piece: (x, y, z)}: that point (Blender space) becomes the piece's
+        local origin and the node sits at the asset origin. For parts that are built
+        apart from the rest (so the bake does not shade them against each other) and
+        placed or swung by the runtime (bracket corners, legs at the hip)."""
         ob = self.ob
         ob.data.materials.clear()
         ob.data.materials.append(bpy.data.materials.new("Toon_" + self.key))
         objs = _split_pieces(ob, self.pieces)
+        from mathutils import Matrix
+        rebase = dict(self.apart, **(rebase or {}))
         for o in objs:
             if o.name in centred:
                 _activate(o)
                 o.select_set(True)
                 bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY", center="BOUNDS")
+            if rebase and o.name in rebase:
+                o.data.transform(Matrix.Translation(-Vector(rebase[o.name])))
         for o in objs:
             if "Color" in o.data.color_attributes:
                 o.data.color_attributes.active_color = o.data.color_attributes["Color"]
