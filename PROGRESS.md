@@ -30,13 +30,20 @@ as it is, new tests run inside the existing test job.
   `OpsHttpServer` (`/health`, `/health/live`, `/metrics`, `/admin`,
   `/admin.json`), `docs/monitoring.md` (Icinga), compose + Dockerfile, PRIVACY v7.
 
+- P1d Client: `MmStatusBar` (bottom strip of the matchmaking flow:
+  connection + ping, server phase, queue timer + estimate, lockout countdown,
+  plain-language hints when a wait runs long), `MmStatusModel` (view-model),
+  `ClientEventLog` + Diagnostics panel with Copy (never tickets / passwords),
+  resync when no state arrives within 10 s. Screenshots:
+  `production/qa/evidence/p1-status/`. CLAUDE.md: commands + architecture.
+  Found: the real client adapter never emitted `connection_lost`; the bar now
+  reads the transport state itself.
+
 ## In progress
-- P1d Client: status bar (connection, ping, phase, queue timer + estimate,
-  lockout), diagnostics event list with copy, timeouts on every wait.
+- Phase 3 (champ select formats decided with the game-design agent, see below).
 
 ## Next (prioritised)
-1. P1d (above), CLAUDE.md commands / architecture / state diagram.
-2. Phase 3: estimated wait in UI, ready check 12 s, draft: hover/intent,
+1. Phase 3: estimated wait in UI, ready check 12 s, draft: hover/intent,
    pick trades, blind pick variant, ban phase (setting, 0 now), lockout timer,
    bot difficulty and slots in custom lobbies, loading progress, return to
    party, headless N-client simulation.

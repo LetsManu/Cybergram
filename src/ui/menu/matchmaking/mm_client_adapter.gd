@@ -28,6 +28,9 @@ signal feedback_result(result: Dictionary)
 signal leaderboard_changed(state: Dictionary)
 ## A request failed: a HUD_MM_ERR_* key.
 signal failed(key: String)
+## P1: the server-side player state (MatchmakingClient PHASE fields; phase =
+## PhaseMachine.Player). Only the status bar listens; the fake has no such signal.
+signal phase_changed(state: Dictionary)
 
 const QS := {0: &"idle", 1: &"queued", 2: &"busy", 3: &"busy", 4: &"busy", 5: &"locked"}
 const RR := {0: &"go", 1: &"requeued", 2: &"removed", 3: &"locked", 4: &"voided"}
@@ -42,13 +45,35 @@ var _join_wait_s: float = -1.0
 var _watch_config: ConnectionWatchConfig = ConnectionWatchConfig.load_default()
 var _remake_voted: bool = false
 var _custom_cfg := {"map": 0, "mode": MatchmakingCodec.PM_CUSTOM, "bots": true, "team_size": 5}
+## P1: last client-side network events for the diagnostics panel.
+var events := ClientEventLog.new()
+## P1: seconds online without a PHASE event (-1 = got one); resync once at the limit.
+var _phase_wait_s: float = 0.0
 
 
 func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRulesDef = null) -> void:
 	mm = mm_
 	lobby = lobby_
 	rules = rules_ if rules_ != null else MatchmakingRulesDef.load_default()
+	mm.phase_changed.connect(func(d: Dictionary) -> void:
+		_phase_wait_s = -1.0
+		events.add("phase", "%s -> %s" % [PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, int(d.prev)),
+			PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, int(d.phase))], {"seq": int(d.seq),
+			"snap": int(d.snap), "queue": int(d.queue), "party": int(d.party_size), "locked": int(d.locked)})
+		phase_changed.emit(d))
+	mm.ready_result.connect(func(d: Dictionary) -> void:
+		events.add("ready", "result", {"outcome": int(d.get("outcome", 0)), "locked": int(d.get("locked", 0))}))
+	mm.match_assigned.connect(func(_h: String, port: int, _t: String) -> void:
+		events.add("match", "assigned", {"port": port}))  # never the ticket
+	mm.match_result.connect(func(d: Dictionary) -> void:
+		events.add("match", "result", {"won": int(d.get("won", 0)), "voided": int(d.get("voided", 0))}))
+	mm.request_failed.connect(func(op: int, code: int) -> void:
+		events.add("error", "request refused", {"op": op, "code": code}))
+	mm.lockout.connect(func(d: Dictionary) -> void:
+		events.add("lockout", "%ds" % int(d.get("seconds", 0)), {"reason": int(d.get("reason", 0))}))
 	mm.queue_detail.connect(func(d: Dictionary) -> void:
+		events.add("queue", "status", {"state": int(d.get("state", 0)), "waited": int(d.get("waited", 0)),
+			"estimate": int(d.get("estimate", 0)), "code": int(d.get("code", 0))})
 		if _join_wait_s >= 0.0:
 			print("[net] queue status received after %.1fs (state %d)" % [_join_wait_s, int(d.get("state", 0))])
 		_join_wait_s = -1.0
@@ -90,6 +115,7 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 
 func join_queue(queue_id: StringName, prefs: Array) -> void:
 	mm.queue_join(queue_id, prefs if not prefs.is_empty() else [&"fill"])
+	events.add("send", "queue join", {"queue": queue_id})
 	_join_wait_s = 0.0
 	print("[net] queue join sent (%s)" % queue_id)
 
@@ -97,9 +123,11 @@ func join_queue(queue_id: StringName, prefs: Array) -> void:
 func leave_queue() -> void:
 	_join_wait_s = -1.0
 	mm.queue_leave()
+	events.add("send", "queue leave")
 
 
 func reply_ready(accept: bool) -> void:
+	events.add("send", "ready %s" % ("accept" if accept else "decline"))
 	if accept:
 		mm.ready_accept()
 	else:
@@ -141,6 +169,8 @@ func remake_vote(yes: bool) -> void:
 
 func reconnect() -> void:
 	mm.rejoin()
+	mm.request_state_sync()  # P1: the bar shows the server's view at once
+	events.add("send", "rejoin + state sync")
 
 
 func honour(match_id: Variant, target: String) -> void:
@@ -199,6 +229,7 @@ func custom_start() -> void:
 ## Local timers (the flow calls this every frame): when the server never
 ## answers a queue join, the player gets an error and the queue view resets.
 func tick(delta: float) -> void:
+	_watch_phase(delta)
 	if _join_wait_s < 0.0:
 		return
 	_join_wait_s += delta
@@ -208,6 +239,40 @@ func tick(delta: float) -> void:
 		failed.emit("HUD_NET_ERR_QUEUE_TIMEOUT")
 		queue_changed.emit({"state": &"idle", "queue": &"", "waited_s": 0.0, "estimate_s": 0.0, "in_queue": 0,
 			"locked_s": 0.0, "err": ""})
+
+
+## P1: no PHASE event for phase_timeout_s while online: ask for a snapshot
+## once (an older server that does not know OP_STATE_SYNC simply ignores it).
+func _watch_phase(delta: float) -> void:
+	if _phase_wait_s < 0.0 or int(connection_info().state) != MmStatusModel.Conn.ONLINE:
+		return
+	_phase_wait_s += delta
+	if _phase_wait_s >= _watch_config.phase_timeout_s:
+		_phase_wait_s = -1.0
+		events.add("send", "state sync (no state from the server yet)")
+		mm.request_state_sync()
+
+
+## P1 status bar: {state: MmStatusModel.Conn, rtt_ms}.
+func connection_info() -> Dictionary:
+	var tr_: Object = lobby.get("transport") if lobby != null else mm.transport
+	if tr_ == null:
+		return {"state": MmStatusModel.Conn.LOST, "rtt_ms": -1}
+	if tr_.has_method("is_server_connected"):
+		if bool(tr_.call("is_server_connected")):
+			return {"state": MmStatusModel.Conn.ONLINE, "rtt_ms": int(tr_.call("rtt_ms")) if tr_.has_method("rtt_ms") else -1}
+		var err := str(tr_.get("error_text")) if "error_text" in tr_ else ""
+		return {"state": MmStatusModel.Conn.LOST if err != "" else MmStatusModel.Conn.CONNECTING, "rtt_ms": -1}
+	return {"state": MmStatusModel.Conn.ONLINE, "rtt_ms": -1}  # loopback / tests
+
+
+## P1 diagnostics panel text (what "Copy" puts on the clipboard).
+func diagnostics_text() -> String:
+	var ci := connection_info()
+	var head := "Cybergram %s, protocol %d, connection %s, ping %d ms, stale phase events %d" % [
+		ProjectSettings.get_setting("application/config/version", "?"), MsgType.PROTOCOL_VERSION,
+		["connecting", "online", "lost"][int(ci.state)], int(ci.rtt_ms), mm.stale_phases]
+	return events.to_text(head)
 
 
 func step(_delta: float) -> void:

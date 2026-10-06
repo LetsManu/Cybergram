@@ -46,6 +46,8 @@ var assigned: Dictionary = {}
 var _last_pick: Dictionary = {}
 var _handoff: float = -1.0
 var _toast_root: Control
+## P1: persistent status strip (bottom).
+var status_bar: MmStatusBar
 
 
 func _ready() -> void:
@@ -62,6 +64,9 @@ func _ready() -> void:
 	_bind()
 	if page == null:
 		show_play()
+	status_bar = MmStatusBar.new()  # P1: connection, phase, queue timer, diagnostics
+	status_bar.client = client
+	add_child(status_bar)
 	add_child(_toast_root)
 
 
@@ -96,6 +101,8 @@ func _set_page(c: Control, n: StringName) -> void:
 	page = c
 	page_name = n
 	add_child(c)
+	if status_bar != null and status_bar.get_parent() == self:
+		move_child(status_bar, -1)
 	if _toast_root.get_parent() == self:
 		move_child(_toast_root, -1)
 	UiKit.transition_in(c, Vector2.ZERO)

@@ -999,3 +999,28 @@ HUD_ANN_TRIPLE_KILL,TRIPLE KILL
 HUD_ANN_DOUBLE_KILL,DOUBLE KILL
 HUD_ANN_FIRST_BLOOD,FIRST BLOOD
 HUD_ANN_THIRTY_SECONDS,30 SECONDS UNTIL THE MIDS OPEN
+HUD_MMS_CONN_CONNECTING,Connecting…
+HUD_MMS_CONN_ONLINE,Online
+HUD_MMS_CONN_LOST,Connection lost
+HUD_MMS_PH_OFFLINE,Offline
+HUD_MMS_PH_IDLE,In the menu
+HUD_MMS_PH_PARTY,In a party
+HUD_MMS_PH_QUEUED,In queue
+HUD_MMS_PH_READY,Match found
+HUD_MMS_PH_SELECT,Hero select
+HUD_MMS_PH_LOADING,Loading the match
+HUD_MMS_PH_INGAME,In a match
+HUD_MMS_PH_POST,Match over
+HUD_MMS_PH_RECONNECT,Reconnecting
+HUD_MMS_LOCKED,Queue locked: %s
+HUD_MMS_HINT_NO_SERVER,"The server does not answer. Check your internet connection, or try again later."
+HUD_MMS_HINT_NO_STATE,"The server has not sent your status yet. Asking again…"
+HUD_MMS_HINT_RECONNECTING,"Connection lost. Your place is kept for a short time while the game reconnects."
+HUD_MMS_HINT_LONG_WAIT,"This wait is longer than usual: few players are queued. You can keep waiting or leave the queue."
+HUD_MMS_HINT_LOADING_SLOW,"The match server is slow to start. If it does not start, everyone goes back to the queue."
+HUD_MMS_HINT_LOCKED,You declined or left a match recently. You can queue again when the timer ends.
+HUD_MMS_DIAG,Diagnostics
+HUD_MMS_DIAG_TITLE,Recent network events
+HUD_MMS_COPY,Copy
+HUD_MMS_COPIED,Copied. Paste it into your bug report.
+HUD_MMS_CLOSE,Close

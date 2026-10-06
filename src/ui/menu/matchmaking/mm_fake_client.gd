@@ -51,6 +51,9 @@ signal party_changed(party: Dictionary)
 signal custom_changed(lobby: Dictionary)
 ## A request failed: a HUD_MM_ERR_* key.
 signal failed(key: String)
+## P1: the server-side player state, as MmClientAdapter.phase_changed
+## (derived here from the fake's own signals, for the status bar).
+signal phase_changed(state: Dictionary)
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
 ## W20-WEB public leaderboard opt-in: {public: bool, available: bool}
@@ -97,8 +100,32 @@ var _custom: Dictionary = {}
 var _my_hero: StringName = &""
 
 
+var _phase_seq: int = 0
+var _phase_now: int = PhaseMachine.Player.IDLE
+
+
 func _init(rules_: MatchmakingRulesDef = null) -> void:
 	rules = rules_ if rules_ != null else MatchmakingRulesDef.load_default()
+	var P := PhaseMachine.Player
+	queue_changed.connect(func(st: Dictionary) -> void:
+		_emit_phase(P.QUEUED if st.state == &"queued" else P.IDLE, st))
+	match_found.connect(func(_i: Dictionary) -> void: _emit_phase(P.READY_CHECK))
+	ready_result.connect(func(r: Dictionary) -> void:
+		if r.outcome == &"go":
+			_emit_phase(P.CHAMP_SELECT))
+	match_assigned.connect(func(_i: Dictionary) -> void: _emit_phase(P.LOADING))
+	connection_lost.connect(func() -> void: _emit_phase(P.RECONNECTING))
+	post_match.connect(func(_r: Dictionary) -> void: _emit_phase(P.POST_GAME))
+
+
+func _emit_phase(ph: int, st: Dictionary = {}) -> void:
+	_phase_seq += 1
+	var prev := _phase_now
+	_phase_now = ph
+	phase_changed.emit({"epoch": 1, "seq": _phase_seq, "phase": ph, "prev": prev, "snap": 0,
+		"queue": 0, "party_size": 3, "leader": 1, "waited": int(st.get("waited_s", 0.0)),
+		"estimate": int(st.get("estimate_s", 0.0)), "locked": ceili(float(st.get("locked_s", 0.0))), "match": "",
+		"party": ""})
 
 
 # --- requests (the client API the screens call) -------------------------------

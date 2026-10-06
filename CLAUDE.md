@@ -15,6 +15,30 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 > **Note**: Only the Godot specialist agents are installed (Unity/Unreal sets removed).
 
+## Commands (headless; cloud sessions have Godot at ~/godot)
+
+- Godot binary: `tools/ci/install_godot.sh` (pinned 4.7-stable, prints the path; cached in `~/godot`).
+- Import once after cloning or adding a `class_name`: `$GODOT --headless --path . --import`
+- Tests: `tools/ci/run_tests.sh` (all), or one suite:
+  `$GODOT --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests/unit/matchmaking --ignoreHeadlessMode -c`
+  (leave out `-d` locally: with it a script error stops in the debugger and the run hangs).
+- Layer check: `tools/ci/check_deps.sh`. Launcher copies of shared scripts: `launcher/tools/sync_shared.sh`.
+- Screenshot under a virtual display: `GODOT=... tools/ci/capture_scene.sh res://src/ui/menu/matchmaking/mm_preview.tscn out.png 90 --mm queued`
+- Server (front + match processes): `tools/server/docker-compose.yml`; monitoring: `docs/monitoring.md`.
+
+## Online architecture (short)
+
+Front process (`--front`, UDP 7777, ENet/DTLS): AccountService (accounts,
+friends, parties) + MatchmakingFront (queues, ready check, draft, custom
+lobbies) + FrontPhases (player / party / lobby state machines, pushed as
+versioned `EV_PHASE`, protocol 20) + OpsHttpServer (`/health`, `/metrics`,
+`/admin` on TCP 8090). Matches run in separate processes (MatchSupervisor).
+The game's main menu (`src/ui/menu/matchmaking/`) is the queueing client; the
+launcher logs in, updates and starts the game. State diagram:
+`docs/architecture/front-state.md`. Plan and status: `PROGRESS.md`. Manual
+(visual) checks: `docs/manual-checklist.md`. Logs never carry account ids or
+names in clear (`OpsLog.tag`).
+
 ## Project Structure
 
 @.claude/docs/directory-structure.md

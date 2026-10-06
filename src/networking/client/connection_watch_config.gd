@@ -9,6 +9,13 @@ extends Resource
 @export var login_timeout_s: float = 10.0
 ## Seconds to wait for the first queue status after "Find match".
 @export var queue_ack_timeout_s: float = 8.0
+## P1 status bar: seconds online without any state from the server before
+## the bar says so (and the client asks for a resync).
+@export var phase_timeout_s: float = 10.0
+## P1 status bar: a queue wait longer than estimate x this shows a hint.
+@export var long_wait_factor: float = 2.0
+## P1 status bar: seconds in Loading before the bar explains the delay.
+@export var loading_hint_s: float = 45.0
 
 const PATH: String = "res://assets/data/net/connection_watch.tres"
 
