@@ -8,6 +8,9 @@ extends Control
 
 signal back_requested()
 
+## v20: bot difficulty -> its label key (literal keys for the translation check).
+const DIFF_KEYS := {&"easy": "HUD_MM_BOT_EASY", &"normal": "HUD_MM_BOT_NORMAL", &"hard": "HUD_MM_BOT_HARD"}
+
 var client: Object
 var lobby: Dictionary = {}
 ## [{id, name}] friends that can be invited (from the menu's friends panel).
@@ -124,7 +127,7 @@ func _build() -> void:
 	cfg.add_child(_diffs)
 	var dg := ButtonGroup.new()
 	for d: StringName in [&"easy", &"normal", &"hard"]:
-		var c := MmKit.chip(tr("HUD_MM_BOT_" + String(d).to_upper()), dg, 110)
+		var c := MmKit.chip(tr(DIFF_KEYS[d]), dg, 110)
 		c.name = "Diff_" + String(d)
 		var did := d
 		c.pressed.connect(func() -> void: set_bots(_slots(), did))
@@ -266,7 +269,7 @@ func _apply() -> void:
 		for k in range(counts[i], n):
 			var is_bot: bool = k - int(counts[i]) < bots
 			_teams[i].add_child(UiKit.label(
-				(tr("HUD_MM_BOT_SLOT") % tr("HUD_MM_BOT_" + String(lobby.get("difficulty", &"normal")).to_upper()))
+				(tr("HUD_MM_BOT_SLOT") % tr(DIFF_KEYS.get(StringName(lobby.get("difficulty", &"normal")), "HUD_MM_BOT_NORMAL")))
 				if is_bot else tr("HUD_MM_SEAT_OPEN"), &"small", t.text_off))
 	for c in _invites.get_children():
 		_invites.remove_child(c)
