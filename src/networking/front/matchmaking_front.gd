@@ -132,6 +132,7 @@ func _init(t: Transport, accounts_: AccountService, supervisor_: Variant, rating
 		supervisor.abandon_reported.connect(_on_abandon)
 	if accounts != null:
 		accounts.account_deleted.connect(erase_account)
+		accounts.presence_fn = phases.presence_of  # P2: friends see queue / hero select / in game
 
 
 func now() -> float:

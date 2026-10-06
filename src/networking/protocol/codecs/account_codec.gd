@@ -58,6 +58,17 @@ const LB_QUERY: int = 2
 const OP_RECOVER: int = 27
 const OP_RECOVERY_CODE: int = 28
 const OP_RECOVERY_INFO: int = 29
+## v20 (P2) social: party leadership / kick / ready / chat, join requests,
+## direct messages, away, and OP_NOTIFY: a server push (never sent by clients)
+## carrying chat lines and social notifications (kind N_*).
+const OP_PARTY_PROMOTE: int = 30
+const OP_PARTY_KICK: int = 31
+const OP_PARTY_READY: int = 32
+const OP_PARTY_CHAT: int = 33
+const OP_PARTY_JOIN_REQUEST: int = 34   ## ask the party of friend `id` to invite me
+const OP_DM: int = 35                   ## direct message to friend `id` (online only, never stored)
+const OP_SET_AWAY: int = 36
+const OP_NOTIFY: int = 37
 
 ## Request fields per op.
 const REQ_SCHEMA := {
@@ -91,6 +102,14 @@ const REQ_SCHEMA := {
 	OP_RECOVER: [["ver", "u"], ["username", "s"], ["code", "s"], ["new_password", "p"]],
 	OP_RECOVERY_CODE: [["password", "p"]],
 	OP_RECOVERY_INFO: [],
+	OP_PARTY_PROMOTE: [["id", "i"]],
+	OP_PARTY_KICK: [["id", "i"]],
+	OP_PARTY_READY: [["ready", "b"]],
+	OP_PARTY_CHAT: [["text", "m"]],
+	OP_PARTY_JOIN_REQUEST: [["id", "i"]],
+	OP_DM: [["id", "i"], ["text", "m"]],
+	OP_SET_AWAY: [["away", "b"]],
+	OP_NOTIFY: [],
 }
 const SESSION_FIELDS := [["token", "t"], ["id", "i"], ["username", "s"], ["display_name", "s"], ["emblem", "b"],
 	["accent", "b"], ["favourite_hero", "s"], ["guest", "b"]]
@@ -114,7 +133,23 @@ const RES_SCHEMA := {
 	OP_RECOVER: SESSION_CODE_FIELDS,
 	OP_RECOVERY_CODE: [["recovery_code", "s"]],
 	OP_RECOVERY_INFO: [["has_code", "b"]],
+	## kind N_*, sender id (zeros = the server), sender display name, chat text
+	## or detail, queue index for presence notes (255 = none).
+	OP_NOTIFY: [["kind", "b"], ["id", "i"], ["name", "s"], ["text", "m"], ["mode", "b"]],
 }
+
+## OP_NOTIFY kinds (v20, P2).
+const N_PARTY_CHAT: int = 1
+const N_DM: int = 2
+const N_PARTY_INVITE: int = 3     ## `id` invited you to their party
+const N_FRIEND_REQUEST: int = 4   ## `id` sent you a friend request
+const N_JOIN_REQUEST: int = 5     ## `id` asks your party for an invite (leader only)
+const N_PARTY_CHANGED: int = 6    ## your party changed (text: joined / left / kicked / promoted); refresh OP_PARTY
+const N_KICKED: int = 7           ## the leader removed you from the party
+## Party entry flags (v20).
+const PF_READY: int = 1
+## Chat / DM text limit in bytes (UTF-8).
+const CHAT_MAX: int = 240
 
 ## REGISTER / GUEST flags.
 const FLAG_PRIVACY: int = 1  ## accepted the privacy notice (PRIVACY.md)
@@ -231,6 +266,8 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 				w.u8(int(v) if v != null else 0)
 			"s":
 				w.str8(str(v) if v != null else "", STR_MAX)
+			"m":
+				w.str8(str(v) if v != null else "", CHAT_MAX)
 			"p":
 				w.str8(str(v) if v != null else "", PASSWORD_MAX_BYTES)
 			"i":
@@ -265,6 +302,7 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 					w.str8(str(e.get("display_name", "")), STR_MAX)
 					w.u8(int(e.get("emblem", 0)))
 					w.u8(int(e.get("accent", 0)))
+					w.u8(int(e.get("flags", 0)))
 			"F":
 				var l: Array = v if v is Array else []
 				var n := mini(l.size(), MAX_LIST)
@@ -273,6 +311,7 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 					var e: Dictionary = l[k]
 					w.id(str(e.get("id", "")))
 					w.u8(int(e.get("status", 0)))
+					w.u8(int(e.get("mode", 255)))
 					w.u8(int(e.get("relation", 0)))
 					w.str8(str(e.get("username", "")), STR_MAX)
 					w.str8(str(e.get("display_name", "")), STR_MAX)
@@ -291,6 +330,8 @@ static func _read(r: LobbyCodec.Reader, schema: Array) -> Dictionary:
 				d[field[0]] = r.u8()
 			"s":
 				d[field[0]] = r.str8(STR_MAX)
+			"m":
+				d[field[0]] = r.str8(CHAT_MAX)
 			"p":
 				d[field[0]] = r.str8(PASSWORD_MAX_BYTES)
 			"i":
@@ -320,13 +361,13 @@ static func _read(r: LobbyCodec.Reader, schema: Array) -> Dictionary:
 				var l: Array = []
 				for k in n:
 					l.append({"id": r.id(), "kind": r.u8(), "status": r.u8(), "display_name": r.str8(STR_MAX),
-						"emblem": r.u8(), "accent": r.u8()})
+						"emblem": r.u8(), "accent": r.u8(), "flags": r.u8()})
 				d[field[0]] = l
 			"F":
 				var n := r.u8()
 				var l: Array = []
 				for k in n:
-					l.append({"id": r.id(), "status": r.u8(), "relation": r.u8(), "username": r.str8(STR_MAX),
+					l.append({"id": r.id(), "status": r.u8(), "mode": r.u8(), "relation": r.u8(), "username": r.str8(STR_MAX),
 						"display_name": r.str8(STR_MAX), "emblem": r.u8(), "accent": r.u8()})
 				d[field[0]] = l
 		if not r.ok:

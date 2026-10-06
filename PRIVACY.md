@@ -57,6 +57,16 @@ same lobby. The lobby keeps the last 20 lines in memory so that a player who
 joins can read them. They are cleared when the match starts. Chat is never
 logged.
 
+**Party chat and direct messages are never stored either.** The server passes
+a party chat line to the members of your party, and a direct message to the
+friend you wrote to, only while they are online. If they are offline, the
+message is refused, not kept. Nothing is written to disk or to the log. People
+who blocked you never receive your messages, invites or join requests.
+
+**Your status for friends.** Friends see whether you are online, away, in a
+queue, in hero select or in a match, and which mode. "Away" is something you
+set; it lasts while you are connected.
+
 **Hero play history (local only).** The game keeps, on your PC only, how many
 matches and minutes you played with each hero and when you last played it
 (`hero_play_history.cfg` in the game's user folder). The launcher reads this

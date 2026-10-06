@@ -169,6 +169,34 @@ func event_fields(id: String, snap: bool, t: float) -> Dictionary:
 		"match": str(ctx.get("match", "")), "party": str(ctx.get("party", ""))}
 
 
+## P2: friend presence of `id` ({status: LobbyCodec.STATUS_*, mode: queue
+## index or 255}); {} when the front does not know the player (offline: the
+## account service decides).
+func presence_of(id: String) -> Dictionary:
+	var e := players.entry(id)
+	if e.is_empty():
+		return {}
+	var P := PhaseMachine.Player
+	var ctx: Dictionary = e.ctx
+	var q := str(ctx.get("queue", ""))
+	var mode := MatchmakingClient.queue_index(StringName(q)) if q != "" else 255
+	var st := LobbyCodec.STATUS_ONLINE
+	match int(e.state):
+		P.OFFLINE:
+			return {}
+		P.QUEUED:
+			st = LobbyCodec.STATUS_IN_QUEUE
+		P.READY_CHECK, P.CHAMP_SELECT, P.LOADING:
+			st = LobbyCodec.STATUS_IN_LOBBY if q == "custom" and int(e.state) == P.CHAMP_SELECT \
+				else LobbyCodec.STATUS_IN_SELECT
+		P.IN_GAME, P.RECONNECTING:
+			st = LobbyCodec.STATUS_IN_MATCH if int(e.state) == P.IN_GAME or str(ctx.get("match", "")) != "" \
+				else LobbyCodec.STATUS_IN_QUEUE
+		_:
+			mode = 255
+	return {"status": st, "mode": mode if mode < 255 else 255}
+
+
 ## Answers OP_STATE_SYNC: derive now and send the full state.
 func resync(id: String, t: float) -> void:
 	var d := derive(id, t)

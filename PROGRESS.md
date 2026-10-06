@@ -21,7 +21,11 @@ as it is, new tests run inside the existing test job.
 - **Transport** stays ENet/DTLS (no websockets); protocol bumped to 20.
 - **Champ select formats** (game-design agent, 2026-10-06): Normal blind pick,
   Ranked draft; a hovered-but-unlocked hero auto-locks even in Ranked (only
-  "nothing hovered" cancels) - softer than the owner's wording, owner to confirm.
+  "nothing hovered" cancels). Owner confirmed 2026-10-06: "it should lock the hero".
+- **Social (P2)**: party chat and DMs are online-only and never stored or
+  logged; DMs only between friends; blocks hide chat, invites, join requests;
+  "join a friend" = a join request to that party's leader (who then invites);
+  ready flags are informational (they do not gate the queue).
 
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +
@@ -57,8 +61,19 @@ as it is, new tests run inside the existing test job.
   left the player stuck as Offline (now via Reconnecting); a draft order
   shorter than the teams left seats without heroes (now auto-filled).
 
+- P2a Server social: protocol 20 ops PARTY_PROMOTE / KICK / READY / CHAT,
+  PARTY_JOIN_REQUEST, DM, SET_AWAY and the OP_NOTIFY push (party invite,
+  friend request, join request, chat, DM, party changed, kicked); presence
+  with 7 states + queue mode from FrontPhases; per-account rate limits
+  (chat 5 burst / 1 s, invites 5 / 10 s); stale-invite bug fixed (an invite
+  from someone who left stayed valid). `tests/integration/auth/social_flow_test.gd`
+  covers leader disconnect, crash + rejoin, stale / duplicate / expired
+  invites, simultaneous kick + leave, inviter leaves before accept, blocked
+  users, chat sanitising + rate limit, DMs online-only. PRIVACY.md updated.
+
 ## In progress
-- nothing (waiting for the owner's go for the next phase).
+- P2b client: friends panel (7 states + mode, invite / join / message), DM
+  window with unread counts, party chat + promote / kick / ready, toasts.
 
 ## Next (prioritised)
 1. Phase 3 leftovers: bot difficulty and bot slots in custom lobbies;

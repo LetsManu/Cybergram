@@ -73,6 +73,15 @@ var launch_tokens: LaunchTokenStore
 var crash_store: CrashReportStore
 ## W15: parties (memory only).
 var parties: PartyService
+## P2: presence from the matchmaking front: func(account_id) -> {status, mode}
+## ({} = unknown, fall back to the lobby registry). Set by MatchmakingFront.
+var presence_fn: Callable = Callable()
+## P2: accounts that set themselves away (id -> true; memory only).
+var away: Dictionary = {}
+## P2: per-account social rate buckets ("chat:<id>" / "invite:<id>" -> [tokens, last_s]).
+var _social_rl: Dictionary = {}
+## The transport of the last request: social notifications are pushed on it.
+var _push_t: Transport
 var _crash_up: Dictionary = {}  # peer -> {total, next, buf: PackedByteArray, started}
 ## W21-N1: folder of host reset requests (AccountAdmin; "" = off).
 var admin_dir: String = ""
@@ -186,6 +195,9 @@ func step(delta: float) -> void:
 		rl_peer.purge(_now)
 		launch_tokens.purge(_now)
 		parties.purge(_now)
+		for id in away.keys():
+			if not _has_session(str(id)):
+				away.erase(id)  # P2: away is a session flag
 		for id in parties.members() + parties.invites.keys():
 			if not _has_session(str(id)):
 				parties.forget(str(id))  # no connection left (after the grace): out of the party
@@ -214,6 +226,7 @@ func step(delta: float) -> void:
 ## Handles one ACCOUNT_REQ packet from `peer`, replying on `t`.
 func handle(t: Transport, peer: int, data: PackedByteArray) -> void:
 	# Crash report chunks have their own limits (CrashReportStore), not the request budget.
+	_push_t = t
 	var is_chunk := data.size() > 1 and data.decode_u8(1) == AccountCodec.OP_CRASH_CHUNK
 	if not is_chunk and not _budget(peer):
 		return
@@ -667,6 +680,7 @@ func _finish_verified(job: PasswordHasher.Job, c: Dictionary, t: Transport, peer
 		account_deleted.emit(str(a.id))
 		launch_tokens.revoke_account(a.id)
 		parties.forget(a.id)
+		away.erase(a.id)
 		for tok in sessions.keys():
 			if sessions[tok].identity.id == a.id:
 				sessions.erase(tok)
@@ -777,20 +791,68 @@ func _account_op(t: Transport, peer: int, who: Dictionary, r: Dictionary) -> voi
 			if o.is_empty() or (o.blocks as Array).has(me.id):
 				_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
 				return
-			_reply(t, peer, op, _party_code(parties.invite(me.id, to, _now)))
+			if not _social_allow("invite", me.id):
+				_reply(t, peer, op, AccountCodec.E_RATE)
+				return
+			var code := _party_code(parties.invite(me.id, to, _now))
+			_reply(t, peer, op, code)
+			if code == AccountCodec.OK and parties.member_of.get(to, "") != parties.member_of.get(me.id, "-"):
+				notify(to, AccountCodec.N_PARTY_INVITE, me)
 		AccountCodec.OP_PARTY_ACCEPT:
-			_reply(t, peer, op, _party_code(parties.accept(me.id, str(r.id), _now)))
+			var code := _party_code(parties.accept(me.id, str(r.id), _now))
+			_reply(t, peer, op, code)
+			if code == AccountCodec.OK:
+				_notify_party(me.id, "joined", me, me.id)
 		AccountCodec.OP_PARTY_DECLINE:
 			_reply(t, peer, op, _party_code(parties.decline(me.id, str(r.id))))
 		AccountCodec.OP_PARTY_LEAVE:
+			var mates := parties.mates_of(me.id)
 			parties.leave(me.id)
 			_reply(t, peer, op, AccountCodec.OK)
+			for m in mates:
+				notify(str(m), AccountCodec.N_PARTY_CHANGED, me, "left")
+		AccountCodec.OP_PARTY_PROMOTE:
+			var code := _party_code(parties.promote(me.id, str(r.id)))
+			_reply(t, peer, op, code)
+			if code == AccountCodec.OK:
+				_notify_party(me.id, "promoted", store.get_by_id(str(r.id)))
+		AccountCodec.OP_PARTY_KICK:
+			var kicked := str(r.id)
+			var code := _party_code(parties.kick(me.id, kicked))
+			_reply(t, peer, op, code)
+			if code == AccountCodec.OK:
+				notify(kicked, AccountCodec.N_KICKED, me)
+				_notify_party(me.id, "kicked", store.get_by_id(kicked))
+		AccountCodec.OP_PARTY_READY:
+			var code := _party_code(parties.set_ready(me.id, int(r.ready) != 0))
+			_reply(t, peer, op, code)
+			if code == AccountCodec.OK:
+				_notify_party(me.id, "ready" if int(r.ready) != 0 else "not_ready", me, me.id)
+		AccountCodec.OP_PARTY_CHAT:
+			_party_chat(t, peer, me, str(r.text))
+		AccountCodec.OP_PARTY_JOIN_REQUEST:
+			_join_request(t, peer, me, str(r.id))
+		AccountCodec.OP_DM:
+			_dm(t, peer, me, str(r.id), str(r.text))
+		AccountCodec.OP_SET_AWAY:
+			if int(r.away) != 0:
+				away[me.id] = true
+			else:
+				away.erase(me.id)
+			_reply(t, peer, op, AccountCodec.OK)
+		AccountCodec.OP_NOTIFY:
+			_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)  # server push only
 		AccountCodec.OP_FRIENDS:
 			_reply(t, peer, op, AccountCodec.OK, {"friends": friends_list(me)})
 		AccountCodec.OP_FRIEND_REQUEST:
 			var by_id := str(r.id)
-			_reply(t, peer, op, friend_request(me, str(r.username)) if LobbyCodec.is_none_id(by_id) \
-				else friend_request_id(me, by_id))
+			var code := friend_request(me, str(r.username)) if LobbyCodec.is_none_id(by_id) \
+				else friend_request_id(me, by_id)
+			_reply(t, peer, op, code)
+			if code == AccountCodec.OK:
+				var o := store.find_username(str(r.username)) if LobbyCodec.is_none_id(by_id) else store.get_by_id(by_id)
+				if not o.is_empty() and (o.requests_in as Array).has(me.id):  # never for a silent block drop
+					notify(str(o.id), AccountCodec.N_FRIEND_REQUEST, me)
 		AccountCodec.OP_FRIEND_ACCEPT:
 			_reply(t, peer, op, friend_accept(me, str(r.id)))
 		AccountCodec.OP_FRIEND_DECLINE:
@@ -893,8 +955,10 @@ func friends_list(me: Dictionary) -> Array:
 			if o.is_empty():
 				continue
 			var p: Dictionary = o.profile
-			var st := status_of(o.id) if pair[1] == AccountCodec.REL_FRIEND else LobbyCodec.STATUS_OFFLINE
-			out.append({"id": o.id, "status": st, "relation": pair[1], "username": o.username,
+			var friend: bool = pair[1] == AccountCodec.REL_FRIEND
+			var st := status_of(o.id) if friend else LobbyCodec.STATUS_OFFLINE
+			out.append({"id": o.id, "status": st, "mode": mode_of(o.id) if friend else 255, "relation": pair[1],
+				"username": o.username,
 				"display_name": str(p.get("display_name", o.username)), "emblem": int(p.get("emblem", 0)),
 				"accent": int(p.get("accent", 0))})
 	return out
@@ -903,13 +967,28 @@ func friends_list(me: Dictionary) -> Array:
 ## Presence of an account: in lobby / in match (PresenceRegistry), online
 ## (an attached session), else offline. Only shown to accepted friends.
 func status_of(account_id: String) -> int:
+	if presence_fn.is_valid():
+		var pr: Dictionary = presence_fn.call(account_id)
+		if not pr.is_empty():
+			var s_ := int(pr.status)
+			if s_ == LobbyCodec.STATUS_ONLINE and away.has(account_id):
+				return LobbyCodec.STATUS_AWAY
+			return s_
 	var st := registry.status_of(account_id, PresenceRegistry.now_s())
 	if st == LobbyCodec.STATUS_IN_LOBBY or st == LobbyCodec.STATUS_IN_MATCH:
 		return st
 	for p in peers:
 		if peers[p].id == account_id:
-			return LobbyCodec.STATUS_ONLINE
+			return LobbyCodec.STATUS_AWAY if away.has(account_id) else LobbyCodec.STATUS_ONLINE
 	return LobbyCodec.STATUS_OFFLINE
+
+
+## P2: the queue index a friend is in / playing (255 = none or unknown).
+func mode_of(account_id: String) -> int:
+	if presence_fn.is_valid():
+		var pr: Dictionary = presence_fn.call(account_id)
+		return int(pr.get("mode", 255))
+	return 255
 
 
 func friend_request(me: Dictionary, username: String) -> int:
@@ -1020,7 +1099,8 @@ func _party_entry(id: String, kind: int) -> Dictionary:
 		return {}
 	var p: Dictionary = o.profile
 	return {"id": id, "kind": kind, "status": status_of(id), "display_name": str(p.get("display_name", o.username)),
-		"emblem": int(p.get("emblem", 0)), "accent": int(p.get("accent", 0))}
+		"emblem": int(p.get("emblem", 0)), "accent": int(p.get("accent", 0)),
+		"flags": AccountCodec.PF_READY if parties.ready.has(id) else 0}
 
 
 static func _party_code(c: int) -> int:
@@ -1029,9 +1109,117 @@ static func _party_code(c: int) -> int:
 			return AccountCodec.OK
 		PartyService.E_FULL:
 			return AccountCodec.E_LIMIT
-		PartyService.E_NO_INVITE:
+		PartyService.E_NO_INVITE, PartyService.E_NOT_ALLOWED:
 			return AccountCodec.E_NOT_FOUND
 	return AccountCodec.E_BAD_REQUEST
+
+
+# --- social (P2): chat, DMs, join requests, notifications ---------------------
+# Chat text is never logged and never stored; it lives only in the packets.
+
+## Pushes an OP_NOTIFY to `to` when online. `from` = the sender's account
+## record ({} = the server). Returns true when sent.
+func notify(to: String, kind: int, from: Dictionary, text: String = "") -> bool:
+	if _push_t == null:
+		return false
+	var peer := _peer_of_account(to)
+	if peer < 0:
+		return false
+	var name := ""
+	if not from.is_empty():
+		name = str((from.get("profile", {}) as Dictionary).get("display_name", from.get("username", "")))
+	_reply(_push_t, peer, AccountCodec.OP_NOTIFY, AccountCodec.OK, {"kind": kind,
+		"id": str(from.get("id", "")), "name": name, "text": text, "mode": 255})
+	return true
+
+
+func _notify_party(member: String, what: String, about: Dictionary, skip: String = "") -> void:
+	var pid: String = parties.member_of.get(member, "")
+	if pid == "":
+		return
+	for m in parties.parties[pid].members:
+		if str(m) != skip:
+			notify(str(m), AccountCodec.N_PARTY_CHANGED, about, what)
+
+
+func _party_chat(t: Transport, peer: int, me: Dictionary, raw: String) -> void:
+	var op := AccountCodec.OP_PARTY_CHAT
+	var text := ChatFilter.sanitize(raw)
+	var pid: String = parties.member_of.get(me.id, "")
+	if pid == "" or text == "":
+		_reply(t, peer, op, AccountCodec.E_NOT_FOUND if pid == "" else AccountCodec.E_BAD_REQUEST)
+		return
+	if not _social_allow("chat", me.id):
+		_reply(t, peer, op, AccountCodec.E_RATE)
+		return
+	_reply(t, peer, op, AccountCodec.OK)
+	for m in parties.parties[pid].members:
+		var o := store.get_by_id(str(m))
+		if not o.is_empty() and not (o.blocks as Array).has(me.id):  # a block hides chat too
+			notify(str(m), AccountCodec.N_PARTY_CHAT, me, text)
+
+
+func _dm(t: Transport, peer: int, me: Dictionary, to: String, raw: String) -> void:
+	var op := AccountCodec.OP_DM
+	var text := ChatFilter.sanitize(raw)
+	var o := store.get_by_id(to)
+	if o.is_empty() or not (me.friends as Array).has(to) or (me.blocks as Array).has(to) \
+			or (o.blocks as Array).has(me.id):
+		_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+		return
+	if text == "":
+		_reply(t, peer, op, AccountCodec.E_BAD_REQUEST)
+		return
+	if not _social_allow("chat", me.id):
+		_reply(t, peer, op, AccountCodec.E_RATE)
+		return
+	# Online only: messages are never stored (PRIVACY.md "Chat").
+	_reply(t, peer, op, AccountCodec.OK if notify(to, AccountCodec.N_DM, me, text) else AccountCodec.E_NOT_FOUND)
+
+
+## Ask friend `to`'s party (its leader, or the friend when alone) for an invite.
+func _join_request(t: Transport, peer: int, me: Dictionary, to: String) -> void:
+	var op := AccountCodec.OP_PARTY_JOIN_REQUEST
+	var o := store.get_by_id(to)
+	if o.is_empty() or not (me.friends as Array).has(to) or (me.blocks as Array).has(to) \
+			or (o.blocks as Array).has(me.id):
+		_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+		return
+	if not _social_allow("invite", me.id):
+		_reply(t, peer, op, AccountCodec.E_RATE)
+		return
+	var target := to
+	var ps := parties.state_of(to, _now)
+	if str(ps.party) != "":
+		target = str(ps.leader)
+		var lead := store.get_by_id(target)
+		if lead.is_empty() or (lead.blocks as Array).has(me.id):
+			_reply(t, peer, op, AccountCodec.E_NOT_FOUND)
+			return
+	_reply(t, peer, op, AccountCodec.OK if notify(target, AccountCodec.N_JOIN_REQUEST, me) else AccountCodec.E_NOT_FOUND)
+
+
+## Token bucket per account and kind ("chat" / "invite").
+func _social_allow(kind: String, account_id: String) -> bool:
+	var burst := float(online.chat_burst if kind == "chat" else online.invite_burst)
+	var refill := online.chat_refill_s if kind == "chat" else online.invite_refill_s
+	var k := kind + ":" + account_id
+	var b: Array = _social_rl.get(k, [burst, _now])
+	var tokens := minf(burst, float(b[0]) + (_now - float(b[1])) / refill)
+	if tokens < 1.0:
+		_social_rl[k] = [tokens, _now]
+		return false
+	_social_rl[k] = [tokens - 1.0, _now]
+	if _social_rl.size() > 8192:
+		_social_rl.clear()
+	return true
+
+
+func _peer_of_account(account_id: String) -> int:
+	for p in peers:
+		if str(peers[p].get("id", "")) == account_id:
+			return int(p)
+	return -1
 
 
 func _has_session(account_id: String) -> bool:

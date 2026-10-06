@@ -52,6 +52,10 @@ const STATUS_OFFLINE: int = 0
 const STATUS_ONLINE: int = 1
 const STATUS_IN_LOBBY: int = 2
 const STATUS_IN_MATCH: int = 3
+## v20 (P2) presence, shown to friends only.
+const STATUS_IN_QUEUE: int = 4
+const STATUS_IN_SELECT: int = 5   ## ready check, hero select, loading
+const STATUS_AWAY: int = 6
 
 
 ## Bounds-checked little-endian reader; `ok` turns false on any overrun.

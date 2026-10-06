@@ -27,6 +27,14 @@ const PATH := "res://assets/data/net/online_rules.tres"
 @export_range(2, 10) var party_max: int = 5
 ## A party invite expires after this long.
 @export_range(10.0, 3600.0) var party_invite_ttl_s: float = 120.0
+## P2: party chat and direct messages per account: burst, then one more
+## every chat_refill_s. Safe range burst 3-10, refill 0.5-3 s.
+@export_range(1, 30) var chat_burst: int = 5
+@export_range(0.2, 10.0) var chat_refill_s: float = 1.0
+## P2: party invites and join requests per account: burst, then one more every
+## invite_refill_s. Safe range burst 3-10, refill 5-30 s.
+@export_range(1, 30) var invite_burst: int = 5
+@export_range(1.0, 120.0) var invite_refill_s: float = 10.0
 
 ## W20-WEB public snapshot (CYBERGRAM_PUBLIC_DIR, read by the website):
 ## seconds between writes of the counts (players, matches, queues).

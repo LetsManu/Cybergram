@@ -12,12 +12,17 @@ const OK := 0
 const E_BAD := 1
 const E_FULL := 2
 const E_NO_INVITE := 3
+## P2: not the leader / not in that party.
+const E_NOT_ALLOWED := 4
 
 var max_size: int = 3
 var invite_ttl_s: float = 120.0
 var parties: Dictionary = {}    # party id -> {leader: String, members: Array[String]}
 var member_of: Dictionary = {}  # account id -> party id
 var invites: Dictionary = {}    # invitee id -> {inviter id: expires (s)}
+## P2: members who marked themselves ready (account id -> true); cleared for
+## the whole party whenever its members change.
+var ready: Dictionary = {}
 var _crypto := Crypto.new()
 
 
@@ -58,6 +63,7 @@ func accept(me: String, inviter: String, now: float) -> int:
 		member_of[inviter] = pid
 	(parties[pid].members as Array).append(me)
 	member_of[me] = pid
+	_clear_ready(pid)
 	return OK
 
 
@@ -71,10 +77,14 @@ func decline(me: String, inviter: String) -> int:
 func leave(me: String) -> void:
 	var pid: String = member_of.get(me, "")
 	member_of.erase(me)
+	ready.erase(me)
+	for k in invites:
+		(invites[k] as Dictionary).erase(me)  # an invite from someone who left is stale
 	if pid == "" or not parties.has(pid):
 		return
 	var p: Dictionary = parties[pid]
 	(p.members as Array).erase(me)
+	_clear_ready(pid)
 	if (p.members as Array).size() <= 1:
 		for m in p.members:
 			member_of.erase(m)
@@ -82,6 +92,41 @@ func leave(me: String) -> void:
 		return
 	if p.leader == me:
 		p.leader = p.members[0]
+
+
+## P2: the leader hands leadership to member `to`.
+func promote(leader: String, to: String) -> int:
+	var pid: String = member_of.get(leader, "")
+	if pid == "" or parties[pid].leader != leader or member_of.get(to, "") != pid or to == leader:
+		return E_NOT_ALLOWED
+	parties[pid].leader = to
+	return OK
+
+
+## P2: the leader removes member `who` (who may join again only by a new invite).
+func kick(leader: String, who: String) -> int:
+	var pid: String = member_of.get(leader, "")
+	if pid == "" or parties[pid].leader != leader or member_of.get(who, "") != pid or who == leader:
+		return E_NOT_ALLOWED
+	leave(who)
+	return OK
+
+
+## P2: a member marks itself ready (or not). Only inside a party.
+func set_ready(me: String, on: bool) -> int:
+	if member_of.get(me, "") == "":
+		return E_NOT_ALLOWED
+	if on:
+		ready[me] = true
+	else:
+		ready.erase(me)
+	return OK
+
+
+func _clear_ready(pid: String) -> void:
+	if parties.has(pid):
+		for m in parties[pid].members:
+			ready.erase(m)
 
 
 ## Forgets an account completely (no session left, account deleted).
