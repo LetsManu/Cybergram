@@ -16,3 +16,18 @@
 ## Review log
 
 Findings per iteration are appended below.
+
+### Iteration 1 (2026-10-06): first bake
+
+Builds: picket_c 5,730 / picket_s 5,686 tris over all 9 pieces (body 2.5k);
+tier III + legs + sash = 3,958 (budget 4,000). Opened
+`production/qa/evidence/p6b/after/wardlings.png` (Concord I, II, III with own
+sash + ground ring, Concord Elite, Syndicate Vanguard I-III) and `hero-ref.png`.
+
+- Same language as the heroes now: ink outline, painted light, edge
+  highlights. Factions read at a glance (porcelain + gold vs black iron + brass);
+  tiers add silhouette (plates + crest, then the crystal crown); Vanguard
+  pennants read as "wave" from the side.
+- Still below standard: the visor reads a little like sunglasses; the core is
+  partly hidden behind the sash band from the front. Animation is unchanged
+  (procedural hop); not captured in motion.

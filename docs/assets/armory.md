@@ -26,3 +26,20 @@ Armory building and its counter stay as HQ structure until the HQ set pass.
 ## Review log
 
 Findings per iteration are appended below.
+
+### Iteration 1 (2026-10-06): first bake
+
+Build: 9,652 tris, 1024 maps. Opened `production/qa/evidence/p6b/after/
+fp-spawn-a, armory-mid, armory-approach.png`.
+
+- `armory-mid`: reads as a shop: racks, glowing display wall, counter,
+  workbench, sign board with the ARMORY label, the beacon column and the pad
+  ring in front.
+- `fp-spawn-a`: from a fresh spawn the stall is at the right edge of the view
+  (about 45 degrees off the spawn's facing): you see part of it and the beacon,
+  not the whole stall. Further into the view would put it on the path to the
+  South gate; kept here. The HUD Armory prompt shows at the spawn because the
+  Sanctum is now the buy zone (covered by `armory_reach_test.gd`; the HUD frame
+  itself was not captured).
+- The stall is small next to the HQ walls (human scale counter); the old Armory
+  building still stands behind it as plain structure.

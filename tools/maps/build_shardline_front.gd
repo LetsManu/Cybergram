@@ -50,6 +50,7 @@ const MID_L := 210.0
 const PLAZA_R := 30.0
 const SOCKET_GAP := 15.0
 const CRADLE_X := -5.0
+const CRADLE_DL := 3.0
 ## Armory pad (HqDef.armory): beside the spawn at the Sanctum's edge, in view of
 ## a fresh spawn (owner decision 2026-10-06: "like the LoL shop at the spawn").
 ## The old Armory building stays as HQ structure.
@@ -1691,8 +1692,11 @@ func _gate(li: int, team: int) -> Vector3:
 ## E14 Cradles for the Plant node at lane index i: [0] Concord's, [1] Syndicate's.
 func _cradle_points(li: int, i: int) -> PackedVector3Array:
 	var hps := _lane_hps(li)
-	var c: Vector3 = P(hps[i - 1].x + CRADLE_X, hps[i - 1].l) if i - 1 >= 0 else _gate(li, 0) + P(CRADLE_X, 8.0)
-	var sy: Vector3 = P(hps[i + 1].x + CRADLE_X, hps[i + 1].l) if i + 1 < 5 else _gate(li, 1) + P(CRADLE_X, -8.0)
+	# Each Cradle sits CRADLE_DL toward its own team's HQ: a Mid between two Plant
+	# nodes hosts one Cradle of each team, which must not share the spot (mirror
+	# symmetric, so neither team's Cradle is closer to the fight).
+	var c: Vector3 = P(hps[i - 1].x + CRADLE_X, hps[i - 1].l - CRADLE_DL) if i - 1 >= 0 else _gate(li, 0) + P(CRADLE_X, 8.0)
+	var sy: Vector3 = P(hps[i + 1].x + CRADLE_X, hps[i + 1].l + CRADLE_DL) if i + 1 < 5 else _gate(li, 1) + P(CRADLE_X, -8.0)
 	return PackedVector3Array([c, sy])
 
 

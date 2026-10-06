@@ -32,3 +32,26 @@ those systems exist, so the world does not promise a mechanic it lacks.
 ## Review log
 
 Findings per iteration are appended below.
+
+### Iteration 1 (2026-10-06): first bake
+
+Builds: Cell Cradle 8,158 tris (1024 maps), Mana Cell 1,872 (512), Charge
+Cradle 5,722 + bracket 1,258 (1024). Opened
+`production/qa/evidence/p6b/after/cradle-close, cradle-mid, plant-close,
+plant-mid, plant-approach, hold-mid.png`.
+
+- Cell Cradle: the Cell in the four clamps reads as "take it here"; plate,
+  chevrons and corner brackets are team-blue; sits on the adjacent Hold dais
+  as the map places it. An empty Cradle (no Cell) shows open clamps (`hold-mid`).
+- Charge Cradle: the "Y" reads from the zone edge; four corner brackets mark
+  the square pad at the zone half-width. Fixed in this iteration: the planted
+  beam started at the floor and hid the Cell; it now starts above the socket
+  (`PLANT_BEAM_BASE_M`), and the Cell is visible between the prongs.
+- Kit bugs found by looking at the atlases: zero-area faces (sphere clip on its
+  equator, bevel collapsing thin chevrons) unwrapped to giant slivers and left
+  the real islands in one corner (Mana Cell, Charge Cradle). Both removed in
+  `world_kit.py`; the Charge Cradle was rebaked and its atlas checked.
+- Garrison posts and the Supply Cache box no longer show (`hold-mid`).
+- Not verified as frames: Cell carried / dropped, ownership swap of the Charge
+  Cradle (code paths covered by `world_assets_test.gd`), prongs lighting with
+  charge (not built).

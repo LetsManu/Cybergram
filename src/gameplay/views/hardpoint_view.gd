@@ -14,6 +14,9 @@ const SEGMENTS: int = 48
 ## starting at the crystal's tip.
 const HOLD_PILLAR_M: float = 12.0
 const HOLD_PILLAR_BASE_M: float = 4.4
+## Planted-Cell beam: from just above the Cell (2.9 m, Charge Cradle socket) up.
+const PLANT_BEAM_BASE_M: float = 3.4
+const PLANT_BEAM_M: float = 11.0
 ## Art bible §4 palette: azure_core, ember_core, neutral.
 const COLOR_CONCORD := Color("#2E86FF")
 const COLOR_SYNDICATE := Color("#FF5A1F")
@@ -318,12 +321,13 @@ func _build_plant(d: HardpointDef) -> void:
 	_beam = MeshInstance3D.new()
 	_beam.name = "PlantBeam"
 	var bm := CylinderMesh.new()
-	bm.top_radius = 0.25
-	bm.bottom_radius = 0.25
-	bm.height = 14.0
+	# Starts above the Charge Cradle's socket, so the planted Cell stays visible.
+	bm.top_radius = 0.18
+	bm.bottom_radius = 0.18
+	bm.height = PLANT_BEAM_M
 	bm.material = _cell_mat
 	_beam.mesh = bm
-	_beam.position.y = 7.0
+	_beam.position.y = PLANT_BEAM_BASE_M + PLANT_BEAM_M * 0.5
 	_beam.visible = false
 	add_child(_beam)
 	_channel_ring = MeshInstance3D.new()

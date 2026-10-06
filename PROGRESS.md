@@ -171,7 +171,17 @@ Plan agreed 2026-10-06 (owner answers to the plan questions):
   level too. The circles were the Plant **Cell Cradles** (work: a team takes its
   Mana Cell there); the teal discs / box were C5 **Garrison posts / Supply Cache**
   markers for features that are not in the game yet.
-- Phase 6b (in progress): Plant kit on the hero pipeline
+- Owner asks during 6b: "a better floor with some decals" and "a way to see
+  where the armory is? it should be like the LoL shop at the Spawn".
+- Phase 6e: the Sanctum counts as the Armory (`EconomyRulesDef.shop_in_sanctum`),
+  the pad moved beside the spawn (8, -12) and got a baked **Armory stall**
+  (`tools/art/world/armory_stall.py`); a fresh spawn can buy at once
+  (`armory_reach_test.gd`). Brief + review: `docs/assets/armory.md`.
+- Cell Cradle overlap fixed: in the Center lane the Syndicate Cradle of one
+  Plant node and the Concord Cradle of the other were on the same spot (seen in
+  the frames); each Cradle now sits 3 m toward its own HQ (mirror symmetric,
+  `map_front_cradles_test.gd`, watched it fail on the old data).
+- Phase 6b (iteration 1 done, evidence `production/qa/evidence/p6b/`): Plant kit on the hero pipeline
   (`tools/art/world/plant_kit.py`: Cell Cradle, Mana Cell, Charge Cradle with 4
   corner brackets), wired in `HardpointView`; Garrison / Supply Cache markers
   hidden until their systems exist; **Picket Wardling** baked in two faction
@@ -181,7 +191,7 @@ Plan agreed 2026-10-06 (owner answers to the plan questions):
   Briefs: `docs/assets/plant.md`, `docs/assets/picket.md`.
 
 ## Next (prioritised)
-1. Finish 6b (evidence, review), then the rest of Phase 6 in the same way:
+1. Floor + decals (owner ask; scope to agree first), then the rest of Phase 6:
    Ward Generator + shield (Breach), Barricade (2 styles, 3 damage stages),
    Forward Beacon, Sanctum / Foundry / Armory. Garrison socket + Supply Cache
    art waits for their gameplay (C5), which is not built.
