@@ -73,3 +73,12 @@ func test_friends_sidebar_collapses() -> void:
 func test_quit_asks_first() -> void:
 	_menu._confirm_quit()
 	assert_object(_menu._root.get_node_or_null("UiModal")).is_not_null()
+
+
+## Regression (owner report 2026-10-06, v0.17.0): a server without
+## CYBERGRAM_PUBLIC_HOST assigns matches with an empty host; the client must
+## then use the address it reached the front with, not connect to ":7800".
+func test_match_without_public_host_uses_the_front_address() -> void:
+	assert_bool(_menu._connect("127.0.0.1:7999")).is_true()
+	assert_str(_menu._online.matchmaking.server_host).is_equal("127.0.0.1")
+	_menu._disconnect()

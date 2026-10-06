@@ -74,9 +74,11 @@ paste or point at the repo).
   (`CYBERGRAM_TLS_DIR`, default `./tls`): `fullchain.pem` + `privkey.pem`, issued
   for `cyber.djboeck.at`, readable by the container user. Without it the server
   runs guest-only.
-- `CYBERGRAM_PUBLIC_HOST=cyber.djboeck.at`: clients are sent to the match
-  processes by this name, so matches are encrypted too and the hosts-file line
-  covers them.
+- **`CYBERGRAM_PUBLIC_HOST=cyber.djboeck.at` (set it).** Clients are sent to the
+  match processes by this name, so matches are encrypted too and the hosts-file
+  line covers them. Without it, game clients up to v0.17.0 tried to join matches
+  at an empty address (":7800") and dropped back to the menu; newer clients
+  fall back to the name they used for the front.
 - Never delete the `cybergram-data` volume (it holds every account).
 - Operations endpoint (`/health`, `/metrics`) on TCP 8090: publish it on the LAN
   only (`CYBERGRAM_OPS_PUBLISH=192.168.1.7:8090`), never through the reverse proxy.
