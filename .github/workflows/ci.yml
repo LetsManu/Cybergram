@@ -13,6 +13,11 @@ permissions:
 env:
   GODOT_VERSION: 4.7-stable
 
+# A newer push to the same PR / branch cancels the run still going.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -27,12 +32,15 @@ jobs:
           key: godot-${{ env.GODOT_VERSION }}
 
       - name: Install Godot
+        timeout-minutes: 5
         run: echo "GODOT=$(tools/ci/install_godot.sh)" >> "$GITHUB_ENV"
 
       - name: Layer dependency check
+        timeout-minutes: 2
         run: tools/ci/check_deps.sh
 
       - name: Unit and integration tests (gdUnit4)
+        timeout-minutes: 16
         run: tools/ci/run_tests.sh
 
       - name: Upload test report
@@ -42,6 +50,35 @@ jobs:
           name: gdunit-report
           path: reports/
           if-no-files-found: ignore
+
+  # Fast gate: launcher copies of the shared scripts are in sync and the
+  # launcher's own tests pass (build.yml only runs them on main / tags).
+  launcher:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot
+        timeout-minutes: 5
+        run: echo "GODOT=$(tools/ci/install_godot.sh)" >> "$GITHUB_ENV"
+
+      - name: Shared scripts in sync
+        run: launcher/tools/sync_shared.sh --check
+
+      - name: Launcher tests
+        timeout-minutes: 6
+        run: |
+          timeout 120 $GODOT --headless --path launcher --import >/dev/null 2>&1 || true
+          for t in test_core test_upd test_ux test_online; do
+            timeout 120 $GODOT --headless --path launcher -s tests/$t.gd
+          done
 
   capture:
     # Advisory "launch and look" screenshot; does not gate merges.
