@@ -117,6 +117,10 @@ class HardpointState:
 	var gen_frac: float = 0.0
 	var breach_phase2: bool = false
 	var shielded: bool = false
+	## Mid Forward Beacon of the owner (ProgressionSystem.Beacon: 0 none,
+	## 1 attuning, 2 ready, 3 under attack) and the attunement fraction (1/15 steps).
+	var beacon: int = 0
+	var beacon_attune: float = 0.0
 	## Plant: HardpointSim.CellState, the Cell's team (-1 none), position, carrier
 	## net id (0 none), and the interact channel (HardpointSim.Channel, 0..1 done).
 	var cell_state: int = 0

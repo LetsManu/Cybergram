@@ -158,6 +158,8 @@ func setup_objectives(md: MapDef) -> void:
 			var v := HardpointView.new()
 			v.setup(d)
 			add_child(v)
+			if DisplayServer.get_name() != "headless":
+				v.add_beacons(md)  # Part 6: Forward Beacon pads on the Mids
 			_hp_views.append(v)
 	_build_sudden_death(md)
 	for hq in md.hqs:

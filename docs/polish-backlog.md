@@ -34,6 +34,16 @@ section.
   reach rooftops. Roof props have no collision (visual only), so the roof limit
   stays at 7.5 m (only 3 roof props today). Fix: clamp leap targets to the
   walkable navmesh, then roof props can go lower and denser.
+- **Forward Beacon banner weak at mid range** (Part 6, `beacon-mid` shots): at
+  17 m the 1.5 m banner is thin and stands next to the Holdstone's light
+  pillar on the Spindle. Fix: wider banner or a second banner on the crossbar,
+  a different silhouette (rings instead of a column), or place the pad off the
+  pillar's line of sight. Motion (blink, build-up) still needs a look in a
+  running client (docs/manual-checklist.md).
+- **Beacon spawn height**: `ProgressionSystem.beacon_point` spawns at the
+  Mid's floor height + 5 cm; on the Spindle the spot is on the 0.3 m Holdstone
+  dais, so the hero starts inside the dais lip and is pushed up by the
+  physics. Harmless today; better: spawn at the pad (ground ray) position.
 - **Props on slopes are skipped**: ~250 candidates a run sink 8-12 cm into ramps
   and are rejected (correctly). Slope-aware pieces (wedged crates, ramp rails)
   would fill the ramps; today the props sit on the flat parts.

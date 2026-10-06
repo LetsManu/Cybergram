@@ -246,6 +246,12 @@ for ev in ("shield_down", "crack", "breach"):
     e(f"generator_{ev}", st, "world", WORLD, spatial=S3D, max_distance_m=70.0, unit_size=10.0,
       priority=0 if ev == "breach" else 1, max_voices=2, cooldown_ms=300)
 
+for ev in ("attune", "ready", "threat"):
+    st = f"world_beacon_{ev}"
+    f("world", st, R.beacon, 1, -18.0, event=ev)
+    e(f"beacon_{ev}", st, "world", WORLD, spatial=S3D, max_distance_m=60.0, unit_size=10.0,
+      priority=1, max_voices=2, cooldown_ms=2000 if ev == "threat" else 300)
+
 # ------------------------------------------------------------- footsteps
 for surface in ("concrete", "metal", "grate", "water"):
     st = f"footsteps_{surface}_step"

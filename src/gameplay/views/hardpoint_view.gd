@@ -70,6 +70,8 @@ var _art_owner: int = -2
 ## Phase 6 Plant art (tools/art/world/plant_kit.py): the Charge Cradle and its
 ## four pad corner brackets, tinted for the owner like the Holdstone.
 var _cradle_art: Array[Node3D] = []
+## Forward Beacon pads of a Mid (one per side; empty elsewhere / without the asset).
+var beacons: Array[ForwardBeaconView] = []
 ## The own team's current objective (ClientWorld: the lane front, C15).
 var objective: bool = false
 var _near_text: String = ""
@@ -397,8 +399,39 @@ func _build_plant_art(d: HardpointDef) -> void:
 		_hide_map_nodes.call_deferred(hidden)
 
 
+## Forward Beacon pads on a Mid (match-flow §3.5): one per side at the spot its
+## heroes spawn, placed on level floor once the map's collision is queryable.
+func add_beacons(md: MapDef) -> void:
+	if md == null or def == null or not ForwardBeaconView.available():
+		return
+	for sp: Array in ForwardBeaconView.spots(md, def):
+		var b := ForwardBeaconView.new()
+		b.setup(sp[0])
+		add_child(b)
+		b.global_position = sp[1]
+		beacons.append(b)
+	if not beacons.is_empty():
+		_place_beacons.call_deferred(md)
+
+
+func _place_beacons(md: MapDef) -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_inside_tree():
+		return
+	var space := get_world_3d().direct_space_state
+	var tol := MapPlacementAudit.rules().ground_tol_m
+	var sp := ForwardBeaconView.spots(md, def)
+	for i in mini(sp.size(), beacons.size()):
+		beacons[i].global_transform = ForwardBeaconView.place(space, def.position, sp[i][1], tol)
+
+
 ## Applies the latest replicated state.
 func apply(st: SnapshotData.HardpointState) -> void:
+	for b in beacons:
+		b.apply_state(st.owner, st.beacon, st.beacon_attune)
 	_apply_task_art(st.owner)
 	_ring_base = team_color(st.owner)
 	_seg_base = team_color(st.capturing_team)

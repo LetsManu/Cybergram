@@ -98,7 +98,26 @@ static func cover_items(map_root: Node3D) -> Array:
 	return out
 
 
-## Validates props + decals; returns [items, report].
+## Items for the objective dressing placed through PlacementKit at runtime:
+## the Forward Beacon pads (two per Mid, ForwardBeaconView.place). Flat discs,
+## so grounded + supported apply; they belong inside the Mid zone, so the props'
+## keep-out zones do not.
+static func objective_items(md: MapDef, space: PhysicsDirectSpaceState3D) -> Array:
+	var out: Array = []
+	var tol := rules().ground_tol_m
+	for lane: LaneDef in md.lanes:
+		for d: HardpointDef in lane.hardpoints:
+			for sp: Array in ForwardBeaconView.spots(md, d):
+				var xf := ForwardBeaconView.place(space, d.position, sp[1], tol)
+				var it := PlacementValidator.Item.new("forward_beacon_%s_%d@%s" % [d.id, sp[0], _at(xf.origin)], &"flat",
+					xf, ForwardBeaconView.pad_box())
+				it.foot = ForwardBeaconView.pad_foot(xf, ForwardBeaconView.foot_radius())
+				it.waiver = _waiver(it.id)
+				out.append(it)
+	return out
+
+
+## Validates props + decals + objective dressing; returns [items, report].
 static func run(md: MapDef, space: PhysicsDirectSpaceState3D, ground: Callable, map_root: Node3D = null) -> Array:
 	var def := load(WorldProps.DEF_PATH) as WorldPropsDef
 	var corridors := WorldProps.lane_corridors(md)
@@ -109,7 +128,10 @@ static func run(md: MapDef, space: PhysicsDirectSpaceState3D, ground: Callable, 
 		WorldDecals.plausible_filter(space, load(WorldDecals.DEF_PATH) as WorldDecalsDef))
 	if map_root != null:
 		items += cover_items(map_root)
-	return [items, v.validate(space, items)]
+	var report: Array = v.validate(space, items)
+	var objectives := objective_items(md, space)
+	report.append_array(PlacementValidator.new(rules()).validate(space, objectives))
+	return [items + objectives, report]
 
 
 static func _waiver(id: String) -> String:

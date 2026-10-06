@@ -981,6 +981,9 @@ func _fill_objectives(s: SnapshotData) -> void:
 		st.severed = h.severed
 		st.locked = [h.locked_for(0), h.locked_for(1)]
 		st.task = h.task  # E14 Plant / Breach
+		if progression != null and h.def.tier == HardpointDef.Tier.MID:  # Forward Beacon (§3.5)
+			st.beacon = progression.beacon_state(h)
+			st.beacon_attune = progression.beacon_attune(h) if st.beacon != ProgressionSystem.Beacon.NONE else 0.0
 		if h.task == HardpointDef.TaskKind.BREACH:
 			st.breach_phase2 = h.breach_phase == 2
 			st.gen_frac = h.gen_frac if h.breach_phase == 1 else 0.0

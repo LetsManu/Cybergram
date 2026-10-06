@@ -65,6 +65,7 @@ var _prev_dead: bool = false
 var _prev_burnout: bool = false
 var _prev_contested: Dictionary = {}  # hardpoint index -> bool
 var _prev_gen_stage: Dictionary = {}  # hardpoint index -> WardGeneratorView.Stage
+var _prev_beacon: Dictionary = {}  # hardpoint index -> ProgressionSystem.Beacon
 var _prev_phase: int = -1
 var _countdown_last: int = -1
 var _wardlings: Dictionary = {}  # net id -> last position (alive last snapshot)
@@ -384,6 +385,7 @@ func _recent_attacker() -> int:
 func _objective_sounds(s: SnapshotData) -> void:
 	var team: int = client.own_team()
 	_generator_sounds(s)
+	_beacon_sounds(s)
 	for i in s.hardpoints.size():
 		var h := s.hardpoints[i]
 		var mine := h.owner == team or h.capturing_team == team
@@ -435,6 +437,43 @@ static func generator_event(prev: int, now: int) -> StringName:
 		return &"generator_shield_down"
 	if now >= S.CRACK_1 and now <= S.CRACK_3 and now > prev:
 		return &"generator_crack"
+	return &""
+
+
+## Forward Beacon sounds (docs/assets/forward_beacon.md) at the owner's pad:
+## attunement starts, the Beacon is ready, it comes under attack.
+func _beacon_sounds(s: SnapshotData) -> void:
+	var md: MapDef = client.map_def if client != null else null
+	for i in s.hardpoints.size():
+		var h := s.hardpoints[i]
+		var prev: int = _prev_beacon.get(i, -1)
+		_prev_beacon[i] = h.beacon
+		var ev := beacon_event(prev, h.beacon)
+		if ev == &"":
+			continue
+		var at: Variant = null
+		if md != null:
+			var hd := md.hardpoint_global(i)
+			if hd != null:
+				for sp: Array in ForwardBeaconView.spots(md, hd):
+					if sp[0] == h.owner:
+						at = (sp[1] as Vector3) + Vector3(0, 1.0, 0)
+		events.play(ev, AudioEventDef.OwnerFilter.ANY, at)
+
+
+## The Beacon sound for a state change (pure; "" = none). The first sample
+## (prev -1) only records the state.
+static func beacon_event(prev: int, now: int) -> StringName:
+	var B := ProgressionSystem.Beacon
+	if prev < 0 or prev == now:
+		return &""
+	match now:
+		B.ATTUNING:
+			return &"beacon_attune"
+		B.READY:
+			return &"beacon_ready"
+		B.UNDER_ATTACK:
+			return &"beacon_threat"
 	return &""
 
 

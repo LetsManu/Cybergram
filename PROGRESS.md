@@ -242,3 +242,22 @@ summarised here so the plan survives a new session):
 7. **Part 7 Backlog:** docs/polish-backlog.md (Uplink legs, Syndicate Wardling
    colours); Garrison / Supply Cache stay hidden (owner to decide if they ship in
    the first release).
+
+## Part 6 status (2026-10-06)
+
+- **Ward Generator**: done (docs/assets/ward_generator.md).
+- **Forward Beacon**: done (docs/assets/forward_beacon.md): spawn pad per side,
+  hard-light mast / banner / halo, 4 states replicated in free bits of the
+  hardpoint record, sounds, data def, placement through PlacementKit + CI gate,
+  tests that fail without the asset, before/after shots.
+  Assumption recorded there: the mast is a projection, not geometry (no new
+  collision / navmesh).
+- **Barricades**: not started. They have no gameplay yet
+  (`barricade_socket_anchor.gd`: "Inactive in M1, arrives in M3"); building
+  them needs server work (integrity, team pass-through, replication, Wardling
+  pathing). Raised with the owner; Sanctum and Foundry go first.
+- **Sanctum, Foundry**: next.
+- Owner reports handled the same day: a match that ends while the game is
+  closed now takes the player to Offline (was stuck InGame); `/admin/accounts`
+  lists the registered accounts (docs/monitoring.md).
+

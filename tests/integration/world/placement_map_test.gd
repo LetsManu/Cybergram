@@ -27,3 +27,8 @@ func test_shipped_map_has_no_unwaived_placement_violations() -> void:
 	if PlacementValidator.unwaived(report) > 0:
 		print(PlacementValidator.format(report, (res[0] as Array).size()))
 	assert_int(PlacementValidator.unwaived(report)).is_equal(0)
+	# Part 6: the six Forward Beacon pads (two per Mid) are in the audit, with no waiver.
+	var pads := (res[0] as Array).filter(func(it: PlacementValidator.Item) -> bool: return it.id.begins_with("forward_beacon_"))
+	assert_int(pads.size()).is_equal(6)
+	for v: PlacementValidator.Violation in report:
+		assert_bool(v.item.begins_with("forward_beacon_")).override_failure_message(v.text()).is_false()

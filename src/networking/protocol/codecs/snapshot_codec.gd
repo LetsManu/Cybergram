@@ -277,7 +277,9 @@ static func hardpoint_record(h: SnapshotData.HardpointState) -> PackedByteArray:
 	r.encode_u8(2, f)
 	r.encode_u16(3, roundi(clampf(h.progress, 0.0, 1.0) * 65535.0))
 	r.encode_u8(5, h.task & 0xFF)
-	r.encode_u8(6, (1 if h.breach_phase2 else 0) | (2 if h.shielded else 0))
+	# bits 0-1 Breach, 2-3 Forward Beacon state, 4-7 attunement (0..15): free bits, no layout change
+	r.encode_u8(6, (1 if h.breach_phase2 else 0) | (2 if h.shielded else 0) | ((h.beacon & 3) << 2)
+		| (roundi(clampf(h.beacon_attune, 0.0, 1.0) * 15.0) << 4))
 	r.encode_u8(7, roundi(clampf(h.gen_frac, 0.0, 1.0) * 255.0))
 	r.encode_u8(8, h.cell_state & 0xFF)
 	r.encode_s8(9, clampi(h.cell_team, -1, 1))
@@ -302,6 +304,8 @@ static func hardpoint_from(r: PackedByteArray) -> SnapshotData.HardpointState:
 	var tf := r.decode_u8(6)
 	h.breach_phase2 = (tf & 1) != 0
 	h.shielded = (tf & 2) != 0
+	h.beacon = (tf >> 2) & 3
+	h.beacon_attune = ((tf >> 4) & 15) / 15.0
 	h.gen_frac = r.decode_u8(7) / 255.0
 	h.cell_state = r.decode_u8(8)
 	h.cell_team = r.decode_s8(9)
