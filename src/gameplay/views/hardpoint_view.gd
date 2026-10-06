@@ -48,6 +48,8 @@ var _progress: float = 0.0
 # E14 task views.
 var _shield: MeshInstance3D
 var _shield_mat: StandardMaterial3D
+## Ward Generator at hero fidelity (Breach; null while the asset is not built).
+var _generator: WardGeneratorView
 var _gen_bar: MeshInstance3D
 var _gen_bar_bg: MeshInstance3D
 var _gen_bar_mat: StandardMaterial3D
@@ -258,6 +260,11 @@ func _hide_map_nodes(names: Array) -> void:
 
 
 func _build_breach(d: HardpointDef) -> void:
+	if WardGeneratorView.available():
+		_generator = WardGeneratorView.new()
+		_generator.setup(d.initial_owner)
+		add_child(_generator)
+		_hide_greybox.call_deferred([&"GeneratorCore", &"ShieldDome"])
 	_shield_mat = _unshaded(Color(team_color(d.initial_owner), 0.28))
 	_shield_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_shield = MeshInstance3D.new()
@@ -450,9 +457,11 @@ func _update_label() -> void:
 
 ## E14 task visuals; returns extra label text.
 func _apply_task(st: SnapshotData.HardpointState) -> String:
+	if _generator != null:
+		_generator.apply_state(st.owner, st.shielded, st.gen_frac, st.breach_phase2)
 	if _shield != null:
 		var up := st.task == HardpointDef.TaskKind.BREACH and not st.breach_phase2 and st.owner != MapDef.TEAM_NEUTRAL
-		_shield.visible = up and st.shielded
+		_shield.visible = up and st.shielded and _generator == null
 		_shield_mat.albedo_color = Color(team_color(st.owner), 0.28)
 		_gen_bar.visible = up
 		_gen_bar_bg.visible = up

@@ -33,6 +33,8 @@ var _only: PackedStringArray = []
 var _cam: Camera3D
 var _hero: Node3D
 var _squad: Node3D
+## --gen state for every Breach generator ("shielded" default, an HP fraction, "breached").
+static var _gen := "shielded"
 ## --at close-up spots ("x,y,z").
 var _spots: PackedStringArray = []
 ## The map's environment without fog (top-down only).
@@ -53,6 +55,10 @@ func _initialize() -> void:
 				_only = args[i].split(",", false)
 			"--list":
 				list = true
+			"--gen":
+				# Breach generators: shielded | <hp 0..1> | breached
+				i += 1
+				_gen = args[i]
 			"--at":
 				# placement close-up: --at x,y,z (low camera 3.5 m away, 0.9 m up)
 				i += 1
@@ -252,6 +258,14 @@ func _add_views(md: MapDef, map: Node3D) -> void:
 				else:
 					st.cell_state = HardpointSim.CellState.CRADLE
 					st.cell_pos = d.cradle_for(MapDef.TEAM_CONCORD)
+				v.apply(st)
+			elif d.task == HardpointDef.TaskKind.BREACH:
+				var st := SnapshotData.HardpointState.new()
+				st.task = d.task
+				st.owner = d.initial_owner
+				st.shielded = _gen == "shielded"
+				st.breach_phase2 = _gen == "breached"
+				st.gen_frac = 1.0 if _gen == "shielded" else (0.0 if _gen == "breached" else float(_gen))
 				v.apply(st)
 	for hq: HqDef in md.hqs:
 		var uv := UplinkView.new()

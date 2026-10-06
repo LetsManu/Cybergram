@@ -15,6 +15,8 @@ const ASSETS := {
 	&"cell_cradle": {"pieces": ["cell_cradle"], "max_tris": 10000, "height": Vector2(1.3, 1.7), "tex": 1024},
 	&"mana_cell": {"pieces": ["mana_cell"], "max_tris": 2500, "height": Vector2(0.7, 0.9), "tex": 512, "pivot": "centre"},
 	&"charge_cradle": {"pieces": ["main", "bracket"], "max_tris": 10000, "height": Vector2(3.9, 4.4), "tex": 1024},
+	&"ward_generator": {"pieces": ["main", "core", "crack_1", "crack_2", "crack_3", "wreck"], "max_tris": 20000,
+		"height": Vector2(3.1, 3.6), "tex": 1024},
 }
 const PROP_PIECES: Array[String] = ["plate_l", "plate_r", "crest", "crown", "sash", "sash_own", "pennant",
 	"elite"]
