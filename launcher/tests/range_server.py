@@ -21,7 +21,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         sys.stderr.flush()
         if self.path.startswith("/r/"):  # redirect test: /r/<x> -> /<x>
             self.send_response(302)
-            self.send_header("Location", "http://%s%s" % (self.headers.get("Host"), self.path[2:]))
+            host = (self.headers.get("Host") or "").replace("\r", "").replace("\n", "")
+            redirect_path = self.path[2:].replace("\r", "").replace("\n", "")
+            self.send_header("Location", "http://%s%s" % (host, redirect_path))
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
