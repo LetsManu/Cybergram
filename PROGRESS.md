@@ -198,3 +198,34 @@ Plan agreed 2026-10-06 (owner answers to the plan questions):
 2. Uplink iteration 2: split the long leg beams (texel density), capture the
    Exposed / damage states as frames.
 3. Phase 7 map kit (walls, floors, cover) on the same pipeline.
+
+# Next plan (owner, 2026-10-06): world polish to hero standard, connection, CI
+
+Starts after the props merge. Order and status (details in the owner's plan,
+summarised here so the plan survives a new session):
+- **Rule for every placed object: physical plausibility.** Grounded within tolerance,
+  supported or mounted, no interpenetration, believable stacks and orientation,
+  hero-relative scale, functional logic (lamps powered, cables between real anchors),
+  clear routes / spawns / objectives, decals only on fitting surfaces. One shared
+  placement helper (snap, align, overlap, support, footprint) for all placement.
+1. **Part 1 Connection (first):** launcher "test connection" panel (DNS / UDP /
+   handshake + certificate), readable errors for bare-IP plain UDP and certificate
+   name mismatch, server JSON log + /metrics counter for rejected connections by
+   reason, docs/connecting.md (hostname, hosts file, Portainer, Icinga checks).
+   Owner tests `192.168.1.7 cyber.djboeck.at` in the hosts file.
+2. **Part 2 CI + validators:** job / step timeouts, concurrency cancel, caching,
+   fast smoke job, 3 consecutive green runs; scene validator (collision, navmesh,
+   props off routes, materials, budgets, LODs, team symmetry); placement validator
+   (the rule above, waiver tag with reason, report, fails CI); a test per rule.
+3. **Part 3 Shading:** audit vs the hero toon look -> docs/shading-audit.md; one
+   shared toon shader / globals (opaque, emissive, alpha), outline rules
+   (gameplay-critical stronger).
+4. **Part 4 Floor / decals / props finish + paint pass:** zone palettes in
+   docs/art-bible.md; decals flat, low normal, Forward+ limits; props complete with
+   LODs, collision where they are cover, MultiMesh; every placement through the helper.
+5. **Part 5 Performance:** clean Wardling / bot-match benchmark, tuning, CI gate.
+6. **Part 6 Objectives:** Ward Generator (shield, 3 cracks), Barricades (2 styles,
+   damage stages), Forward Beacon, Sanctum, Foundry.
+7. **Part 7 Backlog:** docs/polish-backlog.md (Uplink legs, Syndicate Wardling
+   colours); Garrison / Supply Cache stay hidden (owner to decide if they ship in
+   the first release).
