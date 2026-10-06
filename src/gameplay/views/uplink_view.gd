@@ -78,6 +78,13 @@ func _attach_model() -> void:
 	add_child(model)
 	model.setup(team, CORE_Y)
 	_shell.scale = Vector3(1.25, 1.2, 1.25)
+	if model.is_baked():
+		# Phase 6: the Protected shell as a rune hologram (design §6.5 hexagonal
+		# shield), not a flat translucent box next to the painted frame.
+		var holo := ModelMaterials.holo(HardpointView.team_color(team).lightened(0.15), 0.8, true).duplicate() as ShaderMaterial
+		holo.set_shader_parameter("alpha", 0.28)
+		holo.set_shader_parameter("scan_density", 18.0)
+		_shell.material_override = holo
 	var root := get_parent()
 	if root == null:
 		return

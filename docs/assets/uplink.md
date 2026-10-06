@@ -17,3 +17,26 @@
 ## Review log
 
 Findings per iteration are appended below (which presets were opened, what was seen).
+
+### Iteration 1 (2026-10-06): first bake, 1024 maps
+
+Build: 42,312 tris, 6 pieces, UV atlas 72.1 %, bake 322 s. Opened
+`production/qa/evidence/p6-uplink/after/uplink-close|mid|far|approach.png` and
+`base-a`, `fp-spawn-a`, compared with `p5-world/before/` and the hero frames.
+
+- Better than before: the frame now carries the heroes' ink outline, painted
+  light and edge highlights; layered pylons (cap, vent, team slit, rivets),
+  plinth with conduit housings and pipes, stone armour plates on the legs,
+  cross braces with gussets, segmented rings with glyph teeth. Reads as one
+  object from the HQ gate (`-approach`) and as a spire from `-far`.
+- Fixed in this iteration: the Protected shell was the old flat translucent box
+  (looked primitive next to the painted frame, hid the claws) -> rune hologram
+  material (`spatial_fx_holo`, scan lines, 0.28 alpha); the crystal was a smooth
+  egg -> faceted hexagonal crystals with points (procedural, crystal shader kept
+  for the state effects). Both re-rendered and looked at.
+- Still below standard: the long iron leg beams are streaky up close (low texel
+  density on 34 m islands; next: split legs into segments or bake at 2048);
+  stone reads slightly peach under the warm painted key; the surrounding HQ
+  floor and walls are still flat primitives (map phase); the Exposed / damage
+  states were not captured as frames (states are driven by UplinkModel and
+  covered by `world_assets_test.gd`, visuals unverified).

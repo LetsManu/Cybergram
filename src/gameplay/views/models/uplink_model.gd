@@ -175,15 +175,17 @@ static func _build_meshes() -> void:
 			var a := TAU * k / 6.0
 			rb.box(Vector3(0.3, 0.3, 0.12), PartBuilder.xf(Vector3(cos(a) * r, 0, sin(a) * r), Vector3(0, -rad_to_deg(a), 0)), Color.WHITE, K.TRIM)
 		_ring_meshes.append(rb.commit())
+	# Faceted mana crystals (Phase 6): hexagonal shafts with pointed tips, not
+	# smooth ellipsoids; the crystal shader still drives every state.
 	var cb := PartBuilder.new()
-	cb.sphere(1.0, PartBuilder.xf(Vector3.ZERO, Vector3.ZERO, Vector3(1.6, 2.4, 1.6)), Color.WHITE, K.FLAT, 0.0, 6)
-	# second crystal heart up the mast, held where the legs converge
-	cb.sphere(1.0, PartBuilder.xf(Vector3(0, 15.5, 0), Vector3(0, 30, 0), Vector3(1.0, 2.2, 1.0)), Color.WHITE, K.FLAT, 0.0, 6)
+	_crystal(cb, Vector3.ZERO, Vector3.ZERO, 1.45, 2.4, 1.5, 1.3)
+	# second crystal heart up the mast, where the legs converge
+	_crystal(cb, Vector3(0, 15.5, 0), Vector3(0, 30, 0), 0.85, 2.0, 1.0, 0.9)
 	for k in 3:
 		var a := TAU * k / 3.0 + 0.3
-		cb.sphere(0.5, PartBuilder.xf(Vector3(cos(a) * 1.6, 21.0 + k * 3.0, sin(a) * 1.6), Vector3(0, 0, 15), Vector3(0.6, 1.5, 0.6)), Color.WHITE, K.FLAT, 0.0, 6)
-	cb.sphere(0.5, PartBuilder.xf(Vector3(0.9, 1.3, 0.3), Vector3(0, 0, -30), Vector3(0.6, 1.4, 0.6)), Color.WHITE, K.FLAT, 0.0, 6)
-	cb.sphere(0.45, PartBuilder.xf(Vector3(-0.8, -1.2, -0.3), Vector3(0, 0, 150), Vector3(0.6, 1.3, 0.6)), Color.WHITE, K.FLAT, 0.0, 6)
+		_crystal(cb, Vector3(cos(a) * 1.6, 21.0 + k * 3.0, sin(a) * 1.6), Vector3(0, rad_to_deg(a), 15), 0.32, 1.0, 0.5, 0.4)
+	_crystal(cb, Vector3(1.05, 1.15, 0.3), Vector3(0, 20, -32), 0.38, 1.1, 0.6, 0.45)
+	_crystal(cb, Vector3(-0.95, -1.05, -0.35), Vector3(0, -40, 148), 0.34, 1.0, 0.5, 0.4)
 	_crystal_mesh = cb.commit()
 	var kb := PartBuilder.new()  # crack lines (dark seams), scaled per stage
 	for k in 5:
@@ -196,6 +198,17 @@ static func _build_meshes() -> void:
 	var beam := PartBuilder.new()
 	beam.cyl(0.9, 1.2, 220.0, PartBuilder.xf(Vector3(0, 110.0, 0)), Color.WHITE, K.FLAT, 0.0, 10)
 	_beam_mesh = beam.commit()
+
+
+## One hexagonal crystal: shaft of radius `r` and height `shaft`, tips `top` / `bottom`
+## long, centred on `at`, rotated by `rot_deg`.
+static func _crystal(b: PartBuilder, at: Vector3, rot_deg: Vector3, r: float, shaft: float, top: float,
+		bottom: float) -> void:
+	var basis := Basis.from_euler(rot_deg * (PI / 180.0))
+	var tf := func(y: float) -> Transform3D: return Transform3D(basis, at + basis * Vector3(0, y, 0))
+	b.cyl(r * 0.9, r, shaft, tf.call(0.0), Color.WHITE, K.FLAT, 0.0, 6)
+	b.cyl(0.0, r * 0.9, top, tf.call(shaft * 0.5 + top * 0.5), Color.WHITE, K.FLAT, 0.0, 6)
+	b.cyl(r, 0.0, bottom, tf.call(-shaft * 0.5 - bottom * 0.5), Color.WHITE, K.FLAT, 0.0, 6)
 
 
 func _add(parent: Node3D, mesh: ArrayMesh, mat: Material) -> MeshInstance3D:
