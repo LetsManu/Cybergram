@@ -70,6 +70,13 @@ func refill() -> void:
 	reload_end_tick = -1
 
 
+## Adds up to `n` rounds to the reserve (Supply Cache, C5); returns how many fit.
+func add_reserve(n: int) -> int:
+	var add := clampi(n, 0, def.reserve - reserve)
+	reserve += add
+	return add
+
+
 func current() -> float:
 	return rounds
 

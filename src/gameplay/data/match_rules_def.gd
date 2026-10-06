@@ -86,6 +86,21 @@ extends Resource
 ## Generator hit volume (greybox core): radius and height above the zone floor.
 @export_range(0.1, 5.0, 0.1) var generator_hit_radius_m: float = 1.2
 @export_range(0.5, 10.0, 0.1) var generator_hit_height_m: float = 2.4
+## ---- Supply Cache (C5; match-flow-and-map.md §3.5, weapons-and-mods.md §3.5, §8 knobs) ----
+@export var supply_caches_enabled: bool = true
+## After a hardpoint flips, its Cache serves the new owner after this long.
+@export_range(0.0, 60.0, 0.5) var supply_switch_delay_s: float = 10.0
+## Mechanical heroes within this radius refill this fraction of max reserve per second.
+@export_range(0.5, 10.0, 0.1) var supply_refill_radius_m: float = 3.0
+@export_range(0.05, 1.0, 0.01) var supply_refill_frac_s: float = 0.25
+## Mana heroes who touch it (within supply_touch_radius_m): the regen delay is
+## cut by supply_mana_delay_cut for supply_mana_buff_s, at most once per
+## supply_mana_cooldown_s per hero.
+@export_range(0.3, 5.0, 0.1) var supply_touch_radius_m: float = 1.5
+@export_range(0.0, 1.0, 0.05) var supply_mana_delay_cut: float = 0.5
+@export_range(0.0, 60.0, 0.5) var supply_mana_buff_s: float = 10.0
+@export_range(0.0, 60.0, 0.5) var supply_mana_cooldown_s: float = 8.0
+
 ## §3.5 rewards (emitted as ObjectiveEvents; no economy yet). A participant was
 ## in the zone during the last participant_window_s.
 @export_range(0.0, 60.0, 0.5) var participant_window_s: float = 10.0

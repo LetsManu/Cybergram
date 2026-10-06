@@ -31,9 +31,11 @@ func regen_rate() -> float:
 	return def.mana_regen * (stats.get_value(StatCatalog.MANA_REGEN) if stats != null else 1.0)
 
 
-## Regen delay after mounts (Flux Coil), never below 0.
+## Regen delay after mounts (Flux Coil) and the Supply Cache cut (C5), never below 0.
 func regen_delay_s() -> float:
-	return maxf(0.0, def.mana_regen_delay_s + (stats.get_value(StatCatalog.REGEN_DELAY) if stats != null else 0.0))
+	if stats == null:
+		return maxf(0.0, def.mana_regen_delay_s)
+	return maxf(0.0, (def.mana_regen_delay_s + stats.get_value(StatCatalog.REGEN_DELAY)) * stats.get_value(StatCatalog.REGEN_DELAY_MULT))
 
 
 ## Reload time `t` after mounts (Quickload).
