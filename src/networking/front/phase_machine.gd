@@ -13,7 +13,8 @@ extends RefCounted
 ##   READY_CHECK -> CHAMP_SELECT | QUEUED (someone else declined) | IDLE | IN_PARTY
 ##   CHAMP_SELECT -> LOADING | QUEUED (a dodge re-queued you) | IDLE | IN_PARTY
 ##   LOADING -> IN_GAME | QUEUED (voided) | IDLE | IN_PARTY
-##   IN_GAME -> POST_GAME | QUEUED (voided) | IDLE | IN_PARTY
+##   IN_GAME -> POST_GAME | QUEUED (voided) | IDLE | IN_PARTY | OFFLINE (the match
+##     ended while the game was closed: no front connection to show POST_GAME on)
 ##   POST_GAME -> IDLE | IN_PARTY | QUEUED
 ##   any online state -> OFFLINE (disconnect outside a match)
 ##   READY_CHECK | CHAMP_SELECT | LOADING | IN_GAME -> RECONNECTING (connection lost, seat kept)
@@ -45,7 +46,7 @@ const PLAYER_LEGAL := {
 	_P.READY_CHECK: [_P.CHAMP_SELECT, _P.QUEUED, _P.IDLE, _P.IN_PARTY, _P.OFFLINE, _P.RECONNECTING],
 	_P.CHAMP_SELECT: [_P.LOADING, _P.QUEUED, _P.IDLE, _P.IN_PARTY, _P.OFFLINE, _P.RECONNECTING],
 	_P.LOADING: [_P.IN_GAME, _P.QUEUED, _P.IDLE, _P.IN_PARTY, _P.RECONNECTING],
-	_P.IN_GAME: [_P.POST_GAME, _P.QUEUED, _P.IDLE, _P.IN_PARTY, _P.RECONNECTING],
+	_P.IN_GAME: [_P.POST_GAME, _P.QUEUED, _P.IDLE, _P.IN_PARTY, _P.RECONNECTING, _P.OFFLINE],
 	_P.POST_GAME: [_P.IDLE, _P.IN_PARTY, _P.QUEUED, _P.CHAMP_SELECT, _P.OFFLINE],
 	_P.RECONNECTING: [_P.READY_CHECK, _P.CHAMP_SELECT, _P.LOADING, _P.IN_GAME, _P.POST_GAME, _P.QUEUED, _P.IDLE,
 		_P.IN_PARTY, _P.OFFLINE],
