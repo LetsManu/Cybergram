@@ -1,6 +1,9 @@
 class_name WardlingModel
 extends Node3D
-## Picket Wardling. Phase 6: the hero-pipeline bake (tools/art/world/picket.py,
+## Wardling model. Wardling v2 (owner redesign 2026-10-06): when the rigged
+## mini-soldier is built, a WardlingRig (hero rig: walk / run / shoot / hit /
+## death, bone-attached tier and class props) is used; the Picket below is the
+## fallback. Picket: Phase 6, the hero-pipeline bake (tools/art/world/picket.py,
 ## picket_c = Concord porcelain, picket_s = Syndicate iron) with the heroes' toon
 ## material; the procedural WardlingModelBuilder meshes are the fallback when the
 ## glb is missing. Shared meshes, one material per (faction, team). States: tier
@@ -36,6 +39,14 @@ var _tier_mi: MeshInstance3D
 ## The baked skin in use (&"" = procedural fallback).
 var baked_key: StringName = &""
 
+## Wardling v2 rig (null = the Picket fallback is in use).
+var rig: WardlingRig
+## Smoothed world velocity from the interpolated position (drives walk / run).
+var velocity: Vector3 = Vector3.ZERO
+## Seconds between animation-LOD distance checks (WardlingRig.update_lod).
+const LOD_CHECK_S: float = 0.25
+var _lod_t: float = 0.0
+
 ## key -> {piece name -> Mesh}, read once from the glb.
 static var _baked: Dictionary = {}
 
@@ -44,6 +55,14 @@ func setup(model_key: StringName, tier_: int, team_: int) -> void:
 	key = model_key
 	name = "WardlingModel_%s" % key
 	_t = randf() * TAU
+	if WardlingRig.available(team_):
+		rig = WardlingRig.new()
+		add_child(rig)
+		rig.setup(team_)
+		team = team_
+		set_tier(tier_)
+		set_owner_kind(1)
+		return
 	_hover = Node3D.new()
 	add_child(_hover)
 	_body = _mi(_hover, null)
@@ -87,6 +106,11 @@ static func baked_mesh(k: StringName, name_: String) -> Mesh:
 
 func set_team(team_: int) -> void:
 	team = team_
+	if rig != null:
+		rig.set_team(team_)
+		set_tier(tier)
+		set_owner_kind(owner_kind)
+		return
 	baked_key = baked_key_for(team)
 	var m: Material = WorldModel.material(baked_key, team) if baked_key != &"" else ModelMaterials.toon(team)
 	for mi in [_body, _tier_mi, _sash, _pennant, _elite_mi]:
@@ -108,6 +132,10 @@ func _part(name_: String) -> Mesh:
 
 func set_tier(tier_: int) -> void:
 	tier = clampi(tier_, 1, 3)
+	if rig != null:
+		rig.set_tier(tier)
+		_apply_scale()
+		return
 	if baked_key != &"":
 		_body.mesh = baked_mesh(baked_key, "body")
 		_tier_mi.mesh = baked_mesh(baked_key, "tier%d" % tier) if tier > 1 else null
@@ -120,6 +148,9 @@ func set_tier(tier_: int) -> void:
 
 func set_owner_kind(kind: int) -> void:
 	owner_kind = kind
+	if rig != null:
+		rig.set_marks(kind, turned, elite)
+		return
 	_pennant.visible = kind == 0 and not turned
 	_sash.visible = kind != 0 or turned
 	_sash.mesh = _part("sash_own" if kind == 2 else "sash")
@@ -127,14 +158,55 @@ func set_owner_kind(kind: int) -> void:
 
 func set_elite(on: bool) -> void:
 	elite = on
-	_elite_mi.visible = on
+	if rig != null:
+		set_owner_kind(owner_kind)
+	else:
+		_elite_mi.visible = on
 	_apply_scale()
 
 
 func set_turned(on: bool) -> void:
 	turned = on
-	_ring.visible = on
+	if _ring == null and on:  # the rig has no violet ring of its own: the shared procedural one
+		_ring = _mi(self, WardlingModelBuilder.mesh("ring"))
+		_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_ring.material_override = ModelMaterials.toon(team)
+	if _ring != null:
+		_ring.visible = on
 	set_owner_kind(owner_kind)
+
+
+## What is shown (tests, debugging): pennant / sash / own sash / Elite / tier pieces.
+func marks() -> Dictionary:
+	if rig != null:
+		return {"pennant": rig.prop(&"pennant").visible, "sash": rig.prop(&"sash").visible or rig.prop(&"sash_own").visible,
+			"elite": rig.prop(&"elite").visible, "tier2": rig.prop(&"crest").visible, "tier3": rig.prop(&"crown").visible}
+	return {"pennant": _pennant.visible, "sash": _sash.visible, "elite": _elite_mi.visible,
+		"tier2": tier >= 2, "tier3": tier >= 3}
+
+
+## Combat hooks (WardlingView): a shot, a hit (attacker position, INF = unknown),
+## death (plays the fall; the view frees the model after it), fade 1..0.
+func shoot() -> void:
+	if rig != null:
+		rig.shoot()
+
+
+func hit(from_world: Vector3 = Vector3.INF) -> void:
+	if rig != null:
+		rig.hit(from_world)
+
+
+func die(from_world: Vector3 = Vector3.INF) -> void:
+	if rig != null:
+		rig.die(from_world)
+
+
+func set_fade(alpha: float) -> void:
+	if rig != null:
+		rig.set_fade(alpha)
+	else:
+		visible = alpha > 0.05
 
 
 func set_moving(on: bool) -> void:
@@ -146,6 +218,8 @@ func _apply_scale() -> void:
 
 
 func triangle_count() -> int:
+	if rig != null:
+		return rig.triangle_count()
 	var n := 0
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		if (mi as MeshInstance3D).visible and (mi as MeshInstance3D).mesh != null:
@@ -154,6 +228,8 @@ func triangle_count() -> int:
 
 
 func mesh_instance_count() -> int:
+	if rig != null:
+		return rig.mesh_instance_count()
 	return find_children("*", "MeshInstance3D", true, false).size()
 
 
@@ -166,6 +242,20 @@ static func _tris(m: Mesh) -> int:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if rig != null:
+		if is_inside_tree():
+			if _last_pos != Vector3.INF and delta > 0.0:
+				var v := (global_position - _last_pos) / delta
+				velocity = velocity.lerp(Vector3(v.x, 0.0, v.z), 1.0 - exp(-12.0 * delta))
+			_last_pos = global_position
+		rig.set_velocity(velocity)
+		_lod_t -= delta
+		if _lod_t <= 0.0 and is_inside_tree():
+			_lod_t = LOD_CHECK_S
+			var cam := get_viewport().get_camera_3d()
+			if cam != null:
+				rig.update_lod(cam.global_position.distance_to(global_position))
+		return
 	if is_inside_tree() and _last_pos != Vector3.INF:
 		var v := (global_position - _last_pos) / maxf(delta, 1e-4)
 		if v.length() > 0.4:

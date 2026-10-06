@@ -61,6 +61,14 @@ var _clip_speed: Dictionary = DEFAULT_CLIP_SPEED.duplicate()
 var _death_back: bool = false
 var _dead_for: float = 0.0
 ## W14-P2 runtime layers (null when the tier or the glb does not support them).
+## Locomotion playback clamp (LOCO_RATE_MAX for heroes; Wardlings raise it, their
+## legs are short for the speeds they move at).
+var loco_rate_max: float = LOCO_RATE_MAX
+## Animation LOD (Wardlings): the tree advances every `anim_stride` frames by the
+## summed delta (manual callback mode); 1 = every frame (heroes).
+var anim_stride: int = 1
+var _anim_acc: float = 0.0
+var _anim_n: int = 0
 var hit_reaction: HitReaction
 var foot_ik: FootIK
 var spring_bones: SpringBoneSimulator3D
@@ -251,8 +259,10 @@ static func run_point(clip_speed: Dictionary) -> float:
 ## vel_local: velocity in model space (m/s, forward = -Z); pitch in rad.
 ## clip_speed: in-place mocap clip speeds (m/s) from <id>_anim.tres.
 ## death_back: the killing hit came from the front (W16, falls_back()).
+## rate_max: locomotion playback clamp (Wardlings: small legs, hero speeds).
 static func map_state(vel_local: Vector3, crouching: bool, grounded: bool, pitch: float, dead: bool,
-		clip_speed: Dictionary = DEFAULT_CLIP_SPEED, death_back: bool = false) -> Dictionary:
+		clip_speed: Dictionary = DEFAULT_CLIP_SPEED, death_back: bool = false,
+		rate_max: float = LOCO_RATE_MAX) -> Dictionary:
 	var planar := Vector2(vel_local.x, -vel_local.z)
 	var speed := planar.length()
 	var rv := run_point(clip_speed)
@@ -262,7 +272,7 @@ static func map_state(vel_local: Vector3, crouching: bool, grounded: bool, pitch
 	var run_speed := rv * RUN_SPEED
 	return {
 		"parameters/loco_bs/blend_position": loco,
-		"parameters/loco/scale": clampf(speed / run_speed, 1.0, LOCO_RATE_MAX),
+		"parameters/loco/scale": clampf(speed / run_speed, 1.0, rate_max),
 		"parameters/crouch/blend_position": clampf(speed / CROUCH_SPEED, 0.0, 1.0),
 		"parameters/crouch_mix/blend_amount": 1.0 if crouching else 0.0,
 		"parameters/air/transition_request": "ground" if grounded else "air",
@@ -534,7 +544,26 @@ func mesh_instance_count() -> int:
 	return _meshes.size()
 
 
+## Sets the animation LOD stride (see anim_stride).
+func set_anim_stride(n: int) -> void:
+	n = maxi(n, 1)
+	if n == anim_stride:
+		return
+	anim_stride = n
+	if tree != null:
+		tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL if n > 1 \
+				else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+
+
 func _apply_pose(delta: float) -> void:
+	if anim_stride > 1 and delta > 0.0:
+		_anim_acc += delta
+		_anim_n += 1
+		if _anim_n < anim_stride:
+			return
+		delta = _anim_acc
+		_anim_acc = 0.0
+		_anim_n = 0
 	_time += delta
 	if _dead:
 		_dead_for += delta
@@ -544,7 +573,8 @@ func _apply_pose(delta: float) -> void:
 		for mi in _meshes + _lod_meshes:
 			mi.set_instance_shader_parameter(&"flash", _flash)
 	_update_outline_lod()
-	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead, _clip_speed, _death_back)
+	_state = map_state(_vel_local, _crouch_target > 0.5, _grounded, _pitch, _dead, _clip_speed, _death_back,
+		loco_rate_max)
 	if tree == null:
 		return
 	for p in _state:
@@ -557,3 +587,5 @@ func _apply_pose(delta: float) -> void:
 	tree.set("parameters/crouch_mix/blend_amount", move_toward(
 		float(tree.get("parameters/crouch_mix/blend_amount")), _state["parameters/crouch_mix/blend_amount"], delta * 6.0))
 	_speed_s = speed
+	if anim_stride > 1 and delta > 0.0:
+		tree.advance(delta)

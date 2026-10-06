@@ -43,16 +43,18 @@ def beam(a, p0, p1, w, d, color, ch="flat", out=None, bevel=0.3, taper=(1.0, 1.0
 
 
 def plate(a, sx):
-    """Layered shoulder plate: three overlapping lames, trim rim, team stripe, rivets."""
-    for i, (w, d, z) in enumerate(((0.17, 0.19, 0.03), (0.15, 0.17, 0.0), (0.13, 0.15, -0.03))):
+    """Layered shoulder plate draped over the pauldron (sloping 55 degrees down and
+    out): three overlapping lames, trim rim, team stripe, rivets."""
+    T = 55
+    for i, (w, d, z) in enumerate(((0.13, 0.16, 0.03), (0.115, 0.145, 0.0), (0.1, 0.13, -0.03))):
         a.box("Root", None, (w, d, 0.035), "shell" if i != 1 else "shell_dk", bevel=0.4,
-              mat=Matrix.Translation((sx * (0.015 + i * 0.025), 0, z)) @ Matrix.Rotation(math.radians(-24 * sx), 4, "Y"))
-    a.box("Root", None, (0.16, 0.025, 0.03), "team", "team", bevel=0.3,
-          mat=Matrix.Translation((sx * 0.02, 0.09, 0.03)) @ Matrix.Rotation(math.radians(-24 * sx), 4, "Y"))
-    a.box("Root", None, (0.175, 0.2, 0.012), "trim", "chrome", bevel=0.3,
-          mat=Matrix.Translation((sx * 0.012, 0, 0.05)) @ Matrix.Rotation(math.radians(-24 * sx), 4, "Y"))
-    for y in (-0.06, 0.06):
-        a.sphere("Root", (sx * 0.06, y, 0.055), (0.012, 0.012, 0.01), "chrome", "chrome", seg=(8, 4))
+              mat=Matrix.Translation((sx * (0.03 + i * 0.02), 0, z - i * 0.012)) @ Matrix.Rotation(math.radians(T * sx), 4, "Y"))
+    a.box("Root", None, (0.12, 0.022, 0.03), "team", "team", bevel=0.3,
+          mat=Matrix.Translation((sx * 0.035, 0.075, 0.025)) @ Matrix.Rotation(math.radians(T * sx), 4, "Y"))
+    a.box("Root", None, (0.135, 0.165, 0.012), "trim", "chrome", bevel=0.3,
+          mat=Matrix.Translation((sx * 0.025, 0, 0.045)) @ Matrix.Rotation(math.radians(T * sx), 4, "Y"))
+    for y in (-0.05, 0.05):
+        a.sphere("Root", (sx * 0.02, y, 0.07), (0.011, 0.011, 0.009), "chrome", "chrome", seg=(8, 4))
 
 
 def build():

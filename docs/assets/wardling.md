@@ -33,3 +33,29 @@ run, shoot; Vesper for scale).
   lighter gunmetal + rust suit; helmet enlarged (chibi read); team bands added
   on the pauldrons (the core is hidden by the arms from the front); far LOD
   2.5k (was the heroes' 8k).
+
+### Iteration 1 (2026-10-06): painted bake + props, in game
+
+Builds: wardling_c 13,096 tris (atlas 62 %), wardling_s 13,306 (71 %), far LOD
+~2.5k each; props 2,318 tris (8 pieces, 512 atlas). Opened
+`production/qa/evidence/wardling-v2/wardling-front|three-quarter|side|close.png`
+(look-dev: idle / walk / run / shoot next to Vesper) and `wardlings.png` (the
+game's WardlingModel: Concord I, II, III + own sash, Elite; Syndicate Vanguard
+I-III).
+
+- Reads as a squad of small soldiers at every distance tried; walk and run poses
+  differ clearly from idle; the team reads from the pauldron bands and the core.
+- Tiers read by silhouette: plates + crest (II), crystal crown (III). Vanguard
+  pennants, the sash, the own-squad ring and the Elite halo all show.
+- Fixed in this iteration: the shoulder plates stuck out flat like wings ->
+  draped 55 degrees over the pauldrons; the own-squad ring took most of the props
+  atlas -> runtime torus; a zero-area face from the Syndicate rivets wrecked the
+  wardling_s atlas -> degenerate faces are now dropped in `build_hero.Hero._add`
+  (all heroes benefit on their next rebuild).
+- Still below standard: the Syndicate skin is muted (gunmetal + rust) next to the
+  bright Concord porcelain; animation in motion was not captured as video (poses
+  only); death and hit reactions are covered by tests, not frames.
+- Cost: measured CPU numbers were unreliable (a parallel Blender bake shared the
+  CPU, identical runs varied 2x). Animation LOD (tree stride 1 / 2 / 4 / 8 by
+  camera distance) is in place; a clean measurement with `tools/perf_wardlings.gd`
+  is still to do.

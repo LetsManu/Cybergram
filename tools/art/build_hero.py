@@ -447,6 +447,11 @@ class Hero:
     def _add(self, tmp, mat, bone, color, ch, weights=None, kind=None):
         """Merges bmesh `tmp` (local space) into the part mesh with matrix `mat`."""
         tmp.transform(mat)
+        # Zero-area faces (tiny bolts scaled by k, clip planes on a vertex ring) unwrap
+        # to giant slivers and squeeze the real islands into a corner of the atlas.
+        bmesh.ops.dissolve_degenerate(tmp, dist=1e-6, edges=tmp.edges[:])
+        for f in [f for f in tmp.faces if f.calc_area() < 1e-10]:
+            tmp.faces.remove(f)
         vmap = {}
         for v in tmp.verts:
             nv = self.pbm.verts.new(v.co)

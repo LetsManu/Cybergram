@@ -1,0 +1,13 @@
+[gd_resource type="Resource" format=3]
+
+[resource]
+metadata/clip_speed = {
+"death": 0.000,
+"jump": 0.000,
+"run": 1.290,
+"run_back": 0.517,
+"walk": 0.517
+}
+metadata/shader = {
+"hatch_strength": 0.1
+}

@@ -34,6 +34,13 @@ var _turned: bool = false
 var model: WardlingModel
 var tier: int = 1
 var _kind: int = 1
+## Wardling v2 death: the rig plays its fall for DEATH_S, then fades over FADE_S
+## and the view frees itself (WardlingPresenter hands removed Wardlings over).
+const DEATH_S: float = 1.4
+const FADE_S: float = 0.5
+var dying: bool = false
+var _dead_t: float = 0.0
+var _hp_last: float = 1.0
 
 
 func _ready() -> void:
@@ -141,6 +148,9 @@ func set_state(team_: int, hp_frac: float, owner_kind: int) -> void:
 		(_sash.material_override as StandardMaterial3D).albedo_color = SASH_OWN if owner_kind == 2 else SASH_OTHER
 		(_sash.material_override as StandardMaterial3D).emission = SASH_OWN if owner_kind == 2 else SASH_OTHER
 	var f := clampf(hp_frac, 0.0, 1.0)
+	if f < _hp_last - 0.001 and model != null:
+		model.hit()
+	_hp_last = f
 	_hp_fill.visible = f < 0.995
 	_hp_fill.scale = Vector3(maxf(f, 0.02), 1.0, 1.0)
 	_hp_mat.albedo_color = Color(1.0, 0.25, 0.2).lerp(Color(0.4, 1.0, 0.5), f)
@@ -163,6 +173,38 @@ func set_rewrite(elite: bool, turned: bool) -> void:
 
 func is_elite() -> bool:
 	return _elite
+
+
+## A bolt left this Wardling's emitter (WardlingPresenter matches bolts to shooters).
+func shoot() -> void:
+	if model != null:
+		model.shoot()
+
+
+## True when the model can play a death (the v2 rig); otherwise the view just goes.
+func can_die() -> bool:
+	return model != null and model.rig != null
+
+
+## Plays the death fall, then fades and frees the view. Presentation only: the
+## Wardling is already gone on the server.
+func die() -> void:
+	if not can_die():
+		queue_free()
+		return
+	dying = true
+	_hp_fill.visible = false
+	model.die()
+
+
+func _process(delta: float) -> void:
+	if not dying:
+		return
+	_dead_t += delta
+	if _dead_t > DEATH_S:
+		model.set_fade(clampf(1.0 - (_dead_t - DEATH_S) / FADE_S, 0.0, 1.0))
+	if _dead_t > DEATH_S + FADE_S:
+		queue_free()
 
 
 func _box(size: Vector3, pos: Vector3, m: Material) -> MeshInstance3D:
