@@ -109,7 +109,7 @@ as it is, new tests run inside the existing test job.
   Evidence: `production/qa/evidence/p5-custom/`.
 
 ## In progress
-- nothing.
+- Objective B (world at hero fidelity), see the section below.
 
 ## Next (prioritised)
 1. Human checks in docs/manual-checklist.md (P1-P4 and v17).
@@ -118,3 +118,38 @@ as it is, new tests run inside the existing test job.
 
 ## Manual checks needed (no display in the cloud session)
 See `docs/manual-checklist.md` (created with P1d).
+
+
+# Objective B: world, objectives and props at hero fidelity
+
+Plan agreed 2026-10-06 (owner answers to the plan questions):
+- **No new neutral bosses** (no dragon / baron / camps). Raise the existing
+  objective set to hero standard: Mana Uplink, the 15 hardpoints (Hold / Plant /
+  Breach: Ward Generator, Mana Cell + Cradle, Barricade, Garrison, Supply Cache,
+  Forward Beacon), HQ (Sanctum, Foundry, Armory), Wardlings, map dressing.
+- **Style:** the heroes' painted toon language (ink outline, painted light,
+  hatching) on the neon city; not realistic PBR.
+- **Fog of war / brush stealth:** out of scope.
+- **CI (Phase 0):** skipped as before; CI is green with timeouts.
+- **Order:** 5a visual tooling -> 5b pipeline proof -> 5c baseline + art bible ->
+  Phase 6 vertical slice (Uplink + one hardpoint kit), report with before/after,
+  then the rest.
+
+## Done
+- 5a (in progress): `tools/shot.gd` (33 presets from the MapDef, client objective
+  views, hero + Wardling reference), render path recorded in
+  `docs/visual-verification.md` (headless: no pixels; xvfb + OpenGL: wrong
+  renderer; xvfb + Mesa lavapipe: Forward+, used), `tools/ci/setup_render.sh`,
+  `.claude/skills/visual-review/SKILL.md`, `tools/art/setup_pipeline.sh` (bpy 5.0.1 venv).
+
+## Findings (looked at the frames)
+- The world is built by a second pipeline (`tools/maps/build_shardline_front.gd`
+  + `map_kit.gd`: SurfaceTool slabs, flat materials, tile grid lines) and the
+  objectives by runtime primitives (`HardpointView`, `UplinkView`,
+  `ArmoryMarkerView`; their own comment: "E14 greybox"). Heroes come from the
+  Blender pipeline (`tools/art/`): sculpted, painted bake, ink outline.
+
+## Next
+1. Finish 5a (before set, look, commit). 2. 5b: build one hero end to end here,
+   `docs/model-pipeline.md`. 3. 5c: measurements, gap table, art bible.
+4. Phase 6 slice.
