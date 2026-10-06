@@ -149,7 +149,17 @@ Plan agreed 2026-10-06 (owner answers to the plan questions):
   `ArmoryMarkerView`; their own comment: "E14 greybox"). Heroes come from the
   Blender pipeline (`tools/art/`): sculpted, painted bake, ink outline.
 
+- 5a done: before set, 33 presets, all looked at
+  (`production/qa/evidence/p5-world/README.md`).
+- 5b done: the hero pipeline runs here (Vesper rebuilt in 296 s, matches the
+  committed asset); `docs/model-pipeline.md`. The hero material
+  (`spatial_char_toon_rigged`) has nothing skin-specific, so world assets use it.
+- 5c done: `docs/fidelity-baseline.md` (asset-auditor measurements + gap table),
+  `docs/art-bible.md` (world fidelity rules; extends `design/art-bible.md`, which
+  already holds the objective designs: Holdstone, Charge Cradle, Ward Generator,
+  Uplink, Barricades, HQ set).
+
 ## Next
-1. Finish 5a (before set, look, commit). 2. 5b: build one hero end to end here,
-   `docs/model-pipeline.md`. 3. 5c: measurements, gap table, art bible.
-4. Phase 6 slice.
+1. Phase 6 slice: Mana Uplink + Holdstone (Hold hardpoint kit) via
+   `tools/art/world/`, integrated into `UplinkView` / `HardpointView`,
+   before/after presets, asset validator in CI.
