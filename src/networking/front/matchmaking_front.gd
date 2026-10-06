@@ -809,6 +809,10 @@ func _on_abandon(match_id: String, account_id: String) -> void:
 	var m: Match = _matches.get(match_id)
 	if m != null:
 		m.leavers[account_id] = true
+		# The reconnect window is over: release the leaver (IDLE / IN_PARTY,
+		# may queue again) instead of showing them InGame until the match ends.
+		if _account_match.get(account_id) == m:
+			_account_match.erase(account_id)
 
 
 func _on_match_voided(match_id: String, reason: String) -> void:

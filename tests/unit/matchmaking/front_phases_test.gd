@@ -260,3 +260,31 @@ func test_text_mode_keeps_the_classic_front_lines() -> void:
 	a.matchmaking.queue_join(&"normal_5v5")
 	_step(0.3)
 	assert_bool(_lines.has("[front] queue normal_5v5: party of 1 joined")).is_true()
+
+
+## Owner report 2026-10-06: after leaving a match the admin page still showed
+## the player InGame until the match ended. Once the match reports the
+## abandon (the reconnect window is over), the leaver is released: IDLE.
+func test_abandon_releases_the_leaver_from_in_game() -> void:
+	var a := _client(2)
+	var b := _client(3)
+	var seen := _record(a)
+	_step(0.2)
+	a.matchmaking.queue_join(&"normal_5v5")
+	b.matchmaking.queue_join(&"normal_5v5")
+	_step(0.5)
+	a.matchmaking.ready_accept()
+	b.matchmaking.ready_accept()
+	_step(0.5)
+	a.matchmaking.draft_pick(1)
+	b.matchmaking.draft_pick(2)
+	_step(_rules.pick_turn_s + 1.0)
+	var mid: String = _sup.requests[0].match_id
+	_sup.match_started.emit(mid, {"host": "", "port": 7801})
+	_step(0.3)
+	assert_int(int(seen[-1].phase)).is_equal(P.IN_GAME)
+	_sup.abandon_reported.emit(mid, _id(2))
+	_step(0.3)
+	assert_int(int(seen[-1].phase)).is_equal(P.IDLE)
+	assert_int(_front.phases.players.illegal_count).is_equal(0)
+
