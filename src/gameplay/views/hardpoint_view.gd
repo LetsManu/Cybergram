@@ -10,6 +10,10 @@ extends Node3D
 ## planted) and a channel ring for pickup / plant / defuse.
 
 const SEGMENTS: int = 48
+## Holdstone light pillar (design/art-bible.md §6.3: a 12 m pillar of light),
+## starting at the crystal's tip.
+const HOLD_PILLAR_M: float = 12.0
+const HOLD_PILLAR_BASE_M: float = 4.4
 ## Art bible §4 palette: azure_core, ember_core, neutral.
 const COLOR_CONCORD := Color("#2E86FF")
 const COLOR_SYNDICATE := Color("#FF5A1F")
@@ -48,6 +52,12 @@ var _cell: MeshInstance3D
 var _cell_mat: StandardMaterial3D
 var _beam: MeshInstance3D
 var _channel_ring: MeshInstance3D
+## Phase 6: the Holdstone (hero-pipeline asset, tools/art/world/holdstone.py) on
+## Hold hardpoints, its holo light pillar and the owner it is tinted for.
+var _holdstone: Node3D
+var _pillar: MeshInstance3D
+var _pillar_mat: ShaderMaterial
+var _art_owner: int = -2
 ## The own team's current objective (ClientWorld: the lane front, C15).
 var objective: bool = false
 var _near_text: String = ""
@@ -143,6 +153,67 @@ func setup(d: HardpointDef) -> void:
 			_build_breach(d)
 		HardpointDef.TaskKind.PLANT:
 			_build_plant(d)
+		HardpointDef.TaskKind.HOLD:
+			_build_hold(d)
+
+
+## Phase 6 (design/art-bible.md §6.3 Holdstone): the baked dais, plinth and
+## dormant crystal replace the map's greybox meshes (their collision stays), and
+## the 12 m pillar of light is a team-coloured hologram. No-op without the asset.
+func _build_hold(d: HardpointDef) -> void:
+	if not WorldModel.exists(&"holdstone"):
+		return
+	_holdstone = WorldModel.instantiate(&"holdstone", d.initial_owner)
+	_holdstone.name = "Holdstone"
+	add_child(_holdstone)
+	_art_owner = d.initial_owner
+	_pillar_mat = ModelMaterials.holo(team_color(d.initial_owner).lightened(0.25), 1.1).duplicate() as ShaderMaterial
+	_pillar_mat.set_shader_parameter("alpha", 0.32)
+	_pillar_mat.set_shader_parameter("scan_density", 10.0)
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.35
+	cyl.bottom_radius = 0.55
+	cyl.height = HOLD_PILLAR_M
+	cyl.radial_segments = 16
+	cyl.cap_top = false
+	cyl.cap_bottom = false
+	_pillar = MeshInstance3D.new()
+	_pillar.mesh = cyl
+	_pillar.material_override = _pillar_mat
+	_pillar.position.y = HOLD_PILLAR_BASE_M + HOLD_PILLAR_M * 0.5
+	_pillar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_pillar)
+	_hide_greybox.call_deferred([&"Dais", &"Plinth", &"LightPillar"])
+
+
+## Hides the map's greybox meshes of this hardpoint (presentation only: the
+## StaticBody3D collision stays). The map names its node "Hardpoint_<ID>".
+func _hide_greybox(names: Array) -> void:
+	if not is_inside_tree():
+		return
+	var vis := get_tree().root.find_child("Hardpoint_" + String(def.id).to_upper(), true, false)
+	if vis == null:
+		return
+	for n: StringName in names:
+		var node := vis.get_node_or_null(NodePath(String(n)))
+		if node == null:
+			continue
+		if node is MeshInstance3D:
+			(node as MeshInstance3D).visible = false
+		for c in node.get_children():
+			if c is MeshInstance3D:
+				(c as MeshInstance3D).visible = false
+
+
+## Re-tints the Holdstone and its pillar when the owner changes.
+func _apply_hold_art(owner: int) -> void:
+	if _holdstone == null or owner == _art_owner:
+		return
+	_art_owner = owner
+	var mat := WorldModel.material(&"holdstone", owner)
+	for mi in _holdstone.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).material_override = mat
+	_pillar_mat.set_shader_parameter("color", team_color(owner).lightened(0.25))
 
 
 func _build_breach(d: HardpointDef) -> void:
@@ -223,6 +294,7 @@ func _build_plant(d: HardpointDef) -> void:
 
 ## Applies the latest replicated state.
 func apply(st: SnapshotData.HardpointState) -> void:
+	_apply_hold_art(st.owner)
 	_ring_base = team_color(st.owner)
 	_seg_base = team_color(st.capturing_team)
 	_progress = st.progress
