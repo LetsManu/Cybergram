@@ -27,6 +27,8 @@ var _out := "production/qa/evidence/shots"
 var _only: PackedStringArray = []
 var _cam: Camera3D
 var _hero: Node3D
+## The map's environment without fog (top-down only).
+var _clear_env: Environment
 
 
 func _initialize() -> void:
@@ -72,6 +74,11 @@ func _initialize() -> void:
 	_cam.far = 2000.0
 	map.add_child(_cam)
 	_cam.current = true
+	for n0 in map.find_children("*", "WorldEnvironment", true, false):
+		if (n0 as WorldEnvironment).environment != null:
+			_clear_env = (n0 as WorldEnvironment).environment.duplicate()
+			_clear_env.fog_enabled = false
+			_clear_env.volumetric_fog_enabled = false
 	await _frames(20)
 	var n := 0
 	var bad := 0
@@ -84,6 +91,7 @@ func _initialize() -> void:
 			_hero.look_at(s[1] * Vector3(1, 0, 1) + Vector3(0, _hero.global_position.y, 0), Vector3.UP, true)
 		_cam.global_position = s[1]
 		_cam.look_at(s[2])
+		_cam.environment = _clear_env if String(s[0]) == "topdown" else null
 		await _frames(8)
 		var img := root.get_texture().get_image()
 		if img == null or img.is_empty() or _is_flat(img):
@@ -115,36 +123,44 @@ static func presets(md: MapDef) -> Array:
 			continue
 		var outer: Vector3 = hp[1].position
 		var mid: Vector3 = hp[2].position
-		out.append(["fp-lane-" + String(lane.id), outer + Vector3(0, EYE, 0), mid + Vector3(0, EYE * 0.6, 0)])
+		# 14 m past the Outer towards Mid: off its zone column, on the lane.
+		var e := outer + (mid - outer).normalized() * 14.0
+		out.append(["fp-lane-" + String(lane.id), e + Vector3(0, EYE, 0), mid + Vector3(0, EYE * 0.6, 0)])
 	var lo := Vector3.INF
 	var hi := -Vector3.INF
 	for hq: HqDef in md.hqs:
 		lo = lo.min(hq.uplink)
 		hi = hi.max(hq.uplink)
 	var c := (lo + hi) * 0.5
-	out.append(["topdown", c + Vector3(0, 520, 1), c])
+	out.append(["topdown", c + Vector3(0, 330, 1), c])
 	# Objectives: one of each kind, viewed from its own team's side.
-	var picks := {"uplink": a.uplink + Vector3(0, 6, 0), "armory": a.armory + Vector3(0, 1, 0)}
+	# key -> [target, the point the player walks up from]
+	var sp_a: Vector3 = a.spawn_points[0] if not a.spawn_points.is_empty() else a.sanctum
+	var picks := {"uplink": [a.uplink + Vector3(0, 6, 0), a.lane_gate], "armory": [a.armory + Vector3(0, 1, 0), sp_a]}
 	var center: LaneDef = md.lanes[mini(1, md.lanes.size() - 1)]
-	picks["mid-hardpoint"] = center.hardpoints[2].position + Vector3(0, 1, 0)
+	picks["mid-hardpoint"] = [center.hardpoints[2].position + Vector3(0, 1, 0), center.hardpoints[1].position]
 	for lane: LaneDef in md.lanes:
-		for d: HardpointDef in lane.hardpoints:
+		for k in lane.hardpoints.size():
+			var d: HardpointDef = lane.hardpoints[k]
 			var key: String = ["hold", "plant", "breach"][int(d.task)]
 			if not picks.has(key):
-				picks[key] = d.position + Vector3(0, 1, 0)
-	var home := a.uplink
+				var from: Vector3 = lane.hardpoints[k - 1].position if k > 0 else a.lane_gate
+				picks[key] = [d.position + Vector3(0, 1, 0), from]
 	for key: String in picks:
-		var t: Vector3 = picks[key]
-		var back := (home - t) * Vector3(1, 0, 1)
+		var t: Vector3 = picks[key][0]
+		var from: Vector3 = picks[key][1]
+		var back := (from - t) * Vector3(1, 0, 1)
 		back = back.normalized() if back.length() > 0.1 else Vector3.BACK
 		var side := back.cross(Vector3.UP)
 		out.append([key + "-close", t + back * 6.0 + side * 2.0 + Vector3(0, 2.5, 0), t])
 		out.append([key + "-mid", t + back * 15.0 + side * 5.0 + Vector3(0, 6.0, 0), t])
 		out.append([key + "-far", t + back * 35.0 + side * 10.0 + Vector3(0, 14.0, 0), t])
+		# First-person walk-up along the path the player takes, at most 25 m.
 		var g := Vector3(t.x, t.y - 1.0, t.z) if key != "uplink" else a.uplink
-		out.append([key + "-approach", g + back * 25.0 + Vector3(0, EYE, 0), t])
+		var d := clampf(((from - t) * Vector3(1, 0, 1)).length() * 0.8, 18.0, 25.0)
+		out.append([key + "-approach", Vector3(g.x, from.y, g.z) + back * d + Vector3(0, EYE, 0), t])
 	var hp_mid: Vector3 = center.hardpoints[2].position
-	var hb := (home - hp_mid) * Vector3(1, 0, 1)
+	var hb := (a.uplink - hp_mid) * Vector3(1, 0, 1)
 	hb = hb.normalized() if hb.length() > 0.1 else Vector3.BACK
 	out.append(["hero-ref", hp_mid + hb * 8.0 + hb.cross(Vector3.UP) * 1.5 + Vector3(0, 1.6, 0),
 		hp_mid + hb * 4.0 + Vector3(0, 1.0, 0), hp_mid + hb * 4.0])
