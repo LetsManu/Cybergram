@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="WorldDecalsDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/world_decals_def.gd" id="1_wdd"]
+
+[resource]
+script = ExtResource("1_wdd")
+atlas_path = "res://assets/textures/world/decals/world_decals_albedo.png"
+atlas_columns = 8
+cell_px = 256
+floor_albedo_path = "res://assets/textures/world/floor/floor_tiles_albedo.png"
+floor_normal_path = "res://assets/textures/world/floor/floor_tiles_normal.png"
+floor_mask_path = "res://assets/textures/world/floor/floor_tiles_mask.png"
+floor_height_path = "res://assets/textures/world/floor/floor_tiles_height.png"
+max_visible = 48
+fade_begin = 22.0
+fade_length = 8.0
+cap_grid_m = 4.0
+placement_seed = 7
+arrow_spacing_m = 16.0
+arrow_size_m = 2.4
+arrow_double_every = 3
+arrow_emission = 0.6
+flank_arrow_spacing_m = 8.0
+flank_arrow_size_m = 1.8
+arrow_zone_margin_m = 2.0
+approach_turn_m = 24.0
+glyph_size_m = 6.0
+glyph_emission = 0.8
+glyph_t = 0.5
+concord_color = Color(0.180392, 0.52549, 1, 1)
+syndicate_color = Color(1, 0.352941, 0.121569, 1)
+chevron_size_m = 3.0
+chevron_inset_m = 4.0
+hardpoint_cracks = 3
+hardpoint_scorch = 1
+hardpoint_oil = 1
+wear_r0_m = 5.0
+wear_size_m = Vector2(1.6, 3.2)
+grime_spacing_m = 9.0
+grime_chance = 0.75
+lane_edge_offset_m = 6.5
+grime_size_m = Vector2(2.2, 3.6)
+tag_spacing_m = 34.0
+tag_size_m = 2.2
+puddle_spacing_m = 26.0
+puddle_chance = 0.5
+puddle_size_m = Vector2(1.8, 3.0)
+box_height_m = 1.0
+normal_fade = 0.5

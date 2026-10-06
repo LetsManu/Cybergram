@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://biecd6rba73x2"
+path="res://.godot/imported/world_decals_albedo.png-f4926b3380f2fc08e794e40a1bc841b6.image"
+
+[deps]
+
+source_file="res://assets/textures/world/decals/world_decals_albedo.png"
+dest_files=["res://.godot/imported/world_decals_albedo.png-f4926b3380f2fc08e794e40a1bc841b6.image"]
+
+[params]
+
