@@ -107,6 +107,37 @@ func test_custom_lobby_bot_slots_and_difficulty() -> void:
 	await get_tree().process_frame
 
 
+func test_loading_screen_shows_every_players_progress() -> void:
+	var f := _flow()
+	fake.join_queue(MmView.Q_NORMAL, [&"north", &"center"])
+	fake.step(fake.found_after_s)
+	fake.reply_ready(true)
+	for i in 60:
+		fake.step(fake.rules.pick_turn_s + 0.1)
+		if f.page_name == &"loading":
+			break
+	assert_str(String(f.page_name)).is_equal("loading")
+	var ld := f.page as MmLoadingScreen
+	assert_int(ld._bars.size()).is_equal(ld.seats.size())
+	for i in ld.seats.size():
+		if bool(ld.seats[i].get("bot", false)):
+			assert_int(ld.load_of(i)).is_equal(100)
+	fake.report_load(50)
+	var me := f._my_seat_index()
+	assert_int(ld.load_of(me)).is_equal(50)
+	assert_str((ld._pcts[me] as Label).text).is_equal("50%")
+	fake.step(fake.load_s * 2.0)  # every fake player finished
+	for i in ld.seats.size():
+		if i != me:
+			assert_int(ld.load_of(i)).is_equal(100)
+	# The flow reports its own preload in 10 % steps.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var loads := fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"load")
+	assert_bool(loads.size() >= 2).is_true()
+	assert_int(int(loads[-1].pct) % 10).is_equal(0)
+
+
 func test_ready_check_timeout_and_result() -> void:
 	var f := _flow()
 	fake.join_queue(MmView.Q_NORMAL, [&"fill"])
@@ -320,6 +351,12 @@ func test_flow_joins_in_place_through_session() -> void:
 	fake.step(fake.rules.all_random_s + 0.1)
 	assert_str(String(f.page_name)).is_equal("loading")
 	f._process(MatchmakingFlow.HANDOFF_S + 0.1)
+	# v20: the hand-over waits until the map and hero are loaded in the background.
+	for i in 3000:
+		if not s.joined.is_empty():
+			break
+		await get_tree().process_frame
+	assert_bool(f._preload.is_done()).is_true()
 	assert_int(s.joined.size()).is_equal(1)
 	assert_str(s.joined[0][2]).starts_with("fake-ticket-")
 	assert_int(s.joined[0][3]).is_greater(0)

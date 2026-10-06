@@ -56,6 +56,8 @@ signal failed(key: String)
 signal phase_changed(state: Dictionary)
 ## P2: party chat (same interface as MmClientAdapter).
 signal party_chat_changed()
+## v20: loading percent per seat (pick-state seat order; bots 100).
+signal load_progress(loads: Array)
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
 ## W20-WEB public leaderboard opt-in: {public: bool, available: bool}
@@ -100,6 +102,12 @@ var _match_id: int = 1000
 var _remake: Dictionary = {}
 var _custom: Dictionary = {}
 var _my_hero: StringName = &""
+## v20 loading: [{id, bot}] of the last pick state, and the percent per seat.
+var _load_seats: Array = []
+var loads: Array = []
+## Seconds the fake players need to load (seat i takes load_s * (1 + i % 3) / 2).
+var load_s: float = 4.0
+var _assigned_at: float = 0.0
 
 
 var _phase_seq: int = 0
@@ -307,6 +315,15 @@ func custom_start() -> void:
 	match_assigned.emit(_assigned_info())
 
 
+## v20: own loading percent (like the server: only rising values count).
+func report_load(pct: int) -> void:
+	sent.append({"op": &"load", "pct": pct})
+	for i in _load_seats.size():
+		if str(_load_seats[i].id) == ME and pct > int(loads[i]):
+			loads[i] = clampi(pct, 0, 100)
+			load_progress.emit(loads.duplicate())
+
+
 # --- scripted world -----------------------------------------------------------
 
 ## Advances fake time: queue -> found -> ready -> pick -> assigned.
@@ -325,6 +342,8 @@ func step(delta: float) -> void:
 				_fail_ready(&"locked" if not _me_accepted else &"requeued")
 		&"pick":
 			_step_pick()
+		&"assigned":
+			_step_loads()
 	if not _remake.is_empty() and bool(_remake.open) and now >= float(_remake.deadline):
 		_remake.open = false
 		_remake.outcome = &"failed"
@@ -560,6 +579,7 @@ func _emit_pick() -> void:
 			"turn": _draft.turn, "turn_team": _draft.turn_team, "order": rules.draft_order, "first_team": 1,
 			"deadline_s": maxf(0.0, _draft.deadline - now), "turn_s": rules.pick_turn_s,
 			"done": _draft.state != DraftSession.State.PICKING, "seats": seats})
+		_load_seats = seats
 	elif _aram != null:
 		var seats: Array = []
 		for t in 2:
@@ -575,13 +595,31 @@ func _emit_pick() -> void:
 			"turn_s": rules.all_random_s, "rerolls_left": int(_aram.rerolls_left.get(ME, 0)),
 			"bench": (_aram.bench[0] as Array).duplicate(), "seats": seats, "swap_requests": reqs,
 			"outgoing": _outgoing.duplicate()})
+		_load_seats = seats
 
 
 func _assigned_info() -> Dictionary:
+	_assigned_at = now
+	loads = _load_seats.map(func(st: Dictionary) -> int: return 100 if bool(st.bot) else 0)
 	return {"match_id": _match_id, "host": "127.0.0.1", "port": rules.match_port_first,
 		"ticket": "fake-ticket-%d-%d" % [_match_id, int(now * 1000.0)], "queue": queue,
 		"hero": _my_hero, "hero_index": MmView.hero_index(_my_hero),
 		"map": &"slice" if queue == MmView.Q_ARAM else &"shardline_front"}
+
+
+## The other players load at their own pace (rising in 10 % steps).
+func _step_loads() -> void:
+	var changed := false
+	for i in mini(_load_seats.size(), loads.size()):
+		var st: Dictionary = _load_seats[i]
+		if bool(st.bot) or str(st.id) == ME:
+			continue
+		var pct := clampi(floori((now - _assigned_at) / (load_s * (1 + i % 3) / 2.0) * 10.0) * 10, 0, 100)
+		if pct > int(loads[i]):
+			loads[i] = pct
+			changed = true
+	if changed:
+		load_progress.emit(loads.duplicate())
 
 
 func _remake_info() -> Dictionary:

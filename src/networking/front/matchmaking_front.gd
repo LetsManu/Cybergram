@@ -66,6 +66,8 @@ class Match:
 	## v20 custom games: bot profile and "the roster's bots are all the bots".
 	var bot_difficulty: String = "normal"
 	var bot_limits: bool = false
+	## v20: loading percent per seat (seat order; bots 100), reported by the clients.
+	var loads: Array = []
 
 
 var transport: Transport
@@ -190,6 +192,8 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 			phases.resync(me, t)
 		MatchmakingCodec.OP_HOVER:
 			_hover(peer, me, int(r.hero), t)
+		MatchmakingCodec.OP_LOAD_PROGRESS:
+			_load_progress(peer, me, int(r.pct))
 	phases.sync(t)
 	return true
 
@@ -737,6 +741,25 @@ func _on_match_started(match_id: String, endpoint: Dictionary) -> void:
 		_humans(m).size()])
 	for id in _humans(m):
 		_send_assigned(m, id, t)
+
+
+## v20: a player's loading percent. Only a seat of a running match, only
+## rising (so a client cannot flood: at most 100 updates), relayed to every
+## human of the match as the full list.
+func _load_progress(peer: int, me: String, pct: int) -> void:
+	var m: Match = _account_match.get(me)
+	var i := _seat_index(m, me) if m != null else -1
+	if m == null or m.state != State.RUNNING or i < 0:
+		_ack(peer, MatchmakingCodec.OP_LOAD_PROGRESS, MatchmakingCodec.E_NOT_ALLOWED)
+		return
+	if m.loads.size() != m.seats.size():
+		m.loads = m.seats.map(func(s: Dictionary) -> int: return 100 if s.bot else 0)
+	var v := clampi(pct, 0, 100)
+	if v <= int(m.loads[i]):
+		return
+	m.loads[i] = v
+	for id in _humans(m):
+		_send(id, MatchmakingCodec.EV_LOAD_PROGRESS, MatchmakingCodec.OK, {"loads": m.loads.duplicate()})
 
 
 func _send_assigned(m: Match, id: String, t: float) -> bool:

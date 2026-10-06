@@ -22,8 +22,10 @@ extends Control
 signal start_requested(args: PackedStringArray)
 signal closed()
 
-## Seconds the loading screen shows before the game client takes over.
+## Seconds the loading screen shows at least before the game client takes over.
 const HANDOFF_S := 1.5
+## v20: hand over after this long even if the preload has not finished.
+const LOAD_MAX_S := 30.0
 
 var client: Object
 ## Step the client every frame (the fake; the adapter steps its LobbyClient).
@@ -45,6 +47,10 @@ var play: MmPlayScreen
 var assigned: Dictionary = {}
 var _last_pick: Dictionary = {}
 var _handoff: float = -1.0
+## v20: background load of the match's map + hero; percent last reported to the front.
+var _preload: MatchPreloader
+var _sent_load: int = -1
+var _load_wait: float = 0.0
 var _toast_root: Control
 ## P1: persistent status strip (bottom).
 var status_bar: MmStatusBar
@@ -81,6 +87,7 @@ func _bind() -> void:
 	var routes := {"queue_changed": _on_queue, "match_found": _on_found, "ready_result": _on_ready_result,
 		"pick_state": _on_pick, "match_assigned": _on_assigned, "connection_lost": _on_lost,
 		"post_match": show_post, "party_changed": _on_party, "custom_changed": _on_custom,
+		"load_progress": _on_loads,
 		"failed": func(key: String) -> void: toast(tr(key), &"warn")}
 	for sig: String in routes:
 		if client.has_signal(sig):
@@ -93,10 +100,15 @@ func _process(delta: float) -> void:
 	if client != null and client.has_method("tick"):
 		client.call("tick", delta)
 	_tick_cue()
+	_step_preload(delta)
 	if _handoff >= 0.0:
 		_handoff -= delta
 		if _handoff < 0.0:
-			_hand_over()
+			if _preload != null and not _preload.is_done() and _load_wait < LOAD_MAX_S:
+				_handoff = 0.0  # keep the loading screen until the map is in memory
+			else:
+				_handoff = -1.0
+				_hand_over()
 
 
 ## P4: one tick per second in the last 5 s of your own pick turn.
@@ -266,8 +278,43 @@ func _on_assigned(info: Dictionary) -> void:
 	sfx.call(&"match_found")
 	var l := _loading()
 	l.set_state(MmLoadingScreen.State.CONNECTING)
+	var e := MmView.hero_entry(_my_hero())
+	_preload = MatchPreloader.new()
+	_preload.start(MatchPreloader.match_paths(String(assigned.get("map", &"")), str(e.get("stem", ""))))
+	_sent_load = -1
+	_load_wait = 0.0
 	if not hold_on_assigned:
 		_handoff = HANDOFF_S
+
+
+## v20: own loading progress on the screen and (in 10 % steps) to the front.
+func _step_preload(delta: float) -> void:
+	if _preload == null or page_name != &"loading":
+		return
+	_load_wait += delta
+	var p := _preload.progress()
+	var ld := page as MmLoadingScreen
+	if ld.state == MmLoadingScreen.State.CONNECTING:
+		ld.set_own_progress(p, _my_seat_index())
+	var pct := floori(p * 10.0) * 10
+	if pct > _sent_load:
+		_sent_load = pct
+		if client != null and client.has_method("report_load"):
+			client.call("report_load", pct)
+
+
+func _on_loads(l: Array) -> void:
+	if page_name == &"loading":
+		(page as MmLoadingScreen).set_loads(l)
+
+
+func _my_seat_index() -> int:
+	var seats: Array = _last_pick.get("seats", [])
+	var me := str(_last_pick.get("me", ""))
+	for i in seats.size():
+		if str((seats[i] as Dictionary).get("id", "")) == me:
+			return i
+	return -1
 
 
 func _loading() -> MmLoadingScreen:
@@ -278,6 +325,7 @@ func _loading() -> MmLoadingScreen:
 				client.call("reconnect"))
 		l.leave_requested.connect(func() -> void:
 			_handoff = -1.0
+			_preload = null
 			show_play())
 		_set_page(l, &"loading")
 	var ld := page as MmLoadingScreen

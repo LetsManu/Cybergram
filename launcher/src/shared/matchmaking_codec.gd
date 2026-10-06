@@ -40,6 +40,7 @@ const OP_REJOIN: int = 20            ## reconnect: ask for a fresh ticket to the
 const OP_STATE_SYNC: int = 21        ## v20: ask for a full PHASE snapshot (after a reconnect)
 const OP_HOVER: int = 22             ## v20: declare a hero (pick or ban phase; hero 0 clears)
 const OP_CUSTOM_BOTS: int = 23       ## v20: host: bots per team (255 = fill) and bot difficulty
+const OP_LOAD_PROGRESS: int = 24     ## v20: own match loading progress, percent (only rises)
 
 ## S->C ops.
 const EV_QUEUE_STATUS: int = 1
@@ -54,6 +55,7 @@ const EV_MATCH_RESULT: int = 9
 const EV_CUSTOM_STATE: int = 10
 const EV_ACK: int = 11               ## answer to a request: code = OK or an error
 const EV_PHASE: int = 12             ## v20: the player's state machine (PhaseMachine.Player), versioned
+const EV_LOAD_PROGRESS: int = 13     ## v20: every seat's loading percent (seat order; bots 100)
 
 const REQ_SCHEMA := {
 	OP_QUEUE_JOIN: [["queue", "b"], ["lane1", "b"], ["lane2", "b"]],
@@ -79,6 +81,7 @@ const REQ_SCHEMA := {
 	OP_STATE_SYNC: [],
 	OP_HOVER: [["hero", "u"]],
 	OP_CUSTOM_BOTS: [["bots_a", "b"], ["bots_b", "b"], ["difficulty", "b"]],
+	OP_LOAD_PROGRESS: [["pct", "b"]],
 }
 
 const EVT_SCHEMA := {
@@ -116,6 +119,8 @@ const EVT_SCHEMA := {
 	EV_PHASE: [["epoch", "w"], ["seq", "w"], ["phase", "b"], ["prev", "b"], ["snap", "b"], ["queue", "b"],
 		["party_size", "b"], ["leader", "b"], ["waited", "u"], ["estimate", "u"], ["locked", "u"], ["match", "s"],
 		["party", "s"]],
+	## v20: loading percent per seat, in EV_PICK_STATE seat order (0-100).
+	EV_LOAD_PROGRESS: [["loads", "H"]],
 }
 ## Events whose fields travel with any code (the code is an error detail).
 const ALWAYS_FIELDS := [EV_QUEUE_STATUS, EV_READY_RESULT, EV_ACK]

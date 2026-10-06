@@ -33,6 +33,8 @@ signal failed(key: String)
 signal phase_changed(state: Dictionary)
 ## P2: a party chat line arrived (read party_chat_lines()).
 signal party_chat_changed()
+## v20: loading percent per seat (pick-state seat order; bots 100).
+signal load_progress(loads: Array)
 
 const QS := {0: &"idle", 1: &"queued", 2: &"busy", 3: &"busy", 4: &"busy", 5: &"locked"}
 const RR := {0: &"go", 1: &"requeued", 2: &"removed", 3: &"locked", 4: &"voided"}
@@ -65,6 +67,7 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 			PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, int(d.phase))], {"seq": int(d.seq),
 			"snap": int(d.snap), "queue": int(d.queue), "party": int(d.party_size), "locked": int(d.locked)})
 		phase_changed.emit(d))
+	mm.load_progress.connect(func(l: Array) -> void: load_progress.emit(l))
 	mm.ready_result.connect(func(d: Dictionary) -> void:
 		events.add("ready", "result", {"outcome": int(d.get("outcome", 0)), "locked": int(d.get("locked", 0))}))
 	mm.match_assigned.connect(func(_h: String, port: int, _t: String) -> void:
@@ -207,6 +210,11 @@ func party_chat_lines() -> Array:
 		return []
 	return social.party_chat.map(func(l: Dictionary) -> Dictionary:
 		return {"name": l.name, "text": l.text, "mine": str(l.id) == social.me})
+
+
+## v20: own loading percent for the other players' loading screens.
+func report_load(pct: int) -> void:
+	mm.report_load(pct)
 
 
 ## P3: declare `hero` (allies see it); &"" clears.

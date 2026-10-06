@@ -123,13 +123,17 @@ func _build(st: String) -> void:
 				fake.step(fake.think_s + 0.1)
 		"loading", "reconnect":
 			_to_pick(MmView.Q_NORMAL)
-			for k in 12:
+			for k in 40:  # P3 added the finalize window: step until the match is assigned
+				if fake.phase == &"assigned":
+					break
 				fake.step(fake.think_s + 0.1)
 				if fake.phase == &"pick" and fake._draft != null and fake._draft.current_pickers().has(MatchmakingFakeClient.ME):
 					var legal := fake._draft.legal_heroes(0)
 					fake.pick(legal[0])
 			if st == "reconnect":
 				fake.drop_connection()
+			else:
+				fake.step(fake.load_s * 0.6)  # v20: the other players are part-way loaded
 		"post_ranked":
 			fake.queue = MmView.Q_RANKED
 			fake.finish_match(true)

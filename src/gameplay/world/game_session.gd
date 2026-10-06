@@ -133,11 +133,17 @@ func _ready() -> void:
 
 ## MapDef for a `--map` name: map_<name>.tres, else map_<name>_lane.tres (null if neither).
 static func load_map_def(map_name: String) -> MapDef:
+	var path := map_def_path(map_name)
+	return load(path) as MapDef if path != "" else null
+
+
+## Resource path of a map's MapDef ("" = no such map).
+static func map_def_path(map_name: String) -> String:
 	for pat in [MAP_DEF_PATH_PLAIN, MAP_DEF_PATH]:
 		var path: String = pat % map_name
 		if ResourceLoader.exists(path):
-			return load(path) as MapDef
-	return null
+			return path
+	return ""
 
 
 ## Builds the server world (and the local client unless dedicated).

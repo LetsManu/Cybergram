@@ -53,6 +53,8 @@ signal request_failed(op: int, code: int)
 ## match, party, at (local s when received)}. Stale events (an older seq of
 ## the same epoch, not a snapshot) are dropped and never emitted.
 signal phase_changed(state: Dictionary)
+## v20: loading percent of every seat (EV_PICK_STATE seat order; bots 100).
+signal load_progress(loads: Array)
 
 const SERVER_PEER: int = 1
 
@@ -214,6 +216,11 @@ func custom_bots(bots_a: int, bots_b: int, difficulty: int) -> void:
 	_send(MatchmakingCodec.OP_CUSTOM_BOTS, {"bots_a": bots_a, "bots_b": bots_b, "difficulty": difficulty})
 
 
+## v20: own match loading progress in percent (the front only takes rising values).
+func report_load(pct: int) -> void:
+	_send(MatchmakingCodec.OP_LOAD_PROGRESS, {"pct": clampi(pct, 0, 100)})
+
+
 ## Index of a queue id in the standard queue list (MatchmakingRulesDef order), or 255.
 static func queue_index(id: StringName) -> int:
 	var i := QUEUE_IDS.find(id)
@@ -300,6 +307,9 @@ func handle(b: PackedByteArray) -> bool:
 					phase_changed.emit(d)
 				else:
 					stale_phases += 1
+		MatchmakingCodec.EV_LOAD_PROGRESS:
+			if code == MatchmakingCodec.OK:
+				load_progress.emit(d.loads)
 	return true
 
 

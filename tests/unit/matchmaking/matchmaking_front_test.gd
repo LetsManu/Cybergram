@@ -440,6 +440,45 @@ func test_custom_host_reconfigures_and_sets_bot_slots_and_difficulty() -> void:
 	assert_array(setup.rules.bots_per_team).is_equal([1, 2])
 
 
+func test_load_progress_is_relayed_to_the_match_and_only_rises() -> void:
+	_make_front()
+	var cl := _to_running()
+	var a: LobbyClient = cl[0]
+	var b: LobbyClient = cl[1]
+	var got: Array = []
+	b.matchmaking.load_progress.connect(func(l: Array) -> void: got.append(l.duplicate()))
+	a.matchmaking.report_load(40)
+	_step(0.2)
+	assert_int(got.size()).is_equal(1)
+	var loads: Array = got[-1]
+	var setup: Dictionary = _sup.requests[0]
+	assert_int(loads.size()).is_equal(setup.roster.size())
+	var a_seat := -1
+	for i in setup.roster.size():
+		if str(setup.roster[i].account) == _id(2):
+			a_seat = i
+		elif bool(setup.roster[i].bot):
+			assert_int(int(loads[i])).is_equal(100)  # bots are ready at once
+	assert_int(int(loads[a_seat])).is_equal(40)
+	a.matchmaking.report_load(20)  # lower: ignored, nothing relayed
+	a.matchmaking.report_load(40)
+	_step(0.2)
+	assert_int(got.size()).is_equal(1)
+	a.matchmaking.report_load(100)
+	_step(0.2)
+	assert_int(int(got[-1][a_seat])).is_equal(100)
+
+
+func test_load_progress_outside_a_running_match_is_refused() -> void:
+	_make_front()
+	var a := _client(2)
+	var fails: Array = []
+	a.matchmaking.request_failed.connect(func(op: int, code: int) -> void: fails.append([op, code]))
+	a.matchmaking.report_load(50)
+	_step(0.2)
+	assert_array(fails).contains([[MatchmakingCodec.OP_LOAD_PROGRESS, MatchmakingCodec.E_NOT_ALLOWED]])
+
+
 func test_busy_supervisor_retries_then_voids() -> void:
 	_make_front()
 	_sup.busy = true
