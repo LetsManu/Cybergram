@@ -42,6 +42,8 @@ var open_thread: String = ""
 var party_chat: Array = []
 ## inviter id -> {name, t}   (party invites waiting for me)
 var join_requests: Dictionary = {}
+## Local time the last OP_PARTY arrived (invite countdowns count from it).
+var party_at: float = 0.0
 var clock: Callable = func() -> float: return Time.get_ticks_msec() / 1000.0
 
 
@@ -62,6 +64,7 @@ func on_result(d: Dictionary) -> void:
 		AccountCodec.OP_PARTY:
 			if ok:
 				party = d
+				party_at = float(clock.call())
 				party_changed.emit(party)
 				changed.emit()
 		AccountCodec.OP_NOTIFY:
@@ -122,10 +125,17 @@ func members() -> Array:
 		return int(m.kind) == AccountCodec.PARTY_LEADER or int(m.kind) == AccountCodec.PARTY_MEMBER)
 
 
-## Party invites waiting for me ({id, display_name}).
+## Party invites waiting for me ({id, display_name, expires}), expired ones left out.
 func invites_in() -> Array:
 	return (party.get("members", []) as Array).filter(func(m: Dictionary) -> bool:
-		return int(m.kind) == AccountCodec.PARTY_INVITE_IN)
+		return int(m.kind) == AccountCodec.PARTY_INVITE_IN and invite_left_s(m) > 0)
+
+
+## Seconds until a party invite entry expires (server value minus the time since it arrived).
+func invite_left_s(m: Dictionary) -> int:
+	if not m.has("expires"):
+		return 1  # an old server without expiries: keep it until the next refresh
+	return ceili(float(m.expires) - (float(clock.call()) - party_at))
 
 
 func in_my_party(id: String) -> bool:

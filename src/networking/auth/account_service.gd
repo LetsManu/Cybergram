@@ -1094,10 +1094,18 @@ func party_fields(me: Dictionary) -> Dictionary:
 	for m in st.members:
 		list.append(_party_entry(str(m), AccountCodec.PARTY_LEADER if m == st.leader else AccountCodec.PARTY_MEMBER))
 	for m in st.invites_in:
-		list.append(_party_entry(str(m), AccountCodec.PARTY_INVITE_IN))
+		list.append(_with_expiry(_party_entry(str(m), AccountCodec.PARTY_INVITE_IN), me.id, str(m)))
 	for m in st.invites_out:
-		list.append(_party_entry(str(m), AccountCodec.PARTY_INVITE_OUT))
+		list.append(_with_expiry(_party_entry(str(m), AccountCodec.PARTY_INVITE_OUT), str(m), me.id))
 	return {"party": st.party, "leader": st.leader, "members": list.filter(func(e: Dictionary) -> bool: return not e.is_empty())}
+
+
+## v20: seconds until the invite `inviter` -> `invitee` expires (shown as a countdown).
+func _with_expiry(e: Dictionary, invitee: String, inviter: String) -> Dictionary:
+	if not e.is_empty():
+		var until := float((parties.invites.get(invitee, {}) as Dictionary).get(inviter, _now))
+		e["expires"] = ceili(maxf(0.0, until - _now))
+	return e
 
 
 func _party_entry(id: String, kind: int) -> Dictionary:

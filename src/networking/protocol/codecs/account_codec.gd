@@ -303,6 +303,7 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 					w.u8(int(e.get("emblem", 0)))
 					w.u8(int(e.get("accent", 0)))
 					w.u8(int(e.get("flags", 0)))
+					w.u16(clampi(int(e.get("expires", 0)), 0, 65535))
 			"F":
 				var l: Array = v if v is Array else []
 				var n := mini(l.size(), MAX_LIST)
@@ -361,7 +362,7 @@ static func _read(r: LobbyCodec.Reader, schema: Array) -> Dictionary:
 				var l: Array = []
 				for k in n:
 					l.append({"id": r.id(), "kind": r.u8(), "status": r.u8(), "display_name": r.str8(STR_MAX),
-						"emblem": r.u8(), "accent": r.u8(), "flags": r.u8()})
+						"emblem": r.u8(), "accent": r.u8(), "flags": r.u8(), "expires": r.u16()})
 				d[field[0]] = l
 			"F":
 				var n := r.u8()

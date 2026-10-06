@@ -59,6 +59,9 @@ var _add_rule: ColorRect
 var _footer: Button
 ## The offline group is folded into the footer until it is clicked.
 var _show_offline: bool = false
+## P2: invite rows with a countdown: [[Label, entry]] refreshed every second.
+var _countdowns: Array = []
+var _count_left: float = 1.0
 
 
 func _ready() -> void:
@@ -217,6 +220,18 @@ func dock_width() -> int:
 func _process(delta: float) -> void:
 	if not is_visible_in_tree() or not has_account or not request.is_valid():
 		return
+	_count_left -= delta
+	if _count_left <= 0.0 and social != null and not _countdowns.is_empty():
+		_count_left = 1.0
+		var expired := false
+		for c: Array in _countdowns:
+			if not is_instance_valid(c[0]):
+				continue
+			var left := social.invite_left_s(c[1])
+			expired = expired or left <= 0
+			(c[0] as Label).text = _invite_text(c[1], left)
+		if expired:
+			rebuild()  # the invite is gone
 	_poll_left -= delta
 	if _poll_left <= 0.0:
 		_poll_left = POLL_S
@@ -477,14 +492,17 @@ func _row(e: Dictionary) -> Control:
 func _social_groups() -> void:
 	if social == null:
 		return
+	_countdowns.clear()
 	var inv := social.invites_in()
 	if not inv.is_empty():
 		_list.add_child(_group_label(tr("HUD_SOCIAL_GROUP_INVITES")))
 		for m: Dictionary in inv:
 			var who := str(m.id)
-			_list.add_child(_action_row(tr("HUD_SOCIAL_INVITE_FROM") % str(m.display_name), [
+			var row := _action_row(_invite_text(m, social.invite_left_s(m)), [
 				[tr("HUD_FRIENDS_ACCEPT"), func() -> void: social.accept_invite(who)],
-				[tr("HUD_FRIENDS_REMOVE_X"), func() -> void: social.decline_invite(who)]]))
+				[tr("HUD_FRIENDS_REMOVE_X"), func() -> void: social.decline_invite(who)]])
+			_countdowns.append([row.find_child("Text", true, false), m])
+			_list.add_child(row)
 	var jr := social.pending_join_requests()
 	if not jr.is_empty():
 		_list.add_child(_group_label(tr("HUD_SOCIAL_GROUP_JOIN")))
@@ -494,12 +512,19 @@ func _social_groups() -> void:
 				[tr("HUD_SOCIAL_INVITE"), func() -> void: social.invite(who)]]))
 
 
+## "Brin invited you to a party · 1:42" (the countdown only with a server expiry).
+func _invite_text(m: Dictionary, left: int) -> String:
+	var s := tr("HUD_SOCIAL_INVITE_FROM") % str(m.display_name)
+	return s + ("  ·  " + MmView.clock(left) if m.has("expires") else "")
+
+
 ## A text line with always-visible buttons (invites need no hover).
 func _action_row(text: String, buttons: Array) -> Control:
 	var t := UiKit.tokens()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	var l := UiKit.label(text, &"small", t.text)
+	l.name = "Text"
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	row.add_child(l)

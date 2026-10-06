@@ -300,3 +300,17 @@ func test_party_survives_a_match_without_the_menu_connection() -> void:
 	var p := _send(s, t, 8, AccountCodec.OP_PARTY)
 	assert_int((p.members as Array).size()).is_equal(2)
 	assert_str(str(p.leader)).is_equal(a)
+
+
+func test_party_invites_carry_their_seconds_left() -> void:
+	var x := _three()
+	var s: AccountService = x[0]
+	var t: FakeTransport = x[1]
+	_send(s, t, 2, AccountCodec.OP_PARTY_INVITE, {"id": x[3]})
+	s.step(20.0)
+	var inv: Dictionary = _send(s, t, 3, AccountCodec.OP_PARTY).members[0]
+	assert_int(int(inv.kind)).is_equal(AccountCodec.PARTY_INVITE_IN)
+	assert_int(int(inv.expires)).is_between(int(s.online.party_invite_ttl_s) - 21, int(s.online.party_invite_ttl_s) - 19)
+	var out: Dictionary = _send(s, t, 2, AccountCodec.OP_PARTY).members.filter(func(m: Dictionary) -> bool:
+		return int(m.kind) == AccountCodec.PARTY_INVITE_OUT)[0]
+	assert_int(int(out.expires)).is_equal(int(inv.expires))

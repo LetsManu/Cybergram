@@ -173,3 +173,17 @@ static func _all_text(n: Node) -> String:
 	for c in n.get_children():
 		out.append(_all_text(c))
 	return "\n".join(out)
+
+
+func test_invite_countdown_runs_out_locally() -> void:
+	var x := _model()
+	var m: SocialModel = x[0]
+	var p := _party(NYX, [NYX])
+	p.members = [{"id": NYX, "kind": AccountCodec.PARTY_INVITE_IN, "status": 1, "display_name": "Nyx", "emblem": 0,
+		"accent": 0, "flags": 0, "expires": 30}]
+	m.on_result(p)
+	assert_int(m.invite_left_s(m.invites_in()[0])).is_equal(30)
+	x[2][0] = 100.0 + 12.0
+	assert_int(m.invite_left_s(m.invites_in()[0])).is_equal(18)
+	x[2][0] = 100.0 + 31.0
+	assert_array(m.invites_in()).is_empty()
