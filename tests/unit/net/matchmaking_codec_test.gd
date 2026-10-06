@@ -30,6 +30,7 @@ func _req_samples() -> Dictionary:
 		MatchmakingCodec.OP_CUSTOM_PICK: {"hero": 7},
 		MatchmakingCodec.OP_CUSTOM_START: {},
 		MatchmakingCodec.OP_REJOIN: {},
+		MatchmakingCodec.OP_STATE_SYNC: {},
 	}
 
 
@@ -57,6 +58,9 @@ func _evt_samples() -> Dictionary:
 		MatchmakingCodec.EV_CUSTOM_STATE: {"host": ID_A, "phase": 0, "map": 1, "mode": 2, "bots": 1, "team_size": 5,
 			"members": members},
 		MatchmakingCodec.EV_ACK: {"req": 4},
+		MatchmakingCodec.EV_PHASE: {"epoch": 1_800_000_000, "seq": 70_000, "phase": 3, "prev": 2, "snap": 1,
+			"queue": 0, "party_size": 2, "leader": 1, "waited": 61, "estimate": 75, "locked": 0,
+			"match": "abcdef0123456789abcdef01", "party": ID_B},
 	}
 
 

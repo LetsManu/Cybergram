@@ -1,7 +1,7 @@
 # Cybergram: Privacy Notice
 
 > **Draft. Needs a legal check before public release.** Written in plain
-> words for players. Version 6 (2026-10-05, after game v0.15.0, protocol v19: recovery code).
+> words for players. Version 7 (2026-10-06, protocol v20: player tags in server logs, operator status page).
 
 **Offline play (PLAY VS BOTS, the test course) sends nothing anywhere.** This
 notice is about **online play**.
@@ -227,9 +227,17 @@ sections above; you can withdraw it at any time by switching them off. You must 
 ## Server logs
 
 Logs contain no chat text, no usernames, no display names and no passwords.
-They contain a short 4-character id tag (for example `account #1A2B`),
-connection numbers and game events (joined, ready, match started). The
-operator rotates logs, so old log lines are removed after a while.
+They contain a short 4-character id tag (for example `account #1A2B`) or, on
+the matchmaking server, a 10-character player tag that is a salted one-way
+hash of your account id (it cannot be turned back into your id), connection
+numbers, random party, lobby and match ids, and game events (joined, queued,
+ready, match started). The operator rotates logs, so old log lines are removed
+after a while.
+
+The server also keeps the last 200 of these events in memory for its
+operator's status page (`/admin`, protected by a password). It shows the same
+tags, never names, and is lost when the server restarts. The monitoring
+numbers (`/metrics`) are counts only (players queued, matches running).
 
 ## Your rights
 

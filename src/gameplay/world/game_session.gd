@@ -773,6 +773,9 @@ func _start_front() -> void:
 	front.rate_guests = OS.get_environment("CYBERGRAM_RATE_GUESTS").to_lower() in ["1", "true", "yes", "on"]
 	front.housekeeping(front.now())
 	front_server = FrontServer.new(_front_enet, accounts, front)
+	front_server.build_version = hc.build_version
+	front_server.ready_checks["supervisor"] = func() -> bool: return not supervisor.draining
+	front_server.start_ops()  # P1: /health, /metrics, /admin when CYBERGRAM_OPS_PORT is set
 	supervisor.drained.connect(func() -> void:
 		print("[front] drained: exiting")
 		_front_enet.close()

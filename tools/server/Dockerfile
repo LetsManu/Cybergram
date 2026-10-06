@@ -53,6 +53,7 @@ USER cybergram
 WORKDIR /opt/cybergram
 EXPOSE 7777/udp
 EXPOSE 8080/tcp
+EXPOSE 8090/tcp
 EXPOSE 7800-7809/udp
 # Liveness: UDP 7777 bound (+ a fresh supervisor health file in front mode).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["/opt/healthcheck.sh"]

@@ -9,6 +9,10 @@ extends RefCounted
 ## a peer over MAX_VIOLATIONS is ignored. Matchmaking requests are rate
 ## limited per peer (token bucket). Logs carry peer numbers only.
 ##
+## P1: an optional operations endpoint (OpsHttpServer: /health, /metrics,
+## /admin) when CYBERGRAM_OPS_PORT is set, and the main-loop time per frame
+## for /metrics.
+##
 ## Example (GameSession, front mode):
 ##   front_server = FrontServer.new(enet, accounts, front)
 ##   front_server.step(delta)   # every physics frame
@@ -28,6 +32,14 @@ var _now: float = 0.0
 var _status := LobbyStatusWriter.new()
 ## W20-WEB: the website's public snapshot (CYBERGRAM_PUBLIC_DIR; off when unset).
 var public_snapshot := PublicSnapshot.new()
+## P1: /health, /metrics, /admin (off unless CYBERGRAM_OPS_PORT is set).
+var ops := OpsHttpServer.new()
+## Build label for /health (GameSession sets it from HostingConfig).
+var build_version: String = "dev"
+## Extra readiness checks: name -> func() -> bool (GameSession adds the supervisor).
+var ready_checks: Dictionary = {}
+var _tick_ms_last: float = 0.0
+var _tick_ms_max: float = 0.0
 
 
 func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) -> void:
@@ -36,9 +48,22 @@ func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) ->
 	front = front_
 	if t.has_signal("peer_disconnected"):
 		t.connect("peer_disconnected", on_peer_left)
+	ops.health = health_snapshot
+	ops.metrics = func() -> String: return metrics_text()
+	ops.admin = func() -> Dictionary: return admin_snapshot()
+
+
+## Starts the operations endpoint from the environment (CYBERGRAM_OPS_PORT).
+func start_ops() -> bool:
+	if not ops.listen_from_env():
+		return false
+	front._ev(OpsLog.INFO, "ops_listen", "ops endpoint on TCP %d (/health, /metrics%s)" % [ops.port(),
+		", /admin" if ops.admin_token != "" else ""])
+	return true
 
 
 func step(delta: float) -> void:
+	var t0 := Time.get_ticks_usec()
 	_now += delta
 	accounts.step(delta)
 	transport.poll()
@@ -49,6 +74,44 @@ func step(delta: float) -> void:
 	front.step()
 	_status.tick(delta, accounts.peers.size(), false, 0)
 	public_snapshot.tick(delta, front, accounts.peers.size())
+	_tick_ms_last = (Time.get_ticks_usec() - t0) / 1000.0
+	_tick_ms_max = maxf(_tick_ms_max, _tick_ms_last)
+	ops.poll()
+
+
+## /health: readiness of this front (accounts, transport, supervisor checks).
+func health_snapshot() -> Dictionary:
+	var checks := {"transport": transport != null, "accounts": accounts != null}
+	for k in ready_checks:
+		checks[k] = bool((ready_checks[k] as Callable).call())
+	var ready := true
+	for k in checks:
+		ready = ready and bool(checks[k])
+	return {"ready": ready, "version": build_version, "protocol": MsgType.PROTOCOL_VERSION,
+		"uptime_s": int(front.now() - front.started_at), "clients": accounts.peers.size(), "checks": checks}
+
+
+## /metrics: the front's metrics plus connection and main-loop numbers.
+func metrics_text() -> String:
+	var m := front.metrics
+	m.describe("cybergram_connected_clients", "gauge", "Connections with a login or guest session.")
+	m.describe("cybergram_front_tick_ms", "gauge", "Main-loop time of the last frame (ms).")
+	m.describe("cybergram_front_tick_ms_max", "gauge", "Longest main-loop frame since the last scrape (ms).")
+	m.describe("cybergram_protocol_violations", "gauge", "Peers with at least one malformed packet right now.")
+	m.set_gauge("cybergram_connected_clients", float(accounts.peers.size()))
+	m.set_gauge("cybergram_front_tick_ms", _tick_ms_last)
+	m.set_gauge("cybergram_front_tick_ms_max", _tick_ms_max)
+	m.set_gauge("cybergram_protocol_violations", float(_violations.size()))
+	m.set_gauge("cybergram_build_info", 1.0, {"version": build_version, "protocol": str(MsgType.PROTOCOL_VERSION)})
+	_tick_ms_max = 0.0
+	return front.render_metrics()
+
+
+## /admin: the front's live state plus health.
+func admin_snapshot() -> Dictionary:
+	var a := front.admin_snapshot()
+	a.health = health_snapshot()
+	return a
 
 
 func on_peer_left(peer: int) -> void:
@@ -98,6 +161,6 @@ func _violation(peer: int, what: String) -> void:
 	var n := int(_violations.get(peer, 0)) + 1
 	_violations[peer] = n
 	if n <= MAX_VIOLATION_LOGS:
-		print("[front] peer %d: %s (violation %d)" % [peer, what, n])
+		front._ev(OpsLog.WARN, "violation", "peer %d: %s (violation %d)" % [peer, what, n])
 	elif n == MAX_VIOLATIONS + 1:
-		print("[front] peer %d: too many violations, ignoring it" % peer)
+		front._ev(OpsLog.WARN, "violation", "peer %d: too many violations, ignoring it" % peer)

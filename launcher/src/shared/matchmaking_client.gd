@@ -48,6 +48,11 @@ signal match_result(result: Dictionary)
 signal custom_state(state: Dictionary)
 ## A request failed: `op` = the MatchmakingCodec.OP_*, `code` = MatchmakingCodec.E_*.
 signal request_failed(op: int, code: int)
+## v20: the player's state on the server changed (PhaseMachine.Player): {epoch,
+## seq, phase, prev, snap, queue, party_size, leader, waited, estimate, locked,
+## match, party, at (local s when received)}. Stale events (an older seq of
+## the same epoch, not a snapshot) are dropped and never emitted.
+signal phase_changed(state: Dictionary)
 
 const SERVER_PEER: int = 1
 
@@ -66,6 +71,10 @@ var last_ranked: Dictionary = {}
 var last_remake: Dictionary = {}
 var last_result: Dictionary = {}
 var last_custom: Dictionary = {}
+## v20: last accepted PHASE event ({} = none yet).
+var last_phase: Dictionary = {}
+## Stale PHASE events dropped (diagnostics).
+var stale_phases: int = 0
 
 
 func _init(t: Transport, server_host_: String = "") -> void:
@@ -145,6 +154,20 @@ func request_ranked_info() -> void:
 ## (answered with match_assigned, or request_failed(OP_REJOIN, E_NOT_FOUND)).
 func rejoin() -> void:
 	_send(MatchmakingCodec.OP_REJOIN)
+
+
+## v20: asks for a full PHASE snapshot (after a reconnect or when the UI
+## doubts its state). Answered with phase_changed (snap = 1).
+func request_state_sync() -> void:
+	_send(MatchmakingCodec.OP_STATE_SYNC)
+
+
+## True when a PHASE event `d` is newer than `last` (same epoch, higher seq),
+## from a new server epoch, or a snapshot.
+static func phase_is_newer(last: Dictionary, d: Dictionary) -> bool:
+	if last.is_empty() or int(d.get("snap", 0)) == 1 or int(d.epoch) != int(last.epoch):
+		return true
+	return int(d.seq) > int(last.seq)
 
 
 ## Custom game: `map` index into MatchmakingCodec.CUSTOM_MAPS, `mode` PM_CUSTOM
@@ -257,6 +280,14 @@ func handle(b: PackedByteArray) -> bool:
 		MatchmakingCodec.EV_ACK:
 			if code != MatchmakingCodec.OK:
 				request_failed.emit(int(d.req), code)
+		MatchmakingCodec.EV_PHASE:
+			if code == MatchmakingCodec.OK:
+				if phase_is_newer(last_phase, d):
+					d["at"] = now
+					last_phase = d
+					phase_changed.emit(d)
+				else:
+					stale_phases += 1
 	return true
 
 

@@ -37,6 +37,7 @@ const OP_CUSTOM_TEAM: int = 17       ## switch team
 const OP_CUSTOM_PICK: int = 18       ## pick a hero in a custom lobby
 const OP_CUSTOM_START: int = 19      ## host: start the custom match
 const OP_REJOIN: int = 20            ## reconnect: ask for a fresh ticket to the own running match
+const OP_STATE_SYNC: int = 21        ## v20: ask for a full PHASE snapshot (after a reconnect)
 
 ## S->C ops.
 const EV_QUEUE_STATUS: int = 1
@@ -50,6 +51,7 @@ const EV_REMAKE_STATE: int = 8
 const EV_MATCH_RESULT: int = 9
 const EV_CUSTOM_STATE: int = 10
 const EV_ACK: int = 11               ## answer to a request: code = OK or an error
+const EV_PHASE: int = 12             ## v20: the player's state machine (PhaseMachine.Player), versioned
 
 const REQ_SCHEMA := {
 	OP_QUEUE_JOIN: [["queue", "b"], ["lane1", "b"], ["lane2", "b"]],
@@ -72,6 +74,7 @@ const REQ_SCHEMA := {
 	OP_CUSTOM_PICK: [["hero", "u"]],
 	OP_CUSTOM_START: [],
 	OP_REJOIN: [],
+	OP_STATE_SYNC: [],
 }
 
 const EVT_SCHEMA := {
@@ -99,6 +102,13 @@ const EVT_SCHEMA := {
 	EV_CUSTOM_STATE: [["host", "i"], ["phase", "b"], ["map", "b"], ["mode", "b"], ["bots", "b"],
 		["team_size", "b"], ["members", "M"]],
 	EV_ACK: [["req", "b"]],
+	## server epoch (start time), sequence (grows per player), phase and previous
+	## phase (PhaseMachine.Player), snapshot flag (1 = full state, accept even
+	## with a lower seq), queue index (255 none), party size, you lead (1),
+	## seconds queued, estimate, lockout seconds left, match id, party id.
+	EV_PHASE: [["epoch", "w"], ["seq", "w"], ["phase", "b"], ["prev", "b"], ["snap", "b"], ["queue", "b"],
+		["party_size", "b"], ["leader", "b"], ["waited", "u"], ["estimate", "u"], ["locked", "u"], ["match", "s"],
+		["party", "s"]],
 }
 ## Events whose fields travel with any code (the code is an error detail).
 const ALWAYS_FIELDS := [EV_QUEUE_STATUS, EV_READY_RESULT, EV_ACK]

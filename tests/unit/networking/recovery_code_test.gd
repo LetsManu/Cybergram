@@ -26,7 +26,7 @@ func test_normalize_is_forgiving_and_strict_on_length() -> void:
 
 
 func test_codec_round_trips_the_v19_ops() -> void:
-	assert_int(MsgType.PROTOCOL_VERSION).is_equal(19)
+	assert_int(MsgType.PROTOCOL_VERSION).is_greater_equal(19)  # v19 ops stay valid in later protocols
 	var req := AccountCodec.decode_request(AccountCodec.encode_request(AccountCodec.OP_RECOVER,
 		{"ver": 19, "username": "alice", "code": "ABCDE-FGHJK-MNPQR-STVWX", "new_password": "new password"}))
 	assert_str(str(req.code)).is_equal("ABCDE-FGHJK-MNPQR-STVWX")

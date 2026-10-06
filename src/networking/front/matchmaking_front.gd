@@ -36,6 +36,8 @@ const DAY: float = 86400.0
 const ALLOCATE_RETRY_S := 2.0
 ## Map ids of the queues -> the game's --map names.
 const MAP_NAMES := {&"shardline_front": "front", &"slice": "slice"}
+## Events kept for the admin page (P1).
+const EVENTS_MAX := 200
 
 
 class Match:
@@ -83,6 +85,11 @@ var log_fn: Callable = func(line: String) -> void: print(line)
 var setup_rules: Dictionary = {}
 ## Testing only (CYBERGRAM_RATE_GUESTS): keep guest ratings in the store.
 var rate_guests: bool = false
+## P1: player / party / lobby state machines (FrontPhases), metrics, last events.
+var phases: FrontPhases
+var metrics := OpsMetrics.new()
+var events: Array = []
+var started_at: float = 0.0
 
 var _matches: Dictionary = {}        # match id -> Match
 var _account_match: Dictionary = {}  # account id -> Match
@@ -114,6 +121,9 @@ func _init(t: Transport, accounts_: AccountService, supervisor_: Variant, rating
 	lockouts = LockoutTracker.new(rules)
 	matchmaker = Matchmaker.new(rules, lockouts)
 	_rng.randomize()
+	started_at = now()
+	phases = FrontPhases.new(self, int(started_at))
+	_describe_metrics()
 	_load_lockouts()
 	if supervisor != null:
 		supervisor.match_started.connect(_on_match_started)
@@ -172,6 +182,9 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 			_custom(peer, who, r, t)
 		MatchmakingCodec.OP_REMAKE_VOTE:
 			_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)  # in-match only (the match process)
+		MatchmakingCodec.OP_STATE_SYNC:
+			phases.resync(me, t)
+	phases.sync(t)
 	return true
 
 
@@ -233,7 +246,9 @@ func _queue_join(_peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 	for id in members:
 		_queued[str(id)] = members.duplicate()
 		_away_since.erase(str(id))
+		phases.end_post_game(str(id))
 		_send_status(str(id))
+	metrics.inc("cybergram_queue_joins_total", {"queue": String(q.id)})
 	_log("[front] queue %s: party of %d joined" % [q.id, members.size()])
 
 
@@ -377,6 +392,7 @@ func step() -> void:
 			_recent.erase(k)
 	if t - _last_housekeeping >= DAY:
 		housekeeping(t)
+	phases.sync(t)
 
 
 ## Daily retention work (and at start): reports, history, lockouts.
@@ -419,6 +435,11 @@ func _on_proposal(p: Dictionary, t: float) -> void:
 	for id in Matchmaker.human_ids(p):
 		_account_match[id] = m
 		_queued.erase(id)
+	phases.lobby(m.id, PhaseMachine.Lobby.READY_CHECK, t)
+	metrics.inc("cybergram_ready_checks_total", {"outcome": "started"})
+	for tk: Dictionary in p.get("tickets", []):
+		metrics.inc("cybergram_queue_wait_seconds_sum", {"queue": String(p.queue)}, t - float(tk.enqueued_at))
+		metrics.inc("cybergram_queue_wait_seconds_count", {"queue": String(p.queue)})
 	_log("[front] match %s found (%s, %d bot(s)): ready check" % [m.id, m.queue.id, int(p.bots)])
 	_send_found(m, t)
 
@@ -427,6 +448,7 @@ func _step_ready(m: Match, t: float) -> void:
 	match m.rc.tick(t):
 		ReadyCheck.State.ACCEPTED:
 			matchmaker.confirm(m.proposal)
+			metrics.inc("cybergram_ready_checks_total", {"outcome": "accepted"})
 			for id in _humans(m):
 				_send(id, MatchmakingCodec.EV_READY_RESULT, MatchmakingCodec.OK, {"outcome": MatchmakingCodec.RR_GO})
 			_start_pick(m, t)
@@ -437,6 +459,12 @@ func _step_ready(m: Match, t: float) -> void:
 ## The ready check failed or someone dodged: strikes, re-queue the others.
 func _fail(m: Match, failed: Array, t: float, dodge: bool) -> void:
 	var res := matchmaker.resolve_ready_check(m.proposal, failed, t)
+	phases.lobby(m.id, PhaseMachine.Lobby.CANCELLED, t)
+	if dodge:
+		metrics.inc("cybergram_dodges_total", {}, failed.size())
+	else:
+		metrics.inc("cybergram_ready_checks_total", {"outcome": "failed"})
+		metrics.inc("cybergram_ready_check_declines_total", {}, failed.size())
 	_end(m)
 	for id in res.locked:
 		_strike(str(id), t)
@@ -465,6 +493,7 @@ func _fail(m: Match, failed: Array, t: float, dodge: bool) -> void:
 
 func _start_pick(m: Match, t: float) -> void:
 	m.state = State.PICK
+	phases.lobby(m.id, PhaseMachine.Lobby.CHAMP_SELECT, t)
 	m.since = t
 	var teams := [[], []]
 	for s in m.seats:
@@ -564,6 +593,9 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 
 func _allocate(m: Match, t: float) -> void:
 	m.state = State.STARTING
+	if m.custom:
+		phases.lobby(m.id, PhaseMachine.Lobby.CHAMP_SELECT, t)  # the custom lobby was its champ select
+	phases.lobby(m.id, PhaseMachine.Lobby.LOADING, t)
 	m.since = t
 	m.mood = _rng.randi() & 0x7FFFFFFF
 	_try_allocate(m, t)
@@ -613,6 +645,8 @@ func _on_match_started(match_id: String, endpoint: Dictionary) -> void:
 	var t := now()
 	m.state = State.RUNNING
 	m.started_at = t
+	phases.lobby(m.id, PhaseMachine.Lobby.RUNNING, t)
+	metrics.inc("cybergram_matches_total", {"event": "started"})
 	var pid := -1
 	if supervisor.has_method("find_match"):
 		var p: Variant = supervisor.find_match(match_id)
@@ -652,6 +686,8 @@ func _void(m: Match, reason: String) -> void:
 	var t := now()
 	_log("[front] match_voided id=%s reason=%s" % [m.id, reason.left(64)])
 	var was_running := m.state == State.RUNNING
+	phases.lobby(m.id, PhaseMachine.Lobby.CANCELLED, t)
+	metrics.inc("cybergram_matches_total", {"event": "voided"})
 	_end(m)
 	if was_running and history != null:
 		history.add(_history_entry(m, -1, true, t - m.started_at, {}))
@@ -717,7 +753,10 @@ func _on_match_result(match_id: String, res: Dictionary) -> void:
 	if history != null:
 		history.add(_history_entry(m, -1 if voided else winner, voided, duration, m.leavers))
 	_recent[m.id] = {"participants": humans.duplicate(), "until": t + rules.report_window_s}
+	phases.lobby(m.id, PhaseMachine.Lobby.ENDED, t)
+	metrics.inc("cybergram_matches_total", {"event": "ended"})
 	_end(m)
+	phases.post_game(humans, t)
 	_log("[front] match_result id=%s winner=%d voided=%s rated=%s changes=%d leavers=%d" % [m.id, winner, voided,
 		m.rated and not deltas.is_empty(), deltas.size(), leavers.size()])
 	for id in humans:
@@ -776,6 +815,7 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 				_customs[me] = {"host": me, "map": int(r.map), "mode": int(r.mode), "bots": int(r.bots) != 0,
 					"team_size": int(r.team_size), "members": [{"id": me, "team": 0, "hero": 0}], "invites": {}}
 				_custom_of[me] = me
+				phases.end_post_game(me)
 				_log("[front] custom lobby opened (%s, %dv%d)" % [MatchmakingCodec.CUSTOM_MAPS[int(r.map)],
 					int(r.team_size), int(r.team_size)])
 				_send_custom(_customs[me])
@@ -808,6 +848,7 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 				(c.members as Array).append({"id": me, "team": team, "hero": 0})
 				c.invites.erase(me)
 				_custom_of[me] = c.host
+				phases.end_post_game(me)
 				_send_custom(c)
 		MatchmakingCodec.OP_CUSTOM_LEAVE:
 			_custom_leave(me)
@@ -1240,4 +1281,97 @@ func _hero_id(index: int) -> StringName:
 
 
 func _log(line: String) -> void:
-	log_fn.call(line)
+	_ev(OpsLog.INFO, "log", line.trim_prefix("[front] "), {}, true)
+
+
+## P1: one structured event. Kept in `events` (admin page) and printed when
+## `to_stdout` (or always in JSON mode). Text mode prints "[front] msg", the
+## exact line the front printed before structured logs.
+func _ev(level: String, event: String, msg: String, fields: Dictionary = {}, to_stdout: bool = true) -> void:
+	var r := OpsLog.record("front", level, event, msg, fields, now())
+	events.append(r)
+	if events.size() > EVENTS_MAX:
+		events.pop_front()
+	if to_stdout or OpsLog.json_mode():
+		log_fn.call(OpsLog.format(r))
+
+
+# --- operations (P1: /metrics, /health, /admin) ------------------------------------------
+
+func _describe_metrics() -> void:
+	metrics.describe("cybergram_queue_joins_total", "counter", "Parties that joined a queue.")
+	metrics.describe("cybergram_ready_checks_total", "counter", "Ready checks by outcome (started, accepted, failed).")
+	metrics.describe("cybergram_ready_check_declines_total", "counter", "Players who declined or missed a ready check.")
+	metrics.describe("cybergram_dodges_total", "counter", "Players who left champ select (dodges).")
+	metrics.describe("cybergram_matches_total", "counter", "Matches by event (started, ended, voided).")
+	metrics.describe("cybergram_queue_wait_seconds_sum", "counter", "Summed queue wait of matched parties.")
+	metrics.describe("cybergram_queue_wait_seconds_count", "counter", "Matched parties (for the average wait).")
+	metrics.describe("cybergram_queue_players", "gauge", "Players queued right now.")
+	metrics.describe("cybergram_queue_estimated_wait_seconds", "gauge", "Estimated wait shown to players.")
+	metrics.describe("cybergram_lobbies", "gauge", "Formed matches by lobby state.")
+	metrics.describe("cybergram_players", "gauge", "Known players by phase.")
+	metrics.describe("cybergram_parties", "gauge", "Parties by state.")
+	metrics.describe("cybergram_custom_lobbies", "gauge", "Open custom lobbies.")
+	metrics.describe("cybergram_illegal_transitions_total", "gauge", "State changes the state machines rejected.")
+	metrics.describe("cybergram_uptime_seconds", "gauge", "Seconds since the front started.")
+
+
+## Fills the live gauges and returns the Prometheus text.
+func render_metrics() -> String:
+	var t := now()
+	for g in ["cybergram_queue_players", "cybergram_queue_estimated_wait_seconds", "cybergram_lobbies",
+			"cybergram_players", "cybergram_parties"]:
+		metrics.clear(g)
+	for q in queue_overview():
+		metrics.set_gauge("cybergram_queue_players", float(q.players), {"queue": q.id})
+		metrics.set_gauge("cybergram_queue_estimated_wait_seconds", float(q.estimated_wait_s), {"queue": q.id})
+	for st in PhaseMachine.Lobby.size():
+		metrics.set_gauge("cybergram_lobbies", 0.0, {"state": PhaseMachine.LOBBY_NAMES[st]})
+	var lc := phases.lobbies.counts()
+	for st in lc:
+		metrics.set_gauge("cybergram_lobbies", float(lc[st]), {"state": PhaseMachine.LOBBY_NAMES[st]})
+	var pc := phases.players.counts()
+	for st in PhaseMachine.Player.size():
+		metrics.set_gauge("cybergram_players", float(pc.get(st, 0)), {"phase": PhaseMachine.PLAYER_NAMES[st]})
+	var qc := phases.parties.counts()
+	for st in PhaseMachine.Party.size():
+		metrics.set_gauge("cybergram_parties", float(qc.get(st, 0)), {"state": PhaseMachine.PARTY_NAMES[st]})
+	metrics.set_gauge("cybergram_custom_lobbies", float(_customs.size()))
+	metrics.set_gauge("cybergram_illegal_transitions_total", float(phases.players.illegal_count +
+		phases.parties.illegal_count + phases.lobbies.illegal_count))
+	metrics.set_gauge("cybergram_uptime_seconds", floorf(t - started_at))
+	return metrics.render()
+
+
+## Live state for /admin (pseudonymous player tags, no names, no chat).
+func admin_snapshot(t: float = now()) -> Dictionary:
+	var matches: Array = []
+	for m: Match in _matches.values():
+		var e := phases.lobbies.entry(m.id)
+		matches.append({"match": m.id, "queue": String(m.queue.id) if m.queue != null else "custom",
+			"state": PhaseMachine.name_of(PhaseMachine.Kind.LOBBY, int(e.get("state", 0))),
+			"since_s": int(t - float(e.get("since", t))), "humans": _humans(m).size(),
+			"bots": m.seats.size() - _humans(m).size()})
+	var parties: Array = []
+	for pid in phases.parties.keys():
+		var e := phases.parties.entry(pid)
+		parties.append({"party": pid, "state": PhaseMachine.name_of(PhaseMachine.Kind.PARTY, int(e.state)),
+			"size": int((e.ctx as Dictionary).get("size", 0)), "leader": str((e.ctx as Dictionary).get("leader", ""))})
+	var players: Array = []
+	for id in phases.players.keys():
+		var e := phases.players.entry(id)
+		var ctx: Dictionary = e.ctx
+		players.append({"player": OpsLog.tag(id), "phase": PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, int(e.state)),
+			"since_s": int(t - float(e.since)), "seq": int(e.seq), "party": str(ctx.get("party", "")),
+			"match": str(ctx.get("match", ""))})
+	var queues: Array = []
+	for q in queue_overview():
+		var info := matchmaker.queue_info(StringName(q.id))
+		queues.append({"queue": q.id, "players": q.players, "parties": int(info.parties), "estimate_s": q.estimated_wait_s})
+	var evs: Array = []
+	for i in range(events.size() - 1, -1, -1):
+		var r: Dictionary = events[i].duplicate()
+		r.ts = Time.get_datetime_string_from_unix_time(int(float(r.ts)), true)
+		evs.append(r)
+	return {"queues": queues, "matches": matches, "parties": parties, "players": players, "events": evs,
+		"customs": _customs.size()}
