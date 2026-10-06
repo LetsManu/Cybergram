@@ -80,8 +80,9 @@ class Checker:
 		if not bounds.has(pl.piece):
 			return true
 		var it := MapPlacementAudit.item_of(pl, bounds[pl.piece])
-		if not v.check_item(space, it).is_empty():
-			WorldProps._reject(&"implausible")
+		var found := v.check_item(space, it)
+		if not found.is_empty():
+			WorldProps._reject(StringName("implausible_" + String((found[0] as PlacementValidator.Violation).rule)))
 			return false
 		var o := v.solid_obb(it)
 		if not o.is_empty():

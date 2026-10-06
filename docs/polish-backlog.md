@@ -29,6 +29,15 @@ section.
   wall-strip candidates (Part 4).
 - **Lamps cast no light**; cable runs and holo signs are rare; few roof props.
 
+- **Leap can land on roofs.** Earthbreaker's leap (`AbilityWorld.start_leap`)
+  targets any surface the aim ray hits, not only walkable ground, so a hero can
+  reach rooftops. Roof props have no collision (visual only), so the roof limit
+  stays at 7.5 m (only 3 roof props today). Fix: clamp leap targets to the
+  walkable navmesh, then roof props can go lower and denser.
+- **Props on slopes are skipped**: ~250 candidates a run sink 8-12 cm into ramps
+  and are rejected (correctly). Slope-aware pieces (wedged crates, ramp rails)
+  would fill the ramps; today the props sit on the flat parts.
+
 ## Characters
 
 - **Syndicate Wardling colours** read muted next to Concord (gunmetal + rust).

@@ -95,3 +95,17 @@ Lamp pass, clusters, slopes, placement scale. Opened `fp-lane-center`, `fp-lane-
 - `cable_run` (8) and `holo_sign` (8) are rare: they need a 2.4 m wall / a long straight edge.
 - Lamp heads are emissive but cast no light (no `OmniLight3D`); a light per lamp would cost far more than the props.
 - The near field of the `fp-lane-*` presets lies in keep-out zones (hardpoint + socket), so those frames understate the lane dressing; `hold-approach` shows it better.
+
+## Part 4 finish (2026-10-06)
+
+- Placement goes through the shared validator (docs/placement.md): 444 props
+  after the gate (lane 140, plaza 201, HQ 95, flank 5, roof 3; was ~620 before
+  the gate, the rest stood on slopes or overlapped). Rejections are logged per
+  rule (`WorldProps.rejects`, `implausible_<rule>`).
+- LODs: engine-generated mesh LODs (`generate_lods`), plus range culling per
+  40 m chunk (small 80 m, tall 220 m). MultiMesh per piece / team / chunk.
+- Collision: none on dressing props (they stand in the wall strip, off routes);
+  the map's cover boxes keep their collision and get kit crates
+  (CoverDressing).
+- Outlines x0.6 of the hero width (docs/shading-audit.md).
+
