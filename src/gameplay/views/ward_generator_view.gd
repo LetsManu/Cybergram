@@ -207,12 +207,18 @@ static var _dead: Dictionary = {}
 
 ## The team material with every emissive channel off (shared per team).
 static func dead_material(t: int) -> ShaderMaterial:
-	if not _dead.has(t):
-		var m := WorldModel.material(KEY, t).duplicate() as ShaderMaterial
+	return dead_material_of(KEY, t)
+
+
+## `key`'s team material with every emissive channel off (shared per key and team).
+static func dead_material_of(key: StringName, t: int) -> ShaderMaterial:
+	var k := "%s:%d" % [key, t]
+	if not _dead.has(k):
+		var m := WorldModel.material(key, t).duplicate() as ShaderMaterial
 		m.set_shader_parameter("emission_energy", 0.0)
 		m.set_shader_parameter("map_emission", 0.0)
-		_dead[t] = m
-	return _dead[t]
+		_dead[k] = m
+	return _dead[k]
 
 
 ## A soft round puff (radial falloff), generated once.

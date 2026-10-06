@@ -114,6 +114,16 @@ static func objective_items(md: MapDef, space: PhysicsDirectSpaceState3D) -> Arr
 				it.foot = ForwardBeaconView.pad_foot(xf, ForwardBeaconView.foot_radius())
 				it.waiver = _waiver(it.id)
 				out.append(it)
+	# C5 Supply Caches: a solid crate standing inside its own collider (SupplyCacheSystem.add_bodies)
+	for lane: LaneDef in md.lanes:
+		for d: HardpointDef in lane.hardpoints:
+			if not d.supply_cache.is_finite():
+				continue
+			var b := SupplyCacheSystem.BODY_SIZE
+			var it := PlacementValidator.Item.new("supply_cache_%s@%s" % [d.id, _at(d.supply_cache)], &"cover",
+				Transform3D(Basis(), d.supply_cache), AABB(Vector3(-b.x * 0.5, 0.0, -b.z * 0.5), b))
+			it.waiver = _waiver(it.id)
+			out.append(it)
 	return out
 
 

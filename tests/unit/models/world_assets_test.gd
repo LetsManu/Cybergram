@@ -19,6 +19,7 @@ const ASSETS := {
 		"height": Vector2(3.1, 3.6), "tex": 1024},
 	&"forward_beacon": {"pieces": ["main", "lamp_1", "lamp_2", "lamp_3", "lamp_4", "lamp_5", "lamp_6", "core"],
 		"max_tris": 10000, "height": Vector2(0.09, 0.14), "tex": 512},
+	&"supply_cache": {"pieces": ["main", "lamps", "icon"], "max_tris": 8000, "height": Vector2(1.0, 1.15), "tex": 512},
 }
 const PROP_PIECES: Array[String] = ["plate_l", "plate_r", "crest", "crown", "sash", "sash_own", "pennant",
 	"elite"]

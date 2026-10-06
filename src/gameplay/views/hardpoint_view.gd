@@ -70,6 +70,8 @@ var _art_owner: int = -2
 ## Phase 6 Plant art (tools/art/world/plant_kit.py): the Charge Cradle and its
 ## four pad corner brackets, tinted for the owner like the Holdstone.
 var _cradle_art: Array[Node3D] = []
+## C5 Supply Cache of this hardpoint (null without a cache spot or the asset).
+var supply_view: SupplyCacheView
 ## Forward Beacon pads of a Mid (one per side; empty elsewhere / without the asset).
 var beacons: Array[ForwardBeaconView] = []
 ## The own team's current objective (ClientWorld: the lane front, C15).
@@ -166,6 +168,11 @@ func setup(d: HardpointDef) -> void:
 	# refill): their map markers would promise a feature, so they stay hidden
 	# until the systems exist (docs/assets/plant.md, PROGRESS.md Objective B).
 	_hide_map_nodes.call_deferred(["Placements_" + String(d.id).to_upper()])
+	if d.supply_cache.is_finite() and SupplyCacheView.available():  # C5: the baked crate replaces the marker
+		supply_view = SupplyCacheView.new()
+		supply_view.setup(d)
+		supply_view.position = d.supply_cache - d.position
+		add_child(supply_view)
 	match d.task:
 		HardpointDef.TaskKind.BREACH:
 			_build_breach(d)
@@ -432,6 +439,8 @@ func _place_beacons(md: MapDef) -> void:
 func apply(st: SnapshotData.HardpointState) -> void:
 	for b in beacons:
 		b.apply_state(st.owner, st.beacon, st.beacon_attune)
+	if supply_view != null:
+		supply_view.apply_owner(st.owner, Time.get_ticks_msec() / 1000.0)
 	_apply_task_art(st.owner)
 	_ring_base = team_color(st.owner)
 	_seg_base = team_color(st.capturing_team)

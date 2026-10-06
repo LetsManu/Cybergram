@@ -13,6 +13,11 @@ extends RefCounted
 ##   once per supply_mana_cooldown_s.
 ## Dead heroes get nothing. A neutral hardpoint's Cache serves nobody.
 
+## The crate's collider (tools/art/world/supply_cache.py: 1.3 x 1.0 m, 1.0 m
+## high; the cartridge tray above it is not solid). Server and client both add
+## it (add_bodies), so movement prediction agrees.
+const BODY_SIZE := Vector3(1.3, 0.95, 1.0)
+
 ## Modifier source of the Mana buff (one per hero, replaced on each touch).
 const BUFF_SOURCE: int = (Modifier.SRC_ZONE << 24) | 0x5C
 
@@ -33,6 +38,32 @@ func _init(objectives: ObjectiveSystem, rules_: MatchRulesDef) -> void:
 		if h.def.supply_cache.is_finite():
 			caches.append({"hp": h, "at": h.def.supply_cache, "owner": MapDef.TEAM_NEUTRAL, "seen": h.owner,
 				"since_s": -1e9})
+
+
+## Adds one static box collider per cache spot of `md` under `parent` (world
+## layer, like the map). Returns the bodies.
+static func add_bodies(parent: Node, md: MapDef) -> Array[StaticBody3D]:
+	var out: Array[StaticBody3D] = []
+	if md == null:
+		return out
+	for lane: LaneDef in md.lanes:
+		for d: HardpointDef in lane.hardpoints:
+			if not d.supply_cache.is_finite():
+				continue
+			var b := StaticBody3D.new()
+			b.name = "SupplyCacheBody_%s" % d.id
+			b.collision_layer = PlacementKit.WORLD_MASK
+			b.collision_mask = 0
+			var cs := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = BODY_SIZE
+			cs.shape = box
+			cs.position.y = BODY_SIZE.y * 0.5
+			b.add_child(cs)
+			b.position = d.supply_cache  # `parent` sits at the map origin (ServerWorld / ClientWorld)
+			parent.add_child(b)
+			out.append(b)
+	return out
 
 
 ## The team a Cache serves (pure): the hardpoint owner once `switch_s` has

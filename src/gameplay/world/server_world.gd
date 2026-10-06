@@ -138,6 +138,7 @@ func setup_objectives(map_def: MapDef) -> void:
 	if map_def != null and not map_def.lanes.is_empty():
 		objectives = ObjectiveSystem.new(map_def, rules)
 		supply = SupplyCacheSystem.new(objectives, rules)  # C5 Supply Caches
+		SupplyCacheSystem.add_bodies(self, map_def)
 		for h in objectives.all:
 			if h.task == HardpointDef.TaskKind.BREACH:
 				var g := GeneratorTarget.new()
