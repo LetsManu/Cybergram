@@ -81,8 +81,12 @@ func _attach_model() -> void:
 	var root := get_parent()
 	if root == null:
 		return
+	# The baked frame brings its own plinth (same footprint as the map's collision).
+	var hide: Array[StringName] = [&"UplinkSpire", &"UplinkCore"]
+	if model.is_baked():
+		hide.append(&"UplinkPlinth")
 	for n in root.find_children("Uplink*", "Node3D", true, false):
-		if n.name != &"UplinkSpire" and n.name != &"UplinkCore":
+		if not hide.has(n.name):
 			continue
 		var p := (n as Node3D).global_position
 		if Vector2(p.x - global_position.x, p.z - global_position.z).length() > 4.0:

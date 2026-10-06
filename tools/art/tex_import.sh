@@ -4,7 +4,7 @@
 # .import files, then import again.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-for f in assets/models/heroes/*/*_{albedo,normal,mask}.png.import; do
+for f in assets/models/heroes/*/*_{albedo,normal,mask}.png.import assets/models/world/*/*_{albedo,normal,mask}.png.import; do
   [ -f "$f" ] || continue
   sed -i 's/^compress\/mode=.*/compress\/mode=2/; s/^mipmaps\/generate=.*/mipmaps\/generate=true/' "$f"
   sed -i "s/^process\/fix_alpha_border=.*/process\/fix_alpha_border=false/" "$f"
@@ -13,4 +13,4 @@ for f in assets/models/heroes/*/*_{albedo,normal,mask}.png.import; do
     *) sed -i 's/^compress\/normal_map=.*/compress\/normal_map=2/' "$f" ;;
   esac
 done
-echo "hero texture imports set: $(ls assets/models/heroes/*/*_{albedo,normal,mask}.png.import 2>/dev/null | wc -l) files"
+echo "hero + world texture imports set: $(ls assets/models/{heroes,world}/*/*_{albedo,normal,mask}.png.import 2>/dev/null | wc -l) files"

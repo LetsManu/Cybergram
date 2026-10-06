@@ -42,14 +42,26 @@ func setup(team_: int, core_y_: float) -> void:
 	name = "UplinkModel"
 	_build_meshes()
 	var tc := ModelPalette.team_color(team)
-	var toon := ModelMaterials.toon(team)
-	_add(self, _frame_mesh, toon)
-	for i in RING_Y.size():
-		var r := Node3D.new()
-		r.position.y = RING_Y[i]
-		add_child(r)
-		_add(r, _ring_meshes[i], toon)
-		_rings.append(r)
+	# Phase 6: the frame and rings from the hero pipeline (tools/art/world/uplink.py)
+	# when built; the procedural greybox frame otherwise. Rings are separate pieces
+	# with their pivot at their centre, so the spin / judder below works on both.
+	var baked := WorldModel.instantiate(&"uplink", team)
+	if baked != null:
+		baked.name = "Frame"
+		add_child(baked)
+		for i in RING_Y.size():
+			var piece := WorldModel.piece(baked, StringName("ring_%d" % i))
+			if piece != null:
+				_rings.append(piece)
+	else:
+		var toon := ModelMaterials.toon(team)
+		_add(self, _frame_mesh, toon)
+		for i in RING_Y.size():
+			var r := Node3D.new()
+			r.position.y = RING_Y[i]
+			add_child(r)
+			_add(r, _ring_meshes[i], toon)
+			_rings.append(r)
 	_crystal_mat = ModelMaterials.crystal_unique(tc, 2.2, 4.0)
 	_crystal_mat.set_shader_parameter("core_mix", 0.35)
 	var cr := _add(self, _crystal_mesh, _crystal_mat)
@@ -73,6 +85,11 @@ func setup(team_: int, core_y_: float) -> void:
 		var mesh: Mesh = (mi as MeshInstance3D).mesh
 		_tris += (mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
 	set_state(false, false, 1.0)
+
+
+## True when the hero-pipeline frame (assets/models/world/uplink/) is in use.
+func is_baked() -> bool:
+	return find_child("Frame", false, false) != null
 
 
 ## Applies the replicated state (integrity_frac 0..1).
