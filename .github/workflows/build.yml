@@ -140,10 +140,17 @@ jobs:
 
       - name: Launcher tests
         run: |
-          $GODOT --headless --path launcher -s tests/test_core.gd
-          $GODOT --headless --path launcher -s tests/test_upd.gd
-          $GODOT --headless --path launcher -s tests/test_ux.gd
-          $GODOT --headless --path launcher -s tests/test_online.gd
+          # A SCRIPT ERROR aborts the rest of a test function without a FAIL and
+          # without changing the exit code, so treat one as a failure.
+          run_unit() {
+            out=$($GODOT --headless --path launcher -s "$1" 2>&1) || { echo "$out"; return 1; }
+            echo "$out"
+            ! echo "$out" | grep -q "SCRIPT ERROR"
+          }
+          run_unit tests/test_core.gd
+          run_unit tests/test_upd.gd
+          run_unit tests/test_ux.gd
+          run_unit tests/test_online.gd
           GODOT=$GODOT launcher/tests/e2e_update.sh
           # Delta updates, pause/resume (Range), pre-load, packs, Lite, AppImage self-update.
           GODOT=$GODOT launcher/tests/e2e_upd.sh
