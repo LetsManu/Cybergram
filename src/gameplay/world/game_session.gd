@@ -875,6 +875,14 @@ func _on_host_allocated(setup: Dictionary) -> void:
 	if r.has("match_clock"):
 		launch_config.match_clock = clampf(float(r.match_clock), 0.1, 100.0)
 	launch_config.bots = true  # bots fill every seat not reserved for a human
+	# v20 custom games: the host's bot difficulty and bots per team.
+	var diff := str(r.get("bot_difficulty", ""))
+	if diff in MatchmakingCodec.BOT_DIFFICULTIES:
+		launch_config.bot_difficulty = diff
+	var per: Variant = r.get("bots_per_team", null)
+	if per is Array and (per as Array).size() == 2:
+		var slots: Array[int] = [clampi(int(per[0]), 0, 5), clampi(int(per[1]), 0, 5)]
+		launch_config.bot_slots = slots
 	_lobby_enet = _host_enet
 	_build_match()
 	var content := ContentDB.shared()

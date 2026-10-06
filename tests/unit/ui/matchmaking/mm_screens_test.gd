@@ -86,6 +86,27 @@ func test_custom_queue_opens_custom_lobby() -> void:
 	assert_str(String(f.page_name)).is_equal("loading")
 
 
+func test_custom_lobby_bot_slots_and_difficulty() -> void:
+	var f := _flow()
+	f.play.select_queue(MmView.Q_CUSTOM)
+	f.play.find_match()
+	var c := f.page as MmCustomLobby
+	assert_int(c.bots_for(0)).is_equal(3)  # fill: 5 seats, 2 humans
+	assert_str(c._bot_labels[0].text).is_equal(tr("HUD_MM_BOTS_FILL"))
+	c.bump_bots(0, -1)
+	assert_array(c.lobby.bot_slots).is_equal([2, -1])
+	assert_int(c.bots_for(0)).is_equal(2)
+	assert_str(c._bot_labels[0].text).is_equal("2")
+	(c._diffs.get_node("Diff_hard") as Button).pressed.emit()
+	assert_str(String(c.lobby.difficulty)).is_equal("hard")
+	var bot_rows := c._teams[0].get_children().filter(func(n: Node) -> bool:
+		return n is Label and (n as Label).text == tr("HUD_MM_BOT_SLOT") % tr("HUD_MM_BOT_HARD"))
+	assert_int(bot_rows.size()).is_equal(2)
+	c.bump_bots(0, 1)  # back up to the room: fill again
+	assert_array(c.lobby.bot_slots).is_equal([-1, -1])
+	await get_tree().process_frame
+
+
 func test_ready_check_timeout_and_result() -> void:
 	var f := _flow()
 	fake.join_queue(MmView.Q_NORMAL, [&"fill"])

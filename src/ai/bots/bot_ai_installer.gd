@@ -30,7 +30,7 @@ func _ready() -> void:
 	director = BotDirector.new()
 	director.setup(server, roster, roster.profile(lc.bot_difficulty), lc.match_seed)
 	var reserved := server.reserved_per_team()
-	var n := director.fill_around(reserved) if reserved[0] + reserved[1] > 0 \
+	var n := director.fill_around(reserved, lc.bot_slots) if reserved[0] + reserved[1] > 0 \
 		else director.fill(not lc.bots_only)
 	# Online slots: humans take over bots on join, bots take over leavers.
 	server.controller_taken.connect(func(id: int) -> void:

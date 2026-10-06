@@ -5,7 +5,7 @@ extends CanvasLayer
 ## States: play, play_ranked, queued, locked, ready, ready_accepted,
 ## draft_enemy, draft_mine, draft_late, aram, aram_swap, loading, reconnect,
 ## post_ranked, post_normal, post_report, profile, profile_public, profile_guest,
-## custom, remake, remake_open, draft_hover, blind_trade (P3), party, social (P2).
+## custom, custom_bots (v17), remake, remake_open, draft_hover, blind_trade (P3), party, social (P2).
 ## Not part of the game flow (never loaded by AppRoot).
 
 const REF_SIZE := Vector2(1440, 810)
@@ -145,6 +145,12 @@ func _build(st: String) -> void:
 		"custom":
 			flow.play.select_queue(MmView.Q_CUSTOM)
 			flow.play.find_match()
+		"custom_bots":
+			flow.play.select_queue(MmView.Q_CUSTOM)
+			flow.play.find_match()
+			var c := flow.page as MmCustomLobby
+			c.bump_bots(0, -1)
+			c.set_bots(c._slots(), &"hard")
 
 
 ## W21-U2: the CAREER page as the main menu builds it (profile + ranks in a

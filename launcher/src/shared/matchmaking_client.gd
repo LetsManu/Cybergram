@@ -208,6 +208,12 @@ func custom_start() -> void:
 	_send(MatchmakingCodec.OP_CUSTOM_START)
 
 
+## v20 host: bots per team (MatchmakingCodec.BOTS_FILL = fill the empty seats)
+## and the bot difficulty (index into MatchmakingCodec.BOT_DIFFICULTIES).
+func custom_bots(bots_a: int, bots_b: int, difficulty: int) -> void:
+	_send(MatchmakingCodec.OP_CUSTOM_BOTS, {"bots_a": bots_a, "bots_b": bots_b, "difficulty": difficulty})
+
+
 ## Index of a queue id in the standard queue list (MatchmakingRulesDef order), or 255.
 static func queue_index(id: StringName) -> int:
 	var i := QUEUE_IDS.find(id)

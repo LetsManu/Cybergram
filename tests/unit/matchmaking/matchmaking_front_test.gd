@@ -415,6 +415,31 @@ func test_custom_game_with_party_invite_runs_unrated_with_bots() -> void:
 	assert_int(_front.ratings.store.ids().size()).is_equal(0)
 
 
+func test_custom_host_reconfigures_and_sets_bot_slots_and_difficulty() -> void:
+	_make_front()
+	var host := _client(2)
+	host.matchmaking.custom_create(1, MatchmakingCodec.PM_CUSTOM, true, 3)
+	_step(0.2)
+	assert_int(int(host.matchmaking.last_custom.team_size)).is_equal(3)
+	host.matchmaking.custom_create(1, MatchmakingCodec.PM_CUSTOM, true, 5)  # change the size: not E_ALREADY
+	_step(0.2)
+	assert_int(int(host.matchmaking.last_custom.team_size)).is_equal(5)
+	assert_int(int(host.matchmaking.last_custom.bots_a)).is_equal(MatchmakingCodec.BOTS_FILL)
+	host.matchmaking.custom_bots(1, 2, 2)
+	_step(0.2)
+	assert_int(int(host.matchmaking.last_custom.bots_a)).is_equal(1)
+	assert_int(int(host.matchmaking.last_custom.bots_b)).is_equal(2)
+	assert_int(int(host.matchmaking.last_custom.difficulty)).is_equal(2)
+	host.matchmaking.custom_start()
+	_step(0.3)
+	assert_int(_sup.requests.size()).is_equal(1)
+	var setup: Dictionary = _sup.requests[0]
+	assert_str(MatchSetup.validate(setup)).is_equal("")
+	assert_int(setup.roster.size()).is_equal(4)  # host + 1 bot ally + 2 enemy bots
+	assert_str(str(setup.rules.bot_difficulty)).is_equal("hard")
+	assert_array(setup.rules.bots_per_team).is_equal([1, 2])
+
+
 func test_busy_supervisor_retries_then_voids() -> void:
 	_make_front()
 	_sup.busy = true

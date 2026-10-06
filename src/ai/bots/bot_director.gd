@@ -46,14 +46,19 @@ func fill(human_on_team0: bool) -> int:
 
 
 ## Adds bots for every slot not kept for humans: the first humans[team] slots
-## of each team stay empty (online lobby reservations).
-func fill_around(humans: Array[int]) -> int:
+## of each team stay empty (online lobby reservations). `limits[team]` >= 0
+## caps the bots of that team (v20 custom games: the host's bot slots).
+func fill_around(humans: Array[int], limits: Array[int] = [-1, -1]) -> int:
 	var md := server.wardlings.map_def if server.wardlings != null else null
 	var n := 0
 	for team in 2:
+		var added := 0
 		for s in team_size():
 			if s < humans[team]:
 				continue
+			if limits[team] >= 0 and added >= limits[team]:
+				break
+			added += 1
 			var hq := md.hq(team) if md != null else null
 			var spawn := server.team_spawn(team, Vector3.ZERO)
 			var yaw := 0.0

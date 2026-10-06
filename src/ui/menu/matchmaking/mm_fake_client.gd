@@ -262,6 +262,7 @@ func set_leaderboard_public(on: bool) -> void:
 func custom_open() -> void:
 	sent.append({"op": &"custom_open"})
 	_custom = {"host": ME, "me": ME, "map": &"shardline_front", "mode": &"custom", "bots": true, "team_size": 5,
+		"bot_slots": [-1, -1], "difficulty": &"normal",
 		"maps": MatchmakingCodec.CUSTOM_MAPS.duplicate(), "modes": [&"custom", &"all_random"],
 		"members": [{"id": ME, "name": "You", "team": 0, "bot": false},
 			{"id": "p2", "name": NAMES[0], "team": 0, "bot": false},
@@ -286,6 +287,15 @@ func custom_invite(id: String) -> void:
 	if not _custom.is_empty() and not (_custom.invited as Array).has(id):
 		(_custom.invited as Array).append(id)
 		custom_changed.emit(_custom.duplicate(true))
+
+
+func custom_bots(bots_a: int, bots_b: int, difficulty: StringName) -> void:
+	sent.append({"op": &"custom_bots", "bots": [bots_a, bots_b], "difficulty": difficulty})
+	if _custom.is_empty():
+		return
+	_custom.bot_slots = [bots_a, bots_b]
+	_custom.difficulty = difficulty
+	custom_changed.emit(_custom.duplicate(true))
 
 
 func custom_start() -> void:

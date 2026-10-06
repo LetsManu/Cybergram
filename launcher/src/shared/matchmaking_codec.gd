@@ -39,6 +39,7 @@ const OP_CUSTOM_START: int = 19      ## host: start the custom match
 const OP_REJOIN: int = 20            ## reconnect: ask for a fresh ticket to the own running match
 const OP_STATE_SYNC: int = 21        ## v20: ask for a full PHASE snapshot (after a reconnect)
 const OP_HOVER: int = 22             ## v20: declare a hero (pick or ban phase; hero 0 clears)
+const OP_CUSTOM_BOTS: int = 23       ## v20: host: bots per team (255 = fill) and bot difficulty
 
 ## S->C ops.
 const EV_QUEUE_STATUS: int = 1
@@ -77,6 +78,7 @@ const REQ_SCHEMA := {
 	OP_REJOIN: [],
 	OP_STATE_SYNC: [],
 	OP_HOVER: [["hero", "u"]],
+	OP_CUSTOM_BOTS: [["bots_a", "b"], ["bots_b", "b"], ["difficulty", "b"]],
 }
 
 const EVT_SCHEMA := {
@@ -103,8 +105,9 @@ const EVT_SCHEMA := {
 	## won/lost from your side, void, duration, rated, own rating delta x10, players (stats).
 	EV_MATCH_RESULT: [["match", "s"], ["queue", "b"], ["won", "b"], ["voided", "b"], ["duration", "u"],
 		["rated", "b"], ["delta", "d"], ["players", "M"]],
+	## v20: bots per team (255 = fill the empty seats) and BOT_DIFFICULTIES index.
 	EV_CUSTOM_STATE: [["host", "i"], ["phase", "b"], ["map", "b"], ["mode", "b"], ["bots", "b"],
-		["team_size", "b"], ["members", "M"]],
+		["team_size", "b"], ["members", "M"], ["bots_a", "b"], ["bots_b", "b"], ["difficulty", "b"]],
 	EV_ACK: [["req", "b"]],
 	## server epoch (start time), sequence (grows per player), phase and previous
 	## phase (PhaseMachine.Player), snapshot flag (1 = full state, accept even
@@ -199,6 +202,10 @@ const TRACKS: Array[StringName] = [&"normal", &"ranked", &"all_random"]
 const RATING_HIDDEN: int = 0xFFFF
 
 ## Custom lobby phases.
+## v20 custom-game bot difficulty (BotRosterDef profiles), by index.
+const BOT_DIFFICULTIES: Array[String] = ["easy", "normal", "hard"]
+## v20: bots_a / bots_b value meaning "fill every empty seat".
+const BOTS_FILL: int = 255
 const CP_OPEN: int = 0
 const CP_STARTING: int = 1
 const CP_CLOSED: int = 2

@@ -105,6 +105,9 @@ var bots: bool = false
 var bots_only: bool = false
 var match_seed: int = 1
 var bot_difficulty: String = ""
+## v20 custom games: bots per team from the match setup ([-1, -1] = fill every
+## seat not kept for a human, the default).
+var bot_slots: Array[int] = [-1, -1]
 ## E11 debug (evidence captures): a bot drives the local player's hero too.
 var bot_player: bool = false
 ## E14: directory for the per-match telemetry JSON ("" = print only).

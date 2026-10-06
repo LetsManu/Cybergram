@@ -63,6 +63,9 @@ class Match:
 	var leavers: Dictionary = {}
 	var gone_since: Dictionary = {}
 	var pick_sig: String = ""
+	## v20 custom games: bot profile and "the roster's bots are all the bots".
+	var bot_difficulty: String = "normal"
+	var bot_limits: bool = false
 
 
 var transport: Transport
@@ -179,7 +182,7 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 				_ack(peer, op, MatchmakingCodec.E_NOT_FOUND)
 		MatchmakingCodec.OP_CUSTOM_CREATE, MatchmakingCodec.OP_CUSTOM_INVITE, MatchmakingCodec.OP_CUSTOM_JOIN, \
 				MatchmakingCodec.OP_CUSTOM_LEAVE, MatchmakingCodec.OP_CUSTOM_TEAM, MatchmakingCodec.OP_CUSTOM_PICK, \
-				MatchmakingCodec.OP_CUSTOM_START:
+				MatchmakingCodec.OP_CUSTOM_START, MatchmakingCodec.OP_CUSTOM_BOTS:
 			_custom(peer, who, r, t)
 		MatchmakingCodec.OP_REMAKE_VOTE:
 			_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)  # in-match only (the match process)
@@ -701,7 +704,13 @@ func build_setup(m: Match) -> Dictionary:
 	var r := {"remake_window_s": rules.remake_window_s, "remake_vote_s": rules.remake_vote_s,
 		"no_show_s": rules.no_show_s, "abandon_after_s": rules.abandon_after_s,
 		"team_size": m.queue.team_size if m.queue != null else _team_size(m), "mood_seed": m.mood,
-		"rated": m.rated, "custom": m.custom, "bots": _has_bots(m)}
+		"rated": m.rated, "custom": m.custom, "bots": _has_bots(m), "bot_difficulty": m.bot_difficulty}
+	if m.bot_limits:
+		var per := [0, 0]
+		for s in m.seats:
+			if s.bot:
+				per[int(s.team)] += 1
+		r["bots_per_team"] = per
 	for k in setup_rules:
 		r[k] = setup_rules[k]
 	return {"match_id": m.id, "mode": String(m.queue.id) if m.queue != null else "custom", "map": m.map,
@@ -878,14 +887,17 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 	var code := MatchmakingCodec.OK
 	match op:
 		MatchmakingCodec.OP_CUSTOM_CREATE:
-			if _custom_of.has(me) or _account_match.has(me) or matchmaker.ticket_of(me) != 0:
+			if _customs.has(me):
+				code = _custom_reconfigure(_customs[me], r)  # the host changes map / mode / size
+			elif _custom_of.has(me) or _account_match.has(me) or matchmaker.ticket_of(me) != 0:
 				code = MatchmakingCodec.E_ALREADY
 			elif int(r.map) >= MatchmakingCodec.CUSTOM_MAPS.size() or not (int(r.mode) in [MatchmakingCodec.PM_CUSTOM,
 					MatchmakingCodec.PM_ALL_RANDOM]) or int(r.team_size) < 1 or int(r.team_size) > 5:
 				code = MatchmakingCodec.E_BAD_REQUEST
 			else:
 				_customs[me] = {"host": me, "map": int(r.map), "mode": int(r.mode), "bots": int(r.bots) != 0,
-					"team_size": int(r.team_size), "members": [{"id": me, "team": 0, "hero": 0}], "invites": {}}
+					"team_size": int(r.team_size), "members": [{"id": me, "team": 0, "hero": 0}], "invites": {},
+					"bot_slots": [MatchmakingCodec.BOTS_FILL, MatchmakingCodec.BOTS_FILL], "difficulty": 1}
 				_custom_of[me] = me
 				phases.end_post_game(me)
 				_log("[front] custom lobby opened (%s, %dv%d)" % [MatchmakingCodec.CUSTOM_MAPS[int(r.map)],
@@ -952,6 +964,16 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 				code = MatchmakingCodec.E_NOT_ALLOWED
 			else:
 				_custom_start(c, t)
+		MatchmakingCodec.OP_CUSTOM_BOTS:
+			var c: Dictionary = _customs.get(me, {})
+			if c.is_empty() or int(r.difficulty) >= MatchmakingCodec.BOT_DIFFICULTIES.size():
+				code = MatchmakingCodec.E_NOT_ALLOWED if c.is_empty() else MatchmakingCodec.E_BAD_REQUEST
+			else:
+				for side in 2:
+					var v := int(r.bots_a if side == 0 else r.bots_b)
+					c.bot_slots[side] = v if v == MatchmakingCodec.BOTS_FILL else clampi(v, 0, 5)
+				c.difficulty = int(r.difficulty)
+				_send_custom(c)
 	_ack(peer, op, code)
 
 
@@ -977,12 +999,17 @@ func _custom_start(c: Dictionary, t: float) -> void:
 			m.seats.append({"id": str(mem.id), "team": side, "lane": &"", "bot": false,
 				"name": str(ident.get("name", "")), "accent": int(ident.get("accent", 0)), "hero": hero})
 		if bool(c.bots):
-			for i in range(team.size(), int(c.team_size)):
+			var slots := int(c.get("bot_slots", [MatchmakingCodec.BOTS_FILL, MatchmakingCodec.BOTS_FILL])[side])
+			var room := int(c.team_size) - team.size()
+			var n := room if slots == MatchmakingCodec.BOTS_FILL else mini(slots, room)
+			for i in range(team.size(), team.size() + n):
 				bot_n += 1
 				var hero := _random_free(taken, rng)
 				taken[hero] = true
 				m.seats.append({"id": "%s%d" % [MatchmakingRulesDef.BOT_PREFIX, bot_n], "team": side, "lane": &"",
 					"bot": true, "name": "", "accent": 0, "hero": hero})
+	m.bot_difficulty = MatchmakingCodec.BOT_DIFFICULTIES[clampi(int(c.get("difficulty", 1)), 0, 2)]
+	m.bot_limits = true  # custom: exactly the bots in the roster, no more
 	c.phase = MatchmakingCodec.CP_STARTING
 	_send_custom(c)
 	_close_custom(c, false)
@@ -991,6 +1018,21 @@ func _custom_start(c: Dictionary, t: float) -> void:
 		_account_match[id] = m
 	_log("[front] custom match %s starting (%d player(s), %d bot(s))" % [m.id, _humans(m).size(), bot_n])
 	_allocate(m, t)
+
+
+## The host changes map / mode / bots / size of an open custom lobby.
+func _custom_reconfigure(c: Dictionary, r: Dictionary) -> int:
+	if int(r.map) >= MatchmakingCodec.CUSTOM_MAPS.size() or not (int(r.mode) in [MatchmakingCodec.PM_CUSTOM,
+			MatchmakingCodec.PM_ALL_RANDOM]) or int(r.team_size) < 1 or int(r.team_size) > 5:
+		return MatchmakingCodec.E_BAD_REQUEST
+	if _custom_team_count(c, 0) > int(r.team_size) or _custom_team_count(c, 1) > int(r.team_size):
+		return MatchmakingCodec.E_NOT_ALLOWED  # someone would lose their seat
+	c.map = int(r.map)
+	c.mode = int(r.mode)
+	c.bots = int(r.bots) != 0
+	c.team_size = int(r.team_size)
+	_send_custom(c)
+	return MatchmakingCodec.OK
 
 
 func _custom_leave(me: String) -> void:
@@ -1035,8 +1077,10 @@ func _custom_fields(c: Dictionary, viewer: String) -> Dictionary:
 		var flags := (MatchmakingCodec.MEM_HOST if mem.id == c.host else 0) | (MatchmakingCodec.MEM_YOU if mem.id == viewer else 0)
 		members.append({"id": mem.id, "team": mem.team, "hero": mem.hero, "flags": flags,
 			"name": str(ident.get("name", ""))})
+	var slots: Array = c.get("bot_slots", [MatchmakingCodec.BOTS_FILL, MatchmakingCodec.BOTS_FILL])
 	return {"host": c.host, "phase": int(c.get("phase", MatchmakingCodec.CP_OPEN)), "map": c.map, "mode": c.mode,
-		"bots": 1 if c.bots else 0, "team_size": c.team_size, "members": members}
+		"bots": 1 if c.bots else 0, "team_size": c.team_size, "members": members, "bots_a": int(slots[0]),
+		"bots_b": int(slots[1]), "difficulty": int(c.get("difficulty", 1))}
 
 
 func _send_custom(c: Dictionary) -> void:

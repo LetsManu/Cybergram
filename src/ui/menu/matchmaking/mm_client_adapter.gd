@@ -310,6 +310,12 @@ func custom_invite(id: String) -> void:
 	mm.custom_invite(id)
 
 
+## v20 host: bots per team (-1 = fill the empty seats) and difficulty (&"easy" / &"normal" / &"hard").
+func custom_bots(bots_a: int, bots_b: int, difficulty: StringName) -> void:
+	mm.custom_bots(MatchmakingCodec.BOTS_FILL if bots_a < 0 else bots_a, MatchmakingCodec.BOTS_FILL if bots_b < 0 else bots_b,
+		maxi(0, MatchmakingCodec.BOT_DIFFICULTIES.find(String(difficulty))))
+
+
 func custom_start() -> void:
 	mm.custom_start()
 
@@ -575,8 +581,14 @@ static func custom_of(d: Dictionary) -> Dictionary:
 		"map": MatchmakingCodec.CUSTOM_MAPS[mi] if mi < MatchmakingCodec.CUSTOM_MAPS.size() else &"",
 		"mode": &"all_random" if int(d.get("mode", 0)) == MatchmakingCodec.PM_ALL_RANDOM else &"custom",
 		"bots": int(d.get("bots", 0)) != 0, "team_size": int(d.get("team_size", 5)),
+		"bot_slots": [_slot(int(d.get("bots_a", MatchmakingCodec.BOTS_FILL))), _slot(int(d.get("bots_b", MatchmakingCodec.BOTS_FILL)))],
+		"difficulty": StringName(MatchmakingCodec.BOT_DIFFICULTIES[clampi(int(d.get("difficulty", 1)), 0, 2)]),
 		"maps": MatchmakingCodec.CUSTOM_MAPS.duplicate(), "modes": [&"custom", &"all_random"],
 		"members": members, "invited": [], "starting": int(d.get("phase", 0)) == MatchmakingCodec.CP_STARTING}
+
+
+static func _slot(v: int) -> int:
+	return -1 if v == MatchmakingCodec.BOTS_FILL else v
 
 
 func _queue() -> StringName:
