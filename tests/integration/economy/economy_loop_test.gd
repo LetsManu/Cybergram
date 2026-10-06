@@ -63,7 +63,10 @@ func _build() -> MapDef:
 	_server.setup_match(def, 1.0)
 	_server.enable_wardlings(def, WardlingFixtures.rules(), load(WardlingFixtures.PICKET) as WardlingDef)
 	_server.wardlings.vanguard_enabled = false
-	_server.enable_progression(load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef,
+	# The pad-only path (Sanctum shop off): the Sanctum buy is armory_reach_test's.
+	var econ := (load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef).duplicate() as EconomyRulesDef
+	econ.shop_in_sanctum = false
+	_server.enable_progression(econ,
 		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, def)
 	_input = Player.new()
 	_input.server = _server
@@ -115,7 +118,7 @@ func test_kill_wardlings_level_learn_walk_to_armory_buy_crystal() -> void:
 	assert_bool(h.combat.abilities.skill(0).unlocked).is_true()
 	assert_int(_client.combat.skill_flags[0] & AbilityRunner.FLAG_LOCKED).is_equal(0)
 	assert_int(_client.progress.skill_points).is_equal(1)
-	# A buy at the Sanctum is refused (HQ Armory pad only).
+	# A buy at the Sanctum is refused with the Sanctum shop off (pad only).
 	var cat := pr.catalog
 	var ember := cat.index_of(&"ember_heart")
 	var dmg_before := _server.weapon_hit_damage(h, 10.0)

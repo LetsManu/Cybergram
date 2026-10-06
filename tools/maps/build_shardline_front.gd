@@ -50,6 +50,11 @@ const MID_L := 210.0
 const PLAZA_R := 30.0
 const SOCKET_GAP := 15.0
 const CRADLE_X := -5.0
+## Armory pad (HqDef.armory): beside the spawn at the Sanctum's edge, in view of
+## a fresh spawn (owner decision 2026-10-06: "like the LoL shop at the spawn").
+## The old Armory building stays as HQ structure.
+const ARMORY_X := 8.0
+const ARMORY_L := 12.0
 ## North / South lane gates in the HQ front wall (lateral centre, half width).
 const GATE_X := 22.0
 const GATE_HW := 6.0
@@ -1883,7 +1888,7 @@ func _spawns() -> void:
 	for half in 2:
 		var t := "Concord" if half == 0 else "Syndicate"
 		var pts := {"Sanctum": P(0, _hl(half, SANCTUM_L)), "Uplink": P(0, _hl(half, UPLINK_L)),
-			"FoundryPad": P(-19, _hl(half, 17.0)), "ArmoryPad": P(19, _hl(half, 17.0)),
+			"FoundryPad": P(-19, _hl(half, 17.0)), "ArmoryPad": P(ARMORY_X, _hl(half, ARMORY_L)),
 			"LaneGate": _gate(1, half), "LaneGateNorth": _gate(0, half), "LaneGateSouth": _gate(2, half)}
 		for n in pts:
 			var m := Marker3D.new()
@@ -2111,7 +2116,7 @@ func _save_map_def() -> void:
 		q.sanctum_radius = SANCTUM_R
 		q.uplink = P(0, _hl(half, UPLINK_L))
 		q.foundry = P(-19, _hl(half, 17.0))
-		q.armory = P(19, _hl(half, 17.0))
+		q.armory = P(ARMORY_X, _hl(half, ARMORY_L))
 		q.lane_gate = _gate(1, half)
 		q.lane_gates = PackedVector3Array([_gate(0, half), _gate(1, half), _gate(2, half)])
 		q.spawn_points = _spawn_points(half)

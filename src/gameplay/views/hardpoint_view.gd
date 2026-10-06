@@ -48,8 +48,12 @@ var _shield_mat: StandardMaterial3D
 var _gen_bar: MeshInstance3D
 var _gen_bar_bg: MeshInstance3D
 var _gen_bar_mat: StandardMaterial3D
-var _cell: MeshInstance3D
+var _cell: Node3D
 var _cell_mat: StandardMaterial3D
+## Phase 6: the baked Mana Cell inside `_cell` (null = greybox prism) and the
+## team its material is for.
+var _cell_model: Node3D
+var _cell_team: int = -2
 var _beam: MeshInstance3D
 var _channel_ring: MeshInstance3D
 ## Phase 6: the Holdstone (hero-pipeline asset, tools/art/world/holdstone.py) on
@@ -58,6 +62,9 @@ var _holdstone: Node3D
 var _pillar: MeshInstance3D
 var _pillar_mat: ShaderMaterial
 var _art_owner: int = -2
+## Phase 6 Plant art (tools/art/world/plant_kit.py): the Charge Cradle and its
+## four pad corner brackets, tinted for the owner like the Holdstone.
+var _cradle_art: Array[Node3D] = []
 ## The own team's current objective (ClientWorld: the lane front, C15).
 var objective: bool = false
 var _near_text: String = ""
@@ -148,6 +155,10 @@ func setup(d: HardpointDef) -> void:
 	# Hidden from inside the zone (the HUD objective strip shows it there).
 	_label.visibility_range_begin = d.zone_radius + 2.0
 	add_child(_label)
+	# C5 Garrison posts and Supply Cache are not in the game yet (no Sentinels, no
+	# refill): their map markers would promise a feature, so they stay hidden
+	# until the systems exist (docs/assets/plant.md, PROGRESS.md Objective B).
+	_hide_map_nodes.call_deferred(["Placements_" + String(d.id).to_upper()])
 	match d.task:
 		HardpointDef.TaskKind.BREACH:
 			_build_breach(d)
@@ -205,15 +216,42 @@ func _hide_greybox(names: Array) -> void:
 				(c as MeshInstance3D).visible = false
 
 
-## Re-tints the Holdstone and its pillar when the owner changes.
-func _apply_hold_art(owner: int) -> void:
-	if _holdstone == null or owner == _art_owner:
+## Re-tints the task machine (Holdstone + pillar, Charge Cradle + brackets)
+## when the owner changes.
+func _apply_task_art(owner: int) -> void:
+	if owner == _art_owner:
 		return
-	_art_owner = owner
-	var mat := WorldModel.material(&"holdstone", owner)
-	for mi in _holdstone.find_children("*", "MeshInstance3D", true, false):
+	if _holdstone != null:
+		_art_owner = owner
+		_tint(_holdstone, &"holdstone", owner)
+		_pillar_mat.set_shader_parameter("color", team_color(owner).lightened(0.25))
+	if not _cradle_art.is_empty():
+		_art_owner = owner
+		for n in _cradle_art:
+			_tint(n, &"charge_cradle", owner)
+
+
+static func _tint(node: Node, key: StringName, team: int) -> void:
+	var mat := WorldModel.material(key, team)
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat
-	_pillar_mat.set_shader_parameter("color", team_color(owner).lightened(0.25))
+
+
+## Hides map greybox nodes anywhere in the scene by name, with all their meshes
+## (presentation only; collision stays). For greybox that the map does not put
+## under Hardpoint_<ID> (Cradle pads, C5 placement markers).
+func _hide_map_nodes(names: Array) -> void:
+	if not is_inside_tree():
+		return
+	var root := get_tree().root
+	for n: String in names:
+		var node := root.find_child(n, true, false)
+		if node == null:
+			continue
+		if node is MeshInstance3D:
+			(node as MeshInstance3D).visible = false
+		for mi in node.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).visible = false
 
 
 func _build_breach(d: HardpointDef) -> void:
@@ -258,18 +296,25 @@ func _bar(c: Color, width: float) -> MeshInstance3D:
 
 
 func _build_plant(d: HardpointDef) -> void:
-	# The Cradles themselves are map greybox (CellCradle_* pedestals, E14 generator).
 	_cell_mat = _unshaded(COLOR_NEUTRAL)
-	_cell = MeshInstance3D.new()
+	_cell = Node3D.new()
 	_cell.name = "ManaCell"
-	var pm := PrismMesh.new()
-	pm.size = Vector3(0.45, 0.7, 0.45)
-	pm.material = _cell_mat
-	_cell.mesh = pm
 	_cell.top_level = true
 	_cell.visible = false
-	_cell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_cell)
+	if WorldModel.exists(&"mana_cell"):
+		# Phase 6: the baked capsule in its chrome cage, re-tinted per Cell team.
+		_cell_model = WorldModel.instantiate(&"mana_cell", ModelPalette.TEAM_NEUTRAL)
+		_cell.add_child(_cell_model)
+	else:
+		var prism := MeshInstance3D.new()
+		var pm := PrismMesh.new()
+		pm.size = Vector3(0.45, 0.7, 0.45)
+		pm.material = _cell_mat
+		prism.mesh = pm
+		prism.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_cell.add_child(prism)
+	_build_plant_art(d)
 	_beam = MeshInstance3D.new()
 	_beam.name = "PlantBeam"
 	var bm := CylinderMesh.new()
@@ -292,9 +337,58 @@ func _build_plant(d: HardpointDef) -> void:
 	add_child(_channel_ring)
 
 
+## Phase 6 (design/art-bible.md §6.3 Plant, docs/assets/plant.md): the Charge
+## Cradle ("Y" pylon whose socket takes the Cell at 2.9 m) with four corner
+## brackets at the zone's half-width, and each team's Cell Cradle (pickup
+## station). They replace the map's greybox meshes; collision stays. No-op per
+## asset that is not built.
+func _build_plant_art(d: HardpointDef) -> void:
+	_art_owner = -2
+	if WorldModel.exists(&"charge_cradle"):
+		var inst := WorldModel.instantiate(&"charge_cradle", d.initial_owner)
+		inst.name = "ChargeCradle"
+		var bracket := WorldModel.piece(inst, &"bracket")
+		var hw := d.zone_radius
+		if bracket != null:
+			bracket.get_parent().remove_child(bracket)
+			# The piece's corner is its origin; its legs run along -X and -Z (yaw 0 = the +X+Z corner).
+			for c in [[1.0, 1.0, 0.0], [-1.0, 1.0, -90.0], [-1.0, -1.0, 180.0], [1.0, -1.0, 90.0]]:
+				var b := bracket.duplicate() as MeshInstance3D
+				b.name = "Bracket"
+				b.position = Vector3(c[0] * hw, 0.0, c[1] * hw)
+				b.rotation_degrees.y = c[2]
+				add_child(b)
+				_cradle_art.append(b)
+			bracket.free()
+		add_child(inst)
+		_cradle_art.append(inst)
+		_art_owner = d.initial_owner
+		var names: Array = [&"PylonStem", &"ProngL", &"ProngR", &"Socket", &"Awning"]
+		for s in ["-1", "1"]:
+			for t in ["-1", "1"]:
+				names.append(StringName("BracketX%s%s" % [s, t]))
+				names.append(StringName("BracketZ%s%s" % [s, t]))
+		_hide_greybox.call_deferred(names)
+	if WorldModel.exists(&"cell_cradle"):
+		var hidden: Array = []
+		for team in d.cell_cradles.size():
+			var at := d.cell_cradles[team]
+			if not at.is_finite():
+				continue
+			var cradle := WorldModel.instantiate(&"cell_cradle", team)
+			cradle.name = "CellCradle_%d" % team
+			cradle.top_level = true
+			add_child(cradle)
+			cradle.position = at
+			var tag := String(d.id).to_upper()
+			hidden.append("CellCradle_%s_%d" % [tag, team])
+			hidden.append("CellCradleGlow_%s_%d" % [tag, team])
+		_hide_map_nodes.call_deferred(hidden)
+
+
 ## Applies the latest replicated state.
 func apply(st: SnapshotData.HardpointState) -> void:
-	_apply_hold_art(st.owner)
+	_apply_task_art(st.owner)
 	_ring_base = team_color(st.owner)
 	_seg_base = team_color(st.capturing_team)
 	_progress = st.progress
@@ -371,6 +465,9 @@ func _apply_task(st: SnapshotData.HardpointState) -> String:
 		_cell.visible = has
 		_beam.visible = st.cell_state == HardpointSim.CellState.PLANTED
 		_cell_mat.albedo_color = team_color(st.cell_team)
+		if _cell_model != null and st.cell_team != _cell_team:
+			_cell_team = st.cell_team
+			_tint(_cell_model, &"mana_cell", st.cell_team)
 		if has:
 			var lift := 2.6 if st.cell_state == HardpointSim.CellState.CARRIED else 1.0
 			if st.cell_state == HardpointSim.CellState.PLANTED:

@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## A hero spawned at the Sanctum walks (navmesh path, real physics) to the HQ
 ## Armory pad: the server's `at_armory` flag arrives on the client over the
 ## loopback and a buy is accepted there. Both team halves are not needed: the
-## player is always the Concord half.
+## player is always the Concord half. Owner decision 2026-10-06: the Sanctum
+## counts as the Armory (LoL shop at the spawn), so a fresh spawn can buy at once.
 
 const MAP_PATH := "res://assets/data/match/map_front.tres"
 const C := MapDef.TEAM_CONCORD
@@ -43,7 +44,7 @@ func _tick(n: int = 1) -> void:
 		_server.step()
 
 
-func _build() -> MapDef:
+func _build(shop_in_sanctum := true) -> MapDef:
 	var def := load(MAP_PATH) as MapDef
 	_net = NetFixtures.net_config()
 	_link = LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
@@ -59,7 +60,9 @@ func _build() -> MapDef:
 	_server.setup_match(def, 1.0)
 	_server.enable_wardlings(def, WardlingFixtures.rules(), load(WardlingFixtures.PICKET) as WardlingDef)
 	_server.wardlings.vanguard_enabled = false
-	_server.enable_progression(load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef,
+	var econ := (load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef).duplicate() as EconomyRulesDef
+	econ.shop_in_sanctum = shop_in_sanctum
+	_server.enable_progression(econ,
 		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, def)
 	_input = Walker.new()
 	_input.server = _server
@@ -70,8 +73,21 @@ func _build() -> MapDef:
 	return def
 
 
-func test_walking_from_spawn_reaches_the_pad_and_the_flag_replicates() -> void:
+func test_a_fresh_spawn_can_shop_in_the_sanctum() -> void:
 	var def := _build()
+	assert_bool(await WardlingFixtures.await_nav(get_tree(), _server, def)).is_true()
+	_tick(10)
+	var h := _server.hero(_client.session.own_net_id)
+	assert_object(h).is_not_null()
+	_input.hero_id = h.net_id
+	assert_int(_client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY).is_not_equal(0)
+	_input.queued.append([InputCommand.ACTION_BUY, _server.progression.catalog.index_of(&"ember_heart") | (1 << 8)])
+	_tick(4)
+	assert_int(_client.progress.mount_item[0]).is_not_equal(-1)
+
+
+func test_walking_from_spawn_reaches_the_pad_and_the_flag_replicates() -> void:
+	var def := _build(false)
 	assert_bool(await WardlingFixtures.await_nav(get_tree(), _server, def)).is_true()
 	_tick(10)
 	var h := _server.hero(_client.session.own_net_id)

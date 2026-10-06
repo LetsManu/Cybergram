@@ -19,6 +19,11 @@ extends SceneTree
 ##                                      hardpoint, the Armory pad (6 / 15 / 35 m,
 ##                                      plus a first-person walk-up at 25 m)
 ##   hero-ref                           Vesper next to the Center Mid hardpoint (scale)
+##   cradle-close / cradle-mid          a Concord Cell Cradle holding its Cell
+##   wardlings                          Picket lineup: Concord tiers I-III (sash, own
+##                                      sash), Syndicate Vanguard I-III, an Elite
+## Objective state for the shots: the first Plant hardpoint has a Concord Cell
+## planted (40 %), the other Plant hardpoints have their Concord Cell in its Cradle.
 
 const MAP_DEF := "res://assets/data/match/map_front.tres"
 const EYE := 1.7
@@ -27,6 +32,7 @@ var _out := "production/qa/evidence/shots"
 var _only: PackedStringArray = []
 var _cam: Camera3D
 var _hero: Node3D
+var _squad: Node3D
 ## The map's environment without fog (top-down only).
 var _clear_env: Environment
 
@@ -69,6 +75,8 @@ func _initialize() -> void:
 	_add_views(md, map)
 	_hero = _make_hero()
 	map.add_child(_hero)
+	_squad = _make_squad()
+	map.add_child(_squad)
 	_cam = Camera3D.new()
 	_cam.fov = 75.0
 	_cam.far = 2000.0
@@ -89,6 +97,10 @@ func _initialize() -> void:
 		if _hero.visible:
 			_hero.global_position = s[3]
 			_hero.look_at(s[1] * Vector3(1, 0, 1) + Vector3(0, _hero.global_position.y, 0), Vector3.UP, true)
+		_squad.visible = String(s[0]) == "wardlings"
+		if _squad.visible:
+			_squad.global_position = s[3]
+			_squad.look_at(s[1] * Vector3(1, 0, 1) + Vector3(0, _squad.global_position.y, 0), Vector3.UP, true)
 		_cam.global_position = s[1]
 		_cam.look_at(s[2])
 		_cam.environment = _clear_env if String(s[0]) == "topdown" else null
@@ -164,6 +176,27 @@ static func presets(md: MapDef) -> Array:
 	hb = hb.normalized() if hb.length() > 0.1 else Vector3.BACK
 	out.append(["hero-ref", hp_mid + hb * 8.0 + hb.cross(Vector3.UP) * 1.5 + Vector3(0, 1.6, 0),
 		hp_mid + hb * 4.0 + Vector3(0, 1.0, 0), hp_mid + hb * 4.0])
+	# Wardling lineup on the plaza outside the Mid dais, seen at squad distance.
+	var w0 := hp_mid + hb * 12.0
+	out.append(["wardlings", w0 + hb * 3.4 + Vector3(0, 1.0, 0), w0 + Vector3(0, 0.55, 0), w0])
+	var plants := plant_defs(md)
+	if plants.size() > 1:
+		var cr: Vector3 = plants[1].cradle_for(MapDef.TEAM_CONCORD)
+		var cb := (plants[1].position - cr) * Vector3(1, 0, 1)
+		cb = cb.normalized() if cb.length() > 0.1 else Vector3.BACK
+		var cs := cb.cross(Vector3.UP)
+		out.append(["cradle-close", cr + cb * 3.2 + cs * 1.2 + Vector3(0, 1.7, 0), cr + Vector3(0, 0.8, 0)])
+		out.append(["cradle-mid", cr + cb * 9.0 + cs * 3.0 + Vector3(0, 3.5, 0), cr + Vector3(0, 0.6, 0)])
+	return out
+
+
+## Plant hardpoints in preset order (the first is the `plant-*` one).
+static func plant_defs(md: MapDef) -> Array[HardpointDef]:
+	var out: Array[HardpointDef] = []
+	for lane: LaneDef in md.lanes:
+		for d: HardpointDef in lane.hardpoints:
+			if d.task == HardpointDef.TaskKind.PLANT:
+				out.append(d)
 	return out
 
 
@@ -188,11 +221,26 @@ func _wanted(name: String) -> bool:
 
 ## The client's objective views (ClientWorld.setup_objectives), without a ClientWorld.
 func _add_views(md: MapDef, map: Node3D) -> void:
+	var first_plant: HardpointDef = plant_defs(md)[0] if not plant_defs(md).is_empty() else null
 	for lane: LaneDef in md.lanes:
 		for d: HardpointDef in lane.hardpoints:
 			var v := HardpointView.new()
 			v.setup(d)
 			map.add_child(v)
+			if d.task == HardpointDef.TaskKind.PLANT:
+				var st := SnapshotData.HardpointState.new()
+				st.task = d.task
+				st.owner = d.initial_owner
+				st.cell_team = MapDef.TEAM_CONCORD
+				if d == first_plant:
+					st.cell_state = HardpointSim.CellState.PLANTED
+					st.cell_pos = d.position
+					st.progress = 0.4
+					st.capturing_team = MapDef.TEAM_CONCORD
+				else:
+					st.cell_state = HardpointSim.CellState.CRADLE
+					st.cell_pos = d.cradle_for(MapDef.TEAM_CONCORD)
+				v.apply(st)
 	for hq: HqDef in md.hqs:
 		var uv := UplinkView.new()
 		uv.setup(hq)
@@ -213,6 +261,26 @@ func _make_hero() -> Node3D:
 	var w := WardlingModelBuilder.build(&"picket", 2, ModelPalette.TEAM_CONCORD)
 	w.position = Vector3(1.4, 0, 0.6)
 	group.add_child(w)
+	return group
+
+
+## The `wardlings` lineup: Concord squad tiers I-III (sash, own sash on III),
+## Syndicate Vanguard tiers I-III (pennant), and a Concord Elite, 1 m apart.
+func _make_squad() -> Node3D:
+	var group := Node3D.new()
+	var rows := [[ModelPalette.TEAM_CONCORD, 1, 1, false], [ModelPalette.TEAM_CONCORD, 2, 1, false],
+		[ModelPalette.TEAM_CONCORD, 3, 2, false], [ModelPalette.TEAM_CONCORD, 2, 1, true],
+		[ModelPalette.TEAM_SYNDICATE, 1, 0, false], [ModelPalette.TEAM_SYNDICATE, 2, 0, false],
+		[ModelPalette.TEAM_SYNDICATE, 3, 0, false]]
+	for i in rows.size():
+		var r: Array = rows[i]
+		var w := WardlingModelBuilder.build(&"picket", r[1], r[0])
+		w.set_owner_kind(r[2])
+		w.set_elite(r[3])
+		w.position = Vector3((i - (rows.size() - 1) * 0.5) * 1.0, 0.0, 0.0)
+		w.rotation.y = PI  # the group faces the camera with +Z; Wardlings face -Z
+		group.add_child(w)
+	group.visible = false
 	return group
 
 

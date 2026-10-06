@@ -166,11 +166,25 @@ Plan agreed 2026-10-06 (owner answers to the plan questions):
   `tests/unit/models/world_assets_test.gd` (watched it fail). Evidence and
   review logs: `production/qa/evidence/p6-*`, `docs/assets/*.md`.
 
+- Owner review of the slice (2026-10-06): "looks better", but the orange / blue
+  floor circles must look like what they do, and the Wardlings must reach hero
+  level too. The circles were the Plant **Cell Cradles** (work: a team takes its
+  Mana Cell there); the teal discs / box were C5 **Garrison posts / Supply Cache**
+  markers for features that are not in the game yet.
+- Phase 6b (in progress): Plant kit on the hero pipeline
+  (`tools/art/world/plant_kit.py`: Cell Cradle, Mana Cell, Charge Cradle with 4
+  corner brackets), wired in `HardpointView`; Garrison / Supply Cache markers
+  hidden until their systems exist; **Picket Wardling** baked in two faction
+  skins (`tools/art/world/picket.py`, 4k-tri budget kept) and used by
+  `WardlingModel` (procedural meshes stay as the fallback). Kit fixes: degenerate
+  faces dropped before unwrap (they wrecked the atlas), floor undersides dropped.
+  Briefs: `docs/assets/plant.md`, `docs/assets/picket.md`.
+
 ## Next (prioritised)
-1. Owner review of the slice (before/after frames), then the rest of Phase 6 in
-   the same way: Charge Cradle + Mana Cell (Plant), Ward Generator + shield
-   (Breach), Barricade (2 styles, 3 damage stages), Garrison socket, Supply
-   Cache, Forward Beacon, Sanctum / Foundry / Armory.
+1. Finish 6b (evidence, review), then the rest of Phase 6 in the same way:
+   Ward Generator + shield (Breach), Barricade (2 styles, 3 damage stages),
+   Forward Beacon, Sanctum / Foundry / Armory. Garrison socket + Supply Cache
+   art waits for their gameplay (C5), which is not built.
 2. Uplink iteration 2: split the long leg beams (texel density), capture the
    Exposed / damage states as frames.
 3. Phase 7 map kit (walls, floors, cover) on the same pipeline.

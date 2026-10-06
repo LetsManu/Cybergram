@@ -1,9 +1,16 @@
 class_name WardlingModel
 extends Node3D
-## Procedural Picket Wardling (WardlingModelBuilder): shared meshes, one toon
-## material per team. States: tier I-III (silhouette + scale), class marking
-## (owner sash / Vanguard pennant), Elite (gold threads + spindle, x1.3) and
-## Turned (violet ring). Hover-skip legs while moving. Faces -Z.
+## Picket Wardling. Phase 6: the hero-pipeline bake (tools/art/world/picket.py,
+## picket_c = Concord porcelain, picket_s = Syndicate iron) with the heroes' toon
+## material; the procedural WardlingModelBuilder meshes are the fallback when the
+## glb is missing. Shared meshes, one material per (faction, team). States: tier
+## I-III (silhouette + scale), class marking (owner sash / Vanguard pennant),
+## Elite (gold threads + spindle, x1.3) and Turned (violet ring). Hover-skip legs
+## while moving. Faces -Z.
+
+## Baked faction skins (art bible §5.3: Concord porcelain + gold, Syndicate iron + brass).
+const BAKED_KEYS := {ModelPalette.TEAM_SYNDICATE: &"picket_s"}
+const BAKED_DEFAULT: StringName = &"picket_c"
 
 var key: StringName = &"picket"
 var tier: int = 1
@@ -25,6 +32,12 @@ var _ring: MeshInstance3D
 var _moving: bool = false
 var _t: float = 0.0
 var _last_pos := Vector3.INF
+var _tier_mi: MeshInstance3D
+## The baked skin in use (&"" = procedural fallback).
+var baked_key: StringName = &""
+
+## key -> {piece name -> Mesh}, read once from the glb.
+static var _baked: Dictionary = {}
 
 
 func setup(model_key: StringName, tier_: int, team_: int) -> void:
@@ -34,6 +47,8 @@ func setup(model_key: StringName, tier_: int, team_: int) -> void:
 	_hover = Node3D.new()
 	add_child(_hover)
 	_body = _mi(_hover, null)
+	_tier_mi = _mi(_hover, null)
+	_tier_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for s in [1.0, -1.0]:
 		var leg := Node3D.new()
 		leg.position = Vector3(0.11 * s, 0.25, 0.0)
@@ -52,18 +67,54 @@ func setup(model_key: StringName, tier_: int, team_: int) -> void:
 	set_turned(false)
 
 
+## The baked skin for `team`, or &"" when its glb is not built.
+static func baked_key_for(team_: int) -> StringName:
+	var k: StringName = BAKED_KEYS.get(team_, BAKED_DEFAULT)
+	return k if WorldModel.exists(k) else &""
+
+
+## Piece `name` of the baked skin `k` (meshes shared by every Wardling).
+static func baked_mesh(k: StringName, name_: String) -> Mesh:
+	if not _baked.has(k):
+		var pieces := {}
+		var inst := (load(WorldModel.glb_path(k)) as PackedScene).instantiate()
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			pieces[String(mi.name)] = (mi as MeshInstance3D).mesh
+		inst.free()
+		_baked[k] = pieces
+	return (_baked[k] as Dictionary).get(name_)
+
+
 func set_team(team_: int) -> void:
 	team = team_
-	var m := ModelMaterials.toon(team)
-	for mi in [_body, _sash, _pennant, _elite_mi, _ring]:
+	baked_key = baked_key_for(team)
+	var m: Material = WorldModel.material(baked_key, team) if baked_key != &"" else ModelMaterials.toon(team)
+	for mi in [_body, _tier_mi, _sash, _pennant, _elite_mi]:
 		(mi as MeshInstance3D).material_override = m
 	for leg in _legs:
-		(leg.get_child(0) as MeshInstance3D).material_override = m
+		var lm := leg.get_child(0) as MeshInstance3D
+		lm.material_override = m
+		lm.mesh = baked_mesh(baked_key, "leg_r" if leg.position.x > 0.0 else "leg_l") if baked_key != &"" else WardlingModelBuilder.mesh("leg")
+	_ring.material_override = ModelMaterials.toon(team)
+	_pennant.mesh = _part("pennant")
+	_elite_mi.mesh = _part("elite")
+	set_tier(tier)
+	set_owner_kind(owner_kind)
+
+
+func _part(name_: String) -> Mesh:
+	return baked_mesh(baked_key, name_) if baked_key != &"" else WardlingModelBuilder.mesh(name_)
 
 
 func set_tier(tier_: int) -> void:
 	tier = clampi(tier_, 1, 3)
-	_body.mesh = WardlingModelBuilder.mesh("body%d" % tier)
+	if baked_key != &"":
+		_body.mesh = baked_mesh(baked_key, "body")
+		_tier_mi.mesh = baked_mesh(baked_key, "tier%d" % tier) if tier > 1 else null
+	else:
+		_body.mesh = WardlingModelBuilder.mesh("body%d" % tier)
+		_tier_mi.mesh = null
+	_tier_mi.visible = _tier_mi.mesh != null
 	_apply_scale()
 
 
@@ -71,7 +122,7 @@ func set_owner_kind(kind: int) -> void:
 	owner_kind = kind
 	_pennant.visible = kind == 0 and not turned
 	_sash.visible = kind != 0 or turned
-	_sash.mesh = WardlingModelBuilder.mesh("sash_own" if kind == 2 else "sash")
+	_sash.mesh = _part("sash_own" if kind == 2 else "sash")
 
 
 func set_elite(on: bool) -> void:

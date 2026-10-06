@@ -278,7 +278,11 @@ func is_at_armory(h: HeroBody) -> bool:
 	if map_def == null:
 		return false
 	var hq := map_def.hq(h.combat.team)
-	return hq != null and _flat(h.state.position, hq.armory) <= rules.armory_radius_m
+	if hq == null:
+		return false
+	if rules.shop_in_sanctum and _flat(h.state.position, hq.sanctum) <= hq.sanctum_radius:
+		return true
+	return _flat(h.state.position, hq.armory) <= rules.armory_radius_m
 
 
 func _armory_visit(h: HeroBody, p: HeroProgress) -> void:

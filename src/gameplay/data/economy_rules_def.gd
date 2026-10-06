@@ -75,6 +75,10 @@ extends Resource
 @export_group("Armory and spawn (§19; weapons-and-mods.md §3.6.4)")
 ## PLACEHOLDER. Armory zone radius around HqDef.armory (same as the Foundry pad).
 @export_range(1.0, 30.0, 0.5) var armory_radius_m: float = 6.0
+## Owner decision 2026-10-06 ("like the LoL shop at the spawn"): the whole
+## Sanctum zone (HqDef.sanctum_radius around HqDef.sanctum) also counts as the
+## Armory, so a hero can shop where they spawn.
+@export var shop_in_sanctum: bool = true
 ## §3.6.4 rule 4: later sells pay 60%, rounded down to a multiple of 5.
 @export_range(0.0, 1.0, 0.05) var sell_late_frac: float = 0.6
 @export var sell_round: int = 5
