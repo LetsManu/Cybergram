@@ -249,6 +249,7 @@ func _add_views(md: MapDef, map: Node3D) -> void:
 		am.setup(hq, null)
 		map.add_child(am)
 	map.add_child(WorldDecals.create(md))  # P7: painted floor tiles + world decals, as ClientWorld
+	WorldProps.spawn(map, md)  # P7: world props (visual only)
 
 
 ## Vesper as the game builds her (HeroModelLoader, idle) plus a Tier II Picket

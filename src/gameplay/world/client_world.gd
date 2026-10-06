@@ -171,6 +171,8 @@ func setup_objectives(md: MapDef) -> void:
 			add_child(am)
 	if DisplayServer.get_name() != "headless":  # P7: painted floor tiles + world decals (client view only)
 		add_child(WorldDecals.create(md))
+	if DisplayServer.get_name() != "headless":  # P7: world props, visual only (WorldProps)
+		WorldProps.spawn(self, md)
 
 
 ## W16-SDWATER: the ring centre is MapDef.mid_plaza_center, as on the server.
