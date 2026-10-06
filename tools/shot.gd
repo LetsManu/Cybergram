@@ -33,6 +33,8 @@ var _only: PackedStringArray = []
 var _cam: Camera3D
 var _hero: Node3D
 var _squad: Node3D
+## --at close-up spots ("x,y,z").
+var _spots: PackedStringArray = []
 ## The map's environment without fog (top-down only).
 var _clear_env: Environment
 
@@ -51,9 +53,19 @@ func _initialize() -> void:
 				_only = args[i].split(",", false)
 			"--list":
 				list = true
+			"--at":
+				# placement close-up: --at x,y,z (low camera 3.5 m away, 0.9 m up)
+				i += 1
+				_spots.append(args[i])
 		i += 1
 	var md := load(MAP_DEF) as MapDef
 	var shots := presets(md)
+	if not _spots.is_empty():
+		shots = []
+		for sp: String in _spots:
+			var v := sp.split_floats(",")
+			var at := Vector3(v[0], v[1], v[2])
+			shots.append(["spot_%s" % sp.replace(",", "_").replace("-", "m"), at + Vector3(2.5, 0.9, 2.5), at + Vector3(0, 0.4, 0)])
 	if list:
 		for s in shots:
 			print(s[0])

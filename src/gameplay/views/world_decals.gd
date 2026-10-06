@@ -395,13 +395,7 @@ static func make_decal(p: Placement, at: Vector3, up: Vector3, def: WorldDecalsD
 	var d := Decal.new()
 	d.name = "Decal_%s" % p.cell
 	d.size = Vector3(p.size.x, def.box_height_m, p.size.y)
-	var y := up.normalized() if up.length() > 0.1 else Vector3.UP
-	var fwd := (p.forward - y * p.forward.dot(y)).normalized()
-	if fwd.length() < 0.1:
-		fwd = Vector3.FORWARD
-	# The image's top maps to the decal's local -Z.
-	var x := y.cross(-fwd).normalized()
-	d.transform = Transform3D(Basis(x, y, -fwd), at)
+	d.transform = make_decal_transform(p, at, up)
 	d.texture_albedo = tex
 	d.modulate = p.modulate
 	d.albedo_mix = 1.0
@@ -418,6 +412,16 @@ static func make_decal(p: Placement, at: Vector3, up: Vector3, def: WorldDecalsD
 	d.set_meta(&"role", p.role)
 	d.set_meta(&"team", p.team)
 	return d
+
+
+## Transform of the decal for `p` on the floor point `at` with floor normal `up`
+## (PlacementKit.align_up of the image's heading; the image's top maps to -Z).
+static func make_decal_transform(p: Placement, at: Vector3, up: Vector3) -> Transform3D:
+	var y := up.normalized() if up.length() > 0.1 else Vector3.UP
+	var fwd := (p.forward - y * p.forward.dot(y)).normalized()
+	if fwd.length() < 0.1:
+		fwd = Vector3.FORWARD
+	return Transform3D(PlacementKit.align_up(Basis(y.cross(-fwd).normalized(), y, -fwd), y), at)
 
 
 ## Texture of one atlas cell (cut from the atlas once, cached, mipmapped).
@@ -468,7 +472,12 @@ static func atlas_image(def: WorldDecalsDef) -> Image:
 ## >= 2 m of headroom, the one nearest the MapDef height wins (so lane arrows land
 ## on the lane, flank arrows in the tunnel under it, never on a roof or an arch).
 func _physics_ground(p: Vector3) -> Dictionary:
-	var space := get_world_3d().direct_space_state
+	return physics_ground(get_world_3d().direct_space_state, p)
+
+
+## The floor under `p` in `space` ({pos, normal} or {}): the floor-like hit
+## (normal y > 0.8, 2 m of headroom) nearest to p.y, through up to 5 layers.
+static func physics_ground(space: PhysicsDirectSpaceState3D, p: Vector3) -> Dictionary:
 	var from := p + Vector3.UP * 8.0
 	var to := p - Vector3.UP * 8.0
 	var exclude: Array[RID] = []
