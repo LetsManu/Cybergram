@@ -22,6 +22,9 @@ Outputs (assets/textures/world/floor/):
   floor_tiles_normal.png  OpenGL tangent normal (R +u, G image-up)
   floor_tiles_mask.png    R AO / wear (1 = open), G edge highlight, B grime,
                           A = 1 (the shader's "maps are bound" test)
+  floor_tiles_height.png  L height, 1 = z +0.06 m (bolt heads), 0 = z -0.42 m (pits);
+                          parallax occlusion in the shader. Tiles sit 2.5 cm inside
+                          their slot over a dark bed, so joints read as real gaps.
 
 Decal atlas (--decals): 8 x 2 cells of 256 px = 2048 x 512 RGBA, painted in numpy
 (flat paint + ink stroke + chips + grit, the same language). Cell order = DECALS =
@@ -59,6 +62,12 @@ COLS, ROWS, SLOT_PX = 4, 2, 512
 TILE_M = 2.0           # modelled tile size (m)
 HALF = TILE_M * 0.5
 SEED = 7
+# Real gaps: every tile is shrunk so a GAP-wide strip at the slot border shows the
+# dark bed (z BED_TOP) under a chamfered lip; two neighbours make a 5 cm joint.
+GAP = 0.025
+BED_TOP = -0.07
+# Height map range (m): z_min = grate / trench pits, z_max = bolt heads on the kerb.
+Z_MIN, Z_MAX = -0.42, 0.06
 
 # paint kinds (face attribute fk_kind)
 STONE, METAL, STRIPE, PIT, RUBBER = 0, 1, 2, 3, 4
@@ -86,6 +95,7 @@ class Kit:
         self.val = self.bm.faces.layers.float.new("fk_val")
         self.kind = self.bm.faces.layers.float.new("fk_kind")
         self.off = Vector((0, 0, 0))
+        self.sxy = 1.0
 
     def _merge(self, t, val, kind, bevel):
         if bevel > 0:
@@ -93,7 +103,7 @@ class Kit:
                             offset_type="OFFSET", segments=2, affect="EDGES", profile=0.5, clamp_overlap=True)
         vmap = {}
         for v in t.verts:
-            vmap[v] = self.bm.verts.new(v.co + self.off)
+            vmap[v] = self.bm.verts.new(Vector((v.co.x * self.sxy, v.co.y * self.sxy, v.co.z)) + self.off)
         for f in t.faces:
             try:
                 nf = self.bm.faces.new([vmap[v] for v in f.verts])
@@ -295,7 +305,13 @@ def build_geometry():
     rnd = random.Random(SEED)
     for i, fn in enumerate(TILES):
         k.off = slot_center(i)
+        k.sxy = (HALF - GAP) / HALF
         fn(k, rnd)
+        k.sxy = 1.0
+        b = GAP + 0.03  # joint bed: a ring under the slot border only (pits keep their depth)
+        for (x0, x1, y0, y1) in ((-HALF, HALF, -HALF, -HALF + b), (-HALF, HALF, HALF - b, HALF),
+                                 (-HALF, -HALF + b, -HALF + b, HALF - b), (HALF - b, HALF, -HALF + b, HALF - b)):
+            k.box(x0, x1, y0, y1, BED_TOP - 0.12, BED_TOP, 0.16, PIT, 0.0)
     me = bpy.data.meshes.new("floor_high")
     k.bm.to_mesh(me)
     k.bm.free()
@@ -547,14 +563,15 @@ def paint(ids, pos, nrm_w, aoe, nrm, ss):
     grime = np.maximum(grime, np.clip((gn - 0.62) * 4, 0, 1) * 0.45)
     grime = np.maximum(grime, (kind == PIT) * 0.9)
     edge_hl = np.clip(edge * convex * (0.6 + 0.4 * lit) * 1.2, 0, 1) * (1 - inkm)
-    ao_w = np.clip(0.35 + 0.65 * ao_s - 0.15 * wear, 0, 1)
+    ao_w = np.clip(0.2 + 0.8 * ao_s - 0.15 * wear, 0, 1)  # v2: stronger cavity AO
     mask = np.stack([ao_w, edge_hl, np.clip(grime, 0, 1), np.ones_like(v)], -1)
     alb = _down(v, ss)
+    height = _down(np.clip((P[..., 2] - Z_MIN) / (Z_MAX - Z_MIN), 0, 1), ss)
     mask = _down(mask, ss)
-    return alb, mask, nrm
+    return alb, mask, nrm, height
 
 
-def save(alb, mask, nrm, out):
+def save(alb, mask, nrm, out, height=None):
     from PIL import Image
     os.makedirs(out, exist_ok=True)
 
@@ -568,7 +585,11 @@ def save(alb, mask, nrm, out):
     n = u8(np.concatenate([nrm[..., :2], np.ones_like(nrm[..., :1])], -1))
     Image.merge("RGB", [Image.fromarray(n[..., i], "L") for i in range(3)]).save(
         os.path.join(out, KEY + "_normal.png"), optimize=True)
-    return {k: os.path.getsize(os.path.join(out, KEY + "_%s.png" % k)) for k in ("albedo", "normal", "mask")}
+    keys = ["albedo", "normal", "mask"]
+    if height is not None:  # 1 = top (z_max), 0 = pit bottom (z_min); parallax in the shader
+        Image.fromarray(u8(height), "L").save(os.path.join(out, KEY + "_height.png"), optimize=True)
+        keys.append("height")
+    return {k: os.path.getsize(os.path.join(out, KEY + "_%s.png" % k)) for k in keys}
 
 
 def preview(alb, mask, path, tint=(0.36, 0.34, 0.47)):
@@ -845,8 +866,8 @@ def main(argv):
     t = time.time()
     hi, lo = build_geometry()
     passes = bake_all(hi, lo, ss)
-    alb, mask, nrm = paint(*passes, ss)
-    sizes = save(alb, mask, nrm, out)
+    alb, mask, nrm, height = paint(*passes, ss)
+    sizes = save(alb, mask, nrm, out, height)
     if "--preview" in argv:
         preview(alb, mask, argv[argv.index("--preview") + 1])
     print("built %s: %dx%d, %d tiles (%s), %s, %.0f s" % (

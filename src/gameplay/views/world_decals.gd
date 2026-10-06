@@ -104,6 +104,11 @@ static func install_floor_tiles(def: WorldDecalsDef) -> bool:
 		texs[k] = load(p) as Texture2D
 		if texs[k] == null:
 			return false
+	# Optional: the height map (parallax). Missing = flat tiles (white default).
+	if def.floor_height_path != "" and ResourceLoader.exists(def.floor_height_path):
+		var h := load(def.floor_height_path) as Texture2D
+		if h != null:
+			texs["tile_height"] = h
 	for k: String in texs:
 		sh.set_default_texture_parameter(k, texs[k])
 	return true

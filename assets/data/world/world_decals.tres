@@ -10,6 +10,7 @@ cell_px = 256
 floor_albedo_path = "res://assets/textures/world/floor/floor_tiles_albedo.png"
 floor_normal_path = "res://assets/textures/world/floor/floor_tiles_normal.png"
 floor_mask_path = "res://assets/textures/world/floor/floor_tiles_mask.png"
+floor_height_path = "res://assets/textures/world/floor/floor_tiles_height.png"
 max_visible = 48
 fade_begin = 22.0
 fade_length = 8.0

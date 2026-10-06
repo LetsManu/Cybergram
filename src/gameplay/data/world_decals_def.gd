@@ -23,6 +23,8 @@ var atlas_override: Image
 @export_file("*.png") var floor_albedo_path: String = "res://assets/textures/world/floor/floor_tiles_albedo.png"
 @export_file("*.png") var floor_normal_path: String = "res://assets/textures/world/floor/floor_tiles_normal.png"
 @export_file("*.png") var floor_mask_path: String = "res://assets/textures/world/floor/floor_tiles_mask.png"
+## Height map for the shader's parallax occlusion (empty = flat tiles, no parallax).
+@export_file("*.png") var floor_height_path: String = "res://assets/textures/world/floor/floor_tiles_height.png"
 
 @export_group("Budget")
 ## Hard cap: no camera position sees more decals than this (art bible §10.6).
