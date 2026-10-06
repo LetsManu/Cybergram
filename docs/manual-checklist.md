@@ -40,3 +40,10 @@ Evidence (virtual display): `production/qa/evidence/p2-social/`.
 - [ ] Party chat in the play screen; spam fast: "You are sending too fast" appears.
 - [ ] Friend presence: queue / hero select / in match with the mode name; idle 5 min -> Away; any key -> back.
 - [ ] Play a full match in a party of 2: after the match both are still in the same party (no re-login).
+
+## P4: polish (sound, keys, theme)
+- [ ] Sound: match found plays the ready-check sting; accept -> confirm; your pick turn -> "go"; last 5 s tick; loading -> match found; post-match victory / defeat. Volume follows the UI slider.
+- [ ] Keyboard only: queue, accept (Enter), pick a hero with arrows + Enter + Enter, Esc on hero select asks before leaving.
+- [ ] Controller only (Xbox / PS pad): the same path with D-pad, A, B.
+- [ ] Open `assets/ui/ui_kit_theme.tres` in the Godot editor: the theme preview looks like the game menus.
+- [ ] Page transitions feel smooth; with "Reduce motion" on they are instant.

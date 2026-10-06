@@ -255,6 +255,13 @@ func set_party(p: Dictionary) -> void:
 	_sync()
 
 
+## P4: Esc / controller Back leaves the play screen while not queued.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel") and is_visible_in_tree() and state != State.QUEUED:
+		get_viewport().set_input_as_handled()
+		back_requested.emit()
+
+
 func find_match() -> void:
 	if state != State.IDLE:
 		return

@@ -48,6 +48,11 @@ var _handoff: float = -1.0
 var _toast_root: Control
 ## P1: persistent status strip (bottom).
 var status_bar: MmStatusBar
+## P4: plays a UI sound cue by short name (UiSfx; tests capture the calls).
+var sfx: Callable = func(cue: StringName) -> void: UiSfx.play(cue)
+## Your pick / ban turn is open (for the "your turn" cue and the last-seconds ticks).
+var _my_turn: bool = false
+var _last_tick: int = -1
 
 
 func _ready() -> void:
@@ -87,10 +92,21 @@ func _process(delta: float) -> void:
 		client.call("step", delta)
 	if client != null and client.has_method("tick"):
 		client.call("tick", delta)
+	_tick_cue()
 	if _handoff >= 0.0:
 		_handoff -= delta
 		if _handoff < 0.0:
 			_hand_over()
+
+
+## P4: one tick per second in the last 5 s of your own pick turn.
+func _tick_cue() -> void:
+	if not _my_turn or page_name != &"draft" or not (page as MmDraftScreen).is_my_turn():
+		return
+	var left := ceili((page as MmDraftScreen).left_s)
+	if left <= 5 and left > 0 and left != _last_tick:
+		_last_tick = left
+		sfx.call(&"countdown_tick")
 
 
 # --- pages ----------------------------------------------------------------------
@@ -147,6 +163,8 @@ func show_post(result: Dictionary) -> MmPostMatchScreen:
 	p.result = result
 	p.closed.connect(func() -> void: show_play())
 	_set_page(p, &"post")
+	if not bool(result.get("voided", false)):
+		sfx.call(&"victory" if bool(result.get("won", false)) else &"defeat")
 	return p
 
 
@@ -182,6 +200,7 @@ func _on_found(info: Dictionary) -> void:
 	ready_popup.client = client
 	ready_popup.open_with(info)
 	add_child(ready_popup)
+	sfx.call(&"ready_check")  # P4: match found -> accept popup
 
 
 func _close_ready() -> void:
@@ -194,8 +213,9 @@ func _on_ready_result(r: Dictionary) -> void:
 	_close_ready()
 	match StringName(r.get("outcome", &"")):
 		&"go":
-			pass
+			sfx.call(&"confirm")
 		&"locked":
+			sfx.call(&"error")
 			toast(tr("HUD_MM_READY_DECLINED") % MmView.clock(float(r.get("locked_s", 0.0))), &"danger")
 			if page_name != &"play":
 				show_play()
@@ -233,10 +253,17 @@ func _on_pick(s: Dictionary) -> void:
 					show_play())
 			_set_page(d, &"draft")
 		(page as MmDraftScreen).set_state(s)
+		var mine := (page as MmDraftScreen).is_my_turn()
+		if mine and not _my_turn:
+			sfx.call(&"countdown_go")  # P4: your turn to pick (or ban)
+			_last_tick = -1
+		_my_turn = mine
 
 
 func _on_assigned(info: Dictionary) -> void:
 	assigned = info
+	_my_turn = false
+	sfx.call(&"match_found")
 	var l := _loading()
 	l.set_state(MmLoadingScreen.State.CONNECTING)
 	if not hold_on_assigned:

@@ -81,8 +81,17 @@ as it is, new tests run inside the existing test job.
   players in a match are now kept, max 4 h). Screenshots
   `production/qa/evidence/p2-social/`.
 
+- P4 Polish: matchmaking sound cues (match found, go, your turn, last 5 s
+  ticks, match found, victory / defeat, error) - `UiSfx.bind_matchmaking`
+  existed but was never called, so the flow was silent; keyboard / controller:
+  hero select opens with focus on the hero row, Accept on the shown hero locks
+  it, Esc leaves (play screen / hero select); the UI kit Theme exported as
+  `assets/ui/ui_kit_theme.tres` with a sync test; design/ux/ui-kit.md updated.
+  Already present before P4 (kept): tokens resource, page transitions with
+  reduce-motion, toasts, loading / error / empty states, settings, patch notes.
+
 ## In progress
-- nothing (waiting for the owner).
+- nothing (all phases done; see Next for leftovers).
 
 ## Next (prioritised)
 1. Phase 3 leftovers: bot difficulty and bot slots in custom lobbies;
@@ -91,7 +100,9 @@ as it is, new tests run inside the existing test job.
 2. Phase 2 leftovers: the separate launcher app's social view still shows
    the W15 states (the game menu has the full set); invite-expiry countdown
    is not shown (invites expire after 120 s server-side).
-3. Phase 4: launcher polish (needs human visual checks).
+3. Phase 4 leftovers: the separate launcher app was not restyled in this
+   pass (the game menu is the queueing client); human checks in
+   docs/manual-checklist.md.
 
 ## Manual checks needed (no display in the cloud session)
 See `docs/manual-checklist.md` (created with P1d).

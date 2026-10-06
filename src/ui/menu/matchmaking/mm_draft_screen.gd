@@ -61,6 +61,8 @@ func _ready() -> void:
 		selected = _heroes[0]
 	_build()
 	_apply()
+	if _thumbs.has(selected):
+		(_thumbs[selected] as Button).grab_focus.call_deferred()  # P4: arrows + Accept from the start
 
 
 ## A PICK_STATE (mode draft) from the client.
@@ -134,6 +136,13 @@ func leave() -> void:
 			if client != null:
 				client.call("dodge")
 			left.emit(), tr("HUD_MM_STAY"), func() -> void: _lock.grab_focus(), true)
+
+
+## P4: Esc / controller Back = leave (asks first: leaving is a dodge).
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel") and is_visible_in_tree():
+		get_viewport().set_input_as_handled()
+		leave()
 
 
 func tick(delta: float) -> void:
@@ -252,7 +261,13 @@ func _build() -> void:
 		b.name = "Hero_" + String(h)
 		b.tooltip_text = MmView.hero_name(h)
 		var hid := h
-		b.pressed.connect(func() -> void: preview(hid))
+		b.pressed.connect(func() -> void:
+			# P4: keyboard / controller: Accept on the hero already shown locks it in
+			# (a mouse click only selects; double-click locks, below).
+			if hid == selected and Input.is_action_pressed(&"ui_accept"):
+				lock_in()
+			else:
+				preview(hid))
 		b.focus_entered.connect(func() -> void: preview(hid))
 		b.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton and (ev as InputEventMouseButton).double_click:
