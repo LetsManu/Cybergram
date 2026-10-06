@@ -5,7 +5,7 @@ extends CanvasLayer
 ## States: play, play_ranked, queued, locked, ready, ready_accepted,
 ## draft_enemy, draft_mine, draft_late, aram, aram_swap, loading, reconnect,
 ## post_ranked, post_normal, post_report, profile, profile_public, profile_guest,
-## custom, remake, remake_open.
+## custom, custom_bots, draft_chat (v17), remake, remake_open, draft_hover, blind_trade (P3), party, social (P2).
 ## Not part of the game flow (never loaded by AppRoot).
 
 const REF_SIZE := Vector2(1440, 810)
@@ -71,6 +71,9 @@ func _build(st: String) -> void:
 		"career":
 			_career()
 			return
+		"social":
+			_social()
+			return
 	_flow()
 	match st:
 		"play_ranked":
@@ -99,6 +102,13 @@ func _build(st: String) -> void:
 		"draft_mine":
 			_to_pick(MmView.Q_RANKED)
 			fake.step(fake.think_s + 0.1)
+		"party":
+			fake.party_say("duo bot?")
+			fake.party_chat.append({"name": "Nyx", "text": "sure, I go support", "mine": false})
+			fake.party_chat_changed.emit()
+		"draft_hover", "blind_trade":
+			_to_pick(MmView.Q_RANKED if st == "draft_hover" else MmView.Q_NORMAL)
+			(flow.page as MmDraftScreen).set_state(_p3_state(st))
 		"draft_late":
 			_to_pick(MmView.Q_NORMAL)
 			fake.step(fake.think_s + 0.1)
@@ -113,13 +123,17 @@ func _build(st: String) -> void:
 				fake.step(fake.think_s + 0.1)
 		"loading", "reconnect":
 			_to_pick(MmView.Q_NORMAL)
-			for k in 12:
+			for k in 40:  # P3 added the finalize window: step until the match is assigned
+				if fake.phase == &"assigned":
+					break
 				fake.step(fake.think_s + 0.1)
 				if fake.phase == &"pick" and fake._draft != null and fake._draft.current_pickers().has(MatchmakingFakeClient.ME):
 					var legal := fake._draft.legal_heroes(0)
 					fake.pick(legal[0])
 			if st == "reconnect":
 				fake.drop_connection()
+			else:
+				fake.step(fake.load_s * 0.6)  # v20: the other players are part-way loaded
 		"post_ranked":
 			fake.queue = MmView.Q_RANKED
 			fake.finish_match(true)
@@ -135,6 +149,17 @@ func _build(st: String) -> void:
 		"custom":
 			flow.play.select_queue(MmView.Q_CUSTOM)
 			flow.play.find_match()
+		"draft_chat":
+			_to_pick(MmView.Q_RANKED)
+			fake.teammate_says("Kestrel", "I can go mid")
+			fake.select_say("ok, top then")
+			fake.teammate_says("Nyx", "gl hf")
+		"custom_bots":
+			flow.play.select_queue(MmView.Q_CUSTOM)
+			flow.play.find_match()
+			var c := flow.page as MmCustomLobby
+			c.bump_bots(0, -1)
+			c.set_bots(c._slots(), &"hard")
 
 
 ## W21-U2: the CAREER page as the main menu builds it (profile + ranks in a
@@ -181,3 +206,71 @@ func _remake(open: bool) -> void:
 		fake.step(7.0)
 		fake.remake_vote(true)
 		w.left_s = 23.0
+
+
+## P3 evidence: a hand-made draft state (ally hovers + bans, or blind finalize with trades).
+func _p3_state(st: String) -> Dictionary:
+	var hs := MmView.all_heroes()
+	var seats: Array = []
+	for i in 10:
+		var team := 0 if i < 5 else 1
+		var s := {"id": "seat%d" % i, "name": ["You", "Nyx", "Orrin", "Talia", "Brin", "", "", "", "", ""][i],
+			"team": team, "lane": [&"north", &"center", &"south", &"flex", &"flex"][i % 5], "hero": &"", "hover": &"",
+			"ban": &"", "bot": false, "auto": false, "picking": false}
+		seats.append(s)
+	if st == "draft_hover":
+		seats[0].picking = true
+		seats[0].hover = hs[1]
+		seats[1].hover = hs[2]
+		seats[2].hero = hs[3]
+		seats[5].hero = hs[3]
+		return {"mode": &"draft", "blind": false, "stage": &"pick", "queue": MmView.Q_RANKED, "ranked": true,
+			"me": "seat0", "my_team": 0, "turn": 2, "turn_team": 0, "order": PackedInt32Array([1, 2, 2, 2, 2, 1]),
+			"first_team": 0, "deadline_s": 21.0, "turn_s": 30.0, "done": false, "seats": seats,
+			"bans": [hs[0]], "trade_s": 0.0, "trades": []}
+	for i in 10:
+		seats[i].hero = hs[i % 5 + (1 if i >= 5 else 0)]
+	return {"mode": &"draft", "blind": true, "stage": &"finalize", "queue": MmView.Q_NORMAL, "ranked": false,
+		"me": "seat0", "my_team": 0, "turn": 0, "turn_team": 2, "order": PackedInt32Array([5]), "first_team": 0,
+		"deadline_s": 17.0, "turn_s": 45.0, "done": true, "seats": seats, "bans": [], "trade_s": 12.0,
+		"trades": [{"from": "seat2", "name": "Orrin", "hero": seats[2].hero}]}
+
+
+## P2 evidence: friends panel with the new presence states, a party invite, a
+## join request, unread DMs, and an open DM window.
+func _social() -> void:
+	var bg := UiKit.background()
+	_root.add_child(bg)
+	var m := SocialModel.new()
+	m.me = "me"
+	var fp := FriendsPanel.new()
+	fp.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	fp.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_root.add_child(fp)
+	fp.social = m
+	fp.set_session(true, func(_op: int, _f: Dictionary) -> void: pass)
+	m.on_result({"op": AccountCodec.OP_PARTY, "code": AccountCodec.OK, "party": "", "leader": "", "members": [
+		{"id": "f9", "kind": AccountCodec.PARTY_INVITE_IN, "status": 1, "display_name": "Brin", "emblem": 2,
+			"accent": 3, "flags": 0}]})
+	for n in [["f3", "Talia", "gg wp, again?"], ["f3", "Talia", "I am in queue"]]:
+		m.on_result({"op": AccountCodec.OP_NOTIFY, "code": AccountCodec.OK, "kind": AccountCodec.N_DM, "id": n[0],
+			"name": n[1], "text": n[2], "mode": 255})
+	m.on_result({"op": AccountCodec.OP_NOTIFY, "code": AccountCodec.OK, "kind": AccountCodec.N_JOIN_REQUEST,
+		"id": "f7", "name": "Kael", "text": "", "mode": 255})
+	var st := [[LobbyCodec.STATUS_IN_MATCH, 1], [LobbyCodec.STATUS_IN_SELECT, 0], [LobbyCodec.STATUS_IN_QUEUE, 1],
+		[LobbyCodec.STATUS_ONLINE, 255], [LobbyCodec.STATUS_AWAY, 255], [LobbyCodec.STATUS_ONLINE, 255]]
+	var names := ["Nyx", "Orrin", "Talia", "Kael", "Mira", "Juno"]
+	var list: Array = []
+	for i in names.size():
+		list.append({"id": "f%d" % (i + 1), "status": st[i][0], "mode": st[i][1], "relation": 0,
+			"username": names[i].to_lower(), "display_name": names[i], "emblem": i % 6, "accent": i % 4})
+	fp.apply_friends(list)
+	var w := SocialDmWindow.new()
+	w.social = m
+	w.friend_id = "f2"
+	w.friend_name = "Orrin"
+	w.position = Vector2(560, 380)
+	_root.add_child(w)
+	m.on_result({"op": AccountCodec.OP_NOTIFY, "code": AccountCodec.OK, "kind": AccountCodec.N_DM, "id": "f2",
+		"name": "Orrin", "text": "picking support this time", "mode": 255})
+	m.send_dm("f2", "nice, I take center")

@@ -13,7 +13,12 @@ extends Control
 ## - On timeout the server picks a random legal hero ("AUTO" on the card).
 ## - Leaving = dodge: a warning strip says so (lockout; rating in ranked) and
 ##   LEAVE asks to confirm.
-## Display only: `client.pick(hero)` / `client.dodge()`.
+## P3: selecting a hero declares it (hover, allies see it; an ally's hover is
+## greyed for you); the ban stage bans instead of picks; blind pick (Normal)
+## hides enemy picks until everyone locked; after the last lock teammates may
+## offer / accept hero trades until the final countdown.
+## Display only: `client.pick(hero)` / `client.hover(hero)` / `client.dodge()` /
+## `client.offer_trade(seat)` / `client.accept_trade(seat)`.
 
 signal left()
 
@@ -39,6 +44,12 @@ var _hero_role: Label
 var _lock: Button
 var _dodge: PanelContainer
 var _heroes: Array[StringName] = []
+var _bans: Label
+var _trade_box: VBoxContainer
+var _hover_sent: StringName = &""
+## v20: the shown hero's abilities (key chip + name) and the team chat.
+var _skills: HBoxContainer
+var chat: SocialChatBox
 
 
 func _ready() -> void:
@@ -53,6 +64,8 @@ func _ready() -> void:
 		selected = _heroes[0]
 	_build()
 	_apply()
+	if _thumbs.has(selected):
+		(_thumbs[selected] as Button).grab_focus.call_deferred()  # P4: arrows + Accept from the start
 
 
 ## A PICK_STATE (mode draft) from the client.
@@ -87,12 +100,28 @@ func can_lock(hero: StringName) -> bool:
 
 ## True when `hero` is greyed (held by my team).
 func is_greyed(hero: StringName) -> bool:
-	return MmView.team_taken(state.get("seats", []), int(state.get("my_team", 0))).has(hero)
+	if (state.get("bans", []) as Array).has(hero):
+		return true
+	if state.get("stage", &"pick") == &"ban":
+		return false
+	return MmView.team_taken(state.get("seats", []), int(state.get("my_team", 0)), me()).has(hero)
 
 
 func preview(hero: StringName) -> void:
 	selected = hero
+	_send_hover(hero)
 	_apply()
+
+
+## P3: declare the selected hero while my pick (or ban) is open.
+func _send_hover(hero: StringName) -> void:
+	var s := my_seat()
+	if s.is_empty() or StringName(s.get("hero", &"")) != &"" or bool(s.get("ban_locked", false)):
+		return
+	if is_greyed(hero) or hero == _hover_sent or client == null or not client.has_method("hover"):
+		return
+	_hover_sent = hero
+	client.call("hover", hero)
 
 
 func lock_in() -> void:
@@ -110,6 +139,13 @@ func leave() -> void:
 			if client != null:
 				client.call("dodge")
 			left.emit(), tr("HUD_MM_STAY"), func() -> void: _lock.grab_focus(), true)
+
+
+## P4: Esc / controller Back = leave (asks first: leaving is a dodge).
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel") and is_visible_in_tree():
+		get_viewport().set_input_as_handled()
+		leave()
 
 
 func tick(delta: float) -> void:
@@ -152,6 +188,8 @@ func _build() -> void:
 	centre.add_child(_title)
 	_sub = UiKit.label("", &"small", t.text_dim, HORIZONTAL_ALIGNMENT_CENTER)
 	centre.add_child(_sub)
+	_bans = UiKit.label("", &"small", t.danger, HORIZONTAL_ALIGNMENT_CENTER)
+	centre.add_child(_bans)
 	_turns = HBoxContainer.new()
 	_turns.alignment = BoxContainer.ALIGNMENT_CENTER
 	_turns.add_theme_constant_override("separation", 6)
@@ -193,11 +231,16 @@ func _build() -> void:
 		rows.add_theme_constant_override("separation", 8)
 		box.add_child(rows)
 		_cols.append(rows)
+		if col == 0:
+			_trade_box = VBoxContainer.new()  # P3: trade offers (finalize window)
+			_trade_box.add_theme_constant_override("separation", 6)
+			box.add_child(_trade_box)
+			_build_chat(box)
 	var info := VBoxContainer.new()
 	info.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	info.offset_left = -300
 	info.offset_right = 300
-	info.offset_top = 590
+	info.offset_top = 562  # v20: room for the ability row above the hero thumbs
 	info.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(info)
@@ -207,6 +250,11 @@ func _build() -> void:
 	_hero_name = MmKit.title("", 32)
 	_hero_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.add_child(_hero_name)
+	_skills = HBoxContainer.new()  # v20: ability preview
+	_skills.name = "Skills"
+	_skills.alignment = BoxContainer.ALIGNMENT_CENTER
+	_skills.add_theme_constant_override("separation", 16)
+	info.add_child(_skills)
 	var grid := HBoxContainer.new()
 	grid.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	grid.offset_left = -340
@@ -222,7 +270,13 @@ func _build() -> void:
 		b.name = "Hero_" + String(h)
 		b.tooltip_text = MmView.hero_name(h)
 		var hid := h
-		b.pressed.connect(func() -> void: preview(hid))
+		b.pressed.connect(func() -> void:
+			# P4: keyboard / controller: Accept on the hero already shown locks it in
+			# (a mouse click only selects; double-click locks, below).
+			if hid == selected and Input.is_action_pressed(&"ui_accept"):
+				lock_in()
+			else:
+				preview(hid))
 		b.focus_entered.connect(func() -> void: preview(hid))
 		b.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton and (ev as InputEventMouseButton).double_click:
@@ -240,23 +294,77 @@ func _build() -> void:
 	_lock.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_lock.add_theme_font_override("font", UiKit.display_font(700, UiKit.track(18, 0.24)))
 	add_child(_lock)
-	_dodge = MmKit.banner("", &"warn")
-	_dodge.position = Vector2(40, 700)
-	_dodge.custom_minimum_size.x = 400
-	_dodge.size.x = 400
+	_dodge = MmKit.banner("", &"warn")  # v20: right, above Lock In (the team chat is bottom left)
+	_dodge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_dodge.offset_left = -440
+	_dodge.offset_right = -40
+	_dodge.offset_top = -150
+	_dodge.offset_bottom = -100
+	_dodge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_dodge.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(_dodge)
+
+
+## v20: team chat under the own team (lines come from the client; the server
+## cleans, rate-limits and relays them to teammates only).
+func _build_chat(box: VBoxContainer) -> void:
+	if client == null or not client.has_method("select_say"):
+		return
+	box.add_child(MmKit.caption(tr("HUD_MM_TEAM_CHAT"), 11, UiKit.tokens().text_dim))
+	chat = SocialChatBox.new()
+	chat.name = "TeamChat"
+	chat.view_height = 64.0
+	chat.send = func(text: String) -> void: client.call("select_say", text)
+	box.add_child(chat)
+	if client.has_signal("select_chat_changed"):
+		client.connect("select_chat_changed", _on_select_chat)
+	_on_select_chat.call_deferred()
+
+
+func _on_select_chat() -> void:
+	if chat != null and client != null and client.has_method("select_chat_lines"):
+		chat.set_lines(client.call("select_chat_lines"))
+
+
+## v20: key chip + name of each ability of `stem` (the ultimate is marked).
+func _show_skills(stem: String) -> void:
+	for c in _skills.get_children():
+		_skills.remove_child(c)
+		c.queue_free()
+	var def := HeroShowcase.hero_def(stem)
+	if def == null:
+		return
+	var t := UiKit.tokens()
+	for k in def.skills.size():
+		var sk := def.skills[k]
+		if sk == null:
+			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		row.add_child(UiKit.key_chip(HeroShowcase.skill_key(k)))
+		var nm := UiKit.label(sk.display_name, &"small", t.accent_hi if sk.ultimate else t.text)
+		row.add_child(nm)
+		row.tooltip_text = sk.display_name + ("  ·  " + tr("HUD_MM_ULTIMATE") if sk.ultimate else "")
+		_skills.add_child(row)
 
 
 func _apply() -> void:
 	if _title == null:
 		return
 	var t := UiKit.tokens()
+	var order: PackedInt32Array = state.get("order", PackedInt32Array([1, 2, 2, 2, 2, 1]))
 	var seats: Array = state.get("seats", [])
 	var my_team := int(state.get("my_team", 0))
 	var turn_team := int(state.get("turn_team", 0))
 	var done := bool(state.get("done", false))
-	if done:
+	var stage: StringName = state.get("stage", &"pick")
+	var blind := bool(state.get("blind", false))
+	if stage == &"ban":
+		_title.text = tr("HUD_MM_BAN_TITLE").to_upper()
+	elif done:
 		_title.text = tr("HUD_MM_DRAFT_DONE").to_upper()
+	elif blind:
+		_title.text = tr("HUD_MM_BLIND_TITLE").to_upper()
 	elif is_my_turn():
 		_title.text = tr("HUD_MM_DRAFT_YOUR_TURN").to_upper()
 	elif turn_team == my_team:
@@ -264,12 +372,19 @@ func _apply() -> void:
 	else:
 		_title.text = tr("HUD_MM_DRAFT_ENEMY_TURN").to_upper()
 	_title.add_theme_color_override("font_color", t.accent_hi if is_my_turn() else t.text)
-	_sub.text = tr(MmView.queue_key(StringName(state.get("queue", MmView.Q_NORMAL)))) + "  ·  " + tr("HUD_MM_DRAFT_SUB")
-	# Turn track.
+	_sub.text = tr(MmView.queue_key(StringName(state.get("queue", MmView.Q_NORMAL)))) + "  ·  " + tr(
+		"HUD_MM_BLIND_SUB" if blind else "HUD_MM_DRAFT_SUB")
+	if done and float(state.get("trade_s", 0.0)) > 0.0:
+		_sub.text = tr("HUD_MM_TRADES_OPEN")
+	var bans: Array = state.get("bans", [])
+	_bans.text = tr("HUD_MM_BANS") % ", ".join(bans.map(func(h: StringName) -> String: return MmView.hero_name(h))) \
+		if not bans.is_empty() else ""
+	# Turn track (none in blind pick: one shared turn).
 	for c in _turns.get_children():
 		_turns.remove_child(c)
 		c.queue_free()
-	var order: PackedInt32Array = state.get("order", PackedInt32Array([1, 2, 2, 2, 2, 1]))
+	if blind:
+		order = PackedInt32Array()
 	var plan := MmView.turn_plan(order, int(state.get("first_team", 0)))
 	for i in plan.size():
 		var seg := ColorRect.new()
@@ -295,6 +410,12 @@ func _apply() -> void:
 		if picked:
 			status = tr("HUD_MM_SEAT_AUTO") if bool(s.get("auto", false)) else tr("HUD_LOBBY_STATE_LOCKED")
 			scol = t.accent if mine else t.danger
+		elif StringName(s.get("ban", &"")) != &"":
+			status = tr("HUD_MM_SEAT_BAN") % MmView.hero_name(StringName(s.ban))
+			scol = t.danger
+		elif StringName(s.get("hover", &"")) != &"":
+			status = tr("HUD_MM_SEAT_HOVER") % MmView.hero_name(StringName(s.hover))
+			scol = t.cyan
 		elif bool(s.get("picking", false)):
 			status = tr("HUD_LOBBY_STATE_PICKING")
 			scol = t.cyan
@@ -320,9 +441,15 @@ func _apply() -> void:
 			_stage.selected = pos
 		_hero_name.text = str(entry.name).to_upper()
 		_hero_role.text = tr(LobbyPhase.role_key(str(entry.stem)))
+		if _skills.get_meta(&"stem", "") != str(entry.stem):
+			_skills.set_meta(&"stem", str(entry.stem))
+			_show_skills(str(entry.stem))
+	_apply_trades(seats, my_team, done)
 	var mine_hero := StringName(my_seat().get("hero", &""))
 	_lock.disabled = not can_lock(selected)
-	if mine_hero != &"":
+	if stage == &"ban":
+		_lock.text = tr("HUD_MM_BAN_LOCK") if not bool(my_seat().get("ban_locked", false)) else tr("HUD_MM_BAN_DONE")
+	elif mine_hero != &"":
 		_lock.text = tr("HUD_MM_LOCKED_AS") % MmView.hero_name(mine_hero)
 	elif is_greyed(selected):
 		_lock.text = tr("HUD_MM_TAKEN_BY_TEAM")
@@ -333,11 +460,38 @@ func _apply() -> void:
 	_sync_timer()
 
 
+## P3: finalize window: offer trades to locked teammates, accept offers.
+func _apply_trades(seats: Array, my_team: int, done: bool) -> void:
+	for c in _trade_box.get_children():
+		_trade_box.remove_child(c)
+		c.queue_free()
+	if not done or float(state.get("trade_s", 0.0)) <= 0.0 or client == null:
+		return
+	for o: Dictionary in state.get("trades", []):
+		var from := str(o.from)
+		_trade_box.add_child(UiKit.button(tr("HUD_MM_TRADE_ACCEPT") % [str(o.name), MmView.hero_name(StringName(o.hero))],
+			func() -> void: client.call("accept_trade", from), &"primary", 36))
+	var row := HFlowContainer.new()  # compact: one wrapping row of small offers
+	row.add_theme_constant_override("h_separation", 6)
+	row.add_theme_constant_override("v_separation", 6)
+	_trade_box.add_child(row)
+	for s: Dictionary in seats:
+		if int(s.team) != my_team or str(s.id) == me() or bool(s.get("bot", false)) or StringName(s.get("hero", &"")) == &"":
+			continue
+		var to := str(s.id)
+		var b := UiKit.button(tr("HUD_MM_TRADE_OFFER") % str(s.name), func() -> void: client.call("offer_trade", to),
+			&"ghost", 28)
+		b.tooltip_text = MmView.hero_name(StringName(s.hero))
+		row.add_child(b)
+
+
 func _sync_timer() -> void:
 	if _timer == null:
 		return
 	_timer.text = MmView.clock(left_s)
 	var total := float(state.get("turn_s", 30.0))
+	if bool(state.get("done", false)):
+		total = maxf(rules.finalize_s, 1.0)
 	_bar.value = clampf(left_s / maxf(total, 1.0), 0.0, 1.0)
 	var t := UiKit.tokens()
 	_timer.add_theme_color_override("font_color", t.warn if left_s <= 5.0 and is_my_turn() else t.accent)

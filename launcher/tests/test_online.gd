@@ -171,6 +171,17 @@ func _test_social() -> void:
 	_check((pr.invites_in as Array).size() == 1 and (pr.invites_out as Array).size() == 1, "party: invites split")
 	_check(SocialView.action_text(AccountCodec.OP_PARTY_INVITE, AccountCodec.E_LIMIT) == "The party is full.", "party: full text")
 	_check(SocialView.action_text(AccountCodec.OP_FRIEND_REQUEST, AccountCodec.E_NOT_FOUND).begins_with("No player"), "friends: not found text")
+	# v20 presence: 7 states, busy friends first, away after online, mode on the line.
+	var g2: Dictionary = SocialView.group([
+		{"id": "a", "status": LobbyCodec.STATUS_AWAY, "relation": 0, "display_name": "a"},
+		{"id": "o", "status": LobbyCodec.STATUS_ONLINE, "relation": 0, "display_name": "o"},
+		{"id": "q", "status": LobbyCodec.STATUS_IN_QUEUE, "relation": 0, "display_name": "q"},
+		{"id": "m", "status": LobbyCodec.STATUS_IN_MATCH, "relation": 0, "display_name": "m"}])
+	_check((g2.friends as Array).map(func(e: Dictionary) -> String: return String(e.id)) == ["m", "q", "o", "a"], "friends: v20 presence order")
+	_check(SocialView.status_line({"status": LobbyCodec.STATUS_IN_SELECT, "mode": 1}) == "Hero select · Ranked", "friends: mode on the line")
+	_check(SocialView.status_line({"status": LobbyCodec.STATUS_AWAY, "mode": 1}) == "Away", "friends: no mode when away")
+	_check(SocialView.notify_text({"kind": AccountCodec.N_PARTY_INVITE, "name": "Kes"}) == "Kes invited you to a party.", "notify: invite text")
+	_check(SocialView.notify_text({"kind": AccountCodec.N_PARTY_CHAT, "name": "Kes", "text": "hi"}) == "", "notify: chat is not shown in the launcher")
 	# Party op round trip through the shared codec.
 	var b: PackedByteArray = AccountCodec.encode_result(AccountCodec.OP_PARTY, AccountCodec.OK, {"party": "ab".repeat(16),
 		"leader": "cd".repeat(16), "members": [{"id": "cd".repeat(16), "kind": 0, "status": 2, "display_name": "Lead", "emblem": 1, "accent": 2}]})

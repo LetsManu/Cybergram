@@ -177,3 +177,34 @@ Reusable menu pieces: `HeroShowcase` (one-SubViewport 3D hero stage +
 badges, `src/ui/menu/hero_showcase.gd`), `FriendsPanel` (grouped,
 collapsible sidebar). `MenuStyle` and `SettingsTheme` remain as thin shims
 over the kit for older call sites (lobby); new code calls `UiKit`.
+
+## P4 (2026-10-06): theme resource, sound cues, keys
+
+- **Theme resource.** Tokens stay in `assets/ui/ui_kit_tokens.tres` (colours,
+  type scale, spacing, radius / bevel, motion durations). `UiKit.build_theme()`
+  turns them into the client Theme; `assets/ui/ui_kit_theme.tres` is an
+  exported copy for the Godot theme editor and previews. Regenerate it after a
+  token or UiKit change: `godot --headless --path . -s res://tools/ui/export_theme.gd`
+  (`tests/unit/ui/ui_kit_theme_sync_test.gd` fails until you do).
+- **Motion.** Page changes use `UiKit.transition_in` (motion_base, fade + 24 px
+  rise); `UiKit.reduce_motion()` (settings) turns them into cuts.
+- **Matchmaking sound cues** (UI bus, `UiSfx`): match found -> `ready_check`,
+  everyone accepted -> `confirm`, decline / lockout -> `error`, your pick or
+  ban turn -> `countdown_go`, last 5 s of your turn -> `countdown_tick` once a
+  second, match server ready -> `match_found`, result -> `victory` / `defeat`.
+- **Keys / controller.** Every screen opens with focus on its main control.
+  Arrows / D-pad move; Accept (Enter / A) presses; on the hero row the first
+  Accept shows a hero, Accept on the shown hero locks it in (mouse: click shows,
+  double-click locks). Back (Esc / B): play screen -> back (not while queued),
+  hero select -> leave (asks first: it is a dodge), ready check -> decline.
+
+## v17 (2026-10-06): custom bots, loading progress, hero select chat
+
+- **Custom lobby.** Per team a "- n +" bot counter ("Fill" = every empty
+  seat) and Easy / Normal / Hard chips; seats show "Bot · Hard" or "Open slot".
+- **Loading screen.** Each portrait card has its player's bar and percent
+  (accent for allies, danger for enemies; bots 100 %). The bottom bar is your
+  own real load (map + hero on loader threads); "Loading the map…" until done.
+- **Hero select.** Team chat (SocialChatBox) under your team; the dodge
+  warning sits right, above Lock In. Under the hero name: one line with the
+  four abilities (key chip + name; the ultimate in accent).

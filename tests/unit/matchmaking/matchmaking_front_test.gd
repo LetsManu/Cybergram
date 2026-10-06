@@ -35,6 +35,15 @@ class FakeSupervisor:
 var _link: LoopbackLink
 var _net: NetConfig
 var _acc: AccountService
+
+
+## Only what the hero select chat reads: each account's block list.
+class BlockStore:
+	extends AccountStore
+	var blocks: Dictionary = {}
+
+	func get_by_id(id: String) -> Dictionary:
+		return {"id": id, "blocks": blocks.get(id, []), "friends": []}
 var _sup: FakeSupervisor
 var _front: MatchmakingFront
 var _server: FrontServer
@@ -413,6 +422,123 @@ func test_custom_game_with_party_invite_runs_unrated_with_bots() -> void:
 	_step(0.3)
 	assert_int(_front.lockouts.strikes(_id(3), LockoutTracker.Kind.LEAVE, _t)).is_equal(0)  # custom: no strikes
 	assert_int(_front.ratings.store.ids().size()).is_equal(0)
+
+
+func test_custom_host_reconfigures_and_sets_bot_slots_and_difficulty() -> void:
+	_make_front()
+	var host := _client(2)
+	host.matchmaking.custom_create(1, MatchmakingCodec.PM_CUSTOM, true, 3)
+	_step(0.2)
+	assert_int(int(host.matchmaking.last_custom.team_size)).is_equal(3)
+	host.matchmaking.custom_create(1, MatchmakingCodec.PM_CUSTOM, true, 5)  # change the size: not E_ALREADY
+	_step(0.2)
+	assert_int(int(host.matchmaking.last_custom.team_size)).is_equal(5)
+	assert_int(int(host.matchmaking.last_custom.bots_a)).is_equal(MatchmakingCodec.BOTS_FILL)
+	host.matchmaking.custom_bots(1, 2, 2)
+	_step(0.2)
+	assert_int(int(host.matchmaking.last_custom.bots_a)).is_equal(1)
+	assert_int(int(host.matchmaking.last_custom.bots_b)).is_equal(2)
+	assert_int(int(host.matchmaking.last_custom.difficulty)).is_equal(2)
+	host.matchmaking.custom_start()
+	_step(0.3)
+	assert_int(_sup.requests.size()).is_equal(1)
+	var setup: Dictionary = _sup.requests[0]
+	assert_str(MatchSetup.validate(setup)).is_equal("")
+	assert_int(setup.roster.size()).is_equal(4)  # host + 1 bot ally + 2 enemy bots
+	assert_str(str(setup.rules.bot_difficulty)).is_equal("hard")
+	assert_array(setup.rules.bots_per_team).is_equal([1, 2])
+
+
+func test_load_progress_is_relayed_to_the_match_and_only_rises() -> void:
+	_make_front()
+	var cl := _to_running()
+	var a: LobbyClient = cl[0]
+	var b: LobbyClient = cl[1]
+	var got: Array = []
+	b.matchmaking.load_progress.connect(func(l: Array) -> void: got.append(l.duplicate()))
+	a.matchmaking.report_load(40)
+	_step(0.2)
+	assert_int(got.size()).is_equal(1)
+	var loads: Array = got[-1]
+	var setup: Dictionary = _sup.requests[0]
+	assert_int(loads.size()).is_equal(setup.roster.size())
+	var a_seat := -1
+	for i in setup.roster.size():
+		if str(setup.roster[i].account) == _id(2):
+			a_seat = i
+		elif bool(setup.roster[i].bot):
+			assert_int(int(loads[i])).is_equal(100)  # bots are ready at once
+	assert_int(int(loads[a_seat])).is_equal(40)
+	a.matchmaking.report_load(20)  # lower: ignored, nothing relayed
+	a.matchmaking.report_load(40)
+	_step(0.2)
+	assert_int(got.size()).is_equal(1)
+	a.matchmaking.report_load(100)
+	_step(0.2)
+	assert_int(int(got[-1][a_seat])).is_equal(100)
+
+
+func test_load_progress_outside_a_running_match_is_refused() -> void:
+	_make_front()
+	var a := _client(2)
+	var fails: Array = []
+	a.matchmaking.request_failed.connect(func(op: int, code: int) -> void: fails.append([op, code]))
+	a.matchmaking.report_load(50)
+	_step(0.2)
+	assert_array(fails).contains([[MatchmakingCodec.OP_LOAD_PROGRESS, MatchmakingCodec.E_NOT_ALLOWED]])
+
+
+func test_select_chat_reaches_teammates_only_cleaned_and_rate_limited() -> void:
+	_make_front()
+	var cls: Array[LobbyClient] = []
+	for peer in range(2, 8):
+		cls.append(_client(peer))
+	var a := cls[0]
+	_acc.parties.invite(_id(2), _id(3), 0.0)
+	_acc.parties.accept(_id(3), _id(2), 0.0)
+	var fails: Array = []
+	a.matchmaking.request_failed.connect(func(op: int, code: int) -> void: fails.append([op, code]))
+	a.matchmaking.select_say("too early")  # not in hero select
+	_step(0.2)
+	assert_array(fails).contains([[MatchmakingCodec.OP_SELECT_CHAT, MatchmakingCodec.E_NOT_ALLOWED]])
+	for i in cls.size():
+		if i != 1:  # b is queued by its party leader a
+			cls[i].matchmaking.queue_join(&"all_random_3v3")
+	_step(0.5)
+	for cl in cls:
+		cl.matchmaking.ready_accept()
+	_step(0.5)
+	assert_bool(a.matchmaking.last_pick.is_empty()).is_false()
+	var got: Array = []
+	for cl in cls:
+		var lines: Array = []
+		got.append(lines)
+		cl.matchmaking.select_chat.connect(func(seat: int, text: String) -> void: lines.append([seat, text]))
+	var store := BlockStore.new()
+	_acc.store = store
+	a.matchmaking.select_say("gl\u202e hf\n")
+	_step(0.2)
+	var a_seat := int(a.matchmaking.last_pick.you)
+	var a_team := int(a.matchmaking.last_pick.seats[a_seat].team)
+	var mates := 0
+	for i in cls.size():
+		var mine: Dictionary = cls[i].matchmaking.last_pick
+		var mate := int(mine.seats[int(mine.you)].team) == a_team
+		mates += 1 if mate else 0
+		# Teammates (and the sender) get the cleaned line; enemies get nothing.
+		assert_array(got[i]).is_equal([[a_seat, "gl hf"]] if mate else [])
+	assert_int(mates).is_equal(3)
+	assert_array(got[1]).is_equal([[a_seat, "gl hf"]])  # the party mate is on a's team
+	store.blocks[_id(3)] = [_id(2)]  # b blocks a: b no longer gets a's lines
+	a.matchmaking.select_say("again")
+	_step(0.2)
+	assert_int((got[1] as Array).size()).is_equal(1)
+	assert_int((got[0] as Array).size()).is_equal(2)
+	for i in ChatFilter.BURST + 1:
+		a.matchmaking.select_say("spam %d" % i)
+	_step(0.2)
+	assert_array(fails).contains([[MatchmakingCodec.OP_SELECT_CHAT, MatchmakingCodec.E_RATE]])
+	_acc.store = null
 
 
 func test_busy_supervisor_retries_then_voids() -> void:

@@ -7,7 +7,7 @@ func test_shipped_rules_load_and_are_valid() -> void:
 	var r := MatchmakingRulesDef.load_default()
 	assert_array(Array(r.validate())).is_empty()
 	assert_int(r.queues.size()).is_equal(4)
-	assert_float(r.ready_check_s).is_equal(10.0)
+	assert_float(r.ready_check_s).is_equal(12.0)  # P3: 12 s (design consult 2026-10-06)
 	assert_array(Array(r.draft_order)).is_equal([1, 2, 2, 2, 2, 1])
 
 

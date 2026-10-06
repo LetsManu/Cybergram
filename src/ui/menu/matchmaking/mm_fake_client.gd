@@ -51,6 +51,15 @@ signal party_changed(party: Dictionary)
 signal custom_changed(lobby: Dictionary)
 ## A request failed: a HUD_MM_ERR_* key.
 signal failed(key: String)
+## P1: the server-side player state, as MmClientAdapter.phase_changed
+## (derived here from the fake's own signals, for the status bar).
+signal phase_changed(state: Dictionary)
+## P2: party chat (same interface as MmClientAdapter).
+signal party_chat_changed()
+## v20: loading percent per seat (pick-state seat order; bots 100).
+signal load_progress(loads: Array)
+## v20: the hero select team chat changed.
+signal select_chat_changed()
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
 ## W20-WEB public leaderboard opt-in: {public: bool, available: bool}
@@ -95,10 +104,40 @@ var _match_id: int = 1000
 var _remake: Dictionary = {}
 var _custom: Dictionary = {}
 var _my_hero: StringName = &""
+## v20 loading: [{id, bot}] of the last pick state, and the percent per seat.
+var _load_seats: Array = []
+var loads: Array = []
+## Seconds the fake players need to load (seat i takes load_s * (1 + i % 3) / 2).
+var load_s: float = 4.0
+var _assigned_at: float = 0.0
+
+
+var _phase_seq: int = 0
+var _phase_now: int = PhaseMachine.Player.IDLE
 
 
 func _init(rules_: MatchmakingRulesDef = null) -> void:
 	rules = rules_ if rules_ != null else MatchmakingRulesDef.load_default()
+	var P := PhaseMachine.Player
+	queue_changed.connect(func(st: Dictionary) -> void:
+		_emit_phase(P.QUEUED if st.state == &"queued" else P.IDLE, st))
+	match_found.connect(func(_i: Dictionary) -> void: _emit_phase(P.READY_CHECK))
+	ready_result.connect(func(r: Dictionary) -> void:
+		if r.outcome == &"go":
+			_emit_phase(P.CHAMP_SELECT))
+	match_assigned.connect(func(_i: Dictionary) -> void: _emit_phase(P.LOADING))
+	connection_lost.connect(func() -> void: _emit_phase(P.RECONNECTING))
+	post_match.connect(func(_r: Dictionary) -> void: _emit_phase(P.POST_GAME))
+
+
+func _emit_phase(ph: int, st: Dictionary = {}) -> void:
+	_phase_seq += 1
+	var prev := _phase_now
+	_phase_now = ph
+	phase_changed.emit({"epoch": 1, "seq": _phase_seq, "phase": ph, "prev": prev, "snap": 0,
+		"queue": 0, "party_size": 3, "leader": 1, "waited": int(st.get("waited_s", 0.0)),
+		"estimate": int(st.get("estimate_s", 0.0)), "locked": ceili(float(st.get("locked_s", 0.0))), "match": "",
+		"party": ""})
 
 
 # --- requests (the client API the screens call) -------------------------------
@@ -233,6 +272,7 @@ func set_leaderboard_public(on: bool) -> void:
 func custom_open() -> void:
 	sent.append({"op": &"custom_open"})
 	_custom = {"host": ME, "me": ME, "map": &"shardline_front", "mode": &"custom", "bots": true, "team_size": 5,
+		"bot_slots": [-1, -1], "difficulty": &"normal",
 		"maps": MatchmakingCodec.CUSTOM_MAPS.duplicate(), "modes": [&"custom", &"all_random"],
 		"members": [{"id": ME, "name": "You", "team": 0, "bot": false},
 			{"id": "p2", "name": NAMES[0], "team": 0, "bot": false},
@@ -259,6 +299,15 @@ func custom_invite(id: String) -> void:
 		custom_changed.emit(_custom.duplicate(true))
 
 
+func custom_bots(bots_a: int, bots_b: int, difficulty: StringName) -> void:
+	sent.append({"op": &"custom_bots", "bots": [bots_a, bots_b], "difficulty": difficulty})
+	if _custom.is_empty():
+		return
+	_custom.bot_slots = [bots_a, bots_b]
+	_custom.difficulty = difficulty
+	custom_changed.emit(_custom.duplicate(true))
+
+
 func custom_start() -> void:
 	sent.append({"op": &"custom_start"})
 	if _custom.is_empty():
@@ -266,6 +315,15 @@ func custom_start() -> void:
 	queue = MmView.Q_CUSTOM
 	phase = &"assigned"
 	match_assigned.emit(_assigned_info())
+
+
+## v20: own loading percent (like the server: only rising values count).
+func report_load(pct: int) -> void:
+	sent.append({"op": &"load", "pct": pct})
+	for i in _load_seats.size():
+		if str(_load_seats[i].id) == ME and pct > int(loads[i]):
+			loads[i] = clampi(pct, 0, 100)
+			load_progress.emit(loads.duplicate())
 
 
 # --- scripted world -----------------------------------------------------------
@@ -286,6 +344,8 @@ func step(delta: float) -> void:
 				_fail_ready(&"locked" if not _me_accepted else &"requeued")
 		&"pick":
 			_step_pick()
+		&"assigned":
+			_step_loads()
 	if not _remake.is_empty() and bool(_remake.open) and now >= float(_remake.deadline):
 		_remake.open = false
 		_remake.outcome = &"failed"
@@ -333,12 +393,63 @@ func finish_match(won: bool, voided := false) -> void:
 ## Test / preview: the party (names) beside you.
 func set_party(names: Array) -> void:
 	party = names.duplicate()
-	var members: Array = [{"id": ME, "name": "You", "leader": true, "me": true,
+	var members: Array = [{"id": ME, "name": "You", "leader": true, "me": true, "ready": bool(party_ready_of.get(ME, false)),
 		"rating_label": MmView.ranked_line(my_ranked, rules.calibration_games)}]
 	for i in party.size():
-		members.append({"id": "f%d" % i, "name": str(party[i]), "leader": false, "me": false,
+		members.append({"id": "f%d" % i, "name": str(party[i]), "leader": false, "me": false, "ready": i == 0,
 			"rating_label": "Silver IV · 1420" if i % 2 == 0 else "Gold I · 1515"})
 	party_changed.emit({"members": members, "leader": ME})
+
+
+## P2 preview / tests: party actions on the fake party.
+var party_chat: Array = []
+var party_ready_of: Dictionary = {}
+
+
+func party_promote(_id: String) -> void:
+	sent.append({"op": &"party_promote"})
+
+
+func party_kick(id: String) -> void:
+	sent.append({"op": &"party_kick", "id": id})
+
+
+func party_ready(on: bool) -> void:
+	party_ready_of[ME] = on
+	set_party(party)
+
+
+func party_leave() -> void:
+	set_party([])
+
+
+func party_say(text: String) -> void:
+	party_chat.append({"name": "You", "text": text, "mine": true})
+	party_chat_changed.emit()
+
+
+func party_chat_lines() -> Array:
+	return party_chat
+
+
+## v20 hero select team chat (the fake echoes like the server).
+var select_chat: Array = []
+
+
+func select_say(text: String) -> void:
+	sent.append({"op": &"select_chat", "text": text})
+	select_chat.append({"name": "You", "text": text, "mine": true})
+	select_chat_changed.emit()
+
+
+## Test / preview: a teammate writes in hero select.
+func teammate_says(name: String, text: String) -> void:
+	select_chat.append({"name": name, "text": text, "mine": false})
+	select_chat_changed.emit()
+
+
+func select_chat_lines() -> Array:
+	return select_chat
 
 
 ## Test / preview: you are locked out for `seconds`.
@@ -377,6 +488,7 @@ func _status(state: StringName) -> Dictionary:
 
 func _propose() -> void:
 	phase = &"found"
+	select_chat.clear()
 	_match_id += 1
 	_me_accepted = false
 	var size := 3 if queue == MmView.Q_ARAM else 5
@@ -490,6 +602,7 @@ func _emit_pick() -> void:
 			"turn": _draft.turn, "turn_team": _draft.turn_team, "order": rules.draft_order, "first_team": 1,
 			"deadline_s": maxf(0.0, _draft.deadline - now), "turn_s": rules.pick_turn_s,
 			"done": _draft.state != DraftSession.State.PICKING, "seats": seats})
+		_load_seats = seats
 	elif _aram != null:
 		var seats: Array = []
 		for t in 2:
@@ -505,13 +618,31 @@ func _emit_pick() -> void:
 			"turn_s": rules.all_random_s, "rerolls_left": int(_aram.rerolls_left.get(ME, 0)),
 			"bench": (_aram.bench[0] as Array).duplicate(), "seats": seats, "swap_requests": reqs,
 			"outgoing": _outgoing.duplicate()})
+		_load_seats = seats
 
 
 func _assigned_info() -> Dictionary:
+	_assigned_at = now
+	loads = _load_seats.map(func(st: Dictionary) -> int: return 100 if bool(st.bot) else 0)
 	return {"match_id": _match_id, "host": "127.0.0.1", "port": rules.match_port_first,
 		"ticket": "fake-ticket-%d-%d" % [_match_id, int(now * 1000.0)], "queue": queue,
 		"hero": _my_hero, "hero_index": MmView.hero_index(_my_hero),
 		"map": &"slice" if queue == MmView.Q_ARAM else &"shardline_front"}
+
+
+## The other players load at their own pace (rising in 10 % steps).
+func _step_loads() -> void:
+	var changed := false
+	for i in mini(_load_seats.size(), loads.size()):
+		var st: Dictionary = _load_seats[i]
+		if bool(st.bot) or str(st.id) == ME:
+			continue
+		var pct := clampi(floori((now - _assigned_at) / (load_s * (1 + i % 3) / 2.0) * 10.0) * 10, 0, 100)
+		if pct > int(loads[i]):
+			loads[i] = pct
+			changed = true
+	if changed:
+		load_progress.emit(loads.duplicate())
 
 
 func _remake_info() -> Dictionary:

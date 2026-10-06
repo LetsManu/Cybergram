@@ -12,7 +12,7 @@ extends RefCounted
 ## Field types: b = u8, u = u16, w = u32, d = signed i16 (rating deltas x10),
 ## i = account id (16 B, zeros = none / bot / hidden), s = str8 (<= 64 B),
 ## T = join ticket str8 (<= 255 B ASCII), S = seat list, H = u16 list,
-## R = ranked list, M = member list.
+## R = ranked list, M = member list, m = v20 chat text str8 (<= 240 B).
 ## Time on the wire is always "seconds left" (no shared clock).
 ## Heroes are ContentDB HERO indices (u16, 0 = none); lanes are LANE_* (u8).
 
@@ -37,6 +37,11 @@ const OP_CUSTOM_TEAM: int = 17       ## switch team
 const OP_CUSTOM_PICK: int = 18       ## pick a hero in a custom lobby
 const OP_CUSTOM_START: int = 19      ## host: start the custom match
 const OP_REJOIN: int = 20            ## reconnect: ask for a fresh ticket to the own running match
+const OP_STATE_SYNC: int = 21        ## v20: ask for a full PHASE snapshot (after a reconnect)
+const OP_HOVER: int = 22             ## v20: declare a hero (pick or ban phase; hero 0 clears)
+const OP_CUSTOM_BOTS: int = 23       ## v20: host: bots per team (255 = fill) and bot difficulty
+const OP_LOAD_PROGRESS: int = 24     ## v20: own match loading progress, percent (only rises)
+const OP_SELECT_CHAT: int = 25       ## v20: hero select team chat line (own team only, never stored)
 
 ## S->C ops.
 const EV_QUEUE_STATUS: int = 1
@@ -50,6 +55,9 @@ const EV_REMAKE_STATE: int = 8
 const EV_MATCH_RESULT: int = 9
 const EV_CUSTOM_STATE: int = 10
 const EV_ACK: int = 11               ## answer to a request: code = OK or an error
+const EV_PHASE: int = 12             ## v20: the player's state machine (PhaseMachine.Player), versioned
+const EV_LOAD_PROGRESS: int = 13     ## v20: every seat's loading percent (seat order; bots 100)
+const EV_SELECT_CHAT: int = 14       ## v20: a teammate's hero select chat line (seat index, cleaned text)
 
 const REQ_SCHEMA := {
 	OP_QUEUE_JOIN: [["queue", "b"], ["lane1", "b"], ["lane2", "b"]],
@@ -72,6 +80,11 @@ const REQ_SCHEMA := {
 	OP_CUSTOM_PICK: [["hero", "u"]],
 	OP_CUSTOM_START: [],
 	OP_REJOIN: [],
+	OP_STATE_SYNC: [],
+	OP_HOVER: [["hero", "u"]],
+	OP_CUSTOM_BOTS: [["bots_a", "b"], ["bots_b", "b"], ["difficulty", "b"]],
+	OP_LOAD_PROGRESS: [["pct", "b"]],
+	OP_SELECT_CHAT: [["text", "m"]],
 }
 
 const EVT_SCHEMA := {
@@ -83,9 +96,11 @@ const EVT_SCHEMA := {
 	## outcome RR_*, lockout seconds left (when locked).
 	EV_READY_RESULT: [["outcome", "b"], ["locked", "u"]],
 	## mode PM_*, turn, turn team, seconds left, own seat index, seats, own rerolls,
-	## own team bench (heroes), seats asking you to swap.
+	## own team bench (heroes), seats asking you to swap (draft: trade offers),
+	## v20: stage PS_*, banned heroes (after the ban phase), trade seconds left.
 	EV_PICK_STATE: [["mode", "b"], ["turn", "b"], ["turn_team", "b"], ["seconds", "u"], ["you", "b"],
-		["seats", "S"], ["rerolls", "b"], ["bench", "H"], ["swap_from", "H"]],
+		["seats", "S"], ["rerolls", "b"], ["bench", "H"], ["swap_from", "H"], ["stage", "b"], ["bans", "H"],
+		["trade_s", "u"]],
 	EV_MATCH_ASSIGNED: [["host", "s"], ["port", "u"], ["ticket", "T"], ["match", "s"], ["team", "b"],
 		["hero", "u"], ["map", "s"]],
 	EV_RANKED_INFO: [["tracks", "R"]],
@@ -96,9 +111,21 @@ const EVT_SCHEMA := {
 	## won/lost from your side, void, duration, rated, own rating delta x10, players (stats).
 	EV_MATCH_RESULT: [["match", "s"], ["queue", "b"], ["won", "b"], ["voided", "b"], ["duration", "u"],
 		["rated", "b"], ["delta", "d"], ["players", "M"]],
+	## v20: bots per team (255 = fill the empty seats) and BOT_DIFFICULTIES index.
 	EV_CUSTOM_STATE: [["host", "i"], ["phase", "b"], ["map", "b"], ["mode", "b"], ["bots", "b"],
-		["team_size", "b"], ["members", "M"]],
+		["team_size", "b"], ["members", "M"], ["bots_a", "b"], ["bots_b", "b"], ["difficulty", "b"]],
 	EV_ACK: [["req", "b"]],
+	## server epoch (start time), sequence (grows per player), phase and previous
+	## phase (PhaseMachine.Player), snapshot flag (1 = full state, accept even
+	## with a lower seq), queue index (255 none), party size, you lead (1),
+	## seconds queued, estimate, lockout seconds left, match id, party id.
+	EV_PHASE: [["epoch", "w"], ["seq", "w"], ["phase", "b"], ["prev", "b"], ["snap", "b"], ["queue", "b"],
+		["party_size", "b"], ["leader", "b"], ["waited", "u"], ["estimate", "u"], ["locked", "u"], ["match", "s"],
+		["party", "s"]],
+	## v20: loading percent per seat, in EV_PICK_STATE seat order (0-100).
+	EV_LOAD_PROGRESS: [["loads", "H"]],
+	## v20: seat index (EV_PICK_STATE order) and the server-cleaned text.
+	EV_SELECT_CHAT: [["seat", "b"], ["text", "m"]],
 }
 ## Events whose fields travel with any code (the code is an error detail).
 const ALWAYS_FIELDS := [EV_QUEUE_STATUS, EV_READY_RESULT, EV_ACK]
@@ -124,7 +151,8 @@ const E_DUPLICATE: int = 16
 const E_BUSY: int = 17         ## no match server free right now
 const E_DRAINING: int = 18     ## the server is restarting for a patch
 const E_TOO_LATE: int = 19     ## remake window over
-const CODE_COUNT: int = 20
+const E_RATE: int = 20         ## v20: sending too fast (hero select chat)
+const CODE_COUNT: int = 21
 
 ## Queue status states.
 const QS_IDLE: int = 0
@@ -145,6 +173,11 @@ const RR_VOIDED: int = 4     ## match server lost before or during the match: re
 const PM_DRAFT: int = 0
 const PM_ALL_RANDOM: int = 1
 const PM_CUSTOM: int = 2
+const PM_BLIND: int = 3       ## v20: Normal 5v5 blind pick (enemy picks hidden until all locked)
+## v20 pick stages (EV_PICK_STATE stage).
+const PS_PICK: int = 0
+const PS_BAN: int = 1
+const PS_FINALIZE: int = 2
 
 ## Lanes (LaneAssigner ids).
 const LANES: Array[StringName] = [&"north", &"center", &"south", &"flex"]
@@ -156,6 +189,8 @@ const SEAT_AUTO: int = 2     ## hero chosen on timeout / dealt
 const SEAT_PICKING: int = 4  ## this seat picks now
 const SEAT_YOU: int = 8
 const SEAT_PICKED: int = 16
+const SEAT_HOVER: int = 32   ## v20: `hero` is the seat's declared (not locked) hero; allies only
+const SEAT_BANNING: int = 64 ## v20: this seat bans now; `hero` = its ban (own team only)
 
 ## Member flags (custom lobby, match result).
 const MEM_BOT: int = 1
@@ -178,6 +213,10 @@ const TRACKS: Array[StringName] = [&"normal", &"ranked", &"all_random"]
 const RATING_HIDDEN: int = 0xFFFF
 
 ## Custom lobby phases.
+## v20 custom-game bot difficulty (BotRosterDef profiles), by index.
+const BOT_DIFFICULTIES: Array[String] = ["easy", "normal", "hard"]
+## v20: bots_a / bots_b value meaning "fill every empty seat".
+const BOTS_FILL: int = 255
 const CP_OPEN: int = 0
 const CP_STARTING: int = 1
 const CP_CLOSED: int = 2
@@ -186,6 +225,7 @@ const CP_CLOSED: int = 2
 const CUSTOM_MAPS: Array[StringName] = [&"shardline_front", &"slice"]
 
 const STR_MAX: int = 64
+const CHAT_MAX: int = 240  ## v20: "m" fields (LobbyCodec.CHAT_MAX_BYTES)
 const TICKET_MAX: int = 255
 const MAX_SEATS: int = 10
 const MAX_LIST: int = 16
@@ -272,6 +312,8 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 				w.id(str(v) if v != null else "")
 			"s":
 				w.str8(str(v) if v != null else "", STR_MAX)
+			"m":
+				w.str8(str(v) if v != null else "", CHAT_MAX)
 			"T":
 				var t := str(v) if v != null else ""
 				w.str8(t if t.length() <= TICKET_MAX else "", TICKET_MAX)
@@ -337,6 +379,8 @@ static func _read(r: LobbyCodec.Reader, schema: Array) -> Dictionary:
 				d[field[0]] = r.id()
 			"s":
 				d[field[0]] = r.str8(STR_MAX)
+			"m":
+				d[field[0]] = r.str8(CHAT_MAX)
 			"T":
 				d[field[0]] = r.str8(TICKET_MAX)
 			"H":

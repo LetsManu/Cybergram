@@ -705,12 +705,12 @@ HUD_MODE_CTA_START,START
 HUD_MODE_CTA_PRACTICE,ENTER RANGE
 HUD_MODE_CTA_TUTORIAL,START TUTORIAL
 HUD_PATCH_TITLE,PATCH %s — WHAT'S NEW
-HUD_PATCH_1_TITLE,Real sound and music
-HUD_PATCH_1_SUB,"Every weapon and skill, match music and announcer cues"
-HUD_PATCH_2_TITLE,Password recovery
-HUD_PATCH_2_SUB,"A one-time recovery code; Forgot password? in game and launcher"
-HUD_PATCH_3_TITLE,Find the Armory
-HUD_PATCH_3_SUB,"Ring, beacon, minimap icon and a direction arrow"
+HUD_PATCH_1_TITLE,Hero select like the big leagues
+HUD_PATCH_1_SUB,"Hover, blind pick, trades, team chat and ability preview"
+HUD_PATCH_2_TITLE,Party and friends
+HUD_PATCH_2_SUB,"Messages, party chat, Ask to join, presence with the mode"
+HUD_PATCH_3_TITLE,Custom games and loading
+HUD_PATCH_3_SUB,"Bots per team and difficulty; see everyone load in"
 HUD_FRIENDS_SEARCH_HINT,Search or add by name
 HUD_FRIENDS_N_ONLINE,%d online
 HUD_FRIENDS_OFFLINE_N,Offline · %d
@@ -739,7 +739,7 @@ HUD_RING_OUTSIDE,OUTSIDE THE RING
 HUD_RING_RETURN,Return to the plaza
 HUD_MM_PLAY_EYEBROW,Choose your queue
 HUD_MM_Q_NORMAL,Normal 5v5
-HUD_MM_Q_NORMAL_DESC,"Shardline Front, alternating draft. Hidden rating; bots fill empty seats after a wait."
+HUD_MM_Q_NORMAL_DESC,"Shardline Front, blind pick. Hidden rating; bots fill empty seats after a wait."
 HUD_MM_Q_RANKED,Ranked 5v5
 HUD_MM_Q_RANKED_DESC,"Shardline Front, alternating draft. Visible rating and medals. Real players only."
 HUD_MM_Q_ARAM,3v3 All Random
@@ -999,3 +999,76 @@ HUD_ANN_TRIPLE_KILL,TRIPLE KILL
 HUD_ANN_DOUBLE_KILL,DOUBLE KILL
 HUD_ANN_FIRST_BLOOD,FIRST BLOOD
 HUD_ANN_THIRTY_SECONDS,30 SECONDS UNTIL THE MIDS OPEN
+HUD_MMS_CONN_CONNECTING,Connecting…
+HUD_MMS_CONN_ONLINE,Online
+HUD_MMS_CONN_LOST,Connection lost
+HUD_MMS_PH_OFFLINE,Offline
+HUD_MMS_PH_IDLE,In the menu
+HUD_MMS_PH_PARTY,In a party
+HUD_MMS_PH_QUEUED,In queue
+HUD_MMS_PH_READY,Match found
+HUD_MMS_PH_SELECT,Hero select
+HUD_MMS_PH_LOADING,Loading the match
+HUD_MMS_PH_INGAME,In a match
+HUD_MMS_PH_POST,Match over
+HUD_MMS_PH_RECONNECT,Reconnecting
+HUD_MMS_LOCKED,Queue locked: %s
+HUD_MMS_HINT_NO_SERVER,"The server does not answer. Check your internet connection, or try again later."
+HUD_MMS_HINT_NO_STATE,"The server has not sent your status yet. Asking again…"
+HUD_MMS_HINT_RECONNECTING,"Connection lost. Your place is kept for a short time while the game reconnects."
+HUD_MMS_HINT_LONG_WAIT,"This wait is longer than usual: few players are queued. You can keep waiting or leave the queue."
+HUD_MMS_HINT_LOADING_SLOW,"The match server is slow to start. If it does not start, everyone goes back to the queue."
+HUD_MMS_HINT_LOCKED,You declined or left a match recently. You can queue again when the timer ends.
+HUD_MMS_DIAG,Diagnostics
+HUD_MMS_DIAG_TITLE,Recent network events
+HUD_MMS_COPY,Copy
+HUD_MMS_COPIED,Copied. Paste it into your bug report.
+HUD_MMS_CLOSE,Close
+HUD_MM_BAN_TITLE,Ban a hero
+HUD_MM_BAN_LOCK,BAN
+HUD_MM_BAN_DONE,BAN LOCKED
+HUD_MM_BANS,Banned: %s
+HUD_MM_BLIND_TITLE,Pick your hero
+HUD_MM_BLIND_SUB,Blind pick: everyone picks at once. Enemy picks show when everyone has locked in.
+HUD_MM_TRADES_OPEN,Everyone is locked in. You can trade heroes with a teammate before the countdown.
+HUD_MM_SEAT_HOVER,Wants %s
+HUD_MM_SEAT_BAN,Bans %s
+HUD_MM_TRADE_OFFER,Trade with %s
+HUD_MM_TRADE_ACCEPT,Accept: %s offers %s
+HUD_FRIENDS_IN_QUEUE,In queue
+HUD_FRIENDS_IN_SELECT,Hero select
+HUD_FRIENDS_AWAY,Away
+HUD_FRIENDS_GROUP_QUEUE,IN QUEUE
+HUD_FRIENDS_GROUP_SELECT,HERO SELECT
+HUD_FRIENDS_GROUP_AWAY,AWAY
+HUD_SOCIAL_MESSAGE,Message
+HUD_SOCIAL_INVITE,Invite
+HUD_SOCIAL_ASK_JOIN,Ask to join
+HUD_SOCIAL_JOIN_ASKED,Asked to join. Their party leader decides.
+HUD_SOCIAL_GROUP_INVITES,PARTY INVITES
+HUD_SOCIAL_INVITE_FROM,%s invited you to a party
+HUD_SOCIAL_GROUP_JOIN,WANT TO JOIN
+HUD_SOCIAL_WANTS_JOIN,%s wants to join your party
+HUD_SOCIAL_INVITED_BY,%s invited you to a party
+HUD_SOCIAL_FRIEND_REQUEST,%s sent you a friend request
+HUD_SOCIAL_DM_FROM,New message from %s
+HUD_SOCIAL_DM_OFFLINE,Not delivered: your friend is offline. Messages are not stored.
+HUD_SOCIAL_SLOW_DOWN,You are sending too fast. Wait a moment.
+HUD_SOCIAL_KICKED,The party leader removed you from the party.
+HUD_SOCIAL_TYPE,Type a message…
+HUD_SOCIAL_SEND,Send
+HUD_SOCIAL_READY,READY
+HUD_SOCIAL_READY_SET,Ready
+HUD_SOCIAL_READY_CLEAR,Not ready
+HUD_SOCIAL_LEAVE,Leave
+HUD_SOCIAL_PROMOTE,Lead
+HUD_SOCIAL_KICK,Kick
+HUD_MM_BOT_EASY,Easy
+HUD_MM_BOT_NORMAL,Normal
+HUD_MM_BOT_HARD,Hard
+HUD_MM_BOTS_FILL,Fill
+HUD_MM_BOT_SLOT,Bot · %s
+HUD_MM_SEAT_OPEN,Open slot
+HUD_MM_LOADING_MAP,Loading the map…
+HUD_MM_TEAM_CHAT,Team chat
+HUD_MM_ULTIMATE,Ultimate

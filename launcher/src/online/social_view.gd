@@ -9,7 +9,12 @@ extends VBoxContainer
 
 const FRIENDS_EVERY_S: float = 15.0
 const PARTY_EVERY_S: float = 5.0
-const STATUS_TEXT: Array[String] = ["Offline", "Online", "In lobby", "In match"]
+## Indexed by LobbyCodec.STATUS_* (v20: in queue, hero select, away).
+const STATUS_TEXT: Array[String] = ["Offline", "Online", "In lobby", "In match", "In queue", "Hero select", "Away"]
+## Sort / group rank per status (busy first, away and offline last).
+const STATUS_RANK: Array[int] = [0, 3, 4, 7, 5, 6, 1]
+## Queue names by MatchmakingClient queue index (v20 presence mode).
+const QUEUE_NAMES: Array[String] = ["Normal", "Ranked", "3v3", "Custom"]  # short: the rail is narrow
 
 var login: LauncherLogin
 ## Last OP_FRIENDS list and OP_PARTY state.
@@ -28,6 +33,9 @@ var _add_row: HBoxContainer
 var _add_edit: LineEdit
 var _msg: Label
 var _leave: Button
+## Local time the last OP_PARTY arrived (invite countdowns count from it).
+var _party_at: float = 0.0
+var _tick: float = 0.0
 
 
 func _ready() -> void:
@@ -103,6 +111,11 @@ func _process(delta: float) -> void:
 		_paint()
 	if not now_in or not is_visible_in_tree():
 		return
+	_tick += delta
+	if _tick >= 1.0:
+		_tick = 0.0
+		if not (party_rows(party).invites_in as Array).is_empty():
+			_paint()  # v20: the invite countdown
 	_since_f += delta
 	_since_p += delta
 	if _since_f >= FRIENDS_EVERY_S:
@@ -125,7 +138,17 @@ func on_result(d: Dictionary) -> void:
 		AccountCodec.OP_PARTY:
 			if ok:
 				party = d
+				_party_at = Time.get_ticks_msec() / 1000.0
 				_paint()
+		AccountCodec.OP_NOTIFY:
+			if ok:
+				var text := notify_text(d)
+				if text != "":
+					_note(text)
+				_since_p = PARTY_EVERY_S
+				_since_f = FRIENDS_EVERY_S
+		AccountCodec.OP_PARTY_JOIN_REQUEST:
+			_note("Asked to join. Their party leader decides." if ok else action_text(op, int(d.code)))
 		AccountCodec.OP_FRIEND_REQUEST, AccountCodec.OP_FRIEND_ACCEPT, AccountCodec.OP_FRIEND_DECLINE, \
 				AccountCodec.OP_FRIEND_REMOVE, AccountCodec.OP_BLOCK, AccountCodec.OP_UNBLOCK:
 			_note(action_text(op, int(d.code)))
@@ -160,6 +183,37 @@ static func action_text(op: int, code: int) -> String:
 	return "That did not work (code %d)." % code
 
 
+## v20: the note for a server push (chat and DMs are read in the game, not here).
+static func notify_text(d: Dictionary) -> String:
+	var name := String(d.get("name", ""))
+	match int(d.get("kind", 0)):
+		AccountCodec.N_PARTY_INVITE:
+			return "%s invited you to a party." % name
+		AccountCodec.N_FRIEND_REQUEST:
+			return "%s sent you a friend request." % name
+		AccountCodec.N_JOIN_REQUEST:
+			return "%s wants to join your party. Invite them with +." % name
+		AccountCodec.N_KICKED:
+			return "The party leader removed you from the party."
+		AccountCodec.N_DM:
+			return "New message from %s (open the game to reply)." % name
+	return ""
+
+
+## v20: "In queue · Ranked 5v5" for a friend (mode only while queued / picking / playing).
+static func status_line(e: Dictionary) -> String:
+	var st := clampi(int(e.get("status", 0)), 0, STATUS_TEXT.size() - 1)
+	var line := STATUS_TEXT[st]
+	var mode := int(e.get("mode", 255))
+	if mode < QUEUE_NAMES.size() and st in [LobbyCodec.STATUS_IN_QUEUE, LobbyCodec.STATUS_IN_SELECT, LobbyCodec.STATUS_IN_MATCH]:
+		line += " · " + QUEUE_NAMES[mode]
+	return line
+
+
+static func rank(status: int) -> int:
+	return STATUS_RANK[clampi(status, 0, STATUS_RANK.size() - 1)]
+
+
 ## {friends, incoming, outgoing, blocked}; friends sorted by presence then name.
 static func group(list: Array) -> Dictionary:
 	var g: Dictionary = {"friends": [], "incoming": [], "outgoing": [], "blocked": []}
@@ -169,8 +223,8 @@ static func group(list: Array) -> Dictionary:
 		if r >= 0 and r < keys.size():
 			(g[keys[r]] as Array).append(e)
 	(g.friends as Array).sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		if int(a.status) != int(b.status):
-			return int(a.status) > int(b.status)
+		if rank(int(a.status)) != rank(int(b.status)):
+			return rank(int(a.status)) > rank(int(b.status))
 		return String(a.display_name).naturalnocasecmp_to(String(b.display_name)) < 0)
 	return g
 
@@ -198,18 +252,21 @@ func show_sample(with_invite: bool) -> void:
 	var me := {"id": "a".repeat(32), "kind": AccountCodec.PARTY_LEADER, "status": 1, "display_name": "Djboeck", "emblem": 0, "accent": 0}
 	friends = [
 		{"id": "1".repeat(32), "status": LobbyCodec.STATUS_IN_MATCH, "relation": 0, "username": "", "display_name": "Mira", "emblem": 0, "accent": 0},
-		{"id": "2".repeat(32), "status": LobbyCodec.STATUS_IN_LOBBY, "relation": 0, "username": "", "display_name": "Kestrel", "emblem": 0, "accent": 0},
+		{"id": "2".repeat(32), "status": LobbyCodec.STATUS_IN_SELECT, "mode": 1, "relation": 0, "username": "", "display_name": "Kestrel", "emblem": 0, "accent": 0},
+		{"id": "6".repeat(32), "status": LobbyCodec.STATUS_IN_QUEUE, "mode": 0, "relation": 0, "username": "", "display_name": "Talia", "emblem": 0, "accent": 0},
 		{"id": "3".repeat(32), "status": LobbyCodec.STATUS_ONLINE, "relation": 0, "username": "", "display_name": "Juno", "emblem": 0, "accent": 0},
+		{"id": "7".repeat(32), "status": LobbyCodec.STATUS_AWAY, "relation": 0, "username": "", "display_name": "Brin", "emblem": 0, "accent": 0},
 		{"id": "4".repeat(32), "status": LobbyCodec.STATUS_OFFLINE, "relation": 0, "username": "", "display_name": "Oskar", "emblem": 0, "accent": 0},
 		{"id": "5".repeat(32), "status": 0, "relation": 1, "username": "", "display_name": "Vex", "emblem": 0, "accent": 0},
 	]
 	var members: Array = [me]
 	if with_invite:
-		members = [{"id": "2".repeat(32), "kind": AccountCodec.PARTY_INVITE_IN, "status": 2, "display_name": "Kestrel", "emblem": 0, "accent": 0}]
+		members = [{"id": "2".repeat(32), "kind": AccountCodec.PARTY_INVITE_IN, "status": 2, "display_name": "Kestrel", "emblem": 0, "accent": 0, "expires": 102}]
 	else:
-		members.append({"id": "3".repeat(32), "kind": AccountCodec.PARTY_MEMBER, "status": 1, "display_name": "Juno", "emblem": 0, "accent": 0})
+		members.append({"id": "3".repeat(32), "kind": AccountCodec.PARTY_MEMBER, "status": 1, "display_name": "Juno", "emblem": 0, "accent": 0, "flags": AccountCodec.PF_READY})
 		members.append({"id": "1".repeat(32), "kind": AccountCodec.PARTY_INVITE_OUT, "status": 3, "display_name": "Mira", "emblem": 0, "accent": 0})
 	party = {"party": "p".repeat(0), "leader": me.id, "members": members}
+	_party_at = Time.get_ticks_msec() / 1000.0
 	if with_invite:
 		_note("Kestrel invited you to a party.")
 	_paint()
@@ -236,14 +293,21 @@ func _paint() -> void:
 		_party_box.add_child(UiKit.label("Not in a party. Invite a friend with +.", &"small", t.text_off))
 	for e: Dictionary in pr.members:
 		var lead: bool = int(e.kind) == AccountCodec.PARTY_LEADER
-		_party_box.add_child(_row(e, "LEADER" if lead else "", [], []))
+		var tags: Array[String] = []
+		if lead:
+			tags.append("LEADER")
+		if int(e.get("flags", 0)) & AccountCodec.PF_READY != 0:
+			tags.append("READY")
+		_party_box.add_child(_row(e, " · ".join(tags), [], []))
 	for e: Dictionary in pr.invites_out:
-		_party_box.add_child(_row(e, "INVITED", [], []))
+		_party_box.add_child(_row(e, "INVITED" + _left(e), [], []))
 	for e: Dictionary in pr.invites_in:
-		_party_box.add_child(_row(e, "INVITES YOU", ["JOIN", func() -> void: _send(AccountCodec.OP_PARTY_ACCEPT, {"id": e.id})],
+		if e.has("expires") and _left_s(e) <= 0:
+			continue  # expired: gone at the next refresh
+		_party_box.add_child(_row(e, "INVITES YOU" + _left(e), ["JOIN", func() -> void: _send(AccountCodec.OP_PARTY_ACCEPT, {"id": e.id})],
 			[["Decline the invite", func() -> void: _send(AccountCodec.OP_PARTY_DECLINE, {"id": e.id})]]))
 	var g: Dictionary = group(friends)
-	var online: int = (g.friends as Array).filter(func(e: Dictionary) -> bool: return int(e.status) >= LobbyCodec.STATUS_ONLINE).size()
+	var online: int = (g.friends as Array).filter(func(e: Dictionary) -> bool: return int(e.status) != LobbyCodec.STATUS_OFFLINE).size()
 	_friends_head.text = "FRIENDS  %d/%d ONLINE" % [online, (g.friends as Array).size()]
 	var in_party: Array = (pr.members as Array).map(func(e: Dictionary) -> String: return String(e.id)) \
 		+ (pr.invites_out as Array).map(func(e: Dictionary) -> String: return String(e.id))
@@ -253,10 +317,13 @@ func _paint() -> void:
 			["Block", func() -> void: _send(AccountCodec.OP_BLOCK, {"id": e.id})]]))
 	for e: Dictionary in g.friends:
 		var primary: Array = []
-		if int(e.status) >= LobbyCodec.STATUS_ONLINE and not in_party.has(String(e.id)):
+		var busy: bool = int(e.status) in [LobbyCodec.STATUS_IN_QUEUE, LobbyCodec.STATUS_IN_SELECT, LobbyCodec.STATUS_IN_MATCH]
+		# Busy friends keep the invite in the "..." menu: the status line needs the room.
+		if int(e.status) != LobbyCodec.STATUS_OFFLINE and not busy and not in_party.has(String(e.id)):
 			primary = ["+ PARTY", func() -> void: _send(AccountCodec.OP_PARTY_INVITE, {"id": e.id})]
-		_friends_box.add_child(_row(e, STATUS_TEXT[clampi(int(e.status), 0, 3)], primary,
+		_friends_box.add_child(_row(e, status_line(e), primary,
 			[["Invite to party", func() -> void: _send(AccountCodec.OP_PARTY_INVITE, {"id": e.id})],
+			["Ask to join their party", func() -> void: _send(AccountCodec.OP_PARTY_JOIN_REQUEST, {"id": e.id})],
 			["Remove friend", func() -> void: _send(AccountCodec.OP_FRIEND_REMOVE, {"id": e.id})],
 			["Block", func() -> void: _send(AccountCodec.OP_BLOCK, {"id": e.id})]]))
 	for e: Dictionary in g.outgoing:
@@ -271,13 +338,13 @@ func _paint() -> void:
 ## ([text, Callable] or []) and a "..." menu of [text, Callable] items.
 func _row(e: Dictionary, sub: String, primary: Array, menu: Array) -> Control:
 	var t: UiKitTokens = UiKit.tokens()
-	var cols: Array = [t.text_off, t.ok, t.cyan, t.in_match]
+	var cols: Array = [t.text_off, t.ok, t.cyan, t.in_match, t.accent_hi, t.accent, t.warn]
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	var dot: ColorRect = ColorRect.new()
 	dot.custom_minimum_size = Vector2(7, 7)
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	dot.color = cols[clampi(int(e.get("status", 0)), 0, 3)]
+	dot.color = cols[clampi(int(e.get("status", 0)), 0, cols.size() - 1)]
 	row.add_child(dot)
 	var v: VBoxContainer = VBoxContainer.new()
 	v.add_theme_constant_override("separation", -2)
@@ -293,6 +360,8 @@ func _row(e: Dictionary, sub: String, primary: Array, menu: Array) -> Control:
 		s.add_theme_font_size_override("font_size", 11)
 		s.clip_text = true
 		s.custom_minimum_size.x = 40
+		s.tooltip_text = sub  # the full line when it is clipped
+		s.mouse_filter = Control.MOUSE_FILTER_PASS
 		v.add_child(s)
 	if not primary.is_empty():
 		row.add_child(_small_link(String(primary[0]), primary[1]))
@@ -309,6 +378,18 @@ func _row(e: Dictionary, sub: String, primary: Array, menu: Array) -> Control:
 		pm.id_pressed.connect(func(id: int) -> void: (menu[id][1] as Callable).call())
 		row.add_child(mb)
 	return row
+
+
+func _left_s(e: Dictionary) -> int:
+	return ceili(float(e.get("expires", 0)) - (Time.get_ticks_msec() / 1000.0 - _party_at))
+
+
+## " · 1:42" for an invite with a server expiry ("" without).
+func _left(e: Dictionary) -> String:
+	if not e.has("expires"):
+		return ""
+	var s := maxi(0, _left_s(e))
+	return " · %d:%02d" % [s / 60, s % 60]
 
 
 func _small_link(text: String, cb: Callable) -> Button:

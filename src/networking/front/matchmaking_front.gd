@@ -36,6 +36,8 @@ const DAY: float = 86400.0
 const ALLOCATE_RETRY_S := 2.0
 ## Map ids of the queues -> the game's --map names.
 const MAP_NAMES := {&"shardline_front": "front", &"slice": "slice"}
+## Events kept for the admin page (P1).
+const EVENTS_MAX := 200
 
 
 class Match:
@@ -61,6 +63,11 @@ class Match:
 	var leavers: Dictionary = {}
 	var gone_since: Dictionary = {}
 	var pick_sig: String = ""
+	## v20 custom games: bot profile and "the roster's bots are all the bots".
+	var bot_difficulty: String = "normal"
+	var bot_limits: bool = false
+	## v20: loading percent per seat (seat order; bots 100), reported by the clients.
+	var loads: Array = []
 
 
 var transport: Transport
@@ -83,6 +90,11 @@ var log_fn: Callable = func(line: String) -> void: print(line)
 var setup_rules: Dictionary = {}
 ## Testing only (CYBERGRAM_RATE_GUESTS): keep guest ratings in the store.
 var rate_guests: bool = false
+## P1: player / party / lobby state machines (FrontPhases), metrics, last events.
+var phases: FrontPhases
+var metrics := OpsMetrics.new()
+var events: Array = []
+var started_at: float = 0.0
 
 var _matches: Dictionary = {}        # match id -> Match
 var _account_match: Dictionary = {}  # account id -> Match
@@ -92,6 +104,7 @@ var _recent: Dictionary = {}         # match id -> {participants, names, until}
 var _customs: Dictionary = {}        # host id -> custom lobby
 var _custom_of: Dictionary = {}      # member id -> host id
 var _last_strike: Dictionary = {}    # account id -> unix time of the last strike
+var _chat_rate: Dictionary = {}      # account id -> ChatFilter.RateLimiter (hero select chat)
 var _since_status: float = 0.0
 var _last_housekeeping: float = -1.0e12
 var _last_now: float = 0.0
@@ -114,6 +127,9 @@ func _init(t: Transport, accounts_: AccountService, supervisor_: Variant, rating
 	lockouts = LockoutTracker.new(rules)
 	matchmaker = Matchmaker.new(rules, lockouts)
 	_rng.randomize()
+	started_at = now()
+	phases = FrontPhases.new(self, int(started_at))
+	_describe_metrics()
 	_load_lockouts()
 	if supervisor != null:
 		supervisor.match_started.connect(_on_match_started)
@@ -122,6 +138,7 @@ func _init(t: Transport, accounts_: AccountService, supervisor_: Variant, rating
 		supervisor.abandon_reported.connect(_on_abandon)
 	if accounts != null:
 		accounts.account_deleted.connect(erase_account)
+		accounts.presence_fn = phases.presence_of  # P2: friends see queue / hero select / in game
 
 
 func now() -> float:
@@ -168,10 +185,19 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 				_ack(peer, op, MatchmakingCodec.E_NOT_FOUND)
 		MatchmakingCodec.OP_CUSTOM_CREATE, MatchmakingCodec.OP_CUSTOM_INVITE, MatchmakingCodec.OP_CUSTOM_JOIN, \
 				MatchmakingCodec.OP_CUSTOM_LEAVE, MatchmakingCodec.OP_CUSTOM_TEAM, MatchmakingCodec.OP_CUSTOM_PICK, \
-				MatchmakingCodec.OP_CUSTOM_START:
+				MatchmakingCodec.OP_CUSTOM_START, MatchmakingCodec.OP_CUSTOM_BOTS:
 			_custom(peer, who, r, t)
 		MatchmakingCodec.OP_REMAKE_VOTE:
 			_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)  # in-match only (the match process)
+		MatchmakingCodec.OP_STATE_SYNC:
+			phases.resync(me, t)
+		MatchmakingCodec.OP_HOVER:
+			_hover(peer, me, int(r.hero), t)
+		MatchmakingCodec.OP_LOAD_PROGRESS:
+			_load_progress(peer, me, int(r.pct))
+		MatchmakingCodec.OP_SELECT_CHAT:
+			_select_chat(peer, me, str(r.text), t)
+	phases.sync(t)
 	return true
 
 
@@ -233,7 +259,9 @@ func _queue_join(_peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 	for id in members:
 		_queued[str(id)] = members.duplicate()
 		_away_since.erase(str(id))
+		phases.end_post_game(str(id))
 		_send_status(str(id))
+	metrics.inc("cybergram_queue_joins_total", {"queue": String(q.id)})
 	_log("[front] queue %s: party of %d joined" % [q.id, members.size()])
 
 
@@ -271,22 +299,53 @@ func _pick(peer: int, me: String, hero_index: int, t: float) -> void:
 		_ack(peer, MatchmakingCodec.OP_PICK, MatchmakingCodec.E_NOT_ALLOWED)
 		return
 	var hero := _hero_id(hero_index)
-	var e := m.draft.pick(me, hero, t)
-	var code := MatchmakingCodec.OK
-	match e:
-		DraftSession.Err.E_TAKEN:
-			code = MatchmakingCodec.E_TAKEN
-		DraftSession.Err.E_UNKNOWN_HERO:
-			code = MatchmakingCodec.E_BAD_REQUEST
-		DraftSession.Err.E_NOT_YOUR_TURN, DraftSession.Err.E_CLOSED:
-			code = MatchmakingCodec.E_NOT_ALLOWED
-	_ack(peer, MatchmakingCodec.OP_PICK, code)
+	var e := m.draft.ban(me, hero, t) if m.draft.state == DraftSession.State.BANNING else m.draft.pick(me, hero, t)
+	_ack(peer, MatchmakingCodec.OP_PICK, _draft_code(e))
 	_step_pick(m, t)
+
+
+## P3: declare a hero (pick phase) or a ban (ban phase); hero 0 clears.
+func _hover(peer: int, me: String, hero_index: int, t: float) -> void:
+	var m: Match = _account_match.get(me)
+	if m == null or m.state != State.PICK or m.draft == null:
+		_ack(peer, MatchmakingCodec.OP_HOVER, MatchmakingCodec.E_NOT_ALLOWED)
+		return
+	var hero := _hero_id(hero_index) if hero_index != 0 else &""
+	if hero_index != 0 and hero == &"":
+		_ack(peer, MatchmakingCodec.OP_HOVER, MatchmakingCodec.E_BAD_REQUEST)
+		return
+	_ack(peer, MatchmakingCodec.OP_HOVER, _draft_code(m.draft.hover(me, hero, t)))
+	_step_pick(m, t)
+
+
+static func _draft_code(e: DraftSession.Err) -> int:
+	match e:
+		DraftSession.Err.OK:
+			return MatchmakingCodec.OK
+		DraftSession.Err.E_TAKEN, DraftSession.Err.E_BANNED:
+			return MatchmakingCodec.E_TAKEN
+		DraftSession.Err.E_UNKNOWN_HERO:
+			return MatchmakingCodec.E_BAD_REQUEST
+		DraftSession.Err.E_NO_REQUEST:
+			return MatchmakingCodec.E_NOT_FOUND
+	return MatchmakingCodec.E_NOT_ALLOWED
 
 
 func _aram(peer: int, me: String, r: Dictionary, t: float) -> void:
 	var op: int = r.op
 	var m: Match = _account_match.get(me)
+	if m != null and m.state == State.PICK and m.draft != null and op in [MatchmakingCodec.OP_ARAM_SWAP_REQUEST,
+			MatchmakingCodec.OP_ARAM_SWAP_ACCEPT]:
+		# P3: in a draft the swap ops are pick trades (finalize window).
+		var si := int(r.seat)
+		var de := DraftSession.Err.E_NOT_TEAMMATE
+		if si < m.seats.size():
+			var other := str(m.seats[si].id)
+			de = m.draft.request_trade(me, other, t) if op == MatchmakingCodec.OP_ARAM_SWAP_REQUEST \
+				else m.draft.accept_trade(me, other, t)
+		_ack(peer, op, _draft_code(de))
+		_step_pick(m, t)
+		return
 	if m == null or m.state != State.PICK or m.aram == null:
 		_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)
 		return
@@ -377,6 +436,7 @@ func step() -> void:
 			_recent.erase(k)
 	if t - _last_housekeeping >= DAY:
 		housekeeping(t)
+	phases.sync(t)
 
 
 ## Daily retention work (and at start): reports, history, lockouts.
@@ -419,6 +479,11 @@ func _on_proposal(p: Dictionary, t: float) -> void:
 	for id in Matchmaker.human_ids(p):
 		_account_match[id] = m
 		_queued.erase(id)
+	phases.lobby(m.id, PhaseMachine.Lobby.READY_CHECK, t)
+	metrics.inc("cybergram_ready_checks_total", {"outcome": "started"})
+	for tk: Dictionary in p.get("tickets", []):
+		metrics.inc("cybergram_queue_wait_seconds_sum", {"queue": String(p.queue)}, t - float(tk.enqueued_at))
+		metrics.inc("cybergram_queue_wait_seconds_count", {"queue": String(p.queue)})
 	_log("[front] match %s found (%s, %d bot(s)): ready check" % [m.id, m.queue.id, int(p.bots)])
 	_send_found(m, t)
 
@@ -427,6 +492,7 @@ func _step_ready(m: Match, t: float) -> void:
 	match m.rc.tick(t):
 		ReadyCheck.State.ACCEPTED:
 			matchmaker.confirm(m.proposal)
+			metrics.inc("cybergram_ready_checks_total", {"outcome": "accepted"})
 			for id in _humans(m):
 				_send(id, MatchmakingCodec.EV_READY_RESULT, MatchmakingCodec.OK, {"outcome": MatchmakingCodec.RR_GO})
 			_start_pick(m, t)
@@ -436,12 +502,20 @@ func _step_ready(m: Match, t: float) -> void:
 
 ## The ready check failed or someone dodged: strikes, re-queue the others.
 func _fail(m: Match, failed: Array, t: float, dodge: bool) -> void:
-	var res := matchmaker.resolve_ready_check(m.proposal, failed, t)
+	var res := matchmaker.resolve_ready_check(m.proposal, failed, t,
+		LockoutTracker.Kind.DODGE if dodge else LockoutTracker.Kind.DECLINE)
+	phases.lobby(m.id, PhaseMachine.Lobby.CANCELLED, t)
+	if dodge:
+		metrics.inc("cybergram_dodges_total", {}, failed.size())
+	else:
+		metrics.inc("cybergram_ready_checks_total", {"outcome": "failed"})
+		metrics.inc("cybergram_ready_check_declines_total", {}, failed.size())
 	_end(m)
 	for id in res.locked:
 		_strike(str(id), t)
 		if dodge and m.queue.ranked:
-			ratings.apply_dodge_penalty(str(id), m.queue.rating_track, int(t))
+			ratings.apply_dodge_penalty(str(id), m.queue.rating_track, int(t),
+				lockouts.strikes(str(id), LockoutTracker.Kind.DODGE, t))
 	_save_lockouts()
 	for id in _humans(m):
 		var out := MatchmakingCodec.RR_REQUEUED
@@ -465,6 +539,7 @@ func _fail(m: Match, failed: Array, t: float, dodge: bool) -> void:
 
 func _start_pick(m: Match, t: float) -> void:
 	m.state = State.PICK
+	phases.lobby(m.id, PhaseMachine.Lobby.CHAMP_SELECT, t)
 	m.since = t
 	var teams := [[], []]
 	for s in m.seats:
@@ -473,7 +548,9 @@ func _start_pick(m: Match, t: float) -> void:
 	if m.queue.pick_mode == MatchQueueDef.PickMode.ALL_RANDOM:
 		m.aram = AllRandomSession.new(teams[0], teams[1], heroes, rules, t, seed_)
 	else:
-		m.draft = DraftSession.new(teams[0], teams[1], heroes, rules, t, seed_, seed_ & 1)
+		m.draft = DraftSession.new(teams[0], teams[1], heroes, rules, t, seed_, seed_ & 1, {
+			"blind": m.queue.pick_mode == MatchQueueDef.PickMode.BLIND,
+			"timeout_dodges": m.queue.pick_timeout_dodges})
 	_step_pick(m, t)
 
 
@@ -497,7 +574,14 @@ func _dodge(m: Match, id: String, t: float) -> void:
 func _step_pick(m: Match, t: float) -> void:
 	var done := false
 	if m.draft != null:
-		done = m.draft.tick(t) == DraftSession.State.DONE
+		var ds := m.draft.tick(t)
+		if ds == DraftSession.State.ABORTED and m.draft.dodger != "":
+			# P3: ranked pick timeout with nothing hovered = a dodge by that player.
+			_ev(OpsLog.INFO, "pick_timeout_dodge", "match %s: pick timeout counts as a dodge" % m.id,
+				{"match": m.id, "player": OpsLog.tag(m.draft.dodger)})
+			_fail(m, [m.draft.dodger], t, true)
+			return
+		done = ds == DraftSession.State.DONE
 	elif m.aram != null:
 		done = m.aram.tick(t) == AllRandomSession.State.LOCKED
 	var sig := _pick_signature(m)
@@ -513,7 +597,9 @@ func _step_pick(m: Match, t: float) -> void:
 
 func _pick_signature(m: Match) -> String:
 	if m.draft != null:
-		return var_to_str([m.draft.turn, m.draft.picks])
+		var d := m.draft
+		return var_to_str([d.turn, d.state, d.picks, d.hovers, d.ban_hovers, d.ban_locks, d.bans,
+			d._trades.keys(), d.state == DraftSession.State.FINALIZING and now() >= d.trades_until])
 	return var_to_str([m.aram.hero_of, m.aram.bench, m.aram.rerolls_left, m.aram._requests.keys()])
 
 
@@ -523,20 +609,34 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 	var seats: Array = []
 	var you := 0
 	var pickers: Array = m.draft.current_pickers() if m.draft != null else []
+	var banners: Array = m.draft.current_banners() if m.draft != null else []
+	# Blind: enemy picks stay hidden until everyone locked (finalize / done).
+	var hide_enemy := m.draft != null and m.draft.blind and m.draft.state == DraftSession.State.PICKING
 	for i in m.seats.size():
 		var s: Dictionary = m.seats[i]
 		var hero: StringName = &""
 		var flags := MatchmakingCodec.SEAT_BOT if s.bot else 0
+		var ally: bool = s.team == my_team
 		if m.draft != null:
 			hero = m.draft.picks.get(s.id, &"")
-			if m.draft.auto_picked.has(s.id):
+			if hide_enemy and not ally:
+				hero = &""
+			if m.draft.auto_picked.has(s.id) and hero != &"":
 				flags |= MatchmakingCodec.SEAT_AUTO
 			if pickers.has(s.id):
 				flags |= MatchmakingCodec.SEAT_PICKING
+			if ally and hero == &"" and m.draft.hovers.has(s.id):
+				hero = m.draft.hovers[s.id]
+				flags |= MatchmakingCodec.SEAT_HOVER
+			if ally and m.draft.state == DraftSession.State.BANNING and (banners.has(s.id) or m.draft.ban_locks.has(s.id)):
+				flags |= MatchmakingCodec.SEAT_BANNING
+				hero = m.draft.ban_locks.get(s.id, m.draft.ban_hovers.get(s.id, &""))
+				if not m.draft.ban_locks.has(s.id) and hero != &"":
+					flags |= MatchmakingCodec.SEAT_HOVER
 		else:
 			hero = m.aram.hero_of.get(s.id, &"")
 			flags |= MatchmakingCodec.SEAT_AUTO
-		if hero != &"":
+		if hero != &"" and flags & (MatchmakingCodec.SEAT_HOVER | MatchmakingCodec.SEAT_BANNING) == 0:
 			flags |= MatchmakingCodec.SEAT_PICKED
 		if s.id == viewer:
 			flags |= MatchmakingCodec.SEAT_YOU
@@ -545,12 +645,23 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 		seats.append({"id": s.id if mine and not s.bot else "", "team": s.team,
 			"lane": MatchmakingCodec.lane_byte(s.lane), "hero": _hero_index(hero), "flags": flags,
 			"name": s.name if mine else ""})
-	var st := {"mode": MatchmakingCodec.PM_ALL_RANDOM if m.aram != null else MatchmakingCodec.PM_DRAFT,
-		"you": you, "seats": seats, "rerolls": 0, "bench": [], "swap_from": []}
+	var mode := MatchmakingCodec.PM_ALL_RANDOM if m.aram != null else MatchmakingCodec.PM_DRAFT
+	if m.draft != null and m.draft.blind:
+		mode = MatchmakingCodec.PM_BLIND
+	var st := {"mode": mode, "you": you, "seats": seats, "rerolls": 0, "bench": [], "swap_from": [],
+		"stage": MatchmakingCodec.PS_PICK, "bans": [], "trade_s": 0}
 	if m.draft != null:
 		st.turn = maxi(0, m.draft.turn)
 		st.turn_team = m.draft.turn_team
 		st.seconds = ceili(maxf(0.0, m.draft.deadline - t))
+		st.bans = m.draft.bans.map(func(h: StringName) -> int: return _hero_index(h))
+		match m.draft.state:
+			DraftSession.State.BANNING:
+				st.stage = MatchmakingCodec.PS_BAN
+			DraftSession.State.FINALIZING, DraftSession.State.DONE:
+				st.stage = MatchmakingCodec.PS_FINALIZE
+				st.trade_s = ceili(maxf(0.0, m.draft.trades_until - t))
+				st.swap_from = m.draft.trade_requests_to(viewer, t).map(func(id: String) -> int: return _seat_index(m, id))
 	else:
 		st.turn = 0
 		st.turn_team = my_team
@@ -564,6 +675,11 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 
 func _allocate(m: Match, t: float) -> void:
 	m.state = State.STARTING
+	for id in _humans(m):
+		_chat_rate.erase(id)  # hero select chat is over
+	if m.custom:
+		phases.lobby(m.id, PhaseMachine.Lobby.CHAMP_SELECT, t)  # the custom lobby was its champ select
+	phases.lobby(m.id, PhaseMachine.Lobby.LOADING, t)
 	m.since = t
 	m.mood = _rng.randi() & 0x7FFFFFFF
 	_try_allocate(m, t)
@@ -597,7 +713,13 @@ func build_setup(m: Match) -> Dictionary:
 	var r := {"remake_window_s": rules.remake_window_s, "remake_vote_s": rules.remake_vote_s,
 		"no_show_s": rules.no_show_s, "abandon_after_s": rules.abandon_after_s,
 		"team_size": m.queue.team_size if m.queue != null else _team_size(m), "mood_seed": m.mood,
-		"rated": m.rated, "custom": m.custom, "bots": _has_bots(m)}
+		"rated": m.rated, "custom": m.custom, "bots": _has_bots(m), "bot_difficulty": m.bot_difficulty}
+	if m.bot_limits:
+		var per := [0, 0]
+		for s in m.seats:
+			if s.bot:
+				per[int(s.team)] += 1
+		r["bots_per_team"] = per
 	for k in setup_rules:
 		r[k] = setup_rules[k]
 	return {"match_id": m.id, "mode": String(m.queue.id) if m.queue != null else "custom", "map": m.map,
@@ -613,6 +735,8 @@ func _on_match_started(match_id: String, endpoint: Dictionary) -> void:
 	var t := now()
 	m.state = State.RUNNING
 	m.started_at = t
+	phases.lobby(m.id, PhaseMachine.Lobby.RUNNING, t)
+	metrics.inc("cybergram_matches_total", {"event": "started"})
 	var pid := -1
 	if supervisor.has_method("find_match"):
 		var p: Variant = supervisor.find_match(match_id)
@@ -622,6 +746,53 @@ func _on_match_started(match_id: String, endpoint: Dictionary) -> void:
 		_humans(m).size()])
 	for id in _humans(m):
 		_send_assigned(m, id, t)
+
+
+## v20: a player's loading percent. Only a seat of a running match, only
+## rising (so a client cannot flood: at most 100 updates), relayed to every
+## human of the match as the full list.
+func _load_progress(peer: int, me: String, pct: int) -> void:
+	var m: Match = _account_match.get(me)
+	var i := _seat_index(m, me) if m != null else -1
+	if m == null or m.state != State.RUNNING or i < 0:
+		_ack(peer, MatchmakingCodec.OP_LOAD_PROGRESS, MatchmakingCodec.E_NOT_ALLOWED)
+		return
+	if m.loads.size() != m.seats.size():
+		m.loads = m.seats.map(func(s: Dictionary) -> int: return 100 if s.bot else 0)
+	var v := clampi(pct, 0, 100)
+	if v <= int(m.loads[i]):
+		return
+	m.loads[i] = v
+	for id in _humans(m):
+		_send(id, MatchmakingCodec.EV_LOAD_PROGRESS, MatchmakingCodec.OK, {"loads": m.loads.duplicate()})
+
+
+## v20: hero select team chat. Only during the pick phase, only to the
+## sender's human teammates who have not blocked them; cleaned by ChatFilter,
+## rate-limited per account. Online only: never stored and never logged.
+func _select_chat(peer: int, me: String, raw: String, t: float) -> void:
+	var op := MatchmakingCodec.OP_SELECT_CHAT
+	var m: Match = _account_match.get(me)
+	if m == null or m.state != State.PICK:
+		_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)
+		return
+	var text := ChatFilter.sanitize(raw)
+	if text == "":
+		_ack(peer, op, MatchmakingCodec.E_BAD_REQUEST)
+		return
+	var rl: ChatFilter.RateLimiter = _chat_rate.get_or_add(me, ChatFilter.RateLimiter.new())
+	if not rl.allow(t):
+		_ack(peer, op, MatchmakingCodec.E_RATE)
+		return
+	var i := _seat_index(m, me)
+	var team := int(m.seats[i].team)
+	for s: Dictionary in m.seats:
+		if s.bot or int(s.team) != team:
+			continue
+		var o: Dictionary = accounts.store.get_by_id(str(s.id)) if accounts != null and accounts.store != null else {}
+		if not o.is_empty() and (o.get("blocks", []) as Array).has(me):
+			continue  # a block hides chat too
+		_send(str(s.id), MatchmakingCodec.EV_SELECT_CHAT, MatchmakingCodec.OK, {"seat": i, "text": text})
 
 
 func _send_assigned(m: Match, id: String, t: float) -> bool:
@@ -652,6 +823,10 @@ func _void(m: Match, reason: String) -> void:
 	var t := now()
 	_log("[front] match_voided id=%s reason=%s" % [m.id, reason.left(64)])
 	var was_running := m.state == State.RUNNING
+	for id in _humans(m):
+		_chat_rate.erase(id)
+	phases.lobby(m.id, PhaseMachine.Lobby.CANCELLED, t)
+	metrics.inc("cybergram_matches_total", {"event": "voided"})
 	_end(m)
 	if was_running and history != null:
 		history.add(_history_entry(m, -1, true, t - m.started_at, {}))
@@ -717,7 +892,10 @@ func _on_match_result(match_id: String, res: Dictionary) -> void:
 	if history != null:
 		history.add(_history_entry(m, -1 if voided else winner, voided, duration, m.leavers))
 	_recent[m.id] = {"participants": humans.duplicate(), "until": t + rules.report_window_s}
+	phases.lobby(m.id, PhaseMachine.Lobby.ENDED, t)
+	metrics.inc("cybergram_matches_total", {"event": "ended"})
 	_end(m)
+	phases.post_game(humans, t)
 	_log("[front] match_result id=%s winner=%d voided=%s rated=%s changes=%d leavers=%d" % [m.id, winner, voided,
 		m.rated and not deltas.is_empty(), deltas.size(), leavers.size()])
 	for id in humans:
@@ -767,15 +945,19 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 	var code := MatchmakingCodec.OK
 	match op:
 		MatchmakingCodec.OP_CUSTOM_CREATE:
-			if _custom_of.has(me) or _account_match.has(me) or matchmaker.ticket_of(me) != 0:
+			if _customs.has(me):
+				code = _custom_reconfigure(_customs[me], r)  # the host changes map / mode / size
+			elif _custom_of.has(me) or _account_match.has(me) or matchmaker.ticket_of(me) != 0:
 				code = MatchmakingCodec.E_ALREADY
 			elif int(r.map) >= MatchmakingCodec.CUSTOM_MAPS.size() or not (int(r.mode) in [MatchmakingCodec.PM_CUSTOM,
 					MatchmakingCodec.PM_ALL_RANDOM]) or int(r.team_size) < 1 or int(r.team_size) > 5:
 				code = MatchmakingCodec.E_BAD_REQUEST
 			else:
 				_customs[me] = {"host": me, "map": int(r.map), "mode": int(r.mode), "bots": int(r.bots) != 0,
-					"team_size": int(r.team_size), "members": [{"id": me, "team": 0, "hero": 0}], "invites": {}}
+					"team_size": int(r.team_size), "members": [{"id": me, "team": 0, "hero": 0}], "invites": {},
+					"bot_slots": [MatchmakingCodec.BOTS_FILL, MatchmakingCodec.BOTS_FILL], "difficulty": 1}
 				_custom_of[me] = me
+				phases.end_post_game(me)
 				_log("[front] custom lobby opened (%s, %dv%d)" % [MatchmakingCodec.CUSTOM_MAPS[int(r.map)],
 					int(r.team_size), int(r.team_size)])
 				_send_custom(_customs[me])
@@ -808,6 +990,7 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 				(c.members as Array).append({"id": me, "team": team, "hero": 0})
 				c.invites.erase(me)
 				_custom_of[me] = c.host
+				phases.end_post_game(me)
 				_send_custom(c)
 		MatchmakingCodec.OP_CUSTOM_LEAVE:
 			_custom_leave(me)
@@ -839,6 +1022,16 @@ func _custom(peer: int, who: Dictionary, r: Dictionary, t: float) -> void:
 				code = MatchmakingCodec.E_NOT_ALLOWED
 			else:
 				_custom_start(c, t)
+		MatchmakingCodec.OP_CUSTOM_BOTS:
+			var c: Dictionary = _customs.get(me, {})
+			if c.is_empty() or int(r.difficulty) >= MatchmakingCodec.BOT_DIFFICULTIES.size():
+				code = MatchmakingCodec.E_NOT_ALLOWED if c.is_empty() else MatchmakingCodec.E_BAD_REQUEST
+			else:
+				for side in 2:
+					var v := int(r.bots_a if side == 0 else r.bots_b)
+					c.bot_slots[side] = v if v == MatchmakingCodec.BOTS_FILL else clampi(v, 0, 5)
+				c.difficulty = int(r.difficulty)
+				_send_custom(c)
 	_ack(peer, op, code)
 
 
@@ -864,12 +1057,17 @@ func _custom_start(c: Dictionary, t: float) -> void:
 			m.seats.append({"id": str(mem.id), "team": side, "lane": &"", "bot": false,
 				"name": str(ident.get("name", "")), "accent": int(ident.get("accent", 0)), "hero": hero})
 		if bool(c.bots):
-			for i in range(team.size(), int(c.team_size)):
+			var slots := int(c.get("bot_slots", [MatchmakingCodec.BOTS_FILL, MatchmakingCodec.BOTS_FILL])[side])
+			var room := int(c.team_size) - team.size()
+			var n := room if slots == MatchmakingCodec.BOTS_FILL else mini(slots, room)
+			for i in range(team.size(), team.size() + n):
 				bot_n += 1
 				var hero := _random_free(taken, rng)
 				taken[hero] = true
 				m.seats.append({"id": "%s%d" % [MatchmakingRulesDef.BOT_PREFIX, bot_n], "team": side, "lane": &"",
 					"bot": true, "name": "", "accent": 0, "hero": hero})
+	m.bot_difficulty = MatchmakingCodec.BOT_DIFFICULTIES[clampi(int(c.get("difficulty", 1)), 0, 2)]
+	m.bot_limits = true  # custom: exactly the bots in the roster, no more
 	c.phase = MatchmakingCodec.CP_STARTING
 	_send_custom(c)
 	_close_custom(c, false)
@@ -878,6 +1076,21 @@ func _custom_start(c: Dictionary, t: float) -> void:
 		_account_match[id] = m
 	_log("[front] custom match %s starting (%d player(s), %d bot(s))" % [m.id, _humans(m).size(), bot_n])
 	_allocate(m, t)
+
+
+## The host changes map / mode / bots / size of an open custom lobby.
+func _custom_reconfigure(c: Dictionary, r: Dictionary) -> int:
+	if int(r.map) >= MatchmakingCodec.CUSTOM_MAPS.size() or not (int(r.mode) in [MatchmakingCodec.PM_CUSTOM,
+			MatchmakingCodec.PM_ALL_RANDOM]) or int(r.team_size) < 1 or int(r.team_size) > 5:
+		return MatchmakingCodec.E_BAD_REQUEST
+	if _custom_team_count(c, 0) > int(r.team_size) or _custom_team_count(c, 1) > int(r.team_size):
+		return MatchmakingCodec.E_NOT_ALLOWED  # someone would lose their seat
+	c.map = int(r.map)
+	c.mode = int(r.mode)
+	c.bots = int(r.bots) != 0
+	c.team_size = int(r.team_size)
+	_send_custom(c)
+	return MatchmakingCodec.OK
 
 
 func _custom_leave(me: String) -> void:
@@ -922,8 +1135,10 @@ func _custom_fields(c: Dictionary, viewer: String) -> Dictionary:
 		var flags := (MatchmakingCodec.MEM_HOST if mem.id == c.host else 0) | (MatchmakingCodec.MEM_YOU if mem.id == viewer else 0)
 		members.append({"id": mem.id, "team": mem.team, "hero": mem.hero, "flags": flags,
 			"name": str(ident.get("name", ""))})
+	var slots: Array = c.get("bot_slots", [MatchmakingCodec.BOTS_FILL, MatchmakingCodec.BOTS_FILL])
 	return {"host": c.host, "phase": int(c.get("phase", MatchmakingCodec.CP_OPEN)), "map": c.map, "mode": c.mode,
-		"bots": 1 if c.bots else 0, "team_size": c.team_size, "members": members}
+		"bots": 1 if c.bots else 0, "team_size": c.team_size, "members": members, "bots_a": int(slots[0]),
+		"bots_b": int(slots[1]), "difficulty": int(c.get("difficulty", 1))}
 
 
 func _send_custom(c: Dictionary) -> void:
@@ -1110,6 +1325,7 @@ func erase_account(id: String) -> void:
 		history.erase_account(id)
 	lockouts.erase(id)
 	_last_strike.erase(id)
+	_chat_rate.erase(id)
 	_save_lockouts()
 	matchmaker.leave(id)
 	_queued.erase(id)
@@ -1240,4 +1456,97 @@ func _hero_id(index: int) -> StringName:
 
 
 func _log(line: String) -> void:
-	log_fn.call(line)
+	_ev(OpsLog.INFO, "log", line.trim_prefix("[front] "), {}, true)
+
+
+## P1: one structured event. Kept in `events` (admin page) and printed when
+## `to_stdout` (or always in JSON mode). Text mode prints "[front] msg", the
+## exact line the front printed before structured logs.
+func _ev(level: String, event: String, msg: String, fields: Dictionary = {}, to_stdout: bool = true) -> void:
+	var r := OpsLog.record("front", level, event, msg, fields, now())
+	events.append(r)
+	if events.size() > EVENTS_MAX:
+		events.pop_front()
+	if to_stdout or OpsLog.json_mode():
+		log_fn.call(OpsLog.format(r))
+
+
+# --- operations (P1: /metrics, /health, /admin) ------------------------------------------
+
+func _describe_metrics() -> void:
+	metrics.describe("cybergram_queue_joins_total", "counter", "Parties that joined a queue.")
+	metrics.describe("cybergram_ready_checks_total", "counter", "Ready checks by outcome (started, accepted, failed).")
+	metrics.describe("cybergram_ready_check_declines_total", "counter", "Players who declined or missed a ready check.")
+	metrics.describe("cybergram_dodges_total", "counter", "Players who left champ select (dodges).")
+	metrics.describe("cybergram_matches_total", "counter", "Matches by event (started, ended, voided).")
+	metrics.describe("cybergram_queue_wait_seconds_sum", "counter", "Summed queue wait of matched parties.")
+	metrics.describe("cybergram_queue_wait_seconds_count", "counter", "Matched parties (for the average wait).")
+	metrics.describe("cybergram_queue_players", "gauge", "Players queued right now.")
+	metrics.describe("cybergram_queue_estimated_wait_seconds", "gauge", "Estimated wait shown to players.")
+	metrics.describe("cybergram_lobbies", "gauge", "Formed matches by lobby state.")
+	metrics.describe("cybergram_players", "gauge", "Known players by phase.")
+	metrics.describe("cybergram_parties", "gauge", "Parties by state.")
+	metrics.describe("cybergram_custom_lobbies", "gauge", "Open custom lobbies.")
+	metrics.describe("cybergram_illegal_transitions_total", "gauge", "State changes the state machines rejected.")
+	metrics.describe("cybergram_uptime_seconds", "gauge", "Seconds since the front started.")
+
+
+## Fills the live gauges and returns the Prometheus text.
+func render_metrics() -> String:
+	var t := now()
+	for g in ["cybergram_queue_players", "cybergram_queue_estimated_wait_seconds", "cybergram_lobbies",
+			"cybergram_players", "cybergram_parties"]:
+		metrics.clear(g)
+	for q in queue_overview():
+		metrics.set_gauge("cybergram_queue_players", float(q.players), {"queue": q.id})
+		metrics.set_gauge("cybergram_queue_estimated_wait_seconds", float(q.estimated_wait_s), {"queue": q.id})
+	for st in PhaseMachine.Lobby.size():
+		metrics.set_gauge("cybergram_lobbies", 0.0, {"state": PhaseMachine.LOBBY_NAMES[st]})
+	var lc := phases.lobbies.counts()
+	for st in lc:
+		metrics.set_gauge("cybergram_lobbies", float(lc[st]), {"state": PhaseMachine.LOBBY_NAMES[st]})
+	var pc := phases.players.counts()
+	for st in PhaseMachine.Player.size():
+		metrics.set_gauge("cybergram_players", float(pc.get(st, 0)), {"phase": PhaseMachine.PLAYER_NAMES[st]})
+	var qc := phases.parties.counts()
+	for st in PhaseMachine.Party.size():
+		metrics.set_gauge("cybergram_parties", float(qc.get(st, 0)), {"state": PhaseMachine.PARTY_NAMES[st]})
+	metrics.set_gauge("cybergram_custom_lobbies", float(_customs.size()))
+	metrics.set_gauge("cybergram_illegal_transitions_total", float(phases.players.illegal_count +
+		phases.parties.illegal_count + phases.lobbies.illegal_count))
+	metrics.set_gauge("cybergram_uptime_seconds", floorf(t - started_at))
+	return metrics.render()
+
+
+## Live state for /admin (pseudonymous player tags, no names, no chat).
+func admin_snapshot(t: float = now()) -> Dictionary:
+	var matches: Array = []
+	for m: Match in _matches.values():
+		var e := phases.lobbies.entry(m.id)
+		matches.append({"match": m.id, "queue": String(m.queue.id) if m.queue != null else "custom",
+			"state": PhaseMachine.name_of(PhaseMachine.Kind.LOBBY, int(e.get("state", 0))),
+			"since_s": int(t - float(e.get("since", t))), "humans": _humans(m).size(),
+			"bots": m.seats.size() - _humans(m).size()})
+	var parties: Array = []
+	for pid in phases.parties.keys():
+		var e := phases.parties.entry(pid)
+		parties.append({"party": pid, "state": PhaseMachine.name_of(PhaseMachine.Kind.PARTY, int(e.state)),
+			"size": int((e.ctx as Dictionary).get("size", 0)), "leader": str((e.ctx as Dictionary).get("leader", ""))})
+	var players: Array = []
+	for id in phases.players.keys():
+		var e := phases.players.entry(id)
+		var ctx: Dictionary = e.ctx
+		players.append({"player": OpsLog.tag(id), "phase": PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, int(e.state)),
+			"since_s": int(t - float(e.since)), "seq": int(e.seq), "party": str(ctx.get("party", "")),
+			"match": str(ctx.get("match", ""))})
+	var queues: Array = []
+	for q in queue_overview():
+		var info := matchmaker.queue_info(StringName(q.id))
+		queues.append({"queue": q.id, "players": q.players, "parties": int(info.parties), "estimate_s": q.estimated_wait_s})
+	var evs: Array = []
+	for i in range(events.size() - 1, -1, -1):
+		var r: Dictionary = events[i].duplicate()
+		r.ts = Time.get_datetime_string_from_unix_time(int(float(r.ts)), true)
+		evs.append(r)
+	return {"queues": queues, "matches": matches, "parties": parties, "players": players, "events": evs,
+		"customs": _customs.size()}

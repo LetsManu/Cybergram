@@ -176,7 +176,8 @@ func confirm(proposal: Dictionary) -> void:
 ## the queue with them. Every other party is re-queued with priority and
 ## keeps its original queue time. Returns {requeued: [ticket ids],
 ## removed: [account ids], locked: {account id: seconds}}.
-func resolve_ready_check(proposal: Dictionary, failed_ids: Array, now: float) -> Dictionary:
+func resolve_ready_check(proposal: Dictionary, failed_ids: Array, now: float,
+		kind: LockoutTracker.Kind = LockoutTracker.Kind.DECLINE) -> Dictionary:
 	var res := {"requeued": [], "removed": [], "locked": {}}
 	for id in human_ids(proposal):
 		_held.erase(id)
@@ -189,7 +190,7 @@ func resolve_ready_check(proposal: Dictionary, failed_ids: Array, now: float) ->
 			for m in t.members:
 				res.removed.append(m.id)
 				if failed_ids.has(m.id):
-					res.locked[m.id] = lockouts.record(m.id, LockoutTracker.Kind.DECLINE, now)
+					res.locked[m.id] = lockouts.record(m.id, kind, now)
 		else:
 			var nt := _make_ticket(t.queue, t.members, float(t.enqueued_at), true)
 			res.requeued.append(nt.id)

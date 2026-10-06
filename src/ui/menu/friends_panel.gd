@@ -17,9 +17,13 @@ extends PanelContainer
 signal join_requested(friend_id: String)
 ## The player pressed LOG IN (shown while logged out).
 signal login_requested
+## P2: the player pressed Message on a friend.
+signal message_requested(friend_id: String)
 
 const POLL_S := 10.0
-const STATUS_KEYS := ["HUD_FRIENDS_OFFLINE", "HUD_FRIENDS_ONLINE", "HUD_FRIENDS_IN_LOBBY", "HUD_FRIENDS_IN_MATCH"]
+## Indexed by LobbyCodec.STATUS_* (P2: queue, hero select, away).
+const STATUS_KEYS := ["HUD_FRIENDS_OFFLINE", "HUD_FRIENDS_ONLINE", "HUD_FRIENDS_IN_LOBBY", "HUD_FRIENDS_IN_MATCH",
+	"HUD_FRIENDS_IN_QUEUE", "HUD_FRIENDS_IN_SELECT", "HUD_FRIENDS_AWAY"]
 
 ## Callable(op: int, fields: Dictionary); invalid = logged out.
 var request: Callable
@@ -27,8 +31,11 @@ var request: Callable
 var has_account: bool = false
 ## Show Join buttons (off inside the lobby).
 var allow_join: bool = true
-## Last FRIENDS entries ({id, status, relation, username, display_name, emblem, accent}).
+## Last FRIENDS entries ({id, status, mode, relation, username, display_name, emblem, accent}).
 var entries: Array = []
+## P2: party invites, join requests, unread DMs and the actions behind
+## Invite / Ask to join / Message (null = the W15 panel without them).
+var social: SocialModel
 
 ## Collapsed to the icon strip (design/ux/ui-kit.md §8.1).
 var collapsed: bool = false
@@ -52,6 +59,9 @@ var _add_rule: ColorRect
 var _footer: Button
 ## The offline group is folded into the footer until it is clicked.
 var _show_offline: bool = false
+## P2: invite rows with a countdown: [[Label, entry]] refreshed every second.
+var _countdowns: Array = []
+var _count_left: float = 1.0
 
 
 func _ready() -> void:
@@ -210,6 +220,18 @@ func dock_width() -> int:
 func _process(delta: float) -> void:
 	if not is_visible_in_tree() or not has_account or not request.is_valid():
 		return
+	_count_left -= delta
+	if _count_left <= 0.0 and social != null and not _countdowns.is_empty():
+		_count_left = 1.0
+		var expired := false
+		for c: Array in _countdowns:
+			if not is_instance_valid(c[0]):
+				continue
+			var left := social.invite_left_s(c[1])
+			expired = expired or left <= 0
+			(c[0] as Label).text = _invite_text(c[1], left)
+		if expired:
+			rebuild()  # the invite is gone
 	_poll_left -= delta
 	if _poll_left <= 0.0:
 		_poll_left = POLL_S
@@ -300,12 +322,16 @@ func rebuild() -> void:
 		_list.add_child(_group_label(tr("HUD_FRIENDS_GROUP_REQUESTS")))
 	for e: Dictionary in incoming:
 		_list.add_child(_row(e))
-	# Grouped like a MOBA client: In lobby / In match / Online, offline folded
-	# into the footer.
+	_social_groups()
+	# Grouped like a MOBA client: in a match / hero select / queue / lobby,
+	# online, away; offline folded into the footer.
 	var offline: Array = []
-	for g: Array in [[LobbyCodec.STATUS_IN_LOBBY, "HUD_FRIENDS_GROUP_LOBBY"],
-			[LobbyCodec.STATUS_IN_MATCH, "HUD_FRIENDS_GROUP_MATCH"],
+	for g: Array in [[LobbyCodec.STATUS_IN_MATCH, "HUD_FRIENDS_GROUP_MATCH"],
+			[LobbyCodec.STATUS_IN_SELECT, "HUD_FRIENDS_GROUP_SELECT"],
+			[LobbyCodec.STATUS_IN_QUEUE, "HUD_FRIENDS_GROUP_QUEUE"],
+			[LobbyCodec.STATUS_IN_LOBBY, "HUD_FRIENDS_GROUP_LOBBY"],
 			[LobbyCodec.STATUS_ONLINE, "HUD_FRIENDS_GROUP_ONLINE"],
+			[LobbyCodec.STATUS_AWAY, "HUD_FRIENDS_GROUP_AWAY"],
 			[LobbyCodec.STATUS_OFFLINE, "HUD_FRIENDS_GROUP_OFFLINE"]]:
 		var members := mine.filter(func(e: Dictionary) -> bool:
 			return (e.status if e.status >= LobbyCodec.STATUS_ONLINE else LobbyCodec.STATUS_OFFLINE) == g[0])
@@ -400,9 +426,9 @@ func _row(e: Dictionary) -> Control:
 	nm.clip_text = true
 	text.add_child(nm)
 	var key: String = ["", "HUD_FRIENDS_INCOMING", "HUD_FRIENDS_OUTGOING", "HUD_FRIENDS_BLOCKED"][rel] \
-		if rel != AccountCodec.REL_FRIEND else STATUS_KEYS[clampi(st, 0, 3)]
+		if rel != AccountCodec.REL_FRIEND else STATUS_KEYS[clampi(st, 0, STATUS_KEYS.size() - 1)]
 	var sl := Label.new()
-	sl.text = tr(key)
+	sl.text = SocialModel.presence_text(st, int(e.get("mode", 255))) if rel == AccountCodec.REL_FRIEND else tr(key)
 	sl.add_theme_font_size_override("font_size", 12)
 	sl.add_theme_color_override("font_color", StatusDot.color_of(st) if rel == AccountCodec.REL_FRIEND else t.accent_hi)
 	sl.clip_text = true
@@ -417,6 +443,13 @@ func _row(e: Dictionary) -> Control:
 			acts.add_child(_small(tr("HUD_FRIENDS_ACCEPT"), func() -> void: _op(AccountCodec.OP_FRIEND_ACCEPT, id)))
 			acts.add_child(_small(tr("HUD_FRIENDS_REMOVE_X"), func() -> void: _op(AccountCodec.OP_FRIEND_DECLINE, id)))
 		AccountCodec.REL_FRIEND:
+			if social != null and st >= LobbyCodec.STATUS_ONLINE:
+				var n := int(social.unread.get(id, 0))
+				acts.add_child(_small(tr("HUD_SOCIAL_MESSAGE") + (" (%d)" % n if n > 0 else ""), func() -> void:
+					message_requested.emit(id)))
+				if not social.in_my_party(id):
+					acts.add_child(_small(tr("HUD_SOCIAL_INVITE"), func() -> void: social.invite(id)))
+					acts.add_child(_small(tr("HUD_SOCIAL_ASK_JOIN"), func() -> void: social.ask_to_join(id)))
 			if allow_join and (st == LobbyCodec.STATUS_IN_LOBBY or st == LobbyCodec.STATUS_IN_MATCH):
 				acts.add_child(_small(tr("HUD_FRIENDS_JOIN"), func() -> void: join_requested.emit(id)))
 			acts.add_child(_small(tr("HUD_FRIENDS_BLOCK"), func() -> void: _op(AccountCodec.OP_BLOCK, id)))
@@ -430,6 +463,10 @@ func _row(e: Dictionary) -> Control:
 	# Hover-reveal: the actions show while the row is hovered or focused
 	# (rows take keyboard / gamepad focus; Right / Tab then reaches a button).
 	acts.visible = false
+	if social != null and int(social.unread.get(id, 0)) > 0:
+		var badge := MmKit.caption(str(social.unread[id]), 11, t.accent_hi)  # unread DMs, always visible
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(badge)
 	panel.focus_mode = Control.FOCUS_ALL
 	panel.add_theme_stylebox_override("focus", UiKit.focus_box())
 	var sync := func() -> void:
@@ -449,6 +486,51 @@ func _row(e: Dictionary) -> Control:
 		(b as Control).mouse_exited.connect(sync)
 		(b as Control).focus_exited.connect(func() -> void: sync.call_deferred())
 	return panel
+
+
+## P2: party invites waiting for me and friends asking to join, on top.
+func _social_groups() -> void:
+	if social == null:
+		return
+	_countdowns.clear()
+	var inv := social.invites_in()
+	if not inv.is_empty():
+		_list.add_child(_group_label(tr("HUD_SOCIAL_GROUP_INVITES")))
+		for m: Dictionary in inv:
+			var who := str(m.id)
+			var row := _action_row(_invite_text(m, social.invite_left_s(m)), [
+				[tr("HUD_FRIENDS_ACCEPT"), func() -> void: social.accept_invite(who)],
+				[tr("HUD_FRIENDS_REMOVE_X"), func() -> void: social.decline_invite(who)]])
+			_countdowns.append([row.find_child("Text", true, false), m])
+			_list.add_child(row)
+	var jr := social.pending_join_requests()
+	if not jr.is_empty():
+		_list.add_child(_group_label(tr("HUD_SOCIAL_GROUP_JOIN")))
+		for r: Dictionary in jr:
+			var who := str(r.id)
+			_list.add_child(_action_row(tr("HUD_SOCIAL_WANTS_JOIN") % str(r.name), [
+				[tr("HUD_SOCIAL_INVITE"), func() -> void: social.invite(who)]]))
+
+
+## "Brin invited you to a party · 1:42" (the countdown only with a server expiry).
+func _invite_text(m: Dictionary, left: int) -> String:
+	var s := tr("HUD_SOCIAL_INVITE_FROM") % str(m.display_name)
+	return s + ("  ·  " + MmView.clock(left) if m.has("expires") else "")
+
+
+## A text line with always-visible buttons (invites need no hover).
+func _action_row(text: String, buttons: Array) -> Control:
+	var t := UiKit.tokens()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var l := UiKit.label(text, &"small", t.text)
+	l.name = "Text"
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(l)
+	for b in buttons:
+		row.add_child(_small(b[0], b[1]))
+	return _pad(row, 20)
 
 
 func _small(text: String, on_press: Callable) -> Button:
@@ -510,7 +592,8 @@ func _say(text: String, ok: bool) -> void:
 
 
 ## Status marker: a shape per status (never colour alone): filled circle =
-## online, diamond = in lobby, square = in match, hollow ring = offline.
+## online, diamond = in lobby, square = in match, triangle = in queue, hollow
+## diamond = hero select, half-filled circle = away, hollow ring = offline.
 class StatusDot:
 	extends Control
 	var status: int = -1
@@ -523,6 +606,12 @@ class StatusDot:
 				return UiKit.tokens().accent
 			LobbyCodec.STATUS_IN_MATCH:
 				return UiKit.tokens().in_match
+			LobbyCodec.STATUS_IN_QUEUE:
+				return UiKit.tokens().accent_hi
+			LobbyCodec.STATUS_IN_SELECT:
+				return UiKit.tokens().accent
+			LobbyCodec.STATUS_AWAY:
+				return UiKit.tokens().warn
 		return UiKit.tokens().text_off
 
 	func _draw() -> void:
@@ -537,5 +626,14 @@ class StatusDot:
 					c + Vector2(0, r * 1.2), c + Vector2(-r * 1.2, 0)]), col)
 			LobbyCodec.STATUS_IN_MATCH:
 				draw_rect(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0), col)
+			LobbyCodec.STATUS_IN_QUEUE:
+				draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 1.1), c + Vector2(r * 1.1, r * 0.9),
+					c + Vector2(-r * 1.1, r * 0.9)]), col)
+			LobbyCodec.STATUS_IN_SELECT:
+				draw_polyline(PackedVector2Array([c + Vector2(0, -r * 1.2), c + Vector2(r * 1.2, 0), c + Vector2(0, r * 1.2),
+					c + Vector2(-r * 1.2, 0), c + Vector2(0, -r * 1.2)]), col, 1.5, true)
+			LobbyCodec.STATUS_AWAY:
+				draw_arc(c, r * 0.85, 0.0, TAU, 20, col, 1.5, true)
+				draw_circle(c, r * 0.45, col)
 			_:
 				draw_arc(c, r * 0.85, 0.0, TAU, 20, col, 1.5, true)

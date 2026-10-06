@@ -154,11 +154,15 @@ static func rating_change(queue: StringName, rating: Dictionary, voided: bool) -
 # --- pick phase ---------------------------------------------------------------
 
 ## Heroes `team` already holds in a pick state's seats.
-static func team_taken(seats: Array, team: int) -> Array[StringName]:
+static func team_taken(seats: Array, team: int, me: String = "") -> Array[StringName]:
 	var out: Array[StringName] = []
 	for s: Dictionary in seats:
-		if int(s.team) == team and StringName(s.get("hero", &"")) != &"":
+		if int(s.team) != team:
+			continue
+		if StringName(s.get("hero", &"")) != &"":
 			out.append(StringName(s.hero))
+		elif str(s.id) != me and StringName(s.get("hover", &"")) != &"":
+			out.append(StringName(s.hover))  # P3: an ally declared it
 	return out
 
 
@@ -176,7 +180,11 @@ static func can_pick(state: Dictionary, me: String, hero: StringName) -> bool:
 	var s := seat(state.get("seats", []), me)
 	if s.is_empty() or not bool(s.get("picking", false)) or StringName(s.get("hero", &"")) != &"":
 		return false
-	return not team_taken(state.get("seats", []), int(s.team)).has(hero)
+	if (state.get("bans", []) as Array).has(hero):
+		return false
+	if state.get("stage", &"pick") == &"ban":
+		return not bool(s.get("ban_locked", false))
+	return not team_taken(state.get("seats", []), int(s.team), me).has(hero)
 
 
 ## Turn labels of a draft order for team `first`: [{team, picks}] per turn.

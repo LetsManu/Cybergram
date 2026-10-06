@@ -133,11 +133,17 @@ func _ready() -> void:
 
 ## MapDef for a `--map` name: map_<name>.tres, else map_<name>_lane.tres (null if neither).
 static func load_map_def(map_name: String) -> MapDef:
+	var path := map_def_path(map_name)
+	return load(path) as MapDef if path != "" else null
+
+
+## Resource path of a map's MapDef ("" = no such map).
+static func map_def_path(map_name: String) -> String:
 	for pat in [MAP_DEF_PATH_PLAIN, MAP_DEF_PATH]:
 		var path: String = pat % map_name
 		if ResourceLoader.exists(path):
-			return load(path) as MapDef
-	return null
+			return path
+	return ""
 
 
 ## Builds the server world (and the local client unless dedicated).
@@ -773,6 +779,9 @@ func _start_front() -> void:
 	front.rate_guests = OS.get_environment("CYBERGRAM_RATE_GUESTS").to_lower() in ["1", "true", "yes", "on"]
 	front.housekeeping(front.now())
 	front_server = FrontServer.new(_front_enet, accounts, front)
+	front_server.build_version = hc.build_version
+	front_server.ready_checks["supervisor"] = func() -> bool: return not supervisor.draining
+	front_server.start_ops()  # P1: /health, /metrics, /admin when CYBERGRAM_OPS_PORT is set
 	supervisor.drained.connect(func() -> void:
 		print("[front] drained: exiting")
 		_front_enet.close()
@@ -809,6 +818,8 @@ static func front_rules(base: MatchmakingRulesDef, lc: LaunchConfig) -> Matchmak
 	if lc.mm_pick_s > 0.0:
 		r.pick_turn_s = lc.mm_pick_s
 		r.all_random_s = lc.mm_pick_s * 2.0
+		r.blind_pick_s = lc.mm_pick_s  # P3: blind pick and the trade window follow the test override
+		r.finalize_s = 0.0
 	return r
 
 
@@ -870,6 +881,14 @@ func _on_host_allocated(setup: Dictionary) -> void:
 	if r.has("match_clock"):
 		launch_config.match_clock = clampf(float(r.match_clock), 0.1, 100.0)
 	launch_config.bots = true  # bots fill every seat not reserved for a human
+	# v20 custom games: the host's bot difficulty and bots per team.
+	var diff := str(r.get("bot_difficulty", ""))
+	if diff in MatchmakingCodec.BOT_DIFFICULTIES:
+		launch_config.bot_difficulty = diff
+	var per: Variant = r.get("bots_per_team", null)
+	if per is Array and (per as Array).size() == 2:
+		var slots: Array[int] = [clampi(int(per[0]), 0, 5), clampi(int(per[1]), 0, 5)]
+		launch_config.bot_slots = slots
 	_lobby_enet = _host_enet
 	_build_match()
 	var content := ContentDB.shared()

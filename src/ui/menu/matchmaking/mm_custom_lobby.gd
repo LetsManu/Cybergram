@@ -8,6 +8,9 @@ extends Control
 
 signal back_requested()
 
+## v20: bot difficulty -> its label key (literal keys for the translation check).
+const DIFF_KEYS := {&"easy": "HUD_MM_BOT_EASY", &"normal": "HUD_MM_BOT_NORMAL", &"hard": "HUD_MM_BOT_HARD"}
+
 var client: Object
 var lobby: Dictionary = {}
 ## [{id, name}] friends that can be invited (from the menu's friends panel).
@@ -17,6 +20,8 @@ var _maps: HBoxContainer
 var _modes: HBoxContainer
 var _size_label: Label
 var _bots: CheckButton
+var _bot_labels: Array[Label] = []
+var _diffs: HBoxContainer
 var _teams: Array[VBoxContainer] = []
 var _invites: VBoxContainer
 var _start: Button
@@ -99,6 +104,35 @@ func _build() -> void:
 		set_config(StringName(lobby.get("map", &"")), StringName(lobby.get("mode", &"custom")), on, int(lobby.get("team_size", 5))))
 	cfg.add_child(_bots)
 	_ctrls.append(_bots)
+	# v20: bots per team (- / +; "fill" = every empty seat) and difficulty.
+	var br := HBoxContainer.new()
+	br.add_theme_constant_override("separation", 10)
+	cfg.add_child(br)
+	for side in 2:
+		br.add_child(MmKit.caption(tr("HUD_TEAM_0") if side == 0 else tr("HUD_TEAM_1"), 11, t.text_dim))
+		var m := UiKit.button("−", func() -> void: bump_bots(side, -1), &"secondary", 30)
+		m.custom_minimum_size.x = 34
+		br.add_child(m)
+		var lbl := MmKit.mono("", 16, t.text)
+		lbl.custom_minimum_size.x = 64
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		br.add_child(lbl)
+		_bot_labels.append(lbl)
+		var p := UiKit.button("+", func() -> void: bump_bots(side, 1), &"secondary", 30)
+		p.custom_minimum_size.x = 34
+		br.add_child(p)
+		_ctrls.append_array([m, p])
+	_diffs = HBoxContainer.new()
+	_diffs.add_theme_constant_override("separation", 8)
+	cfg.add_child(_diffs)
+	var dg := ButtonGroup.new()
+	for d: StringName in [&"easy", &"normal", &"hard"]:
+		var c := MmKit.chip(tr(DIFF_KEYS[d]), dg, 110)
+		c.name = "Diff_" + String(d)
+		var did := d
+		c.pressed.connect(func() -> void: set_bots(_slots(), did))
+		_diffs.add_child(c)
+		_ctrls.append(c)
 	cfg.add_child(UiKit.hairline())
 	var ih := HBoxContainer.new()
 	var ic := MmKit.caption(tr("HUD_MM_CUSTOM_INVITE"))
@@ -136,6 +170,39 @@ func _build() -> void:
 	_start.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_start.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(_start)
+
+
+## v20: bots per team (-1 = fill) and difficulty, host only.
+func set_bots(slots: Array, difficulty: StringName) -> void:
+	if is_host() and client != null and client.has_method("custom_bots"):
+		client.call("custom_bots", int(slots[0]), int(slots[1]), difficulty)
+
+
+## The bots one team gets: the host's number, or every empty seat for "fill".
+func bots_for(side: int) -> int:
+	var humans := (lobby.get("members", []) as Array).filter(func(m: Dictionary) -> bool:
+		return int(m.get("team", 0)) == side).size()
+	var room := maxi(0, int(lobby.get("team_size", 5)) - humans)
+	if not bool(lobby.get("bots", true)):
+		return 0
+	var v := int(_slots()[side])
+	return room if v < 0 else mini(v, room)
+
+
+## "-" from fill goes to (room - 1); "+" past the room returns to fill.
+func bump_bots(side: int, d: int) -> void:
+	var s := _slots()
+	var humans := (lobby.get("members", []) as Array).filter(func(m: Dictionary) -> bool:
+		return int(m.get("team", 0)) == side).size()
+	var room := maxi(0, int(lobby.get("team_size", 5)) - humans)
+	var cur := room if int(s[side]) < 0 else int(s[side])
+	var nxt := clampi(cur + d, 0, room)
+	s[side] = -1 if nxt >= room else nxt
+	set_bots(s, StringName(lobby.get("difficulty", &"normal")))
+
+
+func _slots() -> Array:
+	return (lobby.get("bot_slots", [-1, -1]) as Array).duplicate()
 
 
 func _bump_size(d: int) -> void:
@@ -176,6 +243,11 @@ func _apply() -> void:
 	var n := int(lobby.get("team_size", 5))
 	_size_label.text = "%dv%d" % [n, n]
 	_bots.set_pressed_no_signal(bool(lobby.get("bots", true)))
+	for side in 2:
+		var v := int(_slots()[side])
+		_bot_labels[side].text = tr("HUD_MM_BOTS_FILL") if v < 0 else str(bots_for(side))
+	for c in _diffs.get_children():
+		(c as Button).set_pressed_no_signal(c.name == "Diff_" + String(lobby.get("difficulty", &"normal")))
 	for c in _ctrls:
 		if c is BaseButton:
 			(c as BaseButton).disabled = not host
@@ -193,9 +265,12 @@ func _apply() -> void:
 		var l := UiKit.label(nm, &"body", t.text)
 		_teams[team].add_child(l)
 	for i in 2:
+		var bots := bots_for(i)
 		for k in range(counts[i], n):
-			_teams[i].add_child(UiKit.label(tr("HUD_LOBBY_BOT_FILL") if bool(lobby.get("bots", true)) else tr("HUD_LOBBY_OPEN_SLOT"),
-				&"small", t.text_off))
+			var is_bot: bool = k - int(counts[i]) < bots
+			_teams[i].add_child(UiKit.label(
+				(tr("HUD_MM_BOT_SLOT") % tr(DIFF_KEYS.get(StringName(lobby.get("difficulty", &"normal")), "HUD_MM_BOT_NORMAL")))
+				if is_bot else tr("HUD_MM_SEAT_OPEN"), &"small", t.text_off))
 	for c in _invites.get_children():
 		_invites.remove_child(c)
 		c.queue_free()

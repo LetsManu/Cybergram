@@ -177,3 +177,19 @@ func test_bots_siege_an_exposed_enemy_uplink() -> void:
 	assert_bool(u.exposed).is_true()
 	assert_int(sieging).is_equal(3)
 	assert_float(u.integrity).is_less(u.max_integrity - 1000.0)
+
+
+func test_fill_around_caps_bots_per_team_for_custom_slots() -> void:
+	var built := WardlingFixtures.slice_server(self, WardlingFixtures.rules(), false)
+	var server: ServerWorld = built[0]
+	auto_free(built[3])
+	var roster := load(ROSTER) as BotRosterDef
+	var director := BotDirector.new()
+	director.setup(server, roster, roster.profile("hard"), 1)
+	var humans: Array[int] = [1, 0]
+	var limits: Array[int] = [1, -1]
+	assert_int(director.fill_around(humans, limits)).is_equal(4)  # 1 ally bot + a full enemy team of 3
+	var per_team := [0, 0]
+	for br in director.brains:
+		per_team[server.hero(br.hero_id).combat.team] += 1
+	assert_array(per_team).is_equal([1, 3])

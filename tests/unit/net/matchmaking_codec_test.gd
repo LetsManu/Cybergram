@@ -30,6 +30,11 @@ func _req_samples() -> Dictionary:
 		MatchmakingCodec.OP_CUSTOM_PICK: {"hero": 7},
 		MatchmakingCodec.OP_CUSTOM_START: {},
 		MatchmakingCodec.OP_REJOIN: {},
+		MatchmakingCodec.OP_STATE_SYNC: {},
+		MatchmakingCodec.OP_HOVER: {"hero": 6},
+		MatchmakingCodec.OP_CUSTOM_BOTS: {"bots_a": 2, "bots_b": MatchmakingCodec.BOTS_FILL, "difficulty": 2},
+		MatchmakingCodec.OP_LOAD_PROGRESS: {"pct": 40},
+		MatchmakingCodec.OP_SELECT_CHAT: {"text": "mid? ich gehe oben — ok"},
 	}
 
 
@@ -44,7 +49,7 @@ func _evt_samples() -> Dictionary:
 			"accepted": 3, "you_accepted": 1},
 		MatchmakingCodec.EV_READY_RESULT: {"outcome": 3, "locked": 120},
 		MatchmakingCodec.EV_PICK_STATE: {"mode": 0, "turn": 2, "turn_team": 1, "seconds": 27, "you": 0, "seats": seats,
-			"rerolls": 1, "bench": [3, 5], "swap_from": [2]},
+			"rerolls": 1, "bench": [3, 5], "swap_from": [2], "stage": 2, "bans": [4, 7], "trade_s": 13},
 		MatchmakingCodec.EV_MATCH_ASSIGNED: {"host": "play.example.org", "port": 7801,
 			"ticket": "cgt1.k1.%s.abcdef0123456789abcdef01.1999999999.%s.%s" % [ID_A, ID_B, ID_A + ID_B],
 			"match": "abcdef0123456789abcdef01", "team": 1, "hero": 4, "map": "slice"},
@@ -55,8 +60,13 @@ func _evt_samples() -> Dictionary:
 		MatchmakingCodec.EV_MATCH_RESULT: {"match": "abcdef0123456789abcdef01", "queue": 0, "won": 1, "voided": 0,
 			"duration": 1720, "rated": 1, "delta": -153, "players": members},
 		MatchmakingCodec.EV_CUSTOM_STATE: {"host": ID_A, "phase": 0, "map": 1, "mode": 2, "bots": 1, "team_size": 5,
-			"members": members},
+			"bots_a": 1, "bots_b": 255, "difficulty": 0, "members": members},
 		MatchmakingCodec.EV_ACK: {"req": 4},
+		MatchmakingCodec.EV_LOAD_PROGRESS: {"loads": [100, 40, 0, 100, 70, 100]},
+		MatchmakingCodec.EV_SELECT_CHAT: {"seat": 3, "text": "gl hf"},
+		MatchmakingCodec.EV_PHASE: {"epoch": 1_800_000_000, "seq": 70_000, "phase": 3, "prev": 2, "snap": 1,
+			"queue": 0, "party_size": 2, "leader": 1, "waited": 61, "estimate": 75, "locked": 0,
+			"match": "abcdef0123456789abcdef01", "party": ID_B},
 	}
 
 

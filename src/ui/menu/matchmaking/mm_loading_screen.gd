@@ -3,6 +3,8 @@ extends Control
 ## W17B-UI: match loading / connection screen (design "Join tickets",
 ## "Reconnect"). Both teams as portrait cards (hero, name, lane) over the
 ## map name; a status line and a progress line under them.
+## v20: every card has its player's loading bar and percent (the front relays
+## each client's progress; bots are ready at once).
 ## States: CONNECTING (ticket received, the game client is starting) ->
 ## the flow hands over to the match; DISCONNECTED (the match link dropped
 ## while the match runs: RECONNECT asks the front for a fresh ticket, LEAVE
@@ -26,6 +28,12 @@ var _teams: Array[HBoxContainer] = []
 var _reconnect: Button
 var _leave: Button
 var _spin: float = 0.0
+## v20: loading percent per seat (seat order), and the cards' bars / labels by seat.
+var loads: Array = []
+## Own loading progress 0..1 (the shared bar; -1 = unknown: the old spinner).
+var own_progress: float = -1.0
+var _bars: Dictionary = {}
+var _pcts: Dictionary = {}
 
 
 func _ready() -> void:
@@ -53,8 +61,46 @@ func set_state(s: State) -> void:
 		_reconnect.grab_focus.call_deferred()
 
 
+## v20: the server's loading percent per seat (seat order).
+func set_loads(l: Array) -> void:
+	for i in l.size():
+		if i < loads.size():
+			loads[i] = maxi(int(loads[i]), int(l[i]))
+		else:
+			loads.append(int(l[i]))
+	_show_loads()
+
+
+## v20: own progress (0..1) before the server's echo arrives.
+func set_own_progress(p: float, seat_index: int) -> void:
+	own_progress = clampf(p, 0.0, 1.0)
+	if seat_index >= 0:
+		while loads.size() <= seat_index:
+			loads.append(0)
+		loads[seat_index] = maxi(int(loads[seat_index]), floori(own_progress * 100.0))
+	_show_loads()
+
+
+## Percent of seat `i` (bots 100, unknown 0).
+func load_of(i: int) -> int:
+	if i < loads.size():
+		return int(loads[i])
+	return 100 if i < seats.size() and bool((seats[i] as Dictionary).get("bot", false)) else 0
+
+
+func _show_loads() -> void:
+	for i: int in _bars:
+		var pct := load_of(i)
+		(_bars[i] as ProgressBar).value = pct / 100.0
+		(_pcts[i] as Label).text = "%d%%" % pct
+
+
 func _process(delta: float) -> void:
 	if state == State.CONNECTING and _bar != null:
+		if own_progress >= 0.0:
+			_bar.value = own_progress
+			_status.text = tr("HUD_MM_LOADING_MAP") if own_progress < 1.0 else tr("HUD_MM_CONNECTING")
+			return
 		_spin += delta
 		_bar.value = 0.15 + 0.8 * clampf(_spin / 3.0, 0.0, 1.0) if not UiKit.reduce_motion() else 0.5
 
@@ -117,9 +163,13 @@ func _apply() -> void:
 		for c in _teams[i].get_children():
 			_teams[i].remove_child(c)
 			c.queue_free()
-	for s: Dictionary in seats:
+	_bars.clear()
+	_pcts.clear()
+	for i in seats.size():
+		var s: Dictionary = seats[i]
 		var team := int(s.get("team", 0))
-		_teams[0 if team == my_team else 1].add_child(_card(s, team == my_team))
+		_teams[0 if team == my_team else 1].add_child(_card(s, team == my_team, i))
+	_show_loads()
 	_reconnect.visible = state == State.DISCONNECTED
 	_bar.visible = state == State.CONNECTING
 	_leave.visible = state != State.CONNECTING
@@ -137,7 +187,7 @@ func _apply() -> void:
 			_bar.value = 0.0
 
 
-func _card(s: Dictionary, ally: bool) -> Control:
+func _card(s: Dictionary, ally: bool, index: int = -1) -> Control:
 	var t := UiKit.tokens()
 	var p := MmKit.frame(0, Color(t.panel_raised, 0.9), t.accent_dim if ally else Color(t.danger, 0.5))
 	p.custom_minimum_size = Vector2(160, 200)
@@ -164,4 +214,18 @@ func _card(s: Dictionary, ally: bool) -> Control:
 	var l := UiKit.label(who, &"caption", t.text_dim, HORIZONTAL_ALIGNMENT_CENTER)
 	l.clip_text = true
 	v.add_child(l)
+	if index >= 0:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var bar := MmKit.progress(t.accent if ally else t.danger, 3)
+		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(bar)
+		var pct := MmKit.mono("0%", 11, t.text_dim)
+		pct.custom_minimum_size.x = 34
+		pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(pct)
+		v.add_child(row)
+		_bars[index] = bar
+		_pcts[index] = pct
 	return p

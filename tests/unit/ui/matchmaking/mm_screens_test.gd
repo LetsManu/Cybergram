@@ -86,18 +86,104 @@ func test_custom_queue_opens_custom_lobby() -> void:
 	assert_str(String(f.page_name)).is_equal("loading")
 
 
+func test_custom_lobby_bot_slots_and_difficulty() -> void:
+	var f := _flow()
+	f.play.select_queue(MmView.Q_CUSTOM)
+	f.play.find_match()
+	var c := f.page as MmCustomLobby
+	assert_int(c.bots_for(0)).is_equal(3)  # fill: 5 seats, 2 humans
+	assert_str(c._bot_labels[0].text).is_equal(tr("HUD_MM_BOTS_FILL"))
+	c.bump_bots(0, -1)
+	assert_array(c.lobby.bot_slots).is_equal([2, -1])
+	assert_int(c.bots_for(0)).is_equal(2)
+	assert_str(c._bot_labels[0].text).is_equal("2")
+	(c._diffs.get_node("Diff_hard") as Button).pressed.emit()
+	assert_str(String(c.lobby.difficulty)).is_equal("hard")
+	var bot_rows := c._teams[0].get_children().filter(func(n: Node) -> bool:
+		return n is Label and (n as Label).text == tr("HUD_MM_BOT_SLOT") % tr("HUD_MM_BOT_HARD"))
+	assert_int(bot_rows.size()).is_equal(2)
+	c.bump_bots(0, 1)  # back up to the room: fill again
+	assert_array(c.lobby.bot_slots).is_equal([-1, -1])
+	await get_tree().process_frame
+
+
+func test_loading_screen_shows_every_players_progress() -> void:
+	var f := _flow()
+	fake.join_queue(MmView.Q_NORMAL, [&"north", &"center"])
+	fake.step(fake.found_after_s)
+	fake.reply_ready(true)
+	for i in 60:
+		fake.step(fake.rules.pick_turn_s + 0.1)
+		if f.page_name == &"loading":
+			break
+	assert_str(String(f.page_name)).is_equal("loading")
+	var ld := f.page as MmLoadingScreen
+	assert_int(ld._bars.size()).is_equal(ld.seats.size())
+	for i in ld.seats.size():
+		if bool(ld.seats[i].get("bot", false)):
+			assert_int(ld.load_of(i)).is_equal(100)
+	fake.report_load(50)
+	var me := f._my_seat_index()
+	assert_int(ld.load_of(me)).is_equal(50)
+	assert_str((ld._pcts[me] as Label).text).is_equal("50%")
+	fake.step(fake.load_s * 2.0)  # every fake player finished
+	for i in ld.seats.size():
+		if i != me:
+			assert_int(ld.load_of(i)).is_equal(100)
+	# The flow reports its own preload in 10 % steps.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var loads := fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"load")
+	assert_bool(loads.size() >= 2).is_true()
+	assert_int(int(loads[-1].pct) % 10).is_equal(0)
+
+
+func test_draft_shows_abilities_and_team_chat() -> void:
+	var f := _flow()
+	_to_pick(MmView.Q_NORMAL)
+	var d := f.page as MmDraftScreen
+	assert_object(d.chat).is_not_null()
+	d.preview(d.selected)
+	var def := HeroShowcase.hero_def(str(MmView.hero_entry(d.selected).stem))
+	assert_int(d._skills.get_child_count()).is_equal(def.skills.size())
+	assert_str(_all_text(d._skills)).contains(def.skills[0].display_name)
+	var other: StringName = &""
+	for h: StringName in d._thumbs:
+		if h != d.selected:
+			other = h
+			break
+	d.preview(other)
+	var def2 := HeroShowcase.hero_def(str(MmView.hero_entry(other).stem))
+	assert_str(_all_text(d._skills)).contains(def2.skills[0].display_name)
+	d.chat.send.call("top or mid?")
+	assert_array(fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"select_chat")).is_not_empty()
+	fake.teammate_says("Nyx", "mid")
+	await get_tree().process_frame
+	assert_str(d.chat._log.get_parsed_text()).contains("Nyx")
+	assert_str(d.chat._log.get_parsed_text()).contains("top or mid?")
+
+
+static func _all_text(n: Node) -> String:
+	var out := PackedStringArray()
+	if n is Label:
+		out.append((n as Label).text)
+	for c in n.get_children():
+		out.append(_all_text(c))
+	return "\n".join(out)
+
+
 func test_ready_check_timeout_and_result() -> void:
 	var f := _flow()
 	fake.join_queue(MmView.Q_NORMAL, [&"fill"])
 	fake.step(fake.found_after_s)
 	var rc := f.ready_popup
 	assert_object(rc).is_not_null()
-	assert_float(rc.left_s).is_equal_approx(10.0, 0.01)
-	rc.tick(10.0)
+	assert_float(rc.left_s).is_equal_approx(fake.rules.ready_check_s, 0.01)
+	rc.tick(fake.rules.ready_check_s)
 	assert_int(rc.state).is_equal(MmReadyCheck.State.MISSED)
 	rc.accept()  # too late: nothing sent
 	assert_int(fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"ready").size()).is_equal(0)
-	fake.step(10.0)  # the server times the player out
+	fake.step(fake.rules.ready_check_s)  # the server times the player out
 	assert_object(f.ready_popup).is_null()
 	assert_int(f.play.state).is_equal(MmPlayScreen.State.LOCKED)
 
@@ -299,6 +385,12 @@ func test_flow_joins_in_place_through_session() -> void:
 	fake.step(fake.rules.all_random_s + 0.1)
 	assert_str(String(f.page_name)).is_equal("loading")
 	f._process(MatchmakingFlow.HANDOFF_S + 0.1)
+	# v20: the hand-over waits until the map and hero are loaded in the background.
+	for i in 3000:
+		if not s.joined.is_empty():
+			break
+		await get_tree().process_frame
+	assert_bool(f._preload.is_done()).is_true()
 	assert_int(s.joined.size()).is_equal(1)
 	assert_str(s.joined[0][2]).starts_with("fake-ticket-")
 	assert_int(s.joined[0][3]).is_greater(0)
