@@ -145,6 +145,7 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 				continue
 			_mark(grid, centre, def.min_spacing_m)
 			out.append(pl)
+			_add_companion(md, def, space, bounds, pl, p, n, rng, corridors, out)
 			break
 	# roofs
 	var walk := NavIndex.new(def.walk_navmeshes if not def.walk_navmeshes.is_empty() else [def.navmesh])
@@ -442,6 +443,29 @@ static func _rng(def: WorldPropsDef, p: Vector3) -> RandomNumberGenerator:
 	return rng
 
 
+## A small piece beside `pl` along the same wall (WorldPropsDef.companions),
+## same rules as any wall prop; it shares the primary's spacing slot.
+static func _add_companion(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState3D, bounds: Dictionary,
+		pl: Placement, p: Vector3, n: Vector3, rng: RandomNumberGenerator, corridors: Array, out: Array) -> void:
+	var options: Array = def.companions.get(pl.piece, [])
+	if options.is_empty() or rng.randf() >= def.companion_chance or out.size() >= def.max_props:
+		return
+	var piece := StringName(options[rng.randi_range(0, options.size() - 1)])
+	if not bounds.has(piece) or not bounds.has(pl.piece):
+		return
+	var side := 1.0 if rng.randf() < 0.5 else -1.0
+	var tangent := pl.xform.basis.x
+	var off: float = (bounds[pl.piece] as AABB).size.x * 0.5 + (bounds[piece] as AABB).size.x * 0.5 + 0.15
+	var c := _fit_wall(def, space, p + tangent * off * side, n, piece, bounds[piece])
+	if c == null:
+		return
+	if excluded(md, def, _foot_centre(c), c.foot_radius, corridors) != "":
+		return
+	c.zone = pl.zone
+	c.team = _team_for(md, def, piece, _foot_centre(c))
+	out.append(c)
+
+
 ## Up to two pieces to try, by the zone's weights (lane-specific table first:
 ## "<zone>_<lane id>", then "<zone>").
 static func _pick(def: WorldPropsDef, zone: StringName, lane: int, md: MapDef, rng: RandomNumberGenerator) -> Array:
@@ -525,6 +549,11 @@ static func _fit_wall(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: V
 		var d := ((hh.position as Vector3) - anchor).dot(wall_dir)
 		if absf(d - dist0) > 0.15:
 			return null
+	# a real wall, not a low crate or kerb: it reaches min_wall_h_m
+	var lowtop := anchor + Vector3(0, def.min_wall_h_m - probe_h, 0) - wall_dir * 0.3
+	var hl := _wall_hit(space, lowtop, wall_dir, def.wall_search_m + 0.6)
+	if hl.is_empty() or absf(((hl.position as Vector3) - lowtop).dot(wall_dir) - 0.3 - dist0) > 0.15:
+		return null
 	# wall-mounted pieces need the wall up to their top (not a 1.1 m rail)
 	if def.wall_mounted.has(piece):
 		var top := anchor + Vector3(0, box.end.y - 0.2 - probe_h, 0) - wall_dir * 0.3
@@ -556,6 +585,12 @@ static func _fit_wall(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: V
 	var xf := Transform3D(basis, origin)
 	if not _clear(space, xf, box, y_hi - y_lo):
 		return null
+	# final check, the rule itself: from every footprint corner at the floor the
+	# wall is within max_wall_depth_m (catches steps, gaps under a rail, slopes)
+	for c in corners:
+		var from := c + Vector3(0, probe_h, 0) - wall_dir * 0.02
+		if _wall_hit(space, from, wall_dir, def.max_wall_depth_m).is_empty():
+			return null
 	var pl := Placement.new()
 	pl.piece = piece
 	pl.kind = &"wall"

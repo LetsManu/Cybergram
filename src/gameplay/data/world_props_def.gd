@@ -41,6 +41,12 @@ extends Resource
 ## mesh overhangs above head height (lamp arm, sign board): {piece: Vector2}.
 ## Pieces not listed use their mesh bounds.
 @export var foot_override: Dictionary = {}
+## Lowest wall a prop may stand against (m): rails (1.1 m) count, crates and kerbs do not.
+@export var min_wall_h_m: float = 0.95
+## Small pieces that may stand beside a placed piece on the same wall: {piece: [pieces]}.
+@export var companions: Dictionary = {}
+## Chance that a placed piece gets a companion.
+@export var companion_chance: float = 0.5
 ## Pieces fixed to a wall (cables, pipes, AC units): the wall must reach their top.
 @export var wall_mounted: Array[StringName] = []
 ## Pieces that carry team colour: placed only in HQ courtyards, with the HQ team's material.

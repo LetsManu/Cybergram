@@ -14,14 +14,28 @@ edge_step_m = 2.0
 wall_search_m = 1.6
 max_wall_depth_m = 1.2
 wall_gap_m = 0.04
-max_floor_spread_m = 0.12
-min_spacing_m = 3.5
+max_floor_spread_m = 0.2
+min_spacing_m = 3.0
 density = {
-&"flank": 0.3,
+&"flank": 0.35,
 &"hq": 0.55,
-&"lane": 0.3,
-&"plaza": 0.4
+&"lane": 0.75,
+&"plaza": 0.7
 }
+min_wall_h_m = 0.95
+companions = {
+&"bench": [&"planter", &"barrel"],
+&"crate": [&"barrel", &"crate", &"debris"],
+&"crate_stack": [&"barrel", &"crate"],
+&"pipe_cluster": [&"barrel", &"puddle"],
+&"planter": [&"bench", &"planter"],
+&"street_lamp": [&"bench", &"crate", &"barrier"],
+&"barrier": [&"debris", &"barrel"],
+&"holo_sign": [&"crate", &"planter"],
+&"kiosk": [&"planter", &"cargo"],
+&"cargo": [&"crate", &"barrel"]
+}
+companion_chance = 0.55
 weights = {
 &"flank": {
 &"barrel": 2.0,
