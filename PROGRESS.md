@@ -32,6 +32,13 @@ as it is, new tests run inside the existing test job.
   wardlings-and-economy.md §11), replacing the M1 "arrive in M3" staging.
   Order: Supply Cache, Garrison Sentinels, then Sanctum / Foundry art.
 
+- **Armory build system** (owner task 2026-10-06, plan approved): plan in
+  `docs/plans/armory-build-system.md` (Phase 0 audit done). Owner decisions:
+  add the GDD-cut items plus a new defensive line; protocol 20 -> 21 so the
+  server's buy/sell result reaches the client; squad upgrades and Med-Packs can
+  be undone within the same Armory visit; custom builds stored locally
+  (`user://builds.json`). Next: step 1 (data fields, HeroDef roles, validator).
+
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +
   reporting of illegal transitions. `phase_machine_test.gd` (every pair).
