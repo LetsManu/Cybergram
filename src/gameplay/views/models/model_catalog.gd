@@ -25,10 +25,16 @@ const HERO_NAMES := {
 const HERO_TRI_BUDGET: int = 30000
 const WEAPON_FP_TRI_BUDGET: int = 20000
 const WEAPON_TP_TRI_BUDGET: int = 6000
-const WARDLING_TRI_BUDGET: int = 4000
+## Wardling v2 (owner redesign 2026-10-06, docs/assets/wardling.md): rigged
+## mini-soldier, full body within RiggedHeroModel.LOD_M (25 m) + tier / class
+## props; beyond it only the ~2.5k far LOD draws (art bible §10.6 had 4k for the
+## old hover Picket).
+const WARDLING_TRI_BUDGET: int = 16000
+const WARDLING_FAR_TRI_BUDGET: int = 3000
 const HERO_MESH_BUDGET: int = 24
 const WEAPON_MESH_BUDGET: int = 10
-const WARDLING_MESH_BUDGET: int = 8
+## Body + far LOD + 9 bone-attached props (mostly hidden) + the Turned ring.
+const WARDLING_MESH_BUDGET: int = 12
 
 
 static var _enabled: int = -1

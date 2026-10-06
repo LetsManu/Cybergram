@@ -44,6 +44,9 @@ var _hooked_wardlings: bool = false
 var _last_s: float = 0.0
 var _last_capture: Dictionary = {}  # "id:team" -> match seconds
 var _last_defence: Dictionary = {}  # id -> match seconds
+## Forward Beacon state of a Mid for its owner (SnapshotData.HardpointState.beacon).
+enum Beacon { NONE, ATTUNING, READY, UNDER_ATTACK }
+
 ## Forward Beacons (§3.5): every Mid hardpoint (1 on the slice, 3 on the full
 ## map), its last seen owner and when that owner took it.
 var _mids: Array[HardpointSim] = []
@@ -278,7 +281,11 @@ func is_at_armory(h: HeroBody) -> bool:
 	if map_def == null:
 		return false
 	var hq := map_def.hq(h.combat.team)
-	return hq != null and _flat(h.state.position, hq.armory) <= rules.armory_radius_m
+	if hq == null:
+		return false
+	if rules.shop_in_sanctum and _flat(h.state.position, hq.sanctum) <= hq.sanctum_radius:
+		return true
+	return _flat(h.state.position, hq.armory) <= rules.armory_radius_m
 
 
 func _armory_visit(h: HeroBody, p: HeroProgress) -> void:
@@ -337,15 +344,38 @@ func ready_beacons(team: int) -> Array[HardpointSim]:
 
 
 func _mid_ready(m: HardpointSim, team: int) -> bool:
-	if m.owner != team or server.match_seconds() - float(_mid_since.get(m, -1e9)) < rules.beacon_attune_s:
-		return false
-	if m.capturing_team == 1 - team and m.progress > 0.0:
-		return false
+	return m.owner == team and beacon_state(m) == Beacon.READY
+
+
+## Forward Beacon state of Mid `m` for its owner (replicated, ForwardBeaconView).
+func beacon_state(m: HardpointSim) -> int:
+	if m.owner == MapDef.TEAM_NEUTRAL or not _mid_since.has(m):
+		return Beacon.NONE
+	if beacon_attune(m) < 1.0:
+		return Beacon.ATTUNING
+	if m.capturing_team == 1 - m.owner and m.progress > 0.0:
+		return Beacon.UNDER_ATTACK
 	for h in heroes():
-		if h.combat.team != team and not h.combat.dead \
+		if h.combat.team != m.owner and not h.combat.dead \
 				and _flat(h.state.position, m.def.position) <= rules.beacon_threat_radius_m:
-			return false
-	return true
+			return Beacon.UNDER_ATTACK
+	return Beacon.READY
+
+
+## Attunement of Mid `m` in [0, 1] (1 = attuned; the 15 s start at the capture).
+func beacon_attune(m: HardpointSim) -> float:
+	if rules.beacon_attune_s <= 0.0:
+		return 1.0
+	return clampf((server.match_seconds() - float(_mid_since.get(m, -1e9))) / rules.beacon_attune_s, 0.0, 1.0)
+
+
+## Where `team`'s heroes spawn at the Mid at `at` (zone `zone_radius`): half way
+## to the zone edge on the side toward the team's Sanctum. Shared with the pad
+## view (ForwardBeaconView) and the placement audit.
+static func beacon_spot(at: Vector3, sanctum: Vector3, zone_radius: float) -> Vector3:
+	var toward := Vector3(sanctum.x - at.x, 0.0, sanctum.z - at.z)
+	toward = toward.normalized() if toward.length_squared() > 1e-6 else Vector3.BACK
+	return at + toward * zone_radius * 0.5
 
 
 ## Beacon spawn point of `team`: inside a ready Mid zone, on the side toward the
@@ -369,10 +399,8 @@ func beacon_point(team: int, lane: int = -1) -> Vector3:
 		return Vector3.ZERO
 	var at := m.def.position
 	var hq := map_def.hq(team) if map_def != null else null
-	var toward := Vector3.BACK
-	if hq != null:
-		toward = Vector3(hq.sanctum.x - at.x, 0.0, hq.sanctum.z - at.z).normalized()
-	return at + toward * m.def.zone_radius * 0.5 + Vector3(0.0, 0.05, 0.0)
+	var sanctum := hq.sanctum if hq != null else at + Vector3.BACK
+	return beacon_spot(at, sanctum, m.def.zone_radius) + Vector3(0.0, 0.05, 0.0)
 
 
 ## Respawn position for `h`, or null for the Sanctum (also when the Beacon

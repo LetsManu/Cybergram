@@ -63,7 +63,10 @@ func _build() -> MapDef:
 	_server.setup_match(def, 1.0)
 	_server.enable_wardlings(def, WardlingFixtures.rules(), load(WardlingFixtures.PICKET) as WardlingDef)
 	_server.wardlings.vanguard_enabled = false
-	_server.enable_progression(load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef,
+	# The pad-only path (Sanctum shop off): the Sanctum buy is armory_reach_test's.
+	var econ := (load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef).duplicate() as EconomyRulesDef
+	econ.shop_in_sanctum = false
+	_server.enable_progression(econ,
 		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, def)
 	_input = Player.new()
 	_input.server = _server
@@ -115,7 +118,7 @@ func test_kill_wardlings_level_learn_walk_to_armory_buy_crystal() -> void:
 	assert_bool(h.combat.abilities.skill(0).unlocked).is_true()
 	assert_int(_client.combat.skill_flags[0] & AbilityRunner.FLAG_LOCKED).is_equal(0)
 	assert_int(_client.progress.skill_points).is_equal(1)
-	# A buy at the Sanctum is refused (HQ Armory pad only).
+	# A buy at the Sanctum is refused with the Sanctum shop off (pad only).
 	var cat := pr.catalog
 	var ember := cat.index_of(&"ember_heart")
 	var dmg_before := _server.weapon_hit_damage(h, 10.0)
@@ -198,3 +201,31 @@ func test_mid_beacon_spawn_choice_and_fallback() -> void:
 	assert_bool(h.combat.dead).is_false()
 	assert_float(Vector2(h.state.position.x - mid.def.position.x, h.state.position.z - mid.def.position.z).length()) \
 		.is_less_equal(mid.def.zone_radius)
+
+
+## Part 6 Forward Beacon (docs/assets/forward_beacon.md): the Mid's beacon state
+## and attunement reach the client (neutral -> attuning -> ready -> under attack).
+func test_mid_beacon_state_replicates_to_the_client() -> void:
+	_build()
+	_tick(10)
+	var pr := _server.progression
+	var B := ProgressionSystem.Beacon
+	var mid := _server.objectives.find(&"s_mid")
+	var i := _server.objectives.all.find(mid)
+	assert_int(_client.hardpoints[i].beacon).is_equal(B.NONE)
+	_server.objectives.debug_set_owner(&"s_mid", C)
+	_tick(2)
+	assert_int(_client.hardpoints[i].beacon).is_equal(B.ATTUNING)
+	assert_float(_client.hardpoints[i].beacon_attune).is_less(0.1)
+	_server.match_flow.time_s += pr.rules.beacon_attune_s * 0.5
+	_tick(2)
+	assert_int(_client.hardpoints[i].beacon).is_equal(B.ATTUNING)
+	assert_float(_client.hardpoints[i].beacon_attune).is_between(0.4, 0.6)
+	_server.match_flow.time_s += pr.rules.beacon_attune_s
+	_tick(2)
+	assert_int(_client.hardpoints[i].beacon).is_equal(B.READY)
+	assert_float(_client.hardpoints[i].beacon_attune).is_equal(1.0)
+	_server.add_scripted_hero(ScriptedInputSource.new(CombatFixtures.idle_input()),
+		mid.def.position + Vector3(0.0, 0.05, 5.0), CombatFixtures.brannoc(), MapDef.TEAM_SYNDICATE)
+	_tick(2)
+	assert_int(_client.hardpoints[i].beacon).is_equal(B.UNDER_ATTACK)

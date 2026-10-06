@@ -8,6 +8,14 @@ extends Node
 ## overwritten), the new one is moved in, and the .old files are deleted on the
 ## next start (`cleanup_old`). A failed swap is rolled back. launcher.cfg is the
 ## player's own config and is never overwritten.
+##
+## Deferred swap (fix 2026-10-06, owner report "cannot move CybergramLauncher.exe
+## aside"): the launcher exe embeds its pck, and Godot keeps it open without
+## delete sharing, so Windows refuses to rename the RUNNING exe. When the direct
+## swap fails, the verified new files stay in launcher.new, the new exe is
+## copied to <work_dir>/HELPER_EXE and started with --finish-from / --finish-to /
+## --wait-pid; this launcher quits, the helper (the NEW code) waits for it to
+## exit, swaps the files (finish_deferred) and starts the updated launcher.
 
 ## Emitted once: ok, a human message, and the new version when ok.
 signal finished(ok: bool, message: String, new_version: String)
@@ -17,6 +25,16 @@ var _work_dir: String = ""
 var _base_url: String = ""
 var _entry: Dictionary = {}
 var _http: HTTPRequest
+## Set when the swap was deferred: the helper exe and its arguments to start
+## before quitting (the caller starts it).
+var helper_exe: String = ""
+var helper_args: PackedStringArray = PackedStringArray()
+
+const HELPER_EXE := "CybergramLauncherUpdate.exe"
+## Seconds the helper waits for the old launcher to exit.
+const WAIT_EXIT_S: float = 30.0
+## Swap attempts in the helper (a scanner may hold a file for a moment).
+const SWAP_TRIES: int = 6
 
 
 ## `launcher_dir` holds the launcher exe; `work_dir` gets the download.
@@ -60,11 +78,59 @@ func _on_downloaded(result: int, code: int, _h: PackedStringArray, _b: PackedByt
 		err = "the package has no %s" % _entry["exe"]
 	if err == "":
 		err = apply_update(staging, _launcher_dir)
+		if err != "" and _prepare_deferred(staging):
+			finished.emit(true, "Restarting to finish the launcher update to %s..." % _entry["version"],
+				String(_entry["version"]))
+			return
 	LauncherCore.remove_tree(staging)
 	if err != "":
 		finished.emit(false, "Launcher update failed: %s. The old launcher was kept." % err, "")
 		return
 	finished.emit(true, "Launcher updated to %s." % _entry["version"], String(_entry["version"]))
+
+
+## Copies the new exe out of `staging` as the helper and fills helper_exe /
+## helper_args. False when that is not possible (the failure then stands).
+func _prepare_deferred(staging: String) -> bool:
+	DirAccess.make_dir_recursive_absolute(_work_dir)
+	var helper: String = _work_dir.path_join(HELPER_EXE if OS.get_name() == "Windows"
+		else "CybergramLauncherUpdate.x86_64")
+	DirAccess.remove_absolute(helper)
+	if DirAccess.copy_absolute(staging.path_join(String(_entry["exe"])), helper) != OK:
+		return false
+	if OS.get_name() != "Windows":
+		FileAccess.set_unix_permissions(helper, 493)
+	helper_exe = helper
+	helper_args = helper_command(staging, _launcher_dir, OS.get_process_id(), String(_entry["exe"]))
+	return true
+
+
+## Arguments for the helper process (after `--`). Pure.
+static func helper_command(from_dir: String, to_dir: String, wait_pid: int, exe: String) -> PackedStringArray:
+	return PackedStringArray(["--", "--finish-from", from_dir, "--finish-to", to_dir,
+		"--wait-pid", str(wait_pid), "--finish-exe", exe])
+
+
+## Helper side: waits for `wait_pid` to exit, swaps `from_dir` into `to_dir`
+## (retrying a few times), removes `from_dir`. Returns "" or the error text.
+## `sleep_ms` / `running` are injectable for tests.
+static func finish_deferred(from_dir: String, to_dir: String, wait_pid: int,
+		running: Callable = Callable(), sleep_ms: Callable = Callable()) -> String:
+	var is_running: Callable = running if running.is_valid() else func(pid: int) -> bool: return OS.is_process_running(pid)
+	var nap: Callable = sleep_ms if sleep_ms.is_valid() else func(ms: int) -> void: OS.delay_msec(ms)
+	var waited := 0
+	while wait_pid > 0 and bool(is_running.call(wait_pid)) and waited < int(WAIT_EXIT_S * 1000.0):
+		nap.call(250)
+		waited += 250
+	var err := "the old launcher did not exit"
+	for i in SWAP_TRIES:
+		err = apply_update(from_dir, to_dir)
+		if err == "":
+			break
+		nap.call(1000)
+	if err == "":
+		LauncherCore.remove_tree(from_dir)
+	return err
 
 
 ## Swaps every file below `new_dir` into `target_dir` (see class doc).

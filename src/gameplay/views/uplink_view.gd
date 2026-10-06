@@ -78,11 +78,22 @@ func _attach_model() -> void:
 	add_child(model)
 	model.setup(team, CORE_Y)
 	_shell.scale = Vector3(1.25, 1.2, 1.25)
+	if model.is_baked():
+		# Phase 6: the Protected shell as a rune hologram (design §6.5 hexagonal
+		# shield), not a flat translucent box next to the painted frame.
+		var holo := ModelMaterials.holo(HardpointView.team_color(team).lightened(0.15), 0.8, true).duplicate() as ShaderMaterial
+		holo.set_shader_parameter("alpha", 0.28)
+		holo.set_shader_parameter("scan_density", 18.0)
+		_shell.material_override = holo
 	var root := get_parent()
 	if root == null:
 		return
+	# The baked frame brings its own plinth (same footprint as the map's collision).
+	var hide: Array[StringName] = [&"UplinkSpire", &"UplinkCore"]
+	if model.is_baked():
+		hide.append(&"UplinkPlinth")
 	for n in root.find_children("Uplink*", "Node3D", true, false):
-		if n.name != &"UplinkSpire" and n.name != &"UplinkCore":
+		if not hide.has(n.name):
 			continue
 		var p := (n as Node3D).global_position
 		if Vector2(p.x - global_position.x, p.z - global_position.z).length() > 4.0:

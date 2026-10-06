@@ -100,7 +100,7 @@ func test_wardling_view_uses_model_and_hides_greybox() -> void:
 	v.set_state(MapDef.TEAM_SYNDICATE, 1.0, 0)
 	assert_object(v.model).is_not_null()
 	assert_int(v.model.team).is_equal(MapDef.TEAM_SYNDICATE)
-	assert_bool(v.model._pennant.visible).is_true()
+	assert_bool(v.model.marks().pennant).is_true()
 	v.set_rewrite(true, false)
 	assert_bool(v.is_elite()).is_true()
 	assert_float(v.model.scale.x).is_equal_approx(1.0, 0.001)  # the view applies the x1.3

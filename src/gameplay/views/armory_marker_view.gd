@@ -11,6 +11,12 @@ extends Node3D
 ## the W21-G2 report).
 
 const BEACON_SHADER := "res://assets/shaders/armory_beacon.gdshader"
+## Phase 6e: the hero-pipeline Armory stall (tools/art/world/armory_stall.py)
+## stands at the back of the pad, its counter facing the Sanctum; the sign sits
+## on its sign board. Visual only (no collision, navmesh unchanged).
+const STALL_KEY: StringName = &"armory_stall"
+const STALL_BACK_M: float = 2.5
+const STALL_SIGN_Y: float = 4.55
 
 var def: ArmoryMarkerDef
 ## Server radius the ring is drawn at (EconomyRulesDef.armory_radius_m, read in setup()).
@@ -30,6 +36,8 @@ var pulse_k: float = 1.0
 var _spend_shown: bool = false
 var _sign_a: float = -1.0
 var _sign_col: Color = Color.WHITE
+## The stall model (null when not built).
+var stall: Node3D
 
 
 ## Builds the meshes for `hq`'s Armory pad. The ring radius is the server's
@@ -93,6 +101,14 @@ func setup(hq: HqDef, c: ClientWorld, def_: ArmoryMarkerDef = null, econ_: Econo
 		b.position.y = def.beacon_height_m * 0.5
 		b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(b)
+	var to_sanctum := (hq.sanctum - hq.armory) * Vector3(1, 0, 1)
+	if WorldModel.exists(STALL_KEY):
+		stall = WorldModel.instantiate(STALL_KEY, team)
+		stall.name = "Stall"
+		var face := to_sanctum.normalized() if to_sanctum.length() > 0.1 else Vector3.FORWARD
+		stall.position = -face * STALL_BACK_M
+		stall.rotation.y = atan2(-face.x, -face.z)  # model front is -Z
+		add_child(stall)
 	HudStrings.ensure_loaded()  # the world is built before the HUD loads its strings
 	_sign = HardpointView.make_world_label()
 	_sign.name = "Sign"
@@ -100,6 +116,8 @@ func setup(hq: HqDef, c: ClientWorld, def_: ArmoryMarkerDef = null, econ_: Econo
 	_sign.font_size = def.sign_font_size
 	_sign.pixel_size = def.sign_pixel_size
 	_sign.position.y = def.sign_height_m
+	if stall != null:
+		_sign.position = stall.position + stall.basis * Vector3(0.0, STALL_SIGN_Y, -1.35)
 	_sign_col = _base.lightened(0.2)
 	_sign.modulate = _sign_col
 	add_child(_sign)

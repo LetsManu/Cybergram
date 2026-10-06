@@ -260,3 +260,99 @@ func test_text_mode_keeps_the_classic_front_lines() -> void:
 	a.matchmaking.queue_join(&"normal_5v5")
 	_step(0.3)
 	assert_bool(_lines.has("[front] queue normal_5v5: party of 1 joined")).is_true()
+
+
+## Owner report 2026-10-06: after leaving a match the admin page still showed
+## the player InGame until the match ended. Once the match reports the
+## abandon (the reconnect window is over), the leaver is released: IDLE.
+func test_abandon_releases_the_leaver_from_in_game() -> void:
+	var a := _client(2)
+	var b := _client(3)
+	var seen := _record(a)
+	_step(0.2)
+	a.matchmaking.queue_join(&"normal_5v5")
+	b.matchmaking.queue_join(&"normal_5v5")
+	_step(0.5)
+	a.matchmaking.ready_accept()
+	b.matchmaking.ready_accept()
+	_step(0.5)
+	a.matchmaking.draft_pick(1)
+	b.matchmaking.draft_pick(2)
+	_step(_rules.pick_turn_s + 1.0)
+	var mid: String = _sup.requests[0].match_id
+	_sup.match_started.emit(mid, {"host": "", "port": 7801})
+	_step(0.3)
+	assert_int(int(seen[-1].phase)).is_equal(P.IN_GAME)
+	_sup.abandon_reported.emit(mid, _id(2))
+	_step(0.3)
+	assert_int(int(seen[-1].phase)).is_equal(P.IDLE)
+	assert_int(_front.phases.players.illegal_count).is_equal(0)
+
+
+
+## Owner log 2026-10-06: a player who closed the game during a running match
+## (front connection gone, seat kept: InGame) stayed InGame after the match
+## ended, and every sync logged "rejected player ...: InGame -> Offline".
+## The match end must take them to Offline (and forget them).
+func test_match_end_while_disconnected_goes_offline() -> void:
+	var a := _client(2)
+	var b := _client(3)
+	_step(0.2)
+	a.matchmaking.queue_join(&"normal_5v5")
+	b.matchmaking.queue_join(&"normal_5v5")
+	_step(0.5)
+	a.matchmaking.ready_accept()
+	b.matchmaking.ready_accept()
+	_step(0.5)
+	a.matchmaking.draft_pick(1)
+	b.matchmaking.draft_pick(2)
+	_step(_rules.pick_turn_s + 1.0)
+	var mid: String = _sup.requests[0].match_id
+	_sup.match_started.emit(mid, {"host": "", "port": 7801})
+	_step(0.3)
+	_acc.peers.erase(2)  # the game (and its front connection) closed mid-match
+	_clients.erase(2)
+	_step(0.3)
+	assert_int(_front.phases.players.state_of(_id(2))).is_equal(P.IN_GAME)
+	_sup.match_result.emit(mid, {"winner": 0, "players": [], "abandons": [], "duration_s": 600})
+	_step(0.3)
+	assert_int(_front.phases.players.state_of(_id(2))).is_equal(P.OFFLINE)
+	assert_int(_front.phases.players.illegal_count).is_equal(0)
+
+
+## Three accounts in memory (ids, usernames, created_at): what /admin/accounts reads.
+class ListStore:
+	extends AccountStore
+	var rows: Dictionary = {}
+
+	func ids() -> PackedStringArray:
+		return PackedStringArray(rows.keys())
+
+	func get_by_id(id: String) -> Dictionary:
+		return (rows.get(id, {}) as Dictionary).duplicate(true)
+
+
+## Owner request 2026-10-06: the admin sees which accounts exist, newest first,
+## with the live phase and the log tag; no password or recovery data.
+func test_accounts_page_lists_accounts_newest_first_without_secrets() -> void:
+	var st := ListStore.new()
+	for n in [2, 3, 4]:
+		var a := AccountStore.new_account(_id(n), "user%d" % n, {"algo": "x", "hash": "SECRETHASH", "salt": "s", "iterations": 1},
+			{"display_name": "Name %d" % n}, 1_790_000_000 + n * 100)
+		st.rows[_id(n)] = a
+	_acc.store = st
+	_client(3)
+	_step(0.3)
+	var snap := _server.accounts_snapshot()
+	assert_int(int(snap.total)).is_equal(3)
+	var names: Array = (snap.rows as Array).map(func(r: Dictionary) -> String: return r.username)
+	assert_array(names).is_equal(["user4", "user3", "user2"])
+	var r3: Dictionary = (snap.rows as Array)[1]
+	assert_str(r3.display_name).is_equal("Name 3")
+	assert_str(r3.phase).is_equal("Idle")
+	assert_str(r3.player).is_equal(OpsLog.tag(_id(3)))
+	assert_str(r3.created).ends_with("Z")
+	var json := JSON.stringify(snap)
+	assert_str(json).not_contains("SECRETHASH")
+	assert_str(json).not_contains(_id(3))
+	_acc.store = null

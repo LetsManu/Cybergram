@@ -110,6 +110,9 @@ var _crash: CrashReporter
 
 func _ready() -> void:
 	var args: Dictionary = _parse_args(OS.get_cmdline_user_args() + OS.get_cmdline_args())
+	if args.has("finish-from"):
+		_finish_self_update(args)
+		return
 	var cfg: ConfigFile = ConfigFile.new()
 	var cfg_path: String = String(args.get("config", OS.get_executable_path().get_base_dir().path_join("launcher.cfg")))
 	if FileAccess.file_exists(cfg_path):
@@ -286,11 +289,42 @@ func _on_self_updated(ok: bool, message: String, _new_version: String, entry: Di
 			_status.text = message
 			_on_state(_updater.state, message)
 		return
+	if _self.helper_exe != "":
+		# Deferred swap (Windows keeps the running exe locked): the helper finishes
+		# it after this process exits, then starts the new launcher.
+		var hargs: PackedStringArray = _self.helper_args.duplicate()
+		hargs.append_array(_restart_args)
+		OS.create_process(_self.helper_exe, hargs)
+		get_tree().quit()
+		return
 	var exe: String = _launcher_dir.path_join(String(entry["exe"]))
 	var args: PackedStringArray = _restart_args.duplicate()
 	args.append("--self-updated")
 	OS.create_process(exe, args)
 	get_tree().quit()
+
+
+## Helper mode (SelfUpdater deferred swap): finish the swap after the old
+## launcher exited, then start the updated launcher and quit.
+func _finish_self_update(args: Dictionary) -> void:
+	var to_dir: String = String(args.get("finish-to", ""))
+	var err: String = SelfUpdater.finish_deferred(String(args["finish-from"]), to_dir, int(args.get("wait-pid", "0")))
+	print("LAUNCHER: deferred self-update: %s" % ("done" if err == "" else err))
+	var exe: String = to_dir.path_join(String(args.get("finish-exe", "CybergramLauncher.exe")))
+	var rest: PackedStringArray = PackedStringArray()
+	var skip := 0
+	for a: String in OS.get_cmdline_user_args():
+		if skip > 0:
+			skip -= 1
+			continue
+		if a in ["--finish-from", "--finish-to", "--wait-pid", "--finish-exe"]:
+			skip = 1
+			continue
+		rest.append(a)
+	if err == "":
+		rest.append("--self-updated")
+	OS.create_process(exe, rest)  # the old one stays when the swap failed (rolled back)
+	get_tree().quit(0 if err == "" else 1)
 
 
 # --- login (the game then starts already signed in) ------------------------
@@ -384,6 +418,9 @@ func _parse_args(all: PackedStringArray) -> Dictionary:
 		if a.begins_with("--") and a.length() > 2:
 			var key: String = a.substr(2)
 			if key in ["config", "install-root", "update-to", "settings", "move-install-to", "launcher-dir", "launcher-version"] and i + 1 < all.size():
+				out[key] = all[i + 1]
+				i += 1
+			elif key in ["finish-from", "finish-to", "wait-pid", "finish-exe"] and i + 1 < all.size():  # deferred self-update
 				out[key] = all[i + 1]
 				i += 1
 			elif key in ["game-userdir", "page"] and i + 1 < all.size():  # W15-UX
@@ -973,6 +1010,9 @@ func _build_settings() -> Control:
 	_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_online_settings_row.add_child(_privacy)
 	# --- end W15-ONLINE ---
+	var conn := ConnectionTestCard.new()
+	conn.server = func() -> String: return _game_server
+	col.add_child(conn)
 	col.move_child(about, col.get_child_count() - 1)  # About stays last
 	# --- W15-UX ---
 	var ux_scroll: ScrollContainer = ScrollContainer.new()

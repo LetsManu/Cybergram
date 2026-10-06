@@ -99,6 +99,10 @@ extends Resource
 @export_range(0.5, 20.0, 0.5) var repath_m: float = 3.0
 @export_range(0.5, 20.0, 0.5) var direct_steer_m: float = 5.0
 @export_range(0.1, 5.0, 0.05) var waypoint_m: float = 0.7
+## Full navmesh snap every N ticks per Wardling (staggered); in between, a
+## Wardling on a path takes its height from the path segment (perf: the
+## closest-point query dominated the step, docs/performance.md). 1 = every tick.
+@export_range(1, 30, 1) var snap_every: int = 4
 ## Ticks without progress before a Wardling re-paths from where it stands.
 @export_range(1, 120) var stuck_ticks: int = 15
 ## RVO avoidance (NavigationServer3D agents).

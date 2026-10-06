@@ -141,3 +141,25 @@ func test_malformed_and_wrong_ops_get_an_error_ack() -> void:
 	_rt.handle(2, MatchmakingCodec.encode_request(MatchmakingCodec.OP_QUEUE_LEAVE), 2.0)
 	var codes: Array = _sent.map(func(s: Array) -> int: return MatchmakingCodec.decode_event(s[1]).code)
 	assert_array(codes).is_equal([MatchmakingCodec.E_BAD_REQUEST, MatchmakingCodec.E_NOT_ALLOWED])
+
+
+## Owner report 2026-10-06: a match whose humans all left kept running with bots
+## only (and the players kept showing InGame). It now ends as soon as the last
+## human counts as an abandon: voided, no rating, leavers listed.
+func test_match_ends_when_every_human_has_abandoned() -> void:
+	_make()
+	for p in [[2, A1], [3, A2], [4, A3], [5, B1]]:
+		_rt.on_join(p[0], p[1], 1.0)
+	for peer in [2, 3, 4]:
+		_rt.on_leave(peer, 10.0)
+	_rt.tick(200.0)
+	assert_int(_agent.results.size()).is_equal(0)  # B1 still plays
+	_rt.on_leave(5, 210.0)
+	_rt.tick(400.0)
+	assert_int(_agent.results.size()).is_equal(1)
+	var r: Dictionary = _agent.results[0]
+	assert_int(int(r.winner)).is_equal(-1)
+	assert_bool(bool(r.extra.get("all_left", false))).is_true()
+	assert_array(r.abandons).contains_exactly_in_any_order([A1, A2, A3, B1])
+	_rt.tick(500.0)
+	assert_int(_agent.results.size()).is_equal(1)

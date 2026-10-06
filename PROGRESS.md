@@ -109,7 +109,7 @@ as it is, new tests run inside the existing test job.
   Evidence: `production/qa/evidence/p5-custom/`.
 
 ## In progress
-- nothing.
+- Objective B (world at hero fidelity), see the section below.
 
 ## Next (prioritised)
 1. Human checks in docs/manual-checklist.md (P1-P4 and v17).
@@ -118,3 +118,146 @@ as it is, new tests run inside the existing test job.
 
 ## Manual checks needed (no display in the cloud session)
 See `docs/manual-checklist.md` (created with P1d).
+
+
+# Objective B: world, objectives and props at hero fidelity
+
+Plan agreed 2026-10-06 (owner answers to the plan questions):
+- **No new neutral bosses** (no dragon / baron / camps). Raise the existing
+  objective set to hero standard: Mana Uplink, the 15 hardpoints (Hold / Plant /
+  Breach: Ward Generator, Mana Cell + Cradle, Barricade, Garrison, Supply Cache,
+  Forward Beacon), HQ (Sanctum, Foundry, Armory), Wardlings, map dressing.
+- **Style:** the heroes' painted toon language (ink outline, painted light,
+  hatching) on the neon city; not realistic PBR.
+- **Fog of war / brush stealth:** out of scope.
+- **CI (Phase 0):** skipped as before; CI is green with timeouts.
+- **Order:** 5a visual tooling -> 5b pipeline proof -> 5c baseline + art bible ->
+  Phase 6 vertical slice (Uplink + one hardpoint kit), report with before/after,
+  then the rest.
+
+## Done
+- 5a (in progress): `tools/shot.gd` (33 presets from the MapDef, client objective
+  views, hero + Wardling reference), render path recorded in
+  `docs/visual-verification.md` (headless: no pixels; xvfb + OpenGL: wrong
+  renderer; xvfb + Mesa lavapipe: Forward+, used), `tools/ci/setup_render.sh`,
+  `.claude/skills/visual-review/SKILL.md`, `tools/art/setup_pipeline.sh` (bpy 5.0.1 venv).
+
+## Findings (looked at the frames)
+- The world is built by a second pipeline (`tools/maps/build_shardline_front.gd`
+  + `map_kit.gd`: SurfaceTool slabs, flat materials, tile grid lines) and the
+  objectives by runtime primitives (`HardpointView`, `UplinkView`,
+  `ArmoryMarkerView`; their own comment: "E14 greybox"). Heroes come from the
+  Blender pipeline (`tools/art/`): sculpted, painted bake, ink outline.
+
+- 5a done: before set, 33 presets, all looked at
+  (`production/qa/evidence/p5-world/README.md`).
+- 5b done: the hero pipeline runs here (Vesper rebuilt in 296 s, matches the
+  committed asset); `docs/model-pipeline.md`. The hero material
+  (`spatial_char_toon_rigged`) has nothing skin-specific, so world assets use it.
+- 5c done: `docs/fidelity-baseline.md` (asset-auditor measurements + gap table),
+  `docs/art-bible.md` (world fidelity rules; extends `design/art-bible.md`, which
+  already holds the objective designs: Holdstone, Charge Cradle, Ward Generator,
+  Uplink, Barricades, HQ set).
+
+- Phase 6 slice done (iteration 1): `tools/art/world/` (WorldAsset on the hero
+  pipeline), **Mana Uplink** frame (42k tris, rotating rings, holo shell,
+  faceted crystal) and **Holdstone** (18.6k tris, owner tint, holo light pillar)
+  baked and in game; map greybox meshes hidden, collision kept; asset validator
+  `tests/unit/models/world_assets_test.gd` (watched it fail). Evidence and
+  review logs: `production/qa/evidence/p6-*`, `docs/assets/*.md`.
+
+- Owner review of the slice (2026-10-06): "looks better", but the orange / blue
+  floor circles must look like what they do, and the Wardlings must reach hero
+  level too. The circles were the Plant **Cell Cradles** (work: a team takes its
+  Mana Cell there); the teal discs / box were C5 **Garrison posts / Supply Cache**
+  markers for features that are not in the game yet.
+- Owner asks during 6b: "a better floor with some decals" and "a way to see
+  where the armory is? it should be like the LoL shop at the Spawn".
+- Phase 6e: the Sanctum counts as the Armory (`EconomyRulesDef.shop_in_sanctum`),
+  the pad moved beside the spawn (8, -12) and got a baked **Armory stall**
+  (`tools/art/world/armory_stall.py`); a fresh spawn can buy at once
+  (`armory_reach_test.gd`). Brief + review: `docs/assets/armory.md`.
+- Cell Cradle overlap fixed: in the Center lane the Syndicate Cradle of one
+  Plant node and the Concord Cradle of the other were on the same spot (seen in
+  the frames); each Cradle now sits 3 m toward its own HQ (mirror symmetric,
+  `map_front_cradles_test.gd`, watched it fail on the old data).
+- Phase 6b (iteration 1 done, evidence `production/qa/evidence/p6b/`): Plant kit on the hero pipeline
+  (`tools/art/world/plant_kit.py`: Cell Cradle, Mana Cell, Charge Cradle with 4
+  corner brackets), wired in `HardpointView`; Garrison / Supply Cache markers
+  hidden until their systems exist; **Picket Wardling** baked in two faction
+  skins (`tools/art/world/picket.py`, 4k-tri budget kept) and used by
+  `WardlingModel` (procedural meshes stay as the fallback). Kit fixes: degenerate
+  faces dropped before unwrap (they wrecked the atlas), floor undersides dropped.
+  Briefs: `docs/assets/plant.md`, `docs/assets/picket.md`.
+
+## Next (prioritised)
+1. Floor + decals (owner ask; scope to agree first), then the rest of Phase 6:
+   Ward Generator + shield (Breach), Barricade (2 styles, 3 damage stages),
+   Forward Beacon, Sanctum / Foundry / Armory. Garrison socket + Supply Cache
+   art waits for their gameplay (C5), which is not built.
+2. Uplink iteration 2: split the long leg beams (texel density), capture the
+   Exposed / damage states as frames.
+3. Phase 7 map kit (walls, floors, cover) on the same pipeline.
+
+# Next plan (owner, 2026-10-06): world polish to hero standard, connection, CI
+
+Starts after the props merge. Order and status (details in the owner's plan,
+summarised here so the plan survives a new session):
+- **Rule for every placed object: physical plausibility.** Grounded within tolerance,
+  supported or mounted, no interpenetration, believable stacks and orientation,
+  hero-relative scale, functional logic (lamps powered, cables between real anchors),
+  clear routes / spawns / objectives, decals only on fitting surfaces. One shared
+  placement helper (snap, align, overlap, support, footprint) for all placement.
+1. **Part 1 Connection (first):** launcher "test connection" panel (DNS / UDP /
+   handshake + certificate), readable errors for bare-IP plain UDP and certificate
+   name mismatch, server JSON log + /metrics counter for rejected connections by
+   reason, docs/connecting.md (hostname, hosts file, Portainer, Icinga checks).
+   Owner tests `192.168.1.7 cyber.djboeck.at` in the hosts file.
+   **Done 2026-10-06:** NetDiagnosis (shared with the launcher) + Settings >
+   Connection test card (screenshot `production/qa/evidence/connection/`),
+   PLAIN_IP / reworded DTLS errors, ConnectionRejects (`cybergram_connections_rejected_total{reason}`,
+   rate-limited JSON line, masked IPs, `CYBERGRAM_LOG_FULL_IP`), docs/connecting.md.
+   DTLS-level rejects carry no source IP (the engine does not expose it).
+   Launcher self-update now finishes in a helper process when Windows locks the
+   running exe (embedded pck); launchers older than this need one manual update.
+2. **Done 2026-10-06 (Parts 2-4):** CI concurrency / timeouts / hang guard /
+   launcher job, 3 consecutive green runs (135-137); placement helper +
+   validator gating CI (docs/placement.md); scene validator; shared cel ramp for
+   heroes and map, outline ranks (docs/shading-audit.md); cover boxes dressed
+   with kit crates, decals skip characters, South amber -> teal, zone palettes
+   (art bible 6.2a). Open items: docs/polish-backlog.md.
+   **Part 2 CI + validators:** job / step timeouts, concurrency cancel, caching,
+   fast smoke job, 3 consecutive green runs; scene validator (collision, navmesh,
+   props off routes, materials, budgets, LODs, team symmetry); placement validator
+   (the rule above, waiver tag with reason, report, fails CI); a test per rule.
+3. **Part 3 Shading:** audit vs the hero toon look -> docs/shading-audit.md; one
+   shared toon shader / globals (opaque, emissive, alpha), outline rules
+   (gameplay-critical stronger).
+4. **Part 4 Floor / decals / props finish + paint pass:** zone palettes in
+   docs/art-bible.md; decals flat, low normal, Forward+ limits; props complete with
+   LODs, collision where they are cover, MultiMesh; every placement through the helper.
+5. **Part 5 Performance:** clean Wardling / bot-match benchmark, tuning, CI gate.
+6. **Part 6 Objectives:** Ward Generator (shield, 3 cracks), Barricades (2 styles,
+   damage stages), Forward Beacon, Sanctum, Foundry.
+7. **Part 7 Backlog:** docs/polish-backlog.md (Uplink legs, Syndicate Wardling
+   colours); Garrison / Supply Cache stay hidden (owner to decide if they ship in
+   the first release).
+
+## Part 6 status (2026-10-06)
+
+- **Ward Generator**: done (docs/assets/ward_generator.md).
+- **Forward Beacon**: done (docs/assets/forward_beacon.md): spawn pad per side,
+  hard-light mast / banner / halo, 4 states replicated in free bits of the
+  hardpoint record, sounds, data def, placement through PlacementKit + CI gate,
+  tests that fail without the asset, before/after shots.
+  Assumption recorded there: the mast is a projection, not geometry (no new
+  collision / navmesh).
+- **Barricades**: not started. They have no gameplay yet
+  (`barricade_socket_anchor.gd`: "Inactive in M1, arrives in M3"); building
+  them needs server work (integrity, team pass-through, replication, Wardling
+  pathing). Raised with the owner; Sanctum and Foundry go first.
+- **Sanctum, Foundry**: next.
+- Owner reports handled the same day: a match that ends while the game is
+  closed now takes the player to Offline (was stuck InGame); `/admin/accounts`
+  lists the registered accounts (docs/monitoring.md).
+

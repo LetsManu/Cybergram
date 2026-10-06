@@ -164,6 +164,30 @@ func _init() -> void:
 	_check(not FileAccess.file_exists(sb.path_join("live/L.x86_64.old.1")) and not DirAccess.dir_exists_absolute(sb.path_join("live/L.x86_64.old")), "no .old* left")
 	_check(FileAccess.get_file_as_string(sb.path_join("live/L.x86_64")) == "NEW3", "cleanup keeps the live exe")
 	LauncherCore.remove_tree(sb)
+	# Deferred swap (owner report 2026-10-06: Windows refuses to rename the running exe):
+	# the helper waits for the old process, then swaps and removes the staging folder.
+	LauncherCore.remove_tree(sb)
+	DirAccess.make_dir_recursive_absolute(sb.path_join("new"))
+	DirAccess.make_dir_recursive_absolute(sb.path_join("live"))
+	for pair in [["new/L.exe", "NEW4"], ["live/L.exe", "OLD4"], ["live/launcher.cfg", "mycfg"]]:
+		var wf4: FileAccess = FileAccess.open(sb.path_join(pair[0]), FileAccess.WRITE)
+		wf4.store_string(pair[1])
+		wf4.close()
+	var polls: Array = [0]
+	var alive: Callable = func(_pid: int) -> bool:
+		polls[0] += 1
+		return polls[0] < 3  # the old launcher exits after two polls
+	var naps: Array = []
+	var nap: Callable = func(ms: int) -> void: naps.append(ms)
+	_check(SelfUpdater.finish_deferred(sb.path_join("new"), sb.path_join("live"), 4242, alive, nap) == "", "deferred swap ok")
+	_check(polls[0] == 3 and naps.size() == 2, "deferred swap waited for the old launcher to exit")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/L.exe")) == "NEW4", "deferred swap replaced the exe")
+	_check(FileAccess.get_file_as_string(sb.path_join("live/launcher.cfg")) == "mycfg", "deferred swap kept launcher.cfg")
+	_check(not DirAccess.dir_exists_absolute(sb.path_join("new")), "deferred swap removed the staging folder")
+	var hc: PackedStringArray = SelfUpdater.helper_command("/a/new", "/a", 77, "L.exe")
+	_check(hc[0] == "--" and hc.has("--finish-from") and hc[hc.find("--wait-pid") + 1] == "77"
+		and hc[hc.find("--finish-exe") + 1] == "L.exe", "helper command line")
+	LauncherCore.remove_tree(sb)
 	_check(SelfUpdater.is_leftover("a.exe.old") and SelfUpdater.is_leftover("a.exe.old.3"), "leftover: .old and .old.<n>")
 	_check(not SelfUpdater.is_leftover("my.old.notes.txt") and not SelfUpdater.is_leftover("a.old.bak") and not SelfUpdater.is_leftover("gold"), "leftover: strict pattern")
 	var now: int = 1000000

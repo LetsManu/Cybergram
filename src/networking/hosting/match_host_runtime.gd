@@ -8,6 +8,7 @@ extends RefCounted
 ##   absent for its team's remake vote; reconnecting makes it present again.
 ## - A player away `abandon_after_s` is reported once as an abandon
 ##   (agent.report_abandon) and listed in the result's abandons.
+## - When every human has abandoned, the match ends at once (voided, all_left).
 ## - Remake vote (in-match MM_REQ OP_REMAKE_VOTE): the first yes starts it,
 ##   every present human teammate must agree (RemakeVote). REMAKE_STATE goes
 ##   to the team on every change. A passed vote ends the match as a void:
@@ -104,6 +105,13 @@ func tick(now: float) -> void:
 		if not abandons.has(acc) and now - float(away_since[acc]) >= _abandon_s:
 			abandons[acc] = true
 			agent.report_abandon(acc)
+	# Every human has left for good: end now instead of letting bots play on
+	# (voided: no winner, no rating; the leavers are listed).
+	if not team_of.is_empty() and abandons.size() >= team_of.size():
+		finished = true
+		agent.report_result(-1, stats_fn.call(), abandons.keys(), {"all_left": true,
+			"duration_s": int(now - maxf(started_at, 0.0))})
+		return
 	for t in 2:
 		var v: RemakeVote = votes[t]
 		v.tick(now)

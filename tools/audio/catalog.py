@@ -240,6 +240,18 @@ for ev in ("capture", "contest", "lost", "uplink_alarm", "sudden_death"):
     e(f"objective_{ev}", st, "world", WORLD, priority=pri, max_voices=1,
       cooldown_ms=4000 if ev in ("contest", "uplink_alarm") else 500, vol_jitter_db=0.0, pitch_jitter=0.0)
 
+for ev in ("shield_down", "crack", "breach"):
+    st = f"world_generator_{ev}"
+    f("world", st, R.generator, 2 if ev == "crack" else 1, -16.0 if ev == "breach" else -18.0, event=ev)
+    e(f"generator_{ev}", st, "world", WORLD, spatial=S3D, max_distance_m=70.0, unit_size=10.0,
+      priority=0 if ev == "breach" else 1, max_voices=2, cooldown_ms=300)
+
+for ev in ("attune", "ready", "threat"):
+    st = f"world_beacon_{ev}"
+    f("world", st, R.beacon, 1, -18.0, event=ev)
+    e(f"beacon_{ev}", st, "world", WORLD, spatial=S3D, max_distance_m=60.0, unit_size=10.0,
+      priority=1, max_voices=2, cooldown_ms=2000 if ev == "threat" else 300)
+
 # ------------------------------------------------------------- footsteps
 for surface in ("concrete", "metal", "grate", "water"):
     st = f"footsteps_{surface}_step"

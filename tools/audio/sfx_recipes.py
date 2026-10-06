@@ -398,6 +398,55 @@ def objective(rng, v, event):
     return trim_tail(reverb(x, 1.2, 0.25, 7000, stereo=True, seed=121))
 
 
+def generator(rng, v, event):
+    """Ward Generator (docs/assets/ward_generator.md): shield collapse, a crack
+    per damage stage, the breach."""
+    k = _j(rng, 0.05)
+    if event == "shield_down":
+        d = 1.1
+        glass = mix(*[at(osc(f * k, 0.6) * env_exp(0.6, 7) * 0.25, i * 0.05) for i, f in enumerate((2400, 1810, 1350, 990))])
+        x = mix(sweep(900 * k, 120, d, "saw", 0.7) * env_adsr(d, 0.01, 0.2, 0.6, 0.5) * 0.35, glass,
+                bp(noise(rng, d), 2000, 9000) * env_exp(d, 4) * 0.25)
+        x = lp(x, 7000)
+    elif event == "crack":
+        snap = hp(noise(rng, 0.05), 2500) * env_exp(0.05, 90) * 0.9
+        ring = mix(*[osc(f * k, 0.5) * env_exp(0.5, 12) * a for f, a in ((1830, 0.3), (2710, 0.2), (3990, 0.12))])
+        crackle = bitcrush(bp(noise(rng, 0.3), 800, 6000) * env_exp(0.3, 14), 6, 3) * 0.35
+        x = mix(snap, ring, at(crackle, 0.03), _thump(rng, 0.15, 140 * k, 70, 25) * 0.4)
+    else:  # breach
+        d = 1.8
+        boom = _thump(rng, 0.9, 90 * k, 32, 5) * 1.2
+        shatter = mix(*[at(hp(noise(rng, 0.25), 2000) * env_exp(0.25, 18) * 0.35, t) for t in (0.0, 0.07, 0.16, 0.3)])
+        zap = bitcrush(fm(220 * k, 3.3, 6 * env_exp(d, 3), d) * env_exp(d, 2.5), 5, 4) * 0.25
+        x = mix(boom, shatter, zap, at(sweep(1600, 90, 1.0, "square", 0.5) * env_exp(1.0, 4) * 0.12, 0.1))
+        x = lp(x, 9000)
+    return trim_tail(reverb(x, 0.9, 0.22, 6500, seed=v + 131))
+
+
+def beacon(rng, v, event):
+    """Forward Beacon spawn pad (docs/assets/forward_beacon.md): attunement starts
+    (a rising power-up hum), the Beacon is ready (a bright three-note chime),
+    it comes under attack (a dimming double warble; the halo blinks with it)."""
+    k = _j(rng, 0.03)
+    if event == "attune":
+        d = 1.4
+        hum = sweep(110 * k, 220 * k, d, "saw", 0.6) * env_adsr(d, 0.3, 0.3, 0.8, 0.5) * 0.25
+        shimmer = sweep(880 * k, 1760 * k, d) * env_adsr(d, 0.6, 0.2, 0.5, 0.5) * 0.12
+        x = lp(mix(hum, shimmer, bp(noise(rng, d), 1500, 6000) * env_adsr(d, 0.5, 0.2, 0.3, 0.4) * 0.06), 5000)
+    elif event == "ready":
+        notes = [at(mix(osc(f * k, 0.9), osc(f * 2.01 * k, 0.9) * 0.3) * env_exp(0.9, 5) * 0.28, i * 0.11)
+                 for i, f in enumerate((784, 988, 1319))]
+        x = mix(*notes, _thump(rng, 0.2, 160 * k, 90, 20) * 0.25)
+    else:  # threat
+        d = 0.75
+        warble = mix(*[at(fm(620 * k, 2.0, 1.5, 0.28) * env_adsr(0.28, 0.01, 0.05, 0.7, 0.12) * 0.3, t)
+                       for t in (0.0, 0.36)])
+        x = mix(warble, at(sweep(700 * k, 380 * k, 0.3) * env_exp(0.3, 8) * 0.12, 0.42))
+        x = lp(bitcrush(x, 7, 2), 6000)
+        _ = d
+    return trim_tail(reverb(x, 0.8, 0.2, 7000, seed=v + 151))
+
+
 # ============================================================ footsteps
 SURFACE = {"concrete": (95.0, 2500.0, 0.0), "metal": (140.0, 4500.0, 1.0),
            "grate": (180.0, 6000.0, 0.6), "water": (70.0, 1800.0, 0.0)}

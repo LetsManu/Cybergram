@@ -23,6 +23,8 @@ class SquadPip:
 const DIAMOND_UP_M: float = 6.0
 const TRACER_LEN: float = 0.9
 const TRACER_SPEED: float = 55.0
+## A bolt whose origin is within this of a Wardling was fired by it (shoot clip).
+const SHOOTER_MATCH_M: float = 1.6
 ## Debug camera modes (--debug-camera): "" = first person.
 const CAMERA_VANGUARD := "vanguard"
 
@@ -101,12 +103,15 @@ func apply_snapshot(s: SnapshotData) -> void:
 			own_squad.append(p)
 	for id in _views.keys():
 		if not seen.has(id):
-			_views[id].queue_free()
+			_views[id].die()  # v2 rig: plays its fall and frees itself; else frees now
 			_views.erase(id)
 			_buffers.erase(id)
 			_states.erase(id)
 	for b in s.bolts:
 		_spawn_tracer(b[0], b[1])
+		var shooter := _nearest_view(b[0], SHOOTER_MATCH_M)
+		if shooter != null:
+			shooter.shoot()
 
 
 func render(render_tick: float, delta: float) -> void:
@@ -226,6 +231,19 @@ func _aim_angle(space: PhysicsDirectSpaceState3D, eye: Vector3, fwd: Vector3, ta
 	_ray.from = eye
 	_ray.to = target
 	return a if space.intersect_ray(_ray).is_empty() else INF
+
+
+## The live view nearest to `at` within `max_m` (null if none).
+func _nearest_view(at: Vector3, max_m: float) -> WardlingView:
+	var best: WardlingView = null
+	var bd := max_m * max_m
+	for id in _views:
+		var v: WardlingView = _views[id]
+		var d := v.position.distance_squared_to(at)
+		if d < bd:
+			bd = d
+			best = v
+	return best
 
 
 func _spawn_tracer(from: Vector3, to: Vector3) -> void:

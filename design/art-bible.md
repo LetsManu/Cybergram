@@ -531,6 +531,31 @@ dominant prop family; floor colour stays neutral `halcyra_stone` so characters p
 paths are visually narrower and darker with lit floor arrows pointing toward the lane they join
 (arrows are white, Accent tier).
 
+### 6.2a Zone Palettes (as built, 2026-10-06)
+
+The map's panel materials (`tools/maps/build_shardline_front.gd`
+`_build_materials`, lit by the shared cel ramp, docs/shading-audit.md). Base /
+seam colours are albedo before lighting; trims are unshaded neon (Accent tier).
+Rules enforced by tests: no pickup amber anywhere in the map
+(`scene_validator_test`); floors stay mid-value so characters pop.
+
+| Zone | Floor base | Walls base | Trim neon | Read |
+|---|---|---|---|---|
+| Concord half (lanes A) | `#545E80` cool slate | `#808AAD` pale steel | azure `#2E86FF` at 9 m | cool, light |
+| Syndicate half (lanes B) | `#614D4D` plum-brown | `#3D3340` dark iron | ember `#FF5A1F` at 9 m | warm, dark |
+| Concord HQ | `#6B7599` | as Concord | azure | brightest floor (spawn read) |
+| Syndicate HQ | `#382E33` | as Syndicate | ember | darkest floor |
+| Mid row / Plaza | `#5C5778` violet-neutral | city `#3D3857` | Leyfall `#8E5CFF` at 7 m | neutral |
+| North lane | lane floor | `#61738A` blue-grey | teal `#34D8C4` at 4.2 m | crisp, sparse |
+| Center market | `#523D5C` | city | pink seams `#801F6B` | densest neon (above 4 m) |
+| South docks | `#5C544D` dock stone | `#735C4D` rust | teal `#34D8C4` at 4.2 m (was amber: fixed) | industrial |
+| Flank loops / jungle | `#45385C` / `#403D52` | `#473D5C` | magenta `#FF3FA4` at 3.4 m | narrower, darker |
+| Cover (low) | kit crates (CoverDressing) | - | - | props palette |
+
+Known gaps: the Syndicate half's dark floor makes Syndicate-skinned Wardlings
+read darker (docs/polish-backlog.md); emissive tiers are not yet measured per
+surface.
+
 ### 6.3 Hardpoint Task Types — distinct at a glance (C4)
 
 Each task type has a unique **skyline silhouette** readable at 80 m, a unique floor shape,

@@ -23,6 +23,8 @@ endpoint over plain HTTP on TCP **8090** inside the container (P1, protocol 20).
 | `GET /metrics` | Prometheus text format. |
 | `GET /admin` | HTML status page (refreshes every 5 s): queues, lobbies and matches, parties, players with their state, the last 200 events. HTTP Basic login: any user name, the token as password. |
 | `GET /admin.json` | The same as JSON. `Authorization: Bearer <token>` or Basic. |
+| `GET /admin/accounts` | Every registered account, newest first: created (UTC), username, display name, last login, live state, log tag (the `player` value in log lines). Same login as `/admin`. No passwords, recovery codes, friends or addresses. Up to 1000 rows; the total is always shown. |
+| `GET /admin/accounts.json` | The same as JSON (`{total, shown, rows}`). |
 
 Quick checks from the NAS:
 
@@ -52,6 +54,7 @@ curl -s -H "Authorization: Bearer $CYBERGRAM_ADMIN_TOKEN" localhost:8090/admin.j
 | `cybergram_illegal_transitions_total` | gauge | rejected state changes since start (should stay 0) |
 | `cybergram_front_tick_ms`, `cybergram_front_tick_ms_max` | gauge | main-loop time; max resets on every scrape |
 | `cybergram_protocol_violations` | gauge | peers that sent malformed packets |
+| `cybergram_connections_rejected_total` | counter | `reason` = plain_udp, bad_certificate, handshake_other, version_mismatch, auth (see `docs/connecting.md`) |
 | `cybergram_uptime_seconds` | gauge | |
 | `cybergram_build_info` | gauge (1) | `version`, `protocol` |
 
@@ -105,6 +108,11 @@ Suggested thresholds (small community server):
 | State machine bug | `cybergram_illegal_transitions_total` | 1 | 20 |
 | Matches stuck loading | `cybergram_lobbies\{state="Loading"\}` | 3 | 6 |
 | Long waits | `cybergram_queue_estimated_wait_seconds` | 300 | 900 |
+| Bare-IP connects | `cybergram_connections_rejected_total\{reason="plain_udp"\}` | 50 | 500 |
+| Certificate refused | `cybergram_connections_rejected_total\{reason="bad_certificate"\}` | 10 | 100 |
+
+Rejected connections, their log line and the client-side connection test are
+described in `docs/connecting.md`.
 
 Prometheus works the same way: scrape `http://192.168.1.7:8090/metrics`.
 
@@ -125,3 +133,10 @@ hosting, match processes) still print text lines; that is a known gap.
 Docker rotates logs when the daemon is set to (`log-opts max-size`).
 
 Privacy: see PRIVACY.md "Server logs".
+
+### Accounts page and privacy
+
+`/admin/accounts` shows usernames and display names, which are personal data
+(GDPR). They are shown only to the operator behind the admin token, never
+written to a log and never sent to `/metrics`. Keep the token secret and the
+ops port on the LAN (`CYBERGRAM_OPS_PUBLISH`, docs/connecting.md).

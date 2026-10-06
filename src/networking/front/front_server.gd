@@ -40,6 +40,9 @@ var build_version: String = "dev"
 var ready_checks: Dictionary = {}
 var _tick_ms_last: float = 0.0
 var _tick_ms_max: float = 0.0
+## Refused connections by reason (/metrics + rate-limited log, docs/connecting.md).
+## Hooked into the engine log only on a DTLS transport (handshake failures).
+var rejects := ConnectionRejects.new()
 
 
 func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) -> void:
@@ -48,9 +51,14 @@ func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) ->
 	front = front_
 	if t.has_signal("peer_disconnected"):
 		t.connect("peer_disconnected", on_peer_left)
+	accounts.rejected.connect(func(peer: int, reason: String) -> void:
+		rejects.note(reason, transport.peer_address(peer)))
+	if t is ENetTransport and (t as ENetTransport).is_secure:
+		OS.add_logger(rejects)
 	ops.health = health_snapshot
 	ops.metrics = func() -> String: return metrics_text()
 	ops.admin = func() -> Dictionary: return admin_snapshot()
+	ops.accounts = func() -> Dictionary: return accounts_snapshot()
 
 
 ## Starts the operations endpoint from the environment (CYBERGRAM_OPS_PORT).
@@ -72,6 +80,7 @@ func step(delta: float) -> void:
 		_handle(pkt)
 		pkt = transport.pop_packet()
 	front.step()
+	rejects.flush(front.metrics, _now)
 	_status.tick(delta, accounts.peers.size(), false, 0)
 	public_snapshot.tick(delta, front, accounts.peers.size())
 	_tick_ms_last = (Time.get_ticks_usec() - t0) / 1000.0
@@ -98,6 +107,8 @@ func metrics_text() -> String:
 	m.describe("cybergram_front_tick_ms", "gauge", "Main-loop time of the last frame (ms).")
 	m.describe("cybergram_front_tick_ms_max", "gauge", "Longest main-loop frame since the last scrape (ms).")
 	m.describe("cybergram_protocol_violations", "gauge", "Peers with at least one malformed packet right now.")
+	m.describe(ConnectionRejects.METRIC, "counter",
+		"Refused connections by reason: plain_udp, bad_certificate, handshake_other, version_mismatch, auth.")
 	m.set_gauge("cybergram_connected_clients", float(accounts.peers.size()))
 	m.set_gauge("cybergram_front_tick_ms", _tick_ms_last)
 	m.set_gauge("cybergram_front_tick_ms_max", _tick_ms_max)
@@ -112,6 +123,42 @@ func admin_snapshot() -> Dictionary:
 	var a := front.admin_snapshot()
 	a.health = health_snapshot()
 	return a
+
+
+## Rows shown on /admin/accounts at most (the total is always given).
+const ACCOUNTS_PAGE_MAX := 1000
+
+
+## /admin/accounts: registered accounts, newest first. Username, display name,
+## created and last login (UTC), the live phase and the log tag (OpsLog.tag, to
+## match log lines). Never passwords, recovery codes, friends or addresses;
+## never logged (owner request 2026-10-06; the operator's own admin view).
+func accounts_snapshot() -> Dictionary:
+	var rows: Array = []
+	var store: AccountStore = accounts.store
+	if store == null:
+		return {"total": 0, "shown": 0, "rows": rows}
+	for id in store.ids():
+		var a := store.get_by_id(id)
+		if a.is_empty():
+			continue
+		rows.append(a)
+	rows.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
+		return int(x.get("created_at", 0)) > int(y.get("created_at", 0)))
+	var out: Array = []
+	for a: Dictionary in rows.slice(0, ACCOUNTS_PAGE_MAX):
+		var id := str(a.id)
+		var ph := front.phases.players.state_of(id)
+		out.append({"created": _utc(a.get("created_at", 0)), "username": str(a.get("username", "")),
+			"display_name": str((a.get("profile", {}) as Dictionary).get("display_name", "")),
+			"last_login": _utc(a.get("last_login_at", 0)),
+			"phase": PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, ph), "player": OpsLog.tag(id)})
+	return {"total": rows.size(), "shown": out.size(), "rows": out}
+
+
+static func _utc(unix: Variant) -> String:
+	var u := int(unix)
+	return Time.get_datetime_string_from_unix_time(u, true) + "Z" if u > 0 else ""
 
 
 func on_peer_left(peer: int) -> void:

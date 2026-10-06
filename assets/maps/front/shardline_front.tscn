@@ -9140,7 +9140,7 @@ render_priority = 0
 shader = ExtResource("3_qc5fy")
 shader_parameter/base_color = Color(0.45, 0.36, 0.3, 1)
 shader_parameter/seam_color = Color(0.2, 0.14, 0.1, 1)
-shader_parameter/trim_color = Color(1, 0.7019608, 0.2784314, 1)
+shader_parameter/trim_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 shader_parameter/panel_size = 3.0
 shader_parameter/seam_width = null
 shader_parameter/panel_variation = null
@@ -9192,7 +9192,7 @@ size = Vector3(0.4, 4.6, 3)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ur2dv"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_o00sk"]
 material = SubResource("StandardMaterial3D_ur2dv")
@@ -9200,7 +9200,7 @@ size = Vector3(0.5, 0.15, 2.9)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_87cwh"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_bxcaj"]
 material = SubResource("StandardMaterial3D_87cwh")
@@ -9243,7 +9243,7 @@ size = Vector3(2, 4.6, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bcwlt"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_wp2fx"]
 material = SubResource("StandardMaterial3D_bcwlt")
@@ -9272,7 +9272,7 @@ size = Vector3(5.4, 4.6, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_td2gp"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_i7ecg"]
 material = SubResource("StandardMaterial3D_td2gp")
@@ -11175,7 +11175,7 @@ size = Vector3(0.4, 4.6, 3)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0veej"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_iljtc"]
 material = SubResource("StandardMaterial3D_0veej")
@@ -11183,7 +11183,7 @@ size = Vector3(0.5, 0.15, 2.9)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nptdj"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_1bp8q"]
 material = SubResource("StandardMaterial3D_nptdj")
@@ -11226,7 +11226,7 @@ size = Vector3(2, 4.6, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0l0i0"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_bxw11"]
 material = SubResource("StandardMaterial3D_0l0i0")
@@ -11255,7 +11255,7 @@ size = Vector3(5.4, 4.6, 0.4)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bxela"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_avll7"]
 material = SubResource("StandardMaterial3D_bxela")
@@ -19579,7 +19579,7 @@ size = Vector3(12.6, 0.5, 16.6)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ta2ox"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_3ic8n"]
 material = SubResource("StandardMaterial3D_ta2ox")
@@ -21463,7 +21463,7 @@ size = Vector3(12.6, 0.5, 16.6)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5pc2j"]
 shading_mode = 0
-albedo_color = Color(1, 0.7019608, 0.2784314, 1)
+albedo_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_ut6ns"]
 material = SubResource("StandardMaterial3D_5pc2j")
@@ -36578,13 +36578,13 @@ shape = SubResource("BoxShape3D_vl8s7")
 
 [node name="RoomLight0" type="OmniLight3D" parent="Geometry/House_Warehouse_A" unique_id=285051997]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91, 3.6, -109)
-light_color = Color(1, 0.7019608, 0.2784314, 1)
+light_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 light_energy = 0.8
 omni_range = 7.0
 
 [node name="RoomLight1" type="OmniLight3D" parent="Geometry/House_Warehouse_A" unique_id=528266039]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97, 3.6, -109)
-light_color = Color(1, 0.7019608, 0.2784314, 1)
+light_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 light_energy = 0.8
 omni_range = 7.0
 
@@ -36710,7 +36710,7 @@ shape = SubResource("BoxShape3D_dn1uu")
 
 [node name="QuayLight" type="OmniLight3D" parent="Geometry/Docks_A" unique_id=1711888854]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99, 7, -145)
-light_color = Color(1, 0.7019608, 0.2784314, 1)
+light_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 omni_range = 18.0
 
 [node name="ApronRail635" type="StaticBody3D" parent="Geometry/Docks_A" unique_id=1521492712]
@@ -39114,13 +39114,13 @@ shape = SubResource("BoxShape3D_yufwa")
 
 [node name="RoomLight0" type="OmniLight3D" parent="Geometry/House_Warehouse_B" unique_id=1737595472]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91, 3.6, -311)
-light_color = Color(1, 0.7019608, 0.2784314, 1)
+light_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 light_energy = 0.8
 omni_range = 7.0
 
 [node name="RoomLight1" type="OmniLight3D" parent="Geometry/House_Warehouse_B" unique_id=352094280]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97, 3.6, -311)
-light_color = Color(1, 0.7019608, 0.2784314, 1)
+light_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 light_energy = 0.8
 omni_range = 7.0
 
@@ -39246,7 +39246,7 @@ shape = SubResource("BoxShape3D_lnxkt")
 
 [node name="QuayLight" type="OmniLight3D" parent="Geometry/Docks_B" unique_id=1349071358]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99, 7, -275)
-light_color = Color(1, 0.7019608, 0.2784314, 1)
+light_color = Color(0.20392157, 0.84705883, 0.76862746, 1)
 omni_range = 18.0
 
 [node name="ApronRail983" type="StaticBody3D" parent="Geometry/Docks_B" unique_id=776180609]

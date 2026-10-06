@@ -849,7 +849,7 @@ func _connect(addr: String) -> bool:
 		return false
 	_server = addr
 	_link_up = false
-	_online = LobbyClient.new(_enet)
+	_online = LobbyClient.new(_enet, host)  # matches with no public host: use this address
 	_online.account_result.connect(_on_account)
 	_online.failed.connect(func(key: String) -> void:
 		if key == LobbyClient.reject_text(MsgType.REJECT_PROTOCOL_MISMATCH):

@@ -32,15 +32,15 @@ func test_wardling_class_markings_and_elite() -> void:
 	var w := WardlingModelBuilder.build(&"picket", 1, ModelPalette.TEAM_CONCORD)
 	add_child(auto_free(w))
 	w.set_owner_kind(0)
-	assert_bool(w._pennant.visible).is_true()
-	assert_bool(w._sash.visible).is_false()
+	assert_bool(w.marks().pennant).is_true()
+	assert_bool(w.marks().sash).is_false()
 	w.set_owner_kind(2)
-	assert_bool(w._pennant.visible).is_false()
-	assert_bool(w._sash.visible).is_true()
+	assert_bool(w.marks().pennant).is_false()
+	assert_bool(w.marks().sash).is_true()
 	var s1 := w.scale.x
 	w.set_elite(true)
 	assert_float(w.scale.x).is_equal_approx(s1 * WardlingModelBuilder.ELITE_SCALE, 0.001)
-	assert_bool(w._elite_mi.visible).is_true()
+	assert_bool(w.marks().elite).is_true()
 
 
 func test_uplink_states_and_budget() -> void:

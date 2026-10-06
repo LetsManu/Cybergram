@@ -7,6 +7,7 @@ extends RefCounted
 ##   GET /metrics      Prometheus text (OpsMetrics)
 ##   GET /admin        live parties / queues / matches / last events (HTML)
 ##   GET /admin.json   the same as JSON
+##   GET /admin/accounts(.json)  registered accounts, newest first (no passwords)
 ## /admin* needs CYBERGRAM_ADMIN_TOKEN: "Authorization: Bearer <token>" or
 ## HTTP Basic with any user name and the token as password (browsers ask for
 ## it). Without a configured token the admin pages answer 404.
@@ -38,6 +39,8 @@ var health: Callable = func() -> Dictionary: return {"ready": true}
 var metrics: Callable = func() -> String: return ""
 ## func() -> Dictionary (admin snapshot).
 var admin: Callable = func() -> Dictionary: return {}
+## func() -> Dictionary (accounts list: {total, shown, rows}).
+var accounts: Callable = func() -> Dictionary: return {}
 ## Admin token ("" = admin pages disabled).
 var admin_token: String = ""
 ## Requests answered (tests, metrics).
@@ -149,13 +152,17 @@ func respond(method: String, path: String, headers: Dictionary) -> Dictionary:
 			r = _res(200, "application/json", "{\"status\":\"alive\"}\n")
 		"/metrics":
 			r = _res(200, "text/plain; version=0.0.4", str(metrics.call()))
-		"/admin", "/admin/", "/admin.json":
+		"/admin", "/admin/", "/admin.json", "/admin/accounts", "/admin/accounts.json":
 			if admin_token == "":
 				r = _res(404, "text/plain", "not found\n")
 			elif not authorized(headers.get("authorization", "")):
 				r = _res(401, "text/plain", "unauthorized\n", {"WWW-Authenticate": "Basic realm=\"cybergram admin\""})
 			elif path == "/admin.json":
 				r = _res(200, "application/json", JSON.stringify(admin.call()) + "\n")
+			elif path == "/admin/accounts.json":
+				r = _res(200, "application/json", JSON.stringify(accounts.call()) + "\n")
+			elif path == "/admin/accounts":
+				r = _res(200, "text/html; charset=utf-8", OpsAdminPage.accounts_html(accounts.call()))
 			else:
 				r = _res(200, "text/html; charset=utf-8", OpsAdminPage.html(admin.call()))
 		_:

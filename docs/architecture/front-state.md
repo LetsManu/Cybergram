@@ -32,6 +32,7 @@ Side transitions:
 | Queued, ReadyCheck, ChampSelect, Loading | Reconnecting | menu connection lost while a ticket or seat is held |
 | Reconnecting | the state it left, Idle, InParty, Offline | back in time, or the grace ran out |
 | any online state | Offline | disconnect without a held ticket or seat |
+| InGame | Offline | the match ended (or was voided) while the game was closed |
 
 Exact legal pairs: `PhaseMachine.PLAYER_LEGAL`. Every pair is covered by
 `tests/unit/matchmaking/phase_machine_test.gd`.

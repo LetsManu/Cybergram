@@ -33,8 +33,12 @@ done
 for p in heroes.html patch-notes.html status.html leaderboard.html impressum.html privacy.html static/site.css static/site.js; do
   curl -fsS -o /dev/null "$base/$p" || fail "$p"
 done
-curl -fsS "$base/heroes.html" | grep -q 'id="vesper_loom"' || fail "hero roster"
-curl -fsS "$base/patch-notes.html" | grep -q 'id="v0-1-0"' || fail "patch notes"
+# Fetch first, then search: `curl | grep -q` under pipefail fails at random when
+# grep exits on its match while curl is still writing (curl: write error 23).
+heroes="$(curl -fsS "$base/heroes.html")" || fail "hero roster fetch"
+grep -q 'id="vesper_loom"' <<<"$heroes" || fail "hero roster"
+notes="$(curl -fsS "$base/patch-notes.html")" || fail "patch notes fetch"
+grep -q 'id="v0-1-0"' <<<"$notes" || fail "patch notes"
 snap="$(curl -fsS "$base/data/snapshot.json")" || fail "snapshot JSON"
 grep -q '"leaderboard"' <<<"$snap" || fail "snapshot content"
 code="$(curl -s -o /dev/null -w '%{http_code}' "$base/no-such-page")"
