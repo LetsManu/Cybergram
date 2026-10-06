@@ -93,6 +93,8 @@ class View:
 	var sections: Array = [{}, {}, {}, {}]
 	var stale: Dictionary = {}  # Wardling key -> true
 	var blobs: Array = [null, null, null, null]
+	## Decode only: Wardling keys this packet removed explicitly (died / despawned).
+	var removed_wardlings: PackedInt32Array = PackedInt32Array()
 
 
 ## Result of encode_delta().
@@ -809,6 +811,7 @@ static func decode_delta(b: PackedByteArray, baselines: Dictionary) -> Array:
 		var wd := wardling_from(k, v.sections[SEC_WARD][k])
 		wd.stale = v.stale.has(k)
 		s.wardlings.append(wd)
+	s.wardlings_removed = v.removed_wardlings
 	return [s, OK, v]
 
 
@@ -859,6 +862,8 @@ static func _read_keyed(r: Reader, sec: int, bv: View, v: View) -> bool:
 		if not cur.has(k):
 			return false  # removing what the baseline does not hold
 		cur.erase(k)
+		if sec == SEC_WARD:
+			v.removed_wardlings.append(k)
 	var nu := r.u16()
 	var seen := {}
 	for i in nu:

@@ -195,6 +195,11 @@ var own_combat: OwnCombat = null
 var entities: Array[EntityState] = []
 ## Wardlings (E8).
 var wardlings: Array[WardlingState] = []
+## Client decode: Wardling keys (net id & 0xFFFF) this snapshot removed
+## explicitly. A Wardling missing from `wardlings` without being listed here
+## may only be deferred: a new one that did not fit the byte budget while the
+## client's acknowledged baseline predates it (SnapshotCodec.encode_delta).
+var wardlings_removed: PackedInt32Array = PackedInt32Array()
 ## E10 skill FX and deployables.
 var fx: Array[FxState] = []
 ## Mana bolts fired this tick (E8 tracers): [from: Vector3, to: Vector3] pairs.
