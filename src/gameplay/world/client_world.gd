@@ -169,6 +169,8 @@ func setup_objectives(md: MapDef) -> void:
 			var am := ArmoryMarkerView.new()
 			am.setup(hq, self)
 			add_child(am)
+	if DisplayServer.get_name() != "headless":  # P7: painted floor tiles + world decals (client view only)
+		add_child(WorldDecals.create(md))
 
 
 ## W16-SDWATER: the ring centre is MapDef.mid_plaza_center, as on the server.
