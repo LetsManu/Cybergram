@@ -322,7 +322,7 @@ func _build_materials() -> void:
 	mats.floor_jungle = _panel(Color(0.25, 0.24, 0.32), Color(0.1, 0.09, 0.16), 2.0, Color.BLACK, 0.0, 3.0)
 	mats.floor_dock = _panel(Color(0.36, 0.33, 0.3), Color(0.16, 0.13, 0.1), 2.5)
 	mats.wall_n = _panel(Color(0.38, 0.45, 0.52), Color(0.14, 0.2, 0.26), 3.0, TEAL, 4.2, 3.0)
-	mats.wall_s = _panel(Color(0.45, 0.36, 0.3), Color(0.2, 0.14, 0.1), 3.0, Color("#FFB347"), 4.2, 3.0)
+	mats.wall_s = _panel(Color(0.45, 0.36, 0.3), Color(0.2, 0.14, 0.1), 3.0, TEAL, 4.2, 3.0)
 	mats.wall_city = _panel(Color(0.24, 0.22, 0.34), Color(0.1, 0.09, 0.18), 4.0, LEYFALL, 7.0, 4.0)
 	mats.wall_jungle = _panel(Color(0.28, 0.24, 0.36), Color(0.12, 0.08, 0.18), 3.0, Color("#FF3FA4"), 3.4, 3.0)
 	mats.neon_pink = _mat(Color("#FF3FA4"), 0.0, 0.85, true)
@@ -1396,7 +1396,7 @@ func _docks(half: int) -> void:
 		"x0": [[104.0, 106.6, 0.0, 3.2, "door"], [110.0, 114.0, 1.0, 2.2, "window"]],
 		"l0": [[95.0, 98.0, 1.0, 2.2, "window"]],
 		"l1": [[92.0, 94.6, 0.0, 3.2, "door"]],
-	}, ["x", 94.0, 108.0, 110.6], [[91.0, 109.0], [97.0, 109.0]], mats.wall_s, Color("#FFB347"))
+	}, ["x", 94.0, 108.0, 110.6], [[91.0, 109.0], [97.0, 109.0]], mats.wall_s, TEAL)
 	var g := _node(geo, "Docks_" + _key(half).to_upper())
 	_hrect(g, "Apron", half, 88.0, 103.0, 117.0, 121.0, 0.0, mats.floor_dock)
 	_hwedge(g, "LoadingRamp", half, 96.0, 103.0, 121.0, 129.0, 1, 0.0, 2.5, mats.deck)
@@ -1427,7 +1427,7 @@ func _docks(half: int) -> void:
 		_box(boom, "Hook", Vector3(0.3, 6.0, 0.3), Vector3(-18.0, -3.5, 0), mats.rail, false)
 		ambient.crane_booms.append("Dressing/%s/Boom" % cn)
 	var wl := _hl(half, 145.0)
-	_accent_light(g, "QuayLight", Color("#FFB347"), P(99.0, wl, 7.0), 18.0, 1.0)
+	_accent_light(g, "QuayLight", TEAL, P(99.0, wl, 7.0), 18.0, 1.0)
 	ov_labels.append(["QUAY", P(108.0, _hl(half, 145.0)), Color("#FFD08A")])
 
 
@@ -1452,7 +1452,7 @@ func _plaza_bridge() -> void:
 func _city_rows(half: int) -> void:
 	var g := _node(dressing, "City_" + _key(half).to_upper())
 	g.remove_from_group(&"nav_source")
-	var rows := [[-1.0, -132.0, -106.0, 72.0, 207.0, AZURE], [1.0, 112.0, 132.0, 72.0, 207.0, Color("#FFB347")]]
+	var rows := [[-1.0, -132.0, -106.0, 72.0, 207.0, AZURE], [1.0, 112.0, 132.0, 72.0, 207.0, TEAL]]
 	for r in rows:
 		var l: float = r[3]
 		var i := 0

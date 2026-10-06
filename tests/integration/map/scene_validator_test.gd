@@ -61,3 +61,27 @@ func test_world_props_are_range_culled() -> void:
 	await get_tree().process_frame
 	assert_int(props.get_child_count()).is_greater(0)
 	assert_array(Array(SceneAudit.unculled(props))).is_empty()
+
+
+## Art bible §6.2: sodium-amber is the pickup colour and is forbidden as lane
+## lighting / trim (it was on the South docks until 2026-10-06).
+func test_no_pickup_amber_in_map_lights_or_trims() -> void:
+	var amber := Color("#FFB347")
+	var bad: Array = []
+	for n in _map.find_children("*", "", true, false):
+		var cols: Array = []
+		if n is Light3D:
+			cols.append((n as Light3D).light_color)
+		if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+			var mi := n as MeshInstance3D
+			for i in mi.mesh.get_surface_count():
+				var m := mi.get_active_material(i)
+				if m is StandardMaterial3D:
+					cols.append((m as StandardMaterial3D).albedo_color)
+				elif m is ShaderMaterial and (m as ShaderMaterial).get_shader_parameter("trim_color") is Color:
+					cols.append((m as ShaderMaterial).get_shader_parameter("trim_color"))
+		for c: Color in cols:
+			if absf(c.r - amber.r) + absf(c.g - amber.g) + absf(c.b - amber.b) < 0.12:
+				bad.append(_map.get_path_to(n))
+	assert_array(bad).override_failure_message("pickup amber on: %s" % [bad.slice(0, 8)]).is_empty()
+
