@@ -974,7 +974,8 @@ HUD_NET_BACK,Back
 HUD_NET_ERR_TIMEOUT,"No answer from the server. It may be down, the address may be wrong, or UDP is blocked by your network."
 HUD_NET_ERR_LOGIN_TIMEOUT,"The server connected but did not answer the sign-in. Please try again."
 HUD_NET_ERR_DNS,The server address could not be found. Check your internet connection.
-HUD_NET_ERR_DTLS,"The secure connection could not be set up. The server may be down or restarting, its certificate may be invalid, or UDP is blocked by your network."
+HUD_NET_ERR_DTLS,"The secure connection was refused: the server certificate is not valid for this address (the name does not match or it is not trusted). Connect with the server name the certificate was issued for (for example cyber.djboeck.at), not an IP address. Launcher > Settings > Connection test shows the details."
+HUD_NET_ERR_PLAIN_IP,"No answer. With a bare IP address the game connects without encryption, which online servers refuse. Use the server name (for example cyber.djboeck.at); on your own network, map the name to the IP in your hosts file."
 HUD_NET_ERR_VERSION,"Version mismatch: your game and the server run different versions. Update the game (or wait for the server update) and retry."
 HUD_NET_ERR_DISCONNECTED,Connection to the server lost.
 HUD_NET_ERR_GENERIC,Could not connect to the server.

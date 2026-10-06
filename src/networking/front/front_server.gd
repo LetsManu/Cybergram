@@ -40,6 +40,9 @@ var build_version: String = "dev"
 var ready_checks: Dictionary = {}
 var _tick_ms_last: float = 0.0
 var _tick_ms_max: float = 0.0
+## Refused connections by reason (/metrics + rate-limited log, docs/connecting.md).
+## Hooked into the engine log only on a DTLS transport (handshake failures).
+var rejects := ConnectionRejects.new()
 
 
 func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) -> void:
@@ -48,6 +51,10 @@ func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) ->
 	front = front_
 	if t.has_signal("peer_disconnected"):
 		t.connect("peer_disconnected", on_peer_left)
+	accounts.rejected.connect(func(peer: int, reason: String) -> void:
+		rejects.note(reason, transport.peer_address(peer)))
+	if t is ENetTransport and (t as ENetTransport).is_secure:
+		OS.add_logger(rejects)
 	ops.health = health_snapshot
 	ops.metrics = func() -> String: return metrics_text()
 	ops.admin = func() -> Dictionary: return admin_snapshot()
@@ -72,6 +79,7 @@ func step(delta: float) -> void:
 		_handle(pkt)
 		pkt = transport.pop_packet()
 	front.step()
+	rejects.flush(front.metrics, _now)
 	_status.tick(delta, accounts.peers.size(), false, 0)
 	public_snapshot.tick(delta, front, accounts.peers.size())
 	_tick_ms_last = (Time.get_ticks_usec() - t0) / 1000.0
@@ -98,6 +106,8 @@ func metrics_text() -> String:
 	m.describe("cybergram_front_tick_ms", "gauge", "Main-loop time of the last frame (ms).")
 	m.describe("cybergram_front_tick_ms_max", "gauge", "Longest main-loop frame since the last scrape (ms).")
 	m.describe("cybergram_protocol_violations", "gauge", "Peers with at least one malformed packet right now.")
+	m.describe(ConnectionRejects.METRIC, "counter",
+		"Refused connections by reason: plain_udp, bad_certificate, handshake_other, version_mismatch, auth.")
 	m.set_gauge("cybergram_connected_clients", float(accounts.peers.size()))
 	m.set_gauge("cybergram_front_tick_ms", _tick_ms_last)
 	m.set_gauge("cybergram_front_tick_ms_max", _tick_ms_max)

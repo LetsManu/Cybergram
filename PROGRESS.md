@@ -213,6 +213,13 @@ summarised here so the plan survives a new session):
    name mismatch, server JSON log + /metrics counter for rejected connections by
    reason, docs/connecting.md (hostname, hosts file, Portainer, Icinga checks).
    Owner tests `192.168.1.7 cyber.djboeck.at` in the hosts file.
+   **Done 2026-10-06:** NetDiagnosis (shared with the launcher) + Settings >
+   Connection test card (screenshot `production/qa/evidence/connection/`),
+   PLAIN_IP / reworded DTLS errors, ConnectionRejects (`cybergram_connections_rejected_total{reason}`,
+   rate-limited JSON line, masked IPs, `CYBERGRAM_LOG_FULL_IP`), docs/connecting.md.
+   DTLS-level rejects carry no source IP (the engine does not expose it).
+   Launcher self-update now finishes in a helper process when Windows locks the
+   running exe (embedded pck); launchers older than this need one manual update.
 2. **Part 2 CI + validators:** job / step timeouts, concurrency cancel, caching,
    fast smoke job, 3 consecutive green runs; scene validator (collision, navmesh,
    props off routes, materials, budgets, LODs, team symmetry); placement validator

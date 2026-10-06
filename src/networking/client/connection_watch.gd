@@ -40,6 +40,7 @@ enum Reason {
 	VERSION,  ## the server runs another protocol version
 	DISCONNECTED,  ## the link dropped after it was up
 	ERROR,  ## anything else
+	PLAIN_IP,  ## no answer to a plain-UDP connect to a bare IP (servers need DTLS + a name)
 }
 
 ## Timeouts (data: assets/data/net/connection_watch.tres).
@@ -131,7 +132,7 @@ func tick(delta: float) -> void:
 		return
 	_elapsed += delta
 	if phase == Phase.CONNECTING and _elapsed >= config.connect_timeout_s:
-		_fail(Reason.TIMEOUT_CONNECT)
+		_fail(timeout_reason(_target, _secure))
 	elif phase == Phase.LOGIN and _elapsed >= config.login_timeout_s:
 		_fail(Reason.TIMEOUT_LOGIN)
 
@@ -153,6 +154,15 @@ func _fail(r: Reason) -> void:
 func _log(text: String) -> void:
 	if log_sink.is_valid():
 		log_sink.call("[net] %s" % text)
+
+
+## Reason for a connect timeout to `target` ("host:port"): a plain-UDP link to
+## a bare IP gets its own explanation (an encrypted server never answers it).
+static func timeout_reason(target: String, secure: bool) -> Reason:
+	var host := target.get_slice(":", 0) if target.count(":") == 1 else target
+	if not secure and host.is_valid_ip_address() and not host.begins_with("127.") and host != "::1":
+		return Reason.PLAIN_IP
+	return Reason.TIMEOUT_CONNECT
 
 
 ## Maps a transport error text to a reason.
@@ -181,4 +191,6 @@ static func reason_key(r: Reason) -> String:
 			return "HUD_NET_ERR_VERSION"
 		Reason.DISCONNECTED:
 			return "HUD_NET_ERR_DISCONNECTED"
+		Reason.PLAIN_IP:
+			return "HUD_NET_ERR_PLAIN_IP"
 	return "HUD_NET_ERR_GENERIC"

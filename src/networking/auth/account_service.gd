@@ -92,6 +92,9 @@ var _since_admin: float = 1.0e9  # the first step() looks at once
 ## W17B: an account was deleted (by its owner or by the inactivity sweep);
 ## other stores (ratings, reports, match history, lockouts) erase it too.
 signal account_deleted(account_id: String)
+## A request was refused for a reason worth counting (ConnectionRejects):
+## "version_mismatch" or "auth" (credentials, lock, invalid session).
+signal rejected(peer: int, reason: String)
 
 
 ## Process-wide service (guest-only until configure_shared()).
@@ -1279,6 +1282,19 @@ func end_other_sessions(account_id: String, keep_peer: int) -> void:
 
 func _reply(t: Transport, peer: int, op: int, code: int, fields: Dictionary = {}) -> void:
 	t.send(peer, Transport.CH_CONTROL, AccountCodec.encode_result(op, code, fields))
+	var why := reject_reason(code)
+	if why != "":
+		rejected.emit(peer, why)
+
+
+## The ConnectionRejects reason for a result `code` ("" = not a rejection). Pure.
+static func reject_reason(code: int) -> String:
+	match code:
+		AccountCodec.E_VERSION:
+			return "version_mismatch"
+		AccountCodec.E_CREDENTIALS, AccountCodec.E_LOCKED, AccountCodec.E_SESSION:
+			return "auth"
+	return ""
 
 
 func _budget(peer: int) -> bool:

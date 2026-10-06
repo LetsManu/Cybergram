@@ -52,6 +52,7 @@ curl -s -H "Authorization: Bearer $CYBERGRAM_ADMIN_TOKEN" localhost:8090/admin.j
 | `cybergram_illegal_transitions_total` | gauge | rejected state changes since start (should stay 0) |
 | `cybergram_front_tick_ms`, `cybergram_front_tick_ms_max` | gauge | main-loop time; max resets on every scrape |
 | `cybergram_protocol_violations` | gauge | peers that sent malformed packets |
+| `cybergram_connections_rejected_total` | counter | `reason` = plain_udp, bad_certificate, handshake_other, version_mismatch, auth (see `docs/connecting.md`) |
 | `cybergram_uptime_seconds` | gauge | |
 | `cybergram_build_info` | gauge (1) | `version`, `protocol` |
 
@@ -105,6 +106,11 @@ Suggested thresholds (small community server):
 | State machine bug | `cybergram_illegal_transitions_total` | 1 | 20 |
 | Matches stuck loading | `cybergram_lobbies\{state="Loading"\}` | 3 | 6 |
 | Long waits | `cybergram_queue_estimated_wait_seconds` | 300 | 900 |
+| Bare-IP connects | `cybergram_connections_rejected_total\{reason="plain_udp"\}` | 50 | 500 |
+| Certificate refused | `cybergram_connections_rejected_total\{reason="bad_certificate"\}` | 10 | 100 |
+
+Rejected connections, their log line and the client-side connection test are
+described in `docs/connecting.md`.
 
 Prometheus works the same way: scrape `http://192.168.1.7:8090/metrics`.
 

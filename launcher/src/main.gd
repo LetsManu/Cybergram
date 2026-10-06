@@ -1010,6 +1010,9 @@ func _build_settings() -> Control:
 	_privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_online_settings_row.add_child(_privacy)
 	# --- end W15-ONLINE ---
+	var conn := ConnectionTestCard.new()
+	conn.server = func() -> String: return _game_server
+	col.add_child(conn)
 	col.move_child(about, col.get_child_count() - 1)  # About stays last
 	# --- W15-UX ---
 	var ux_scroll: ScrollContainer = ScrollContainer.new()
