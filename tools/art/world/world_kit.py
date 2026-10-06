@@ -156,6 +156,13 @@ class WorldAsset(Hero):
             m.angle_limit = math.radians(smooth_deg)
             m.use_clamp_overlap = True
             bpy.ops.object.modifier_apply(modifier=m.name)
+            # the bevel collapses thin parts (floor chevrons) into zero-area faces
+            bm = bmesh.new()
+            bm.from_mesh(ob.data)
+            bmesh.ops.dissolve_degenerate(bm, dist=1e-5, edges=bm.edges[:])
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 1e-9], context="FACES")
+            bm.to_mesh(ob.data)
+            bm.free()
         wn = ob.modifiers.new("w_wn", "WEIGHTED_NORMAL")
         wn.keep_sharp = True
         bpy.ops.object.modifier_apply(modifier=wn.name)
