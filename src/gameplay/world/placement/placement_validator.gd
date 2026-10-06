@@ -109,6 +109,37 @@ func validate(space: PhysicsDirectSpaceState3D, items: Array) -> Array[Violation
 	return out
 
 
+## The violations of one item against the level alone (no item pairs, no
+## keep-out): what a placer checks before it accepts a spot.
+func check_item(space: PhysicsDirectSpaceState3D, it: Item) -> Array[Violation]:
+	var found: Array[Violation] = []
+	var saved := keep_out
+	keep_out = Callable()
+	if it.kind == &"decal":
+		_check_decal(space, it, [], found)
+	else:
+		_check_solid(space, it, found)
+	keep_out = saved
+	return found
+
+
+## Oriented box an item occupies for the item-pair test (null for decals).
+func solid_obb(it: Item) -> Array:
+	return [] if it.kind == &"decal" else PlacementKit.obb(it.xform, _solid_box(it), rules.overlap_shrink_m)
+
+
+## Oriented box of a decal's projection above its floor (what a prop must not
+## stand in), or [] for a non-decal.
+func decal_obb(space: PhysicsDirectSpaceState3D, it: Item) -> Array:
+	if it.kind != &"decal":
+		return []
+	var g := PlacementKit.ground(space, it.xform.origin, 0.3, 0.3)
+	var y: float = it.xform.origin.y if g.is_empty() else (g.pos as Vector3).y
+	var top_half := AABB(Vector3(it.box.position.x, 0.0, it.box.position.z),
+		Vector3(it.box.size.x, it.box.end.y, it.box.size.z))
+	return PlacementKit.obb(Transform3D(it.xform.basis, Vector3(it.xform.origin.x, y, it.xform.origin.z)), top_half)
+
+
 ## Number of violations without a waiver.
 static func unwaived(report: Array) -> int:
 	return report.filter(func(v: Violation) -> bool: return not v.waived).size()
@@ -198,18 +229,28 @@ func _check_decal(space: PhysicsDirectSpaceState3D, it: Item, solids: Array, out
 		Vector3(it.box.size.x, it.box.end.y, it.box.size.z))
 	var on_floor := Transform3D(xf.basis, Vector3(c.x, floor_y, c.z))
 	var top := top_half.end.y * xf.basis.get_scale().y
+	var bad := ""
 	for i in 3:
 		for j in 3:
+			if bad != "":
+				break
 			var lp := Vector3(lerpf(top_half.position.x, top_half.end.x, (i + 0.5) / 3.0), 0.0,
 				lerpf(top_half.position.z, top_half.end.z, (j + 0.5) / 3.0))
 			var wp := on_floor * lp
-			var h := PlacementKit.ray(space, wp + Vector3.UP * top, wp + Vector3.UP * 0.04)
-			if not h.is_empty() and (h.normal as Vector3).y > 0.5:
-				out.append(_v(&"decal_clear", "paints onto a ledge %.2f m above its floor" % ((h.position as Vector3).y - floor_y)))
-				i = 3
-				break
-		if i >= 3:
-			break
+			# going down through the box, the first surface must be the decal's own
+			# floor (within ground_tol_m of its plane); higher = a ledge gets
+			# painted, nothing = the decal hangs over a drop
+			var h := PlacementKit.ray(space, wp + Vector3.UP * top, wp - Vector3.UP * top)
+			if h.is_empty():
+				bad = "hangs over a drop"
+			else:
+				var dy: float = (h.position as Vector3).y - wp.y
+				if dy > rules.ground_tol_m and (h.normal as Vector3).y > 0.5:
+					bad = "paints onto a ledge %.2f m above its floor" % dy
+				elif dy < -rules.ground_tol_m:
+					bad = "floor drops %.2f m under the decal" % -dy
+	if bad != "":
+		out.append(_v(&"decal_clear", bad))
 	if it.normal_fade < rules.decal_min_normal_fade and top_half.size.y > 0.07 \
 			and PlacementKit.overlaps(space, on_floor, top_half, 0.0, 0.04):
 		out.append(_v(&"decal_clear", "projection box meets a wall and normal_fade %.2f < %.2f" % [it.normal_fade, rules.decal_min_normal_fade]))

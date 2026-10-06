@@ -79,7 +79,7 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	if not is_inside_tree():
 		return
-	build(plan(_map, _def), _physics_ground)
+	build(plan(_map, _def), _physics_ground, plausible_filter(get_world_3d().direct_space_state, _def))
 
 
 ## Number of Decal nodes this node created.
@@ -375,10 +375,12 @@ static func _rand_size(rng: RandomNumberGenerator, range_m: Vector2) -> Vector2:
 
 ## Creates one Decal per placement whose floor `ground` finds. `ground(pos)` returns
 ## {"pos": Vector3, "normal": Vector3} or {} (no floor: the decal is skipped).
-func build(placements: Array[Placement], ground: Callable) -> void:
+func build(placements: Array[Placement], ground: Callable, accept: Callable = Callable()) -> void:
 	for p in placements:
 		var hit: Dictionary = ground.call(p.pos)
 		if hit.is_empty():
+			continue
+		if accept.is_valid() and not accept.call(p, hit):
 			continue
 		var d := make_decal(p, hit.pos, hit.normal, _def)
 		if d == null:
@@ -412,6 +414,23 @@ static func make_decal(p: Placement, at: Vector3, up: Vector3, def: WorldDecalsD
 	d.set_meta(&"role", p.role)
 	d.set_meta(&"team", p.team)
 	return d
+
+
+## Callable(p, hit) -> bool: true when the decal on that floor hit passes
+## PlacementValidator (docs/placement.md: no ledge or drop inside its box).
+static func plausible_filter(space: PhysicsDirectSpaceState3D, def: WorldDecalsDef) -> Callable:
+	var v := PlacementValidator.new(MapPlacementAudit.rules())
+	return func(p: Placement, hit: Dictionary) -> bool:
+		return v.check_item(space, decal_item(p, hit, def)).is_empty()
+
+
+## The PlacementValidator item of decal `p` on the floor hit {pos, normal}.
+static func decal_item(p: Placement, hit: Dictionary, def: WorldDecalsDef, id: String = "") -> PlacementValidator.Item:
+	var box := AABB(Vector3(-p.size.x, -def.box_height_m, -p.size.y) * 0.5, Vector3(p.size.x, def.box_height_m, p.size.y))
+	var it := PlacementValidator.Item.new(id if id != "" else "decal_" + p.cell, &"decal",
+		make_decal_transform(p, hit.pos, hit.normal), box)
+	it.normal_fade = def.normal_fade
+	return it
 
 
 ## Transform of the decal for `p` on the floor point `at` with floor normal `up`

@@ -32,32 +32,35 @@ static func prop_items(md: MapDef, space: PhysicsDirectSpaceState3D) -> Array:
 	var out: Array = []
 	var n := 0
 	for pl: WorldProps.Placement in WorldProps.place(md, def, space, bounds):
-		var kind: StringName = &"roof" if pl.kind == &"roof" else &"wall"
-		if FLAT.has(pl.piece):
-			kind = &"flat"
-		var it := PlacementValidator.Item.new("%s#%d@%s" % [pl.piece, n, _at(pl.xform.origin)], kind, pl.xform, bounds[pl.piece])
-		if pl.foot.size() == 4:
-			it.foot = pl.foot
-		it.faces_walkable = FACES_WALKABLE.has(pl.piece)
+		var it := item_of(pl, bounds[pl.piece], "%s#%d@%s" % [pl.piece, n, _at(pl.xform.origin)])
 		it.waiver = _waiver(it.id)
 		out.append(it)
 		n += 1
 	return out
 
 
+## The validator item for a world prop placement (`box` = the piece's unscaled bounds).
+static func item_of(pl: WorldProps.Placement, box: AABB, id: String = "") -> PlacementValidator.Item:
+	var kind: StringName = &"roof" if pl.kind == &"roof" else &"wall"
+	if FLAT.has(pl.piece):
+		kind = &"flat"
+	var it := PlacementValidator.Item.new(id if id != "" else String(pl.piece), kind, pl.xform, box)
+	it.faces_walkable = FACES_WALKABLE.has(pl.piece)
+	if pl.foot.size() == 4:
+		it.foot = pl.foot
+	return it
+
+
 ## Items for the floor decals planned on `md`; `ground` = Callable(Vector3) -> {pos, normal}.
-static func decal_items(md: MapDef, ground: Callable) -> Array:
+static func decal_items(md: MapDef, ground: Callable, accept: Callable = Callable()) -> Array:
 	var def := load(WorldDecals.DEF_PATH) as WorldDecalsDef
 	var out: Array = []
 	var n := 0
 	for p: WorldDecals.Placement in WorldDecals.plan(md, def):
 		var hit: Dictionary = ground.call(p.pos)
-		if hit.is_empty():
+		if hit.is_empty() or (accept.is_valid() and not accept.call(p, hit)):
 			continue
-		var d := WorldDecals.make_decal_transform(p, hit.pos, hit.normal)
-		var box := AABB(Vector3(-p.size.x, -def.box_height_m, -p.size.y) * 0.5, Vector3(p.size.x, def.box_height_m, p.size.y))
-		var it := PlacementValidator.Item.new("decal_%s#%d@%s" % [p.cell, n, _at(hit.pos)], &"decal", d, box)
-		it.normal_fade = def.normal_fade
+		var it := WorldDecals.decal_item(p, hit, def, "decal_%s#%d@%s" % [p.cell, n, _at(hit.pos)])
 		it.waiver = _waiver(it.id)
 		out.append(it)
 		n += 1
@@ -70,7 +73,9 @@ static func run(md: MapDef, space: PhysicsDirectSpaceState3D, ground: Callable) 
 	var corridors := WorldProps.lane_corridors(md)
 	var v := PlacementValidator.new(rules())
 	v.keep_out = func(p: Vector3, r: float) -> String: return WorldProps.excluded(md, def, p, r, corridors)
-	var items := prop_items(md, space) + decal_items(md, ground)
+	# the decals the game builds: the runtime filter applied (WorldDecals._ready)
+	var items := prop_items(md, space) + decal_items(md, ground,
+		WorldDecals.plausible_filter(space, load(WorldDecals.DEF_PATH) as WorldDecalsDef))
 	return [items, v.validate(space, items)]
 
 

@@ -52,6 +52,47 @@ class Placement:
 	var foot_radius: float = 0.0
 
 
+## Accepts a placement only when PlacementValidator finds nothing wrong with it
+## against the level and it overlaps no prop accepted before (docs/placement.md).
+class Checker:
+	var space: PhysicsDirectSpaceState3D
+	var bounds: Dictionary
+	var v: PlacementValidator
+	var taken: Array = []
+
+	func _init(space_: PhysicsDirectSpaceState3D, bounds_: Dictionary) -> void:
+		space = space_
+		bounds = bounds_
+		v = PlacementValidator.new(MapPlacementAudit.rules())
+
+	## Props keep off the floor decals' boxes (a decal would paint the prop).
+	func avoid_decals(md: MapDef) -> void:
+		if not ResourceLoader.exists(WorldDecals.DEF_PATH):
+			return
+		var ddef := load(WorldDecals.DEF_PATH) as WorldDecalsDef
+		var keep := WorldDecals.plausible_filter(space, ddef)
+		for p: WorldDecals.Placement in WorldDecals.plan(md, ddef):
+			var hit := WorldDecals.physics_ground(space, p.pos)
+			if not hit.is_empty() and keep.call(p, hit):
+				taken.append(v.decal_obb(space, WorldDecals.decal_item(p, hit, ddef)))
+
+	func accept(pl: Placement) -> bool:
+		if not bounds.has(pl.piece):
+			return true
+		var it := MapPlacementAudit.item_of(pl, bounds[pl.piece])
+		if not v.check_item(space, it).is_empty():
+			WorldProps._reject(&"implausible")
+			return false
+		var o := v.solid_obb(it)
+		if not o.is_empty():
+			for t in taken:
+				if PlacementKit.obb_overlap(o, t):
+					WorldProps._reject(&"overlaps_prop")
+					return false
+			taken.append(o)
+		return true
+
+
 ## Placements built by the last place() call of this node.
 var placements: Array = []
 var _md: MapDef
@@ -125,6 +166,9 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 	var corridors := lane_corridors(md)
 	var sb := scaled_bounds(def, bounds)
 	var border := border_points(def.navmesh, def.edge_step_m)
+	# Every candidate also passes the physical-plausibility rules (docs/placement.md).
+	var check := Checker.new(space, bounds)
+	check.avoid_decals(md)
 	# pass 1: street lamps at a steady rhythm along lane / plaza edges
 	var lamps := {}  # edge grid of lamp spots
 	if sb.has(def.lamp_piece):
@@ -139,7 +183,8 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 			if pl == null:
 				continue
 			var centre := _foot_centre(pl)
-			if excluded(md, def, centre, pl.foot_radius, corridors) != "" or _crowded(grid, centre, def.min_spacing_m):
+			if excluded(md, def, centre, pl.foot_radius, corridors) != "" or _crowded(grid, centre, def.min_spacing_m) \
+					or not check.accept(pl):
 				continue
 			pl.zone = zone
 			pl.team = MapDef.TEAM_NEUTRAL
@@ -170,12 +215,13 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 			pl.zone = zone
 			pl.team = _team_for(md, def, piece, p)
 			var centre := _foot_centre(pl)
-			if excluded(md, def, centre, pl.foot_radius, corridors) != "" or _crowded(grid, centre, def.min_spacing_m):
+			if excluded(md, def, centre, pl.foot_radius, corridors) != "" or _crowded(grid, centre, def.min_spacing_m) \
+					or not check.accept(pl):
 				continue
 			_mark(grid, centre, def.min_spacing_m)
 			_mark_edge(heads, p, n, spacing)
 			out.append(pl)
-			_add_companions(md, def, space, sb, pl, p, n, rng, corridors, out)
+			_add_companions(md, def, space, sb, pl, p, n, rng, corridors, out, check)
 			break
 	# roofs
 	var walk := NavIndex.new(def.walk_navmeshes if not def.walk_navmeshes.is_empty() else [def.navmesh])
@@ -195,7 +241,7 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 				if not pieces.is_empty() and sb.has(pieces[0]):
 					var pl := _fit_roof(def, space, p, pieces[0], sb[pieces[0]], rng, _scale(def, pieces[0]))
 					if pl != null and not walk.on_walkable(pl.xform.origin, 1.5) and not _crowded(grid, pl.xform.origin, def.min_spacing_m) \
-							and excluded(md, def, pl.xform.origin, pl.foot_radius, corridors) == "":
+							and excluded(md, def, pl.xform.origin, pl.foot_radius, corridors) == "" and check.accept(pl):
 						pl.zone = &"roof"
 						_mark(grid, pl.xform.origin, def.min_spacing_m)
 						out.append(pl)
@@ -477,7 +523,8 @@ static func _rng(def: WorldPropsDef, p: Vector3) -> RandomNumberGenerator:
 ## (WorldPropsDef.companions), alternating sides, same rules as any wall prop;
 ## they share the primary's spacing slot.
 static func _add_companions(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState3D, sb: Dictionary,
-		pl: Placement, p: Vector3, n: Vector3, rng: RandomNumberGenerator, corridors: Array, out: Array) -> void:
+		pl: Placement, p: Vector3, n: Vector3, rng: RandomNumberGenerator, corridors: Array, out: Array,
+		check: Checker) -> void:
 	var options: Array = def.companions.get(pl.piece, [])
 	if options.is_empty() or not sb.has(pl.piece):
 		return
@@ -493,7 +540,7 @@ static func _add_companions(md: MapDef, def: WorldPropsDef, space: PhysicsDirect
 		var w := (sb[piece] as AABB).size.x
 		var off: float = reach[side] + w * 0.5 + rng.randf_range(0.1, 0.4)
 		var c := _fit_wall(def, space, p + tangent * off * side, n, piece, sb[piece], _scale(def, piece))
-		if c != null and excluded(md, def, _foot_centre(c), c.foot_radius, corridors) == "":
+		if c != null and excluded(md, def, _foot_centre(c), c.foot_radius, corridors) == "" and check.accept(c):
 			c.zone = pl.zone
 			c.team = _team_for(md, def, piece, _foot_centre(c))
 			out.append(c)
