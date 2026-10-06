@@ -58,6 +58,7 @@ func _init(t: Transport, accounts_: AccountService, front_: MatchmakingFront) ->
 	ops.health = health_snapshot
 	ops.metrics = func() -> String: return metrics_text()
 	ops.admin = func() -> Dictionary: return admin_snapshot()
+	ops.accounts = func() -> Dictionary: return accounts_snapshot()
 
 
 ## Starts the operations endpoint from the environment (CYBERGRAM_OPS_PORT).
@@ -122,6 +123,42 @@ func admin_snapshot() -> Dictionary:
 	var a := front.admin_snapshot()
 	a.health = health_snapshot()
 	return a
+
+
+## Rows shown on /admin/accounts at most (the total is always given).
+const ACCOUNTS_PAGE_MAX := 1000
+
+
+## /admin/accounts: registered accounts, newest first. Username, display name,
+## created and last login (UTC), the live phase and the log tag (OpsLog.tag, to
+## match log lines). Never passwords, recovery codes, friends or addresses;
+## never logged (owner request 2026-10-06; the operator's own admin view).
+func accounts_snapshot() -> Dictionary:
+	var rows: Array = []
+	var store: AccountStore = accounts.store
+	if store == null:
+		return {"total": 0, "shown": 0, "rows": rows}
+	for id in store.ids():
+		var a := store.get_by_id(id)
+		if a.is_empty():
+			continue
+		rows.append(a)
+	rows.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
+		return int(x.get("created_at", 0)) > int(y.get("created_at", 0)))
+	var out: Array = []
+	for a: Dictionary in rows.slice(0, ACCOUNTS_PAGE_MAX):
+		var id := str(a.id)
+		var ph := front.phases.players.state_of(id)
+		out.append({"created": _utc(a.get("created_at", 0)), "username": str(a.get("username", "")),
+			"display_name": str((a.get("profile", {}) as Dictionary).get("display_name", "")),
+			"last_login": _utc(a.get("last_login_at", 0)),
+			"phase": PhaseMachine.name_of(PhaseMachine.Kind.PLAYER, ph), "player": OpsLog.tag(id)})
+	return {"total": rows.size(), "shown": out.size(), "rows": out}
+
+
+static func _utc(unix: Variant) -> String:
+	var u := int(unix)
+	return Time.get_datetime_string_from_unix_time(u, true) + "Z" if u > 0 else ""
 
 
 func on_peer_left(peer: int) -> void:

@@ -11,6 +11,8 @@ func _server(token := "") -> OpsHttpServer:
 	s.health = func() -> Dictionary: return {"ready": true, "version": "v-test"}
 	s.metrics = func() -> String: return "x_total 1\n"
 	s.admin = func() -> Dictionary: return {"queues": [{"queue": "normal_5v5", "players": 1}]}
+	s.accounts = func() -> Dictionary: return {"total": 1, "shown": 1, "rows": [{"created": "2026-10-06T10:00:00Z",
+		"username": "<b>neo</b>", "display_name": "Neo", "last_login": "", "phase": "Idle", "player": "abc"}]}
 	return s
 
 
@@ -107,3 +109,17 @@ func test_log_tag_is_stable_and_hides_the_id() -> void:
 	assert_str(t).is_equal(OpsLog.tag("0123456789abcdef0123456789abcdef"))
 	assert_str(t).is_not_equal(OpsLog.tag("0123456789abcdef0123456789abcdee"))
 	assert_str(OpsLog.tag("")).is_empty()
+
+
+## Owner request 2026-10-06: /admin/accounts lists accounts behind the same token.
+func test_accounts_page_needs_the_token_and_escapes_names() -> void:
+	var s := _server("s3cret")
+	assert_int(int(s.respond("GET", "/admin/accounts", {}).status)).is_equal(401)
+	assert_int(int(s.respond("GET", "/admin/accounts.json", {"authorization": "Bearer wrong"}).status)).is_equal(401)
+	var page := s.respond("GET", "/admin/accounts", {"authorization": "Bearer s3cret"})
+	assert_int(int(page.status)).is_equal(200)
+	assert_str(page.body).contains("&lt;b&gt;neo&lt;/b&gt;")
+	assert_str(page.body).not_contains("<b>neo")
+	var js := s.respond("GET", "/admin/accounts.json", {"authorization": "Bearer s3cret"})
+	assert_int(int(JSON.parse_string(js.body).total)).is_equal(1)
+	assert_int(int(_server().respond("GET", "/admin/accounts", {}).status)).is_equal(404)

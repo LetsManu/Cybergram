@@ -23,6 +23,8 @@ endpoint over plain HTTP on TCP **8090** inside the container (P1, protocol 20).
 | `GET /metrics` | Prometheus text format. |
 | `GET /admin` | HTML status page (refreshes every 5 s): queues, lobbies and matches, parties, players with their state, the last 200 events. HTTP Basic login: any user name, the token as password. |
 | `GET /admin.json` | The same as JSON. `Authorization: Bearer <token>` or Basic. |
+| `GET /admin/accounts` | Every registered account, newest first: created (UTC), username, display name, last login, live state, log tag (the `player` value in log lines). Same login as `/admin`. No passwords, recovery codes, friends or addresses. Up to 1000 rows; the total is always shown. |
+| `GET /admin/accounts.json` | The same as JSON (`{total, shown, rows}`). |
 
 Quick checks from the NAS:
 
@@ -131,3 +133,10 @@ hosting, match processes) still print text lines; that is a known gap.
 Docker rotates logs when the daemon is set to (`log-opts max-size`).
 
 Privacy: see PRIVACY.md "Server logs".
+
+### Accounts page and privacy
+
+`/admin/accounts` shows usernames and display names, which are personal data
+(GDPR). They are shown only to the operator behind the admin token, never
+written to a log and never sent to `/metrics`. Keep the token secret and the
+ops port on the LAN (`CYBERGRAM_OPS_PUBLISH`, docs/connecting.md).

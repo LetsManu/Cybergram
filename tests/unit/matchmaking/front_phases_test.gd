@@ -318,3 +318,41 @@ func test_match_end_while_disconnected_goes_offline() -> void:
 	_step(0.3)
 	assert_int(_front.phases.players.state_of(_id(2))).is_equal(P.OFFLINE)
 	assert_int(_front.phases.players.illegal_count).is_equal(0)
+
+
+## Three accounts in memory (ids, usernames, created_at): what /admin/accounts reads.
+class ListStore:
+	extends AccountStore
+	var rows: Dictionary = {}
+
+	func ids() -> PackedStringArray:
+		return PackedStringArray(rows.keys())
+
+	func get_by_id(id: String) -> Dictionary:
+		return (rows.get(id, {}) as Dictionary).duplicate(true)
+
+
+## Owner request 2026-10-06: the admin sees which accounts exist, newest first,
+## with the live phase and the log tag; no password or recovery data.
+func test_accounts_page_lists_accounts_newest_first_without_secrets() -> void:
+	var st := ListStore.new()
+	for n in [2, 3, 4]:
+		var a := AccountStore.new_account(_id(n), "user%d" % n, {"algo": "x", "hash": "SECRETHASH", "salt": "s", "iterations": 1},
+			{"display_name": "Name %d" % n}, 1_790_000_000 + n * 100)
+		st.rows[_id(n)] = a
+	_acc.store = st
+	_client(3)
+	_step(0.3)
+	var snap := _server.accounts_snapshot()
+	assert_int(int(snap.total)).is_equal(3)
+	var names: Array = (snap.rows as Array).map(func(r: Dictionary) -> String: return r.username)
+	assert_array(names).is_equal(["user4", "user3", "user2"])
+	var r3: Dictionary = (snap.rows as Array)[1]
+	assert_str(r3.display_name).is_equal("Name 3")
+	assert_str(r3.phase).is_equal("Idle")
+	assert_str(r3.player).is_equal(OpsLog.tag(_id(3)))
+	assert_str(r3.created).ends_with("Z")
+	var json := JSON.stringify(snap)
+	assert_str(json).not_contains("SECRETHASH")
+	assert_str(json).not_contains(_id(3))
+	_acc.store = null
