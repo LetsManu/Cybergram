@@ -812,6 +812,8 @@ static func front_rules(base: MatchmakingRulesDef, lc: LaunchConfig) -> Matchmak
 	if lc.mm_pick_s > 0.0:
 		r.pick_turn_s = lc.mm_pick_s
 		r.all_random_s = lc.mm_pick_s * 2.0
+		r.blind_pick_s = lc.mm_pick_s  # P3: blind pick and the trade window follow the test override
+		r.finalize_s = 0.0
 	return r
 
 

@@ -104,22 +104,33 @@ func _party(leader: int, member: int) -> void:
 	_acc.parties.accept(_id(member), _id(leader), _t)
 
 
-## Every client in a pick phase hovers a free hero; even peers also lock it.
+## Every client in a pick phase hovers a free hero; in a draft (Ranked) it
+## locks on its turn, in blind pick (Normal) only even peers lock and the rest
+## rely on the hover auto-lock. Choices start at the seat's position in its
+## team, so allies acting in the same frame never collide (deterministic).
 func _play_picks() -> void:
 	for p: int in _clients:
 		var c: LobbyClient = _clients[p]
 		var st: Dictionary = c.matchmaking.last_pick
 		if st.is_empty() or int(st.seats[st.you].flags) & MatchmakingCodec.SEAT_PICKED != 0:
 			continue
+		var my_team := int(st.seats[st.you].team)
+		var pos := 0
 		var used := {}
-		for s: Dictionary in st.seats:
-			if int(s.team) == int(st.seats[st.you].team) and int(s.hero) > 0:
+		for i in st.seats.size():
+			var s: Dictionary = st.seats[i]
+			if int(s.team) != my_team:
+				continue
+			if i < int(st.you):
+				pos += 1
+			if i != int(st.you) and int(s.hero) > 0:
 				used[int(s.hero)] = true
+		var draft := int(st.mode) != MatchmakingCodec.PM_BLIND
 		for k in range(7):
-			var h := (p + k) % 7 + 1  # spread choices: allies acting in the same frame rarely collide
+			var h := (pos + k) % 7 + 1
 			if not used.has(h):
 				c.matchmaking.draft_hover(h)
-				if p % 2 == 0:
+				if draft or p % 2 == 0:
 					c.matchmaking.draft_pick(h)
 				break
 
