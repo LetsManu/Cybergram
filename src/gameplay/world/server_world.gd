@@ -75,6 +75,8 @@ var match_flow: MatchRules
 var _sd_map: MapDef
 ## E10 skills: deployables, skill projectiles, charges, leaps, skill FX.
 var abilities: AbilityWorld
+## C5 Supply Caches of held hardpoints; null without objectives.
+var supply: SupplyCacheSystem
 ## E13/E15 Lumen, Armory, Resonance, levels, skill tree; null until enable_progression().
 var progression: ProgressionSystem
 ## W10-W4 per-hero match statistics (post-match screen); sent at match end.
@@ -135,6 +137,8 @@ func setup_objectives(map_def: MapDef) -> void:
 	_water_zones = map_def.water_zones if map_def != null else []
 	if map_def != null and not map_def.lanes.is_empty():
 		objectives = ObjectiveSystem.new(map_def, rules)
+		supply = SupplyCacheSystem.new(objectives, rules)  # C5 Supply Caches
+		SupplyCacheSystem.add_bodies(self, map_def)
 		for h in objectives.all:
 			if h.task == HardpointDef.TaskKind.BREACH:
 				var g := GeneratorTarget.new()
@@ -365,6 +369,8 @@ func _step_objectives() -> void:
 	objectives.step(dt, sources, tick, actors)
 	for ev in objectives.events:
 		objective_event.emit(ev)
+	if supply != null:
+		supply.step(dt, match_seconds(), tick, net.tick_rate_hz, _hero_bodies())
 
 
 ## E9: match clock, phases, Uplink exposure; phase changes go out as events.

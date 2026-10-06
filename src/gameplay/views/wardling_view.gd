@@ -26,6 +26,8 @@ var _body_mat: StandardMaterial3D
 const ELITE_GOLD := Color("#FFC93C")
 const TURNED_VIOLET := Color("#B07CFF")
 const ELITE_SCALE: float = 1.3
+## C5 Garrison Sentinel: a little larger than a squad Picket (art bible §6.4: static defenders).
+const SENTINEL_SCALE: float = 1.12
 var _elite_shell: MeshInstance3D
 var _elite: bool = false
 var _turned: bool = false
@@ -137,13 +139,14 @@ func apply(pos: Vector3, yaw: float) -> void:
 	rotation = Vector3(0.0, yaw, 0.0)
 
 
-## `owner_kind`: 0 = Vanguard (pennant), 1 = someone's squad (grey sash), 2 = your squad (gold sash).
+## `owner_kind`: 0 = Vanguard (pennant), 1 = someone's squad (grey sash), 2 = your squad (gold sash),
+## 3 = Garrison Sentinel (plated, a little larger, no sash or pennant).
 func set_state(team_: int, hp_frac: float, owner_kind: int) -> void:
 	if team_ != team:
 		team = team_
 		_body_mat.albedo_color = COLOR_CONCORD if team == MapDef.TEAM_CONCORD else COLOR_SYNDICATE
 	_pennant.visible = owner_kind == 0
-	_sash.visible = owner_kind != 0
+	_sash.visible = owner_kind == 1 or owner_kind == 2
 	if owner_kind != 0:
 		(_sash.material_override as StandardMaterial3D).albedo_color = SASH_OWN if owner_kind == 2 else SASH_OTHER
 		(_sash.material_override as StandardMaterial3D).emission = SASH_OWN if owner_kind == 2 else SASH_OTHER
@@ -163,7 +166,7 @@ func set_rewrite(elite: bool, turned: bool) -> void:
 	_elite = elite
 	_turned = turned
 	_elite_shell.visible = elite
-	scale = Vector3.ONE * (ELITE_SCALE if elite else 1.0)
+	scale = Vector3.ONE * (ELITE_SCALE if elite else (SENTINEL_SCALE if _kind == 3 else 1.0))
 	if turned:
 		_sash.visible = true
 		(_sash.material_override as StandardMaterial3D).albedo_color = TURNED_VIOLET

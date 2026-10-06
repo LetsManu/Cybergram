@@ -43,20 +43,22 @@ const REGEN_DELAY: int = 15
 const RELOAD_TIME: int = 16
 ## E13 Amplifier Emitters: own squad Wardling bolt damage multiplier (+20%).
 const WARDLING_DAMAGE_MULT: int = 17
-const HERO_COUNT: int = 18
+## C5 Supply Cache (Mana): multiplier on the mana regen delay (base 1; -50% for 10 s).
+const REGEN_DELAY_MULT: int = 18
+const HERO_COUNT: int = 19
 
 const HERO_NAMES: Array[StringName] = [&"move_speed", &"damage_taken", &"damage_dealt", &"cooldown_reduction",
 	&"damage_reduction", &"skill_power", &"squad_capacity_bonus", &"wardling_hp_mult", &"wardling_aura_damage",
 	&"knockback_immune", &"cc_immune", &"max_hp", &"weapon_damage", &"mod_damage", &"mana_regen",
-	&"regen_delay", &"reload_time", &"wardling_damage_mult"]
+	&"regen_delay", &"reload_time", &"wardling_damage_mult", &"regen_delay_mult"]
 ## Default base values (move speed and max HP are overwritten from HeroDef).
 const HERO_BASE: Array[float] = [6.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-	250.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0]
+	250.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0]
 const HERO_MIN: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-	1.0, 0.0, 0.0, 0.0, -10.0, 0.1, 0.0]
+	1.0, 0.0, 0.0, 0.0, -10.0, 0.1, 0.0, 0.0]
 ## MOD_DAMAGE max 0.25 is the §4.1 M_dmg cap.
 const HERO_MAX: Array[float] = [50.0, 10.0, 10.0, 1.0, 1.0, 10.0, 8.0, 10.0, 5.0, 1.0, 1.0,
-	100000.0, 10.0, 0.25, 10.0, 10.0, 10.0, 10.0]
+	100000.0, 10.0, 0.25, 10.0, 10.0, 10.0, 10.0, 10.0]
 
 # --- Skill scope (generic params, reused across skills) -----------------------
 ## Names of the per-skill params; index = position. Seconds, metres, HP, fractions.

@@ -66,6 +66,7 @@ var _prev_burnout: bool = false
 var _prev_contested: Dictionary = {}  # hardpoint index -> bool
 var _prev_gen_stage: Dictionary = {}  # hardpoint index -> WardGeneratorView.Stage
 var _prev_beacon: Dictionary = {}  # hardpoint index -> ProgressionSystem.Beacon
+var _prev_supply: Dictionary = {}  # SupplyCacheView -> [stage, serving_me]
 var _prev_phase: int = -1
 var _countdown_last: int = -1
 var _wardlings: Dictionary = {}  # net id -> last position (alive last snapshot)
@@ -386,6 +387,7 @@ func _objective_sounds(s: SnapshotData) -> void:
 	var team: int = client.own_team()
 	_generator_sounds(s)
 	_beacon_sounds(s)
+	_supply_sounds()
 	for i in s.hardpoints.size():
 		var h := s.hardpoints[i]
 		var mine := h.owner == team or h.capturing_team == team
@@ -437,6 +439,29 @@ static func generator_event(prev: int, now: int) -> StringName:
 		return &"generator_shield_down"
 	if now >= S.CRACK_1 and now <= S.CRACK_3 and now > prev:
 		return &"generator_crack"
+	return &""
+
+
+## Supply Cache sounds (docs/assets/supply_cache.md): online for the new owner,
+## and the own hero starting to use it.
+func _supply_sounds() -> void:
+	if client == null or not client.has_method("supply_views"):
+		return
+	for sv: SupplyCacheView in client.supply_views():
+		var prev: Array = _prev_supply.get(sv, [-1, false])
+		var now := [sv.stage, sv.serving_me()]
+		_prev_supply[sv] = now
+		var ev := supply_event(int(prev[0]), int(now[0]), bool(prev[1]), bool(now[1]))
+		if ev != &"":
+			events.play(ev, AudioEventDef.OwnerFilter.ANY, sv.global_position + Vector3(0, 0.8, 0))
+
+
+## The Supply Cache sound for a change (pure; "" = none; prev stage -1 = first sample).
+static func supply_event(prev_stage: int, stage: int, was_mine: bool, mine: bool) -> StringName:
+	if mine and not was_mine:
+		return &"supply_use"
+	if prev_stage >= 0 and stage == SupplyCacheView.Stage.SERVING and prev_stage == SupplyCacheView.Stage.SWITCHING:
+		return &"supply_online"
 	return &""
 
 

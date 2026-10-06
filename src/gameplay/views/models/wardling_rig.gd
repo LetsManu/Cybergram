@@ -38,6 +38,8 @@ var body: RiggedHeroModel
 var _props: Dictionary = {}
 var _atts: Dictionary = {}  # bone name -> BoneAttachment3D
 var _ring_own: MeshInstance3D
+var _tier: int = 1
+var _sentinel: bool = false
 
 static var _ring_mats: Dictionary = {}
 
@@ -69,15 +71,22 @@ func set_team(team_: int) -> void:
 
 
 ## Tier II adds the shoulder plates and the crest; tier III the crystal crown.
+## A Garrison Sentinel wears the plates at every tier (set_marks kind 3).
 func set_tier(tier_: int) -> void:
-	for n in [&"plate_l", &"plate_r", &"crest"]:
-		_show(n, tier_ >= 2)
+	_tier = tier_
+	for n in [&"plate_l", &"plate_r"]:
+		_show(n, tier_ >= 2 or _sentinel)
+	_show(&"crest", tier_ >= 2)
 	_show(&"crown", tier_ >= 3)
 	_refresh_attachments()
 
 
-## 0 = Vanguard (pennant), 1 = someone's squad (sash), 2 = own squad (knot + ring).
+## 0 = Vanguard (pennant), 1 = someone's squad (sash), 2 = own squad (knot + ring),
+## 3 = Garrison Sentinel (no sash or pennant; shoulder plates at every tier).
 func set_marks(kind: int, turned: bool, elite: bool) -> void:
+	if (kind == 3) != _sentinel:
+		_sentinel = kind == 3
+		set_tier(_tier)
 	_show(&"pennant", kind == 0 and not turned)
 	_show(&"sash", kind == 1 or (turned and kind == 0))
 	_show(&"sash_own", kind == 2)

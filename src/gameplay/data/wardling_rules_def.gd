@@ -134,3 +134,22 @@ extends Resource
 ## wardlings §13 rewrite_to_elite: tier +1 (Tier I -> II: HP 150 -> 195, bolt 7 -> 8.5).
 @export_range(1.0, 3.0, 0.01) var elite_hp_mult: float = 1.3
 @export_range(1.0, 3.0, 0.001) var elite_damage_mult: float = 1.214
+
+@export_group("Garrison Sentinels (C5, wardlings-and-economy.md §11)")
+@export var garrisons_enabled: bool = true
+## Sentinels per held hardpoint (at most this many of its garrison_points are used).
+@export_range(0, 8) var sentinels_per_hardpoint: int = 2
+## After a capture the new owner's Sentinels appear this long later; each
+## respawns this long after it dies; the old owner's dissolve over this long.
+@export_range(0.0, 60.0, 0.5) var sentinel_settle_s: float = 10.0
+@export_range(1.0, 300.0, 1.0) var sentinel_respawn_s: float = 45.0
+@export_range(0.0, 10.0, 0.1) var sentinel_dissolve_s: float = 2.0
+## Per tier I / II / III: HP, effective DPS vs heroes; range (m) for all tiers.
+@export var sentinel_hp: PackedFloat32Array = PackedFloat32Array([450.0, 590.0, 740.0])
+@export var sentinel_dps: PackedFloat32Array = PackedFloat32Array([30.0, 37.0, 44.0])
+@export_range(5.0, 60.0, 0.5) var sentinel_range_m: float = 26.0
+## Garrison brain: threat pick every N ticks (15 = 2 Hz).
+@export_range(1, 120) var garrison_think_interval_ticks: int = 15
+## AI budget (match-flow §4, ≤110 agents): Garrison respawns wait while this
+## many Wardlings are alive (waves are refused first, by their own gate).
+@export_range(1, 400) var ai_agent_budget: int = 110

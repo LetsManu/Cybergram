@@ -162,6 +162,7 @@ func setup_objectives(md: MapDef) -> void:
 				v.add_beacons(md)  # Part 6: Forward Beacon pads on the Mids
 			_hp_views.append(v)
 	_build_sudden_death(md)
+	SupplyCacheSystem.add_bodies(self, md)  # C5: the crates are solid, as on the server
 	for hq in md.hqs:
 		var uv := UplinkView.new()
 		uv.setup(hq)
@@ -215,6 +216,30 @@ func aim_targets() -> Array:
 		if v.visible and v.team != own_team():
 			out.append(v.position + Vector3(0.0, h, 0.0) - eye)
 	return out
+
+
+static var _SUPPLY_RULES := MatchRulesDef.new()
+
+
+## The Supply Cache views (ClientSfx reads their stages).
+func supply_views() -> Array[SupplyCacheView]:
+	var out: Array[SupplyCacheView] = []
+	for v in _hp_views:
+		if v.supply_view != null:
+			out.append(v.supply_view)
+	return out
+
+
+## C5: brass motes at a Supply Cache that is refilling the own hero.
+func _supply_feedback() -> void:
+	var r := _SUPPLY_RULES.supply_refill_radius_m
+	for v in _hp_views:
+		if v.supply_view == null:
+			continue
+		var sv := v.supply_view
+		var near := body != null and Vector2(body.state.position.x - sv.global_position.x,
+			body.state.position.z - sv.global_position.z).length() <= r
+		sv.set_serving_me(near and sv.stage == SupplyCacheView.Stage.SERVING and sv.team == own_team())
 
 
 ## Index of the hardpoint whose zone holds the predicted own hero, or -1.
@@ -379,6 +404,9 @@ func _on_snapshot(s: SnapshotData) -> void:
 	_apply_match(s)
 	_apply_progress(s.progress)  # E13/E15
 	wardlings.apply_snapshot(s)
+	for i in mini(_hp_views.size(), hardpoints.size()):  # C5 Garrison sockets
+		if not _hp_views[i].sockets.is_empty():
+			_hp_views[i].apply_garrison(hardpoints[i].owner, s.wardlings, sfx.events if sfx != null else null)
 	abilities.apply_snapshot(s)  # E10
 	if s.own_state != null:
 		own_speed_scale = s.own_state.speed_scale
@@ -466,6 +494,7 @@ func _apply_objectives(s: SnapshotData) -> void:
 		if i < _hp_views.size():
 			_hp_views[i].apply(st)
 	hardpoints = s.hardpoints
+	_supply_feedback()
 	_mark_objectives()
 
 

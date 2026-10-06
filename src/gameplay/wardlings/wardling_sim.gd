@@ -21,6 +21,8 @@ var team: int = 0
 var owner_net_id: int = 0
 var squad: Squad
 var wave: VanguardWave
+## C5 Garrison Sentinel: the hardpoint's Garrison (null otherwise).
+var garrison: Garrison
 var health: HealthComponent
 var dead: bool = false
 ## Net id of the killer (0 = dissolved / unknown).

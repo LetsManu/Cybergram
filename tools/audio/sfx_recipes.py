@@ -447,6 +447,22 @@ def beacon(rng, v, event):
     return trim_tail(reverb(x, 0.8, 0.2, 7000, seed=v + 151))
 
 
+def supply(rng, v, event):
+    """Supply Cache (docs/assets/supply_cache.md): it comes online for the new
+    owner (latch clank + rising servo), and a hero uses it (ammo-belt rattle
+    with a brass chime)."""
+    k = _j(rng, 0.04)
+    if event == "online":
+        clank = mix(_thump(rng, 0.2, 180 * k, 90, 22) * 0.6, at(_mech_click(rng, 0.04, 2600) * 0.5, 0.02))
+        servo = sweep(300 * k, 620 * k, 0.45, "saw", 0.6) * env_adsr(0.45, 0.05, 0.1, 0.6, 0.15) * 0.12
+        x = lp(mix(clank, at(servo, 0.12), at(osc(1320 * k, 0.4) * env_exp(0.4, 8) * 0.15, 0.5)), 7000)
+    else:  # use
+        rattle = mix(*[at(_mech_click(rng, 0.03, 3000 + 400 * i) * 0.35, 0.045 * i) for i in range(7)])
+        chime = mix(osc(1568 * k, 0.6) * env_exp(0.6, 7) * 0.16, at(osc(2093 * k, 0.5) * env_exp(0.5, 8) * 0.12, 0.08))
+        x = mix(rattle, at(chime, 0.25), _thump(rng, 0.12, 140 * k, 80, 30) * 0.3)
+    return trim_tail(reverb(x, 0.6, 0.18, 7000, seed=v + 171))
+
+
 # ============================================================ footsteps
 SURFACE = {"concrete": (95.0, 2500.0, 0.0), "metal": (140.0, 4500.0, 1.0),
            "grate": (180.0, 6000.0, 0.6), "water": (70.0, 1800.0, 0.0)}

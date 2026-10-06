@@ -27,6 +27,11 @@ as it is, new tests run inside the existing test job.
   "join a friend" = a join request to that party's leader (who then invites);
   ready flags are informational (they do not gate the queue).
 
+- **Garrison and Supply Cache ship in the first release** (owner, 2026-10-06:
+  "yes it should"). Built to the GDD rules (match-flow-and-map.md §3.5 C5,
+  wardlings-and-economy.md §11), replacing the M1 "arrive in M3" staging.
+  Order: Supply Cache, Garrison Sentinels, then Sanctum / Foundry art.
+
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +
   reporting of illegal transitions. `phase_machine_test.gd` (every pair).
@@ -260,4 +265,8 @@ summarised here so the plan survives a new session):
 - Owner reports handled the same day: a match that ends while the game is
   closed now takes the player to Offline (was stuck InGame); `/admin/accounts`
   lists the registered accounts (docs/monitoring.md).
+- **Supply Cache** (C5): done. docs/assets/supply_cache.md.
+- **Garrison Sentinels** (C5): done. docs/assets/garrison.md. 12 garrison
+  posts moved to level spots in map_front.tres (tools/maps/level_garrison_posts.gd).
+- Next: Sanctum, Foundry (art); Barricades still need gameplay (owner to decide).
 

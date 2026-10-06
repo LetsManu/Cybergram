@@ -44,6 +44,20 @@ section.
   Mid's floor height + 5 cm; on the Spindle the spot is on the 0.3 m Holdstone
   dais, so the hero starts inside the dais lip and is pushed up by the
   physics. Harmless today; better: spawn at the pad (ground ray) position.
+- **Supply Cache vs kit crates** (Part 6, `supply-mid`): at mid range the
+  cache crate resembles the cover-dressing crates beside it; the label carries
+  it. Fix: a taller silhouette (ammo rack / belt arch) or keep cover dressing
+  away from cache spots.
+- **Supply Cache colliders are not in the navmesh**: bots rely on stuck
+  recovery near the 15 crates. Fix: add the colliders to the map build and
+  re-bake `shardline_front_navmesh.res`.
+- **Bots do not seek Supply Caches** for ammo yet (`bot_brain.gd`).
+- **Sentinel silhouette**: a Sentinel is a plated, slightly larger Picket; at
+  mid range it is close to a Tier II squad Wardling. Fix: a Sentinel prop (tower
+  shield or banner pole) baked into the Picket kit.
+- **Garrison posts after a map rebuild**: re-run
+  `tools/maps/level_garrison_posts.gd` (the builder formula still puts posts on
+  kerbs); better: move the leveling into the builder.
 - **Props on slopes are skipped**: ~250 candidates a run sink 8-12 cm into ramps
   and are rejected (correctly). Slope-aware pieces (wedged crates, ramp rails)
   would fill the ramps; today the props sit on the flat parts.

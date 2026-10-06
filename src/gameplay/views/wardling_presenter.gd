@@ -39,6 +39,10 @@ var wheel_targets: Dictionary = {}
 var last_order: Array = []
 
 var _views: Dictionary = {}  # net id -> WardlingView
+## net id -> snapshots in a row the Wardling was missing without a removal.
+var _missing: Dictionary = {}
+## Snapshots a Wardling may be missing (not removed) before its view goes (~1 s).
+const MISSING_GRACE: int = 30
 var _buffers: Dictionary = {}  # net id -> InterpolationBuffer
 var _states: Dictionary = {}  # net id -> SnapshotData.WardlingState
 var _hero_teams: Dictionary = {}  # net id -> team
@@ -89,6 +93,8 @@ func apply_snapshot(s: SnapshotData) -> void:
 		if not w.stale:  # W16-NET: deferred Wardlings carry an older sample
 			_buffers[w.net_id].push(s.tick, w.position, w.yaw, false)
 		var kind := 0 if w.vanguard else (2 if w.owner_net_id == s.own_net_id and s.own_net_id != 0 else 1)
+		if (w.state & 7) == WardlingWorld.GARRISON_STATE:
+			kind = 3  # C5 Garrison Sentinel
 		v.set_state(w.team, w.hp_frac, kind)
 		if clampi(w.tier, 1, 3) != v.tier:
 			v.set_tier(w.tier)
@@ -101,12 +107,28 @@ func apply_snapshot(s: SnapshotData) -> void:
 			p.flags = (w.state >> 3) & 3
 			p.dissolving = (w.state & WardlingWorld.STATE_DISSOLVING_BIT) != 0
 			own_squad.append(p)
+	# A view goes when the snapshot removes its Wardling, or after it has been
+	# missing for MISSING_GRACE snapshots. Missing alone is not gone: a new
+	# Wardling the byte budget deferred against an older acknowledged baseline
+	# drops out of one snapshot and is back in the next; freeing and rebuilding
+	# its rigged model each time flooded the engine's message queue (crash,
+	# matchmaking e2e, PR #29).
+	var removed := {}
+	for k in s.wardlings_removed:
+		removed[k] = true
 	for id in _views.keys():
-		if not seen.has(id):
+		if seen.has(id):
+			_missing.erase(id)
+			continue
+		var n: int = int(_missing.get(id, 0)) + 1
+		if removed.has(id & 0xFFFF) or n >= MISSING_GRACE:
 			_views[id].die()  # v2 rig: plays its fall and frees itself; else frees now
 			_views.erase(id)
 			_buffers.erase(id)
 			_states.erase(id)
+			_missing.erase(id)
+		else:
+			_missing[id] = n
 	for b in s.bolts:
 		_spawn_tracer(b[0], b[1])
 		var shooter := _nearest_view(b[0], SHOOTER_MATCH_M)
