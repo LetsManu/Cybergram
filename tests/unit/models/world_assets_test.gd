@@ -8,6 +8,7 @@ extends GdUnitTestSuite
 const ASSETS := {
 	&"uplink": {"pieces": ["main", "ring_0", "ring_1", "ring_2", "ring_3", "ring_4"], "max_tris": 80000,
 		"height": Vector2(44.0, 47.0), "tex": 1024},
+	&"holdstone": {"pieces": ["main", "crystal"], "max_tris": 25000, "height": Vector2(4.2, 5.2), "tex": 1024},
 }
 
 

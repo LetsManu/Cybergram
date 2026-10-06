@@ -159,7 +159,18 @@ Plan agreed 2026-10-06 (owner answers to the plan questions):
   already holds the objective designs: Holdstone, Charge Cradle, Ward Generator,
   Uplink, Barricades, HQ set).
 
-## Next
-1. Phase 6 slice: Mana Uplink + Holdstone (Hold hardpoint kit) via
-   `tools/art/world/`, integrated into `UplinkView` / `HardpointView`,
-   before/after presets, asset validator in CI.
+- Phase 6 slice done (iteration 1): `tools/art/world/` (WorldAsset on the hero
+  pipeline), **Mana Uplink** frame (42k tris, rotating rings, holo shell,
+  faceted crystal) and **Holdstone** (18.6k tris, owner tint, holo light pillar)
+  baked and in game; map greybox meshes hidden, collision kept; asset validator
+  `tests/unit/models/world_assets_test.gd` (watched it fail). Evidence and
+  review logs: `production/qa/evidence/p6-*`, `docs/assets/*.md`.
+
+## Next (prioritised)
+1. Owner review of the slice (before/after frames), then the rest of Phase 6 in
+   the same way: Charge Cradle + Mana Cell (Plant), Ward Generator + shield
+   (Breach), Barricade (2 styles, 3 damage stages), Garrison socket, Supply
+   Cache, Forward Beacon, Sanctum / Foundry / Armory.
+2. Uplink iteration 2: split the long leg beams (texel density), capture the
+   Exposed / damage states as frames.
+3. Phase 7 map kit (walls, floors, cover) on the same pipeline.
