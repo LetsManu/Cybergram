@@ -31,6 +31,8 @@ signal failed(key: String)
 ## P1: the server-side player state (MatchmakingClient PHASE fields; phase =
 ## PhaseMachine.Player). Only the status bar listens; the fake has no such signal.
 signal phase_changed(state: Dictionary)
+## P2: a party chat line arrived (read party_chat_lines()).
+signal party_chat_changed()
 
 const QS := {0: &"idle", 1: &"queued", 2: &"busy", 3: &"busy", 4: &"busy", 5: &"locked"}
 const RR := {0: &"go", 1: &"requeued", 2: &"removed", 3: &"locked", 4: &"voided"}
@@ -47,6 +49,8 @@ var _remake_voted: bool = false
 var _custom_cfg := {"map": 0, "mode": MatchmakingCodec.PM_CUSTOM, "bots": true, "team_size": 5}
 ## P1: last client-side network events for the diagnostics panel.
 var events := ClientEventLog.new()
+## P2: the account's social state (party, party chat); null = guests / fake.
+var social: SocialModel
 ## P1: seconds online without a PHASE event (-1 = got one); resync once at the limit.
 var _phase_wait_s: float = 0.0
 
@@ -137,6 +141,72 @@ func reply_ready(accept: bool) -> void:
 func pick(hero: StringName) -> void:
 	mm.draft_pick(hero_index(hero))
 	events.add("send", "lock %s" % hero)
+
+
+## P2: follow the real party (members, leader, ready flags, party chat).
+func set_social(s: SocialModel) -> void:
+	social = s
+	if not s.party_changed.is_connected(_on_party):
+		s.party_changed.connect(_on_party)
+		s.changed.connect(func() -> void: party_chat_changed.emit())
+	if not s.party.is_empty():
+		_on_party(s.party)
+
+
+func _on_party(p: Dictionary) -> void:
+	party_changed.emit(party_of(p, social.me if social != null else ""))
+
+
+## OP_PARTY -> the play screen's party: {members: [{id, name, leader, me,
+## ready, rating_label}], leader}. Without a party: just me.
+static func party_of(p: Dictionary, me: String) -> Dictionary:
+	var lead := str(p.get("leader", ""))
+	var out: Array = []
+	for m: Dictionary in p.get("members", []):
+		var k := int(m.kind)
+		if k != AccountCodec.PARTY_LEADER and k != AccountCodec.PARTY_MEMBER:
+			continue
+		out.append({"id": str(m.id), "name": str(m.display_name), "leader": str(m.id) == lead,
+			"me": str(m.id) == me, "ready": int(m.get("flags", 0)) & AccountCodec.PF_READY != 0,
+			"status": int(m.status), "rating_label": ""})
+	if out.is_empty():
+		out.append({"id": me, "name": TranslationServer.translate("HUD_LOBBY_YOU"), "leader": true, "me": true,
+			"ready": false, "rating_label": ""})
+		lead = me
+	return {"members": out, "leader": lead}
+
+
+func party_promote(id: String) -> void:
+	if social != null:
+		social.promote(id)
+
+
+func party_kick(id: String) -> void:
+	if social != null:
+		social.kick(id)
+
+
+func party_ready(on: bool) -> void:
+	if social != null:
+		social.set_ready(on)
+
+
+func party_leave() -> void:
+	if social != null:
+		social.leave_party()
+
+
+func party_say(text: String) -> void:
+	if social != null:
+		social.say_party(text)
+
+
+## [{name, text, mine}] for the party chat box.
+func party_chat_lines() -> Array:
+	if social == null:
+		return []
+	return social.party_chat.map(func(l: Dictionary) -> Dictionary:
+		return {"name": l.name, "text": l.text, "mine": str(l.id) == social.me})
 
 
 ## P3: declare `hero` (allies see it); &"" clears.

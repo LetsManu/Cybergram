@@ -5,7 +5,7 @@ extends CanvasLayer
 ## States: play, play_ranked, queued, locked, ready, ready_accepted,
 ## draft_enemy, draft_mine, draft_late, aram, aram_swap, loading, reconnect,
 ## post_ranked, post_normal, post_report, profile, profile_public, profile_guest,
-## custom, remake, remake_open, draft_hover, blind_trade (P3).
+## custom, remake, remake_open, draft_hover, blind_trade (P3), party, social (P2).
 ## Not part of the game flow (never loaded by AppRoot).
 
 const REF_SIZE := Vector2(1440, 810)
@@ -71,6 +71,9 @@ func _build(st: String) -> void:
 		"career":
 			_career()
 			return
+		"social":
+			_social()
+			return
 	_flow()
 	match st:
 		"play_ranked":
@@ -99,6 +102,10 @@ func _build(st: String) -> void:
 		"draft_mine":
 			_to_pick(MmView.Q_RANKED)
 			fake.step(fake.think_s + 0.1)
+		"party":
+			fake.party_say("duo bot?")
+			fake.party_chat.append({"name": "Nyx", "text": "sure, I go support", "mine": false})
+			fake.party_chat_changed.emit()
 		"draft_hover", "blind_trade":
 			_to_pick(MmView.Q_RANKED if st == "draft_hover" else MmView.Q_NORMAL)
 			(flow.page as MmDraftScreen).set_state(_p3_state(st))
@@ -212,3 +219,43 @@ func _p3_state(st: String) -> Dictionary:
 		"me": "seat0", "my_team": 0, "turn": 0, "turn_team": 2, "order": PackedInt32Array([5]), "first_team": 0,
 		"deadline_s": 17.0, "turn_s": 45.0, "done": true, "seats": seats, "bans": [], "trade_s": 12.0,
 		"trades": [{"from": "seat2", "name": "Orrin", "hero": seats[2].hero}]}
+
+
+## P2 evidence: friends panel with the new presence states, a party invite, a
+## join request, unread DMs, and an open DM window.
+func _social() -> void:
+	var bg := UiKit.background()
+	_root.add_child(bg)
+	var m := SocialModel.new()
+	m.me = "me"
+	var fp := FriendsPanel.new()
+	fp.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	fp.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_root.add_child(fp)
+	fp.social = m
+	fp.set_session(true, func(_op: int, _f: Dictionary) -> void: pass)
+	m.on_result({"op": AccountCodec.OP_PARTY, "code": AccountCodec.OK, "party": "", "leader": "", "members": [
+		{"id": "f9", "kind": AccountCodec.PARTY_INVITE_IN, "status": 1, "display_name": "Brin", "emblem": 2,
+			"accent": 3, "flags": 0}]})
+	for n in [["f3", "Talia", "gg wp, again?"], ["f3", "Talia", "I am in queue"]]:
+		m.on_result({"op": AccountCodec.OP_NOTIFY, "code": AccountCodec.OK, "kind": AccountCodec.N_DM, "id": n[0],
+			"name": n[1], "text": n[2], "mode": 255})
+	m.on_result({"op": AccountCodec.OP_NOTIFY, "code": AccountCodec.OK, "kind": AccountCodec.N_JOIN_REQUEST,
+		"id": "f7", "name": "Kael", "text": "", "mode": 255})
+	var st := [[LobbyCodec.STATUS_IN_MATCH, 1], [LobbyCodec.STATUS_IN_SELECT, 0], [LobbyCodec.STATUS_IN_QUEUE, 1],
+		[LobbyCodec.STATUS_ONLINE, 255], [LobbyCodec.STATUS_AWAY, 255], [LobbyCodec.STATUS_ONLINE, 255]]
+	var names := ["Nyx", "Orrin", "Talia", "Kael", "Mira", "Juno"]
+	var list: Array = []
+	for i in names.size():
+		list.append({"id": "f%d" % (i + 1), "status": st[i][0], "mode": st[i][1], "relation": 0,
+			"username": names[i].to_lower(), "display_name": names[i], "emblem": i % 6, "accent": i % 4})
+	fp.apply_friends(list)
+	var w := SocialDmWindow.new()
+	w.social = m
+	w.friend_id = "f2"
+	w.friend_name = "Orrin"
+	w.position = Vector2(560, 380)
+	_root.add_child(w)
+	m.on_result({"op": AccountCodec.OP_NOTIFY, "code": AccountCodec.OK, "kind": AccountCodec.N_DM, "id": "f2",
+		"name": "Orrin", "text": "picking support this time", "mode": 255})
+	m.send_dm("f2", "nice, I take center")

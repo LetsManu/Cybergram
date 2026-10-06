@@ -35,6 +35,9 @@ const PATH := "res://assets/data/net/online_rules.tres"
 ## invite_refill_s. Safe range burst 3-10, refill 5-30 s.
 @export_range(1, 30) var invite_burst: int = 5
 @export_range(1.0, 120.0) var invite_refill_s: float = 10.0
+## P2: the menu marks the player away after this long without input (s).
+## Safe range 120-1800.
+@export_range(30.0, 3600.0) var away_after_s: float = 300.0
 
 ## W20-WEB public snapshot (CYBERGRAM_PUBLIC_DIR, read by the website):
 ## seconds between writes of the counts (players, matches, queues).

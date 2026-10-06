@@ -54,6 +54,8 @@ signal failed(key: String)
 ## P1: the server-side player state, as MmClientAdapter.phase_changed
 ## (derived here from the fake's own signals, for the status bar).
 signal phase_changed(state: Dictionary)
+## P2: party chat (same interface as MmClientAdapter).
+signal party_chat_changed()
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
 ## W20-WEB public leaderboard opt-in: {public: bool, available: bool}
@@ -360,12 +362,43 @@ func finish_match(won: bool, voided := false) -> void:
 ## Test / preview: the party (names) beside you.
 func set_party(names: Array) -> void:
 	party = names.duplicate()
-	var members: Array = [{"id": ME, "name": "You", "leader": true, "me": true,
+	var members: Array = [{"id": ME, "name": "You", "leader": true, "me": true, "ready": bool(party_ready_of.get(ME, false)),
 		"rating_label": MmView.ranked_line(my_ranked, rules.calibration_games)}]
 	for i in party.size():
-		members.append({"id": "f%d" % i, "name": str(party[i]), "leader": false, "me": false,
+		members.append({"id": "f%d" % i, "name": str(party[i]), "leader": false, "me": false, "ready": i == 0,
 			"rating_label": "Silver IV · 1420" if i % 2 == 0 else "Gold I · 1515"})
 	party_changed.emit({"members": members, "leader": ME})
+
+
+## P2 preview / tests: party actions on the fake party.
+var party_chat: Array = []
+var party_ready_of: Dictionary = {}
+
+
+func party_promote(_id: String) -> void:
+	sent.append({"op": &"party_promote"})
+
+
+func party_kick(id: String) -> void:
+	sent.append({"op": &"party_kick", "id": id})
+
+
+func party_ready(on: bool) -> void:
+	party_ready_of[ME] = on
+	set_party(party)
+
+
+func party_leave() -> void:
+	set_party([])
+
+
+func party_say(text: String) -> void:
+	party_chat.append({"name": "You", "text": text, "mine": true})
+	party_chat_changed.emit()
+
+
+func party_chat_lines() -> Array:
+	return party_chat
 
 
 ## Test / preview: you are locked out for `seconds`.

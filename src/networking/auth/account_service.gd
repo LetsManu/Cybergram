@@ -25,6 +25,8 @@ const SWEEP_EVERY_S := 86400.0
 ## Expired rate-limit entries (with IP addresses) are dropped this often.
 const PURGE_EVERY_S := 60.0
 ## Per-connection account request budget (token bucket).
+## P2: longest a detached session is kept for a player in a running match.
+const MATCH_HOLD_MAX_S := 4.0 * 3600.0
 const REQ_BURST := 12.0
 const REQ_PER_S := 3.0
 ## Profile key of the public leaderboard opt-in (W20-WEB; absent = off).
@@ -186,6 +188,11 @@ func step(delta: float) -> void:
 	for tok in sessions.keys():
 		var s: Dictionary = sessions[tok]
 		if s.peer < 0 and _now - float(s.detached_at) > rules.session_grace_s:
+			# P2: the menu closes its connection while its player is in a match;
+			# keep that session (and with it the party) until the match is over,
+			# so the party comes back together. Hard cap MATCH_HOLD_MAX_S.
+			if _in_match(str(s.identity.id)) and _now - float(s.detached_at) < MATCH_HOLD_MAX_S:
+				continue
 			sessions.erase(tok)
 	_since_purge += delta
 	if _since_purge >= PURGE_EVERY_S:
@@ -1213,6 +1220,14 @@ func _social_allow(kind: String, account_id: String) -> bool:
 	if _social_rl.size() > 8192:
 		_social_rl.clear()
 	return true
+
+
+## P2: true while the front reports `account_id` in a match (or loading one).
+func _in_match(account_id: String) -> bool:
+	if not presence_fn.is_valid():
+		return false
+	var st := int((presence_fn.call(account_id) as Dictionary).get("status", -1))
+	return st == LobbyCodec.STATUS_IN_MATCH or st == LobbyCodec.STATUS_IN_SELECT
 
 
 func _peer_of_account(account_id: String) -> int:

@@ -275,3 +275,28 @@ func test_leader_disconnect_hands_over_and_crash_rejoin_keeps_the_party() -> voi
 	var p := _send(s, t, 4, AccountCodec.OP_PARTY)
 	assert_int((p.members as Array).size()).is_equal(2)
 	assert_str(str(p.leader)).is_not_equal(a)
+
+
+func test_party_survives_a_match_without_the_menu_connection() -> void:
+	var x := _three()
+	var s: AccountService = x[0]
+	var t: FakeTransport = x[1]
+	var a: String = x[2]
+	var b: String = x[3]
+	_send(s, t, 2, AccountCodec.OP_PARTY_INVITE, {"id": b})
+	_send(s, t, 3, AccountCodec.OP_PARTY_ACCEPT, {"id": a})
+	var in_match := {a: true, b: true}
+	s.presence_fn = func(id: String) -> Dictionary:
+		return {"status": LobbyCodec.STATUS_IN_MATCH, "mode": 0} if in_match.has(id) else {}
+	var toks := {}
+	for k in s.sessions:
+		toks[s.sessions[k].identity.id] = k
+	s.on_disconnect(2)  # the menu closes its connection when the match starts
+	s.on_disconnect(3)
+	for i in 30:
+		s.step(60.0)  # a 30 minute match
+	in_match.clear()  # the match ended
+	assert_int(int(_send(s, t, 8, AccountCodec.OP_RESUME, {"ver": V, "token": toks[a]}).code)).is_equal(AccountCodec.OK)
+	var p := _send(s, t, 8, AccountCodec.OP_PARTY)
+	assert_int((p.members as Array).size()).is_equal(2)
+	assert_str(str(p.leader)).is_equal(a)

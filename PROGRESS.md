@@ -71,18 +71,27 @@ as it is, new tests run inside the existing test job.
   invites, simultaneous kick + leave, inviter leaves before accept, blocked
   users, chat sanitising + rate limit, DMs online-only. PRIVACY.md updated.
 
+- P2b Client: `SocialModel` (view-model: DM threads + unread, party chat,
+  party invites, join requests, toasts), friends panel with 7 presence states
+  (own shape each) + mode, Message / Invite / Ask to join, party-invite and
+  join-request groups; `SocialDmWindow`; play screen party with Ready / Leave /
+  Lead / Kick and party chat; auto-away after 5 min idle. Found and fixed: the
+  play screen never showed the real party online (only the fake's); a party
+  was forgotten 60 s into a match because the menu disconnects (sessions of
+  players in a match are now kept, max 4 h). Screenshots
+  `production/qa/evidence/p2-social/`.
+
 ## In progress
-- P2b client: friends panel (7 states + mode, invite / join / message), DM
-  window with unread counts, party chat + promote / kick / ready, toasts.
+- nothing (waiting for the owner).
 
 ## Next (prioritised)
 1. Phase 3 leftovers: bot difficulty and bot slots in custom lobbies;
    per-player loading progress (needs a match-process report); ability
    preview / team chat in hero select (team chat exists in the old lobby only).
-2. Phase 2: party promote / kick / chat / ready flags / invite expiry UI;
-   presence with 7 states + Away; join/invite from friends list; direct
-   messages (memory only) with unread counts; toasts; rate limits.
-4. Phase 4: launcher polish (needs human visual checks).
+2. Phase 2 leftovers: the separate launcher app's social view still shows
+   the W15 states (the game menu has the full set); invite-expiry countdown
+   is not shown (invites expire after 120 s server-side).
+3. Phase 4: launcher polish (needs human visual checks).
 
 ## Manual checks needed (no display in the cloud session)
 See `docs/manual-checklist.md` (created with P1d).

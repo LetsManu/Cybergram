@@ -739,7 +739,7 @@ HUD_RING_OUTSIDE,OUTSIDE THE RING
 HUD_RING_RETURN,Return to the plaza
 HUD_MM_PLAY_EYEBROW,Choose your queue
 HUD_MM_Q_NORMAL,Normal 5v5
-HUD_MM_Q_NORMAL_DESC,"Shardline Front, alternating draft. Hidden rating; bots fill empty seats after a wait."
+HUD_MM_Q_NORMAL_DESC,"Shardline Front, blind pick. Hidden rating; bots fill empty seats after a wait."
 HUD_MM_Q_RANKED,Ranked 5v5
 HUD_MM_Q_RANKED_DESC,"Shardline Front, alternating draft. Visible rating and medals. Real players only."
 HUD_MM_Q_ARAM,3v3 All Random
@@ -1035,3 +1035,31 @@ HUD_MM_SEAT_HOVER,Wants %s
 HUD_MM_SEAT_BAN,Bans %s
 HUD_MM_TRADE_OFFER,Trade with %s
 HUD_MM_TRADE_ACCEPT,Accept: %s offers %s
+HUD_FRIENDS_IN_QUEUE,In queue
+HUD_FRIENDS_IN_SELECT,Hero select
+HUD_FRIENDS_AWAY,Away
+HUD_FRIENDS_GROUP_QUEUE,IN QUEUE
+HUD_FRIENDS_GROUP_SELECT,HERO SELECT
+HUD_FRIENDS_GROUP_AWAY,AWAY
+HUD_SOCIAL_MESSAGE,Message
+HUD_SOCIAL_INVITE,Invite
+HUD_SOCIAL_ASK_JOIN,Ask to join
+HUD_SOCIAL_JOIN_ASKED,Asked to join. Their party leader decides.
+HUD_SOCIAL_GROUP_INVITES,PARTY INVITES
+HUD_SOCIAL_INVITE_FROM,%s invited you to a party
+HUD_SOCIAL_GROUP_JOIN,WANT TO JOIN
+HUD_SOCIAL_WANTS_JOIN,%s wants to join your party
+HUD_SOCIAL_INVITED_BY,%s invited you to a party
+HUD_SOCIAL_FRIEND_REQUEST,%s sent you a friend request
+HUD_SOCIAL_DM_FROM,New message from %s
+HUD_SOCIAL_DM_OFFLINE,Not delivered: your friend is offline. Messages are not stored.
+HUD_SOCIAL_SLOW_DOWN,You are sending too fast. Wait a moment.
+HUD_SOCIAL_KICKED,The party leader removed you from the party.
+HUD_SOCIAL_TYPE,Type a message…
+HUD_SOCIAL_SEND,Send
+HUD_SOCIAL_READY,READY
+HUD_SOCIAL_READY_SET,Ready
+HUD_SOCIAL_READY_CLEAR,Not ready
+HUD_SOCIAL_LEAVE,Leave
+HUD_SOCIAL_PROMOTE,Lead
+HUD_SOCIAL_KICK,Kick

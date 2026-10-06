@@ -29,3 +29,14 @@ Evidence (virtual display): `production/qa/evidence/p3-select/`.
 - [ ] Trade window: "Trade with …" buttons, the offer shows as "Accept: … offers …" for the teammate, accepting swaps the heroes; buttons disappear in the last 5 s.
 - [ ] Ranked: let the timer run out without clicking any hero: lobby cancels, you get the dodge lockout in the status bar, others go back to the queue.
 - [ ] Ready check popup counts 12 s.
+
+## P2: party and social
+Evidence (virtual display): `production/qa/evidence/p2-social/`.
+- [ ] Two accounts on two machines: Invite from the friends list -> toast + "Party invites" row with ✔ / × for the other.
+- [ ] "Ask to join" on a friend in a party: their leader gets a toast and a "wants to join" row with Invite.
+- [ ] Message: DM window opens, lines arrive both ways; a message to an offline friend shows "Not delivered".
+- [ ] Unread count on the friend row while the DM window is closed; it clears when opened.
+- [ ] Party: Ready shows READY for everyone; Lead moves the leader badge; Kick removes the member and they get a toast.
+- [ ] Party chat in the play screen; spam fast: "You are sending too fast" appears.
+- [ ] Friend presence: queue / hero select / in match with the mode name; idle 5 min -> Away; any key -> back.
+- [ ] Play a full match in a party of 2: after the match both are still in the same party (no re-login).

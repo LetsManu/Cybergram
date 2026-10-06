@@ -49,6 +49,13 @@ var _col: VBoxContainer
 var _play: Button
 var _chip: Button
 var _friends: FriendsPanel
+## P2: party, DMs, party chat, invites and join requests (logged-in accounts).
+var _social: SocialModel
+var _dm: SocialDmWindow
+## P2: seconds since the last input, and whether the server knows we are away.
+var _idle_s: float = 0.0
+var _away: bool = false
+var _away_after_s: float = OnlineRulesDef.load_default().away_after_s
 var _lobby_box: MarginContainer
 var _lobby: LobbyScreen
 var _login: LoginScreen
@@ -168,6 +175,7 @@ func _ready() -> void:
 	_friends.join_requested.connect(func(id: String) -> void: _open_lobby(online_server(), id))
 	_friends.login_requested.connect(func() -> void: _with_session(Callable()))
 	_friends.collapsed_changed.connect(func(_c: bool) -> void: _sync_lobby_margins())
+	_friends.message_requested.connect(_open_dm)
 	_root.add_child(_friends)
 	_build_top_bar()
 	_lobby_box = MarginContainer.new()
@@ -772,6 +780,7 @@ func _refresh_chip() -> void:
 	row.minimum_size_changed.connect(fit)
 	fit.call()
 	var account := not s.is_empty() and int(s.get("guest", 1)) == 0
+	_set_social(account, str(s.get("id", "")))
 	_friends.set_session(account, _request if not s.is_empty() else Callable())
 
 
@@ -900,7 +909,21 @@ func _exit_tree() -> void:
 	UiKit.clear_cache()
 
 
+## P2: any input ends "away".
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton \
+			or (event is InputEventMouseMotion and (event as InputEventMouseMotion).relative.length() > 2.0):
+		_idle_s = 0.0
+		if _away and _social != null:
+			_away = false
+			_social.set_away(false)
+
+
 func _process(delta: float) -> void:
+	_idle_s += delta
+	if not _away and _social != null and _idle_s >= _away_after_s:
+		_away = true
+		_social.set_away(true)
 	if _online == null or _lobby != null:
 		return  # the lobby view steps the client while it is open
 	_online.step()
@@ -985,7 +1008,53 @@ func _on_account(d: Dictionary) -> void:
 			if _profile_screen != null:
 				_profile_screen.on_result(d)
 		_:
-			_friends.on_result(d)
+			if op != AccountCodec.OP_NOTIFY:
+				_friends.on_result(d)
+	if _social != null:
+		_social.on_result(d)  # P2: friends, party, notifications
+
+
+## P2: one SocialModel per logged-in account session (none for guests).
+func _set_social(account: bool, my_id: String) -> void:
+	if not account:
+		_social = null
+		_friends.social = null
+		if _dm != null:
+			_dm.close()
+		return
+	if _social != null and _social.me == my_id:
+		return
+	_social = SocialModel.new(_request)
+	_social.me = my_id
+	_social.changed.connect(func() -> void: _friends.rebuild())
+	_social.toast.connect(func(text: String, kind: StringName) -> void: UiKit.toast(_root, text, kind))
+	_friends.social = _social
+	if _mm_adapter != null:
+		_mm_adapter.set_social(_social)
+	_social.refresh()
+
+
+## P2: opens the DM window with a friend (one at a time, beside the friends panel).
+func _open_dm(friend_id: String) -> void:
+	if _social == null:
+		return
+	if _dm != null:
+		_dm.close()
+	var name := friend_id
+	for e: Dictionary in _friends.entries:
+		if str(e.id) == friend_id:
+			name = str(e.display_name)
+	_dm = SocialDmWindow.new()
+	_dm.social = _social
+	_dm.friend_id = friend_id
+	_dm.friend_name = name
+	_dm.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_dm.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_dm.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_dm.offset_right = -float(_friends.dock_width()) - 16.0
+	_dm.offset_bottom = -16.0
+	_root.add_child(_dm)
+	_friends.rebuild()
 
 
 func _error_text(code: int) -> String:
@@ -1257,6 +1326,8 @@ func _mm_client() -> Object:
 		return null
 	if _mm_adapter == null or _mm_adapter.mm != _online.matchmaking:
 		_mm_adapter = MmClientAdapter.new(_online.matchmaking, _online)
+		if _social != null:
+			_mm_adapter.set_social(_social)
 	return _mm_adapter
 
 

@@ -36,6 +36,8 @@ var _primary_chips: Dictionary = {}
 var _secondary_chips: Dictionary = {}
 var _party_rows: VBoxContainer
 var _party_rules: Label
+## P2: party chat (shown in a party of 2+ when the client supports it).
+var _chat: SocialChatBox
 var _party_count: Label
 var _find: Button
 var _cancel: Button
@@ -147,6 +149,16 @@ func _build() -> void:
 	_party_rules = UiKit.label("", &"small", t.text_dim)
 	_party_rules.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	right.add_child(_party_rules)
+	if client != null and client.has_method("party_say"):
+		_chat = SocialChatBox.new()
+		_chat.view_height = 70.0
+		_chat.send = func(text: String) -> void: client.call("party_say", text)
+		_chat.visible = false
+		right.add_child(_chat)
+		if client.has_signal("party_chat_changed"):
+			client.connect("party_chat_changed", func() -> void:
+				if _chat != null:
+					_chat.set_lines(client.call("party_chat_lines")))
 	# Queue strip + CTA (bottom right).
 	var foot := HBoxContainer.new()
 	foot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -343,6 +355,9 @@ func _sync() -> void:
 	if not _is_leader():
 		lines.append(tr("HUD_MM_LEADER_ONLY"))
 	_party_rules.text = "\n".join(lines)
+	if _chat != null:
+		_chat.visible = _members.size() > 1  # P2: in a party the chat takes the rules' place
+		_party_rules.visible = not _chat.visible
 	_party_rules.add_theme_color_override("font_color", t.text_dim)
 	_sync_timer()
 
@@ -378,9 +393,26 @@ func _party_row(m: Dictionary) -> Control:
 		var lead := MmKit.caption(tr("HUD_MM_PARTY_LEADER"), 10, t.accent)
 		lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(lead)
+	if bool(m.get("ready", false)):
+		var rd := MmKit.caption(tr("HUD_SOCIAL_READY"), 10, t.cyan)  # P2: ready flag (text, not colour alone)
+		rd.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(rd)
 	var rl := UiKit.label(str(m.get("rating_label", "")) if queue == MmView.Q_RANKED else "", &"small", t.text_dim,
 		HORIZONTAL_ALIGNMENT_RIGHT)
 	rl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(rl)
+	# P2: party controls (only with a client that has them, only in a party).
+	if client != null and client.has_method("party_promote") and _members.size() > 1:
+		var id := str(m.get("id", ""))
+		if bool(m.get("me", false)):
+			var on := not bool(m.get("ready", false))
+			row.add_child(UiKit.button(tr("HUD_SOCIAL_READY_SET") if on else tr("HUD_SOCIAL_READY_CLEAR"),
+				func() -> void: client.call("party_ready", on), &"ghost", 28))
+			row.add_child(UiKit.button(tr("HUD_SOCIAL_LEAVE"), func() -> void: client.call("party_leave"), &"ghost", 28))
+		elif _is_leader():
+			row.add_child(UiKit.button(tr("HUD_SOCIAL_PROMOTE"), func() -> void: client.call("party_promote", id),
+				&"ghost", 28))
+			row.add_child(UiKit.button(tr("HUD_SOCIAL_KICK"), func() -> void: client.call("party_kick", id),
+				&"ghost", 28))
 	return row
