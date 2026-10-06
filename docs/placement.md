@@ -36,6 +36,15 @@ and the prop-vs-prop test before accepting it, and keeps props off the decals'
 boxes; `WorldDecals` builds only decals that pass. So the shipped map has zero
 violations by construction, and the CI gate proves it stays that way.
 
+## Scene validator
+
+`SceneAudit` (`src/gameplay/world/placement/scene_audit.gd`, unit tests with a
+failing fixture per check) and `tests/integration/map/scene_validator_test.gd`:
+every map surface has a material, every navmesh polygon lies on collision
+(4 bake slivers waived, see docs/polish-backlog.md), every world prop batch is
+range-culled. Together with `front_match_test` (navmesh reach, mirror symmetry,
+slopes, flat zones) and `world_assets_test` (triangle budgets, maps, pivots).
+
 ## Waivers
 
 Add `"<id prefix>": "<reason>"` to `MapPlacementAudit.WAIVERS`. Waived items stay
