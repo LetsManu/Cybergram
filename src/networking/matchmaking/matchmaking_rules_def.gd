@@ -61,6 +61,12 @@ const BOT_PREFIX := "bot:"
 ## One decline strike decays after this long without a new one. Safe range
 ## 3600-604800 (1 h - 7 d).
 @export_range(3600.0, 604800.0) var decline_strike_decay_s: float = 21600.0
+## P3: queue lockout (s) per pick-phase dodge strike (own ladder, harsher than
+## declines: a dodge throws away a full lobby). The last step repeats.
+@export var dodge_lockout_steps_s: PackedFloat32Array = PackedFloat32Array([360.0, 1800.0, 7200.0, 14400.0])
+## P3: one dodge strike decays after this long without a new one (one tier
+## per 24 h). Safe range 3600-604800.
+@export_range(3600.0, 604800.0) var dodge_strike_decay_s: float = 86400.0
 ## One leaver strike decays after this long without a new one. Safe range
 ## 86400-2592000 (1-30 d).
 @export_range(86400.0, 2592000.0) var leaver_strike_decay_s: float = 604800.0
@@ -84,6 +90,8 @@ const BOT_PREFIX := "bot:"
 @export_range(0.0, 1.0) var leaver_teammate_loss_scale: float = 0.5
 ## Ranked pick-phase dodge: rating points lost. Safe range 0-30.
 @export_range(0.0, 30.0) var dodge_rating_penalty: float = 5.0
+## P3: ranked dodge rating loss from the second dodge strike on. Safe 0-30.
+@export_range(0.0, 30.0) var dodge_rating_penalty_repeat: float = 10.0
 ## Medal bands for the visible ranked number, ascending by min rating.
 ## Each entry {name: String, min: float, divisions: int}. Names: classic
 ## metals, lowest to highest (owner decision 2026-10-05).
@@ -114,6 +122,20 @@ const BOT_PREFIX := "bot:"
 ## W17B: a player disconnected from the front this long during the pick
 ## phase counts as a dodge. Safe range 5-30.
 @export_range(2.0, 60.0) var pick_disconnect_grace_s: float = 10.0
+## P3 blind pick (PickMode.BLIND): seconds for everyone to pick. Safe 30-90.
+@export_range(15.0, 120.0) var blind_pick_s: float = 45.0
+## P3: seconds after the last lock for pick trades and the final countdown
+## (0 = start at once). Design: 20. Safe range 0-30.
+@export_range(0.0, 60.0) var finalize_s: float = 0.0
+## P3: the last seconds of finalize_s with no trades (countdown). Safe 0-10.
+@export_range(0.0, 15.0) var finalize_lock_s: float = 5.0
+## P3: bans per team before the picks (0 = no ban phase). Keep total bans
+## <= roster - 8 (design: 1 per team from 13 heroes, 2 from 18).
+@export_range(0, 5) var bans_per_team: int = 0
+## P3: seconds of the simultaneous ban phase. Safe range 15-40.
+@export_range(5.0, 60.0) var ban_s: float = 25.0
+## P3: seconds the bans are shown before the first pick turn. Safe 2-8.
+@export_range(0.0, 15.0) var ban_reveal_s: float = 4.0
 
 @export_group("Fair play")
 ## A remake vote may start only this long after the match starts (s).

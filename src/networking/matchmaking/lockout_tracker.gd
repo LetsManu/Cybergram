@@ -11,7 +11,9 @@ extends RefCounted
 ## Memory only; to_dict()/from_dict() let the front keep it across restarts.
 ## Time is injected (`now` in seconds).
 
-enum Kind { DECLINE, LEAVE }
+## DODGE (P3): leaving champ select or timing out there with nothing hovered
+## (ranked). Own ladder (dodge_lockout_steps_s); locks every matchmade queue.
+enum Kind { DECLINE, LEAVE, DODGE }
 
 var rules: MatchmakingRulesDef
 var _state: Dictionary = {}  # account id -> {Kind (int): {strikes, since, until}}
@@ -39,7 +41,8 @@ func strikes(account_id: String, kind: Kind, now: float) -> int:
 
 ## Time the account may queue again (0 = free). `ranked` adds LEAVE locks.
 func locked_until(account_id: String, now: float, ranked: bool = false) -> float:
-	var until := float(_state_of(account_id, Kind.DECLINE, now).until)
+	var until := maxf(float(_state_of(account_id, Kind.DECLINE, now).until),
+		float(_state_of(account_id, Kind.DODGE, now).until))
 	if ranked:
 		until = maxf(until, float(_state_of(account_id, Kind.LEAVE, now).until))
 	return until if until > now else 0.0
@@ -53,7 +56,7 @@ func is_locked(account_id: String, now: float, ranked: bool = false) -> bool:
 func sweep(now: float) -> void:
 	for id in _state.keys():
 		var keep := false
-		for k in [Kind.DECLINE, Kind.LEAVE]:
+		for k in [Kind.DECLINE, Kind.LEAVE, Kind.DODGE]:
 			var st := _state_of(id, k, now)
 			if st.strikes > 0 or float(st.until) > now:
 				keep = true
@@ -79,11 +82,21 @@ func from_dict(d: Dictionary) -> void:
 
 
 func _steps(kind: Kind) -> PackedFloat32Array:
-	return rules.decline_lockout_steps_s if kind == Kind.DECLINE else rules.leaver_lockout_steps_s
+	match kind:
+		Kind.DECLINE:
+			return rules.decline_lockout_steps_s
+		Kind.DODGE:
+			return rules.dodge_lockout_steps_s
+	return rules.leaver_lockout_steps_s
 
 
 func _decay_s(kind: Kind) -> float:
-	return rules.decline_strike_decay_s if kind == Kind.DECLINE else rules.leaver_strike_decay_s
+	match kind:
+		Kind.DECLINE:
+			return rules.decline_strike_decay_s
+		Kind.DODGE:
+			return rules.dodge_strike_decay_s
+	return rules.leaver_strike_decay_s
 
 
 func _state_of(account_id: String, kind: Kind, now: float) -> Dictionary:

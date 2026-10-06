@@ -5,7 +5,7 @@ extends CanvasLayer
 ## States: play, play_ranked, queued, locked, ready, ready_accepted,
 ## draft_enemy, draft_mine, draft_late, aram, aram_swap, loading, reconnect,
 ## post_ranked, post_normal, post_report, profile, profile_public, profile_guest,
-## custom, remake, remake_open.
+## custom, remake, remake_open, draft_hover, blind_trade (P3).
 ## Not part of the game flow (never loaded by AppRoot).
 
 const REF_SIZE := Vector2(1440, 810)
@@ -99,6 +99,9 @@ func _build(st: String) -> void:
 		"draft_mine":
 			_to_pick(MmView.Q_RANKED)
 			fake.step(fake.think_s + 0.1)
+		"draft_hover", "blind_trade":
+			_to_pick(MmView.Q_RANKED if st == "draft_hover" else MmView.Q_NORMAL)
+			(flow.page as MmDraftScreen).set_state(_p3_state(st))
 		"draft_late":
 			_to_pick(MmView.Q_NORMAL)
 			fake.step(fake.think_s + 0.1)
@@ -181,3 +184,31 @@ func _remake(open: bool) -> void:
 		fake.step(7.0)
 		fake.remake_vote(true)
 		w.left_s = 23.0
+
+
+## P3 evidence: a hand-made draft state (ally hovers + bans, or blind finalize with trades).
+func _p3_state(st: String) -> Dictionary:
+	var hs := MmView.all_heroes()
+	var seats: Array = []
+	for i in 10:
+		var team := 0 if i < 5 else 1
+		var s := {"id": "seat%d" % i, "name": ["You", "Nyx", "Orrin", "Talia", "Brin", "", "", "", "", ""][i],
+			"team": team, "lane": [&"north", &"center", &"south", &"flex", &"flex"][i % 5], "hero": &"", "hover": &"",
+			"ban": &"", "bot": false, "auto": false, "picking": false}
+		seats.append(s)
+	if st == "draft_hover":
+		seats[0].picking = true
+		seats[0].hover = hs[1]
+		seats[1].hover = hs[2]
+		seats[2].hero = hs[3]
+		seats[5].hero = hs[3]
+		return {"mode": &"draft", "blind": false, "stage": &"pick", "queue": MmView.Q_RANKED, "ranked": true,
+			"me": "seat0", "my_team": 0, "turn": 2, "turn_team": 0, "order": PackedInt32Array([1, 2, 2, 2, 2, 1]),
+			"first_team": 0, "deadline_s": 21.0, "turn_s": 30.0, "done": false, "seats": seats,
+			"bans": [hs[0]], "trade_s": 0.0, "trades": []}
+	for i in 10:
+		seats[i].hero = hs[i % 5 + (1 if i >= 5 else 0)]
+	return {"mode": &"draft", "blind": true, "stage": &"finalize", "queue": MmView.Q_NORMAL, "ranked": false,
+		"me": "seat0", "my_team": 0, "turn": 0, "turn_team": 2, "order": PackedInt32Array([5]), "first_team": 0,
+		"deadline_s": 17.0, "turn_s": 45.0, "done": true, "seats": seats, "bans": [], "trade_s": 12.0,
+		"trades": [{"from": "seat2", "name": "Orrin", "hero": seats[2].hero}]}

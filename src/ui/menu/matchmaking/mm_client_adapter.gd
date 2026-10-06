@@ -136,6 +136,24 @@ func reply_ready(accept: bool) -> void:
 
 func pick(hero: StringName) -> void:
 	mm.draft_pick(hero_index(hero))
+	events.add("send", "lock %s" % hero)
+
+
+## P3: declare `hero` (allies see it); &"" clears.
+func hover(hero: StringName) -> void:
+	mm.draft_hover(hero_index(hero) if hero != &"" else 0)
+
+
+## P3: offer the teammate in `seat_id` to trade heroes (finalize window).
+func offer_trade(seat_id: String) -> void:
+	mm.aram_swap_request(seat_index(seat_id))
+	events.add("send", "trade offer", {"seat": seat_id})
+
+
+## P3: accept the trade the teammate in `seat_id` offered.
+func accept_trade(seat_id: String) -> void:
+	mm.aram_swap_accept(seat_index(seat_id))
+	events.add("send", "trade accept", {"seat": seat_id})
 
 
 func reroll() -> void:
@@ -357,10 +375,16 @@ static func _seats(d: Dictionary) -> Array:
 	for i in raw.size():
 		var s: Dictionary = raw[i]
 		var f := int(s.get("flags", 0))
+		# v20: a hover or a ban travels in `hero` with a flag; "hero" stays the locked pick.
+		var h := hero_id(int(s.get("hero", 0)))
+		var hover := f & MatchmakingCodec.SEAT_HOVER != 0
+		var banning := f & MatchmakingCodec.SEAT_BANNING != 0
 		out.append({"id": "seat%d" % i, "name": str(s.get("name", "")), "team": int(s.get("team", 0)),
-			"lane": lane_id(int(s.get("lane", 255))), "hero": hero_id(int(s.get("hero", 0))),
+			"lane": lane_id(int(s.get("lane", 255))), "hero": h if not (hover or banning) else &"",
+			"hover": h if hover and not banning else &"", "ban": h if banning else &"",
+			"ban_locked": banning and not hover,
 			"bot": f & MatchmakingCodec.SEAT_BOT != 0, "auto": f & MatchmakingCodec.SEAT_AUTO != 0,
-			"picking": f & MatchmakingCodec.SEAT_PICKING != 0})
+			"picking": f & MatchmakingCodec.SEAT_PICKING != 0 or banning})
 	return out
 
 
@@ -369,10 +393,20 @@ static func draft_of(d: Dictionary, queue: StringName, rules: MatchmakingRulesDe
 	var you := int(d.get("you", 0))
 	var turn := int(d.get("turn", 0))
 	var turn_team := int(d.get("turn_team", 0))
-	return {"mode": &"draft", "queue": queue, "ranked": queue == MmView.Q_RANKED, "me": "seat%d" % you,
-		"my_team": int(seats[you].team) if you < seats.size() else 0, "turn": turn, "turn_team": turn_team,
-		"order": rules.draft_order, "first_team": posmod(turn_team - turn, 2), "deadline_s": float(d.get("seconds", 0)),
-		"turn_s": rules.pick_turn_s, "done": turn >= rules.draft_order.size(), "seats": seats}
+	var blind := int(d.get("mode", 0)) == MatchmakingCodec.PM_BLIND
+	var stage: StringName = [&"pick", &"ban", &"finalize"][clampi(int(d.get("stage", 0)), 0, 2)]
+	var trades: Array = []
+	for i in d.get("swap_from", []):
+		var s: Dictionary = seats[int(i)] if int(i) < seats.size() else {}
+		trades.append({"from": "seat%d" % int(i), "name": str(s.get("name", "")), "hero": s.get("hero", &"")})
+	var order: PackedInt32Array = PackedInt32Array([seats.size() / 2]) if blind else rules.draft_order
+	return {"mode": &"draft", "blind": blind, "stage": stage, "queue": queue, "ranked": queue == MmView.Q_RANKED,
+		"me": "seat%d" % you, "my_team": int(seats[you].team) if you < seats.size() else 0, "turn": turn,
+		"turn_team": turn_team, "order": order, "first_team": posmod(turn_team - turn, 2) if not blind else 0,
+		"deadline_s": float(d.get("seconds", 0)), "turn_s": rules.blind_pick_s if blind else rules.pick_turn_s,
+		"done": stage == &"finalize", "seats": seats,
+		"bans": (d.get("bans", []) as Array).map(func(x: int) -> StringName: return hero_id(x)),
+		"trade_s": float(d.get("trade_s", 0)), "trades": trades}
 
 
 static func aram_of(d: Dictionary, outgoing: Array) -> Dictionary:

@@ -184,6 +184,8 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 			_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)  # in-match only (the match process)
 		MatchmakingCodec.OP_STATE_SYNC:
 			phases.resync(me, t)
+		MatchmakingCodec.OP_HOVER:
+			_hover(peer, me, int(r.hero), t)
 	phases.sync(t)
 	return true
 
@@ -286,22 +288,53 @@ func _pick(peer: int, me: String, hero_index: int, t: float) -> void:
 		_ack(peer, MatchmakingCodec.OP_PICK, MatchmakingCodec.E_NOT_ALLOWED)
 		return
 	var hero := _hero_id(hero_index)
-	var e := m.draft.pick(me, hero, t)
-	var code := MatchmakingCodec.OK
-	match e:
-		DraftSession.Err.E_TAKEN:
-			code = MatchmakingCodec.E_TAKEN
-		DraftSession.Err.E_UNKNOWN_HERO:
-			code = MatchmakingCodec.E_BAD_REQUEST
-		DraftSession.Err.E_NOT_YOUR_TURN, DraftSession.Err.E_CLOSED:
-			code = MatchmakingCodec.E_NOT_ALLOWED
-	_ack(peer, MatchmakingCodec.OP_PICK, code)
+	var e := m.draft.ban(me, hero, t) if m.draft.state == DraftSession.State.BANNING else m.draft.pick(me, hero, t)
+	_ack(peer, MatchmakingCodec.OP_PICK, _draft_code(e))
 	_step_pick(m, t)
+
+
+## P3: declare a hero (pick phase) or a ban (ban phase); hero 0 clears.
+func _hover(peer: int, me: String, hero_index: int, t: float) -> void:
+	var m: Match = _account_match.get(me)
+	if m == null or m.state != State.PICK or m.draft == null:
+		_ack(peer, MatchmakingCodec.OP_HOVER, MatchmakingCodec.E_NOT_ALLOWED)
+		return
+	var hero := _hero_id(hero_index) if hero_index != 0 else &""
+	if hero_index != 0 and hero == &"":
+		_ack(peer, MatchmakingCodec.OP_HOVER, MatchmakingCodec.E_BAD_REQUEST)
+		return
+	_ack(peer, MatchmakingCodec.OP_HOVER, _draft_code(m.draft.hover(me, hero, t)))
+	_step_pick(m, t)
+
+
+static func _draft_code(e: DraftSession.Err) -> int:
+	match e:
+		DraftSession.Err.OK:
+			return MatchmakingCodec.OK
+		DraftSession.Err.E_TAKEN, DraftSession.Err.E_BANNED:
+			return MatchmakingCodec.E_TAKEN
+		DraftSession.Err.E_UNKNOWN_HERO:
+			return MatchmakingCodec.E_BAD_REQUEST
+		DraftSession.Err.E_NO_REQUEST:
+			return MatchmakingCodec.E_NOT_FOUND
+	return MatchmakingCodec.E_NOT_ALLOWED
 
 
 func _aram(peer: int, me: String, r: Dictionary, t: float) -> void:
 	var op: int = r.op
 	var m: Match = _account_match.get(me)
+	if m != null and m.state == State.PICK and m.draft != null and op in [MatchmakingCodec.OP_ARAM_SWAP_REQUEST,
+			MatchmakingCodec.OP_ARAM_SWAP_ACCEPT]:
+		# P3: in a draft the swap ops are pick trades (finalize window).
+		var si := int(r.seat)
+		var de := DraftSession.Err.E_NOT_TEAMMATE
+		if si < m.seats.size():
+			var other := str(m.seats[si].id)
+			de = m.draft.request_trade(me, other, t) if op == MatchmakingCodec.OP_ARAM_SWAP_REQUEST \
+				else m.draft.accept_trade(me, other, t)
+		_ack(peer, op, _draft_code(de))
+		_step_pick(m, t)
+		return
 	if m == null or m.state != State.PICK or m.aram == null:
 		_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)
 		return
@@ -458,7 +491,8 @@ func _step_ready(m: Match, t: float) -> void:
 
 ## The ready check failed or someone dodged: strikes, re-queue the others.
 func _fail(m: Match, failed: Array, t: float, dodge: bool) -> void:
-	var res := matchmaker.resolve_ready_check(m.proposal, failed, t)
+	var res := matchmaker.resolve_ready_check(m.proposal, failed, t,
+		LockoutTracker.Kind.DODGE if dodge else LockoutTracker.Kind.DECLINE)
 	phases.lobby(m.id, PhaseMachine.Lobby.CANCELLED, t)
 	if dodge:
 		metrics.inc("cybergram_dodges_total", {}, failed.size())
@@ -469,7 +503,8 @@ func _fail(m: Match, failed: Array, t: float, dodge: bool) -> void:
 	for id in res.locked:
 		_strike(str(id), t)
 		if dodge and m.queue.ranked:
-			ratings.apply_dodge_penalty(str(id), m.queue.rating_track, int(t))
+			ratings.apply_dodge_penalty(str(id), m.queue.rating_track, int(t),
+				lockouts.strikes(str(id), LockoutTracker.Kind.DODGE, t))
 	_save_lockouts()
 	for id in _humans(m):
 		var out := MatchmakingCodec.RR_REQUEUED
@@ -502,7 +537,9 @@ func _start_pick(m: Match, t: float) -> void:
 	if m.queue.pick_mode == MatchQueueDef.PickMode.ALL_RANDOM:
 		m.aram = AllRandomSession.new(teams[0], teams[1], heroes, rules, t, seed_)
 	else:
-		m.draft = DraftSession.new(teams[0], teams[1], heroes, rules, t, seed_, seed_ & 1)
+		m.draft = DraftSession.new(teams[0], teams[1], heroes, rules, t, seed_, seed_ & 1, {
+			"blind": m.queue.pick_mode == MatchQueueDef.PickMode.BLIND,
+			"timeout_dodges": m.queue.pick_timeout_dodges})
 	_step_pick(m, t)
 
 
@@ -526,7 +563,14 @@ func _dodge(m: Match, id: String, t: float) -> void:
 func _step_pick(m: Match, t: float) -> void:
 	var done := false
 	if m.draft != null:
-		done = m.draft.tick(t) == DraftSession.State.DONE
+		var ds := m.draft.tick(t)
+		if ds == DraftSession.State.ABORTED and m.draft.dodger != "":
+			# P3: ranked pick timeout with nothing hovered = a dodge by that player.
+			_ev(OpsLog.INFO, "pick_timeout_dodge", "match %s: pick timeout counts as a dodge" % m.id,
+				{"match": m.id, "player": OpsLog.tag(m.draft.dodger)})
+			_fail(m, [m.draft.dodger], t, true)
+			return
+		done = ds == DraftSession.State.DONE
 	elif m.aram != null:
 		done = m.aram.tick(t) == AllRandomSession.State.LOCKED
 	var sig := _pick_signature(m)
@@ -542,7 +586,9 @@ func _step_pick(m: Match, t: float) -> void:
 
 func _pick_signature(m: Match) -> String:
 	if m.draft != null:
-		return var_to_str([m.draft.turn, m.draft.picks])
+		var d := m.draft
+		return var_to_str([d.turn, d.state, d.picks, d.hovers, d.ban_hovers, d.ban_locks, d.bans,
+			d._trades.keys(), d.state == DraftSession.State.FINALIZING and now() >= d.trades_until])
 	return var_to_str([m.aram.hero_of, m.aram.bench, m.aram.rerolls_left, m.aram._requests.keys()])
 
 
@@ -552,20 +598,34 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 	var seats: Array = []
 	var you := 0
 	var pickers: Array = m.draft.current_pickers() if m.draft != null else []
+	var banners: Array = m.draft.current_banners() if m.draft != null else []
+	# Blind: enemy picks stay hidden until everyone locked (finalize / done).
+	var hide_enemy := m.draft != null and m.draft.blind and m.draft.state == DraftSession.State.PICKING
 	for i in m.seats.size():
 		var s: Dictionary = m.seats[i]
 		var hero: StringName = &""
 		var flags := MatchmakingCodec.SEAT_BOT if s.bot else 0
+		var ally: bool = s.team == my_team
 		if m.draft != null:
 			hero = m.draft.picks.get(s.id, &"")
-			if m.draft.auto_picked.has(s.id):
+			if hide_enemy and not ally:
+				hero = &""
+			if m.draft.auto_picked.has(s.id) and hero != &"":
 				flags |= MatchmakingCodec.SEAT_AUTO
 			if pickers.has(s.id):
 				flags |= MatchmakingCodec.SEAT_PICKING
+			if ally and hero == &"" and m.draft.hovers.has(s.id):
+				hero = m.draft.hovers[s.id]
+				flags |= MatchmakingCodec.SEAT_HOVER
+			if ally and m.draft.state == DraftSession.State.BANNING and (banners.has(s.id) or m.draft.ban_locks.has(s.id)):
+				flags |= MatchmakingCodec.SEAT_BANNING
+				hero = m.draft.ban_locks.get(s.id, m.draft.ban_hovers.get(s.id, &""))
+				if not m.draft.ban_locks.has(s.id) and hero != &"":
+					flags |= MatchmakingCodec.SEAT_HOVER
 		else:
 			hero = m.aram.hero_of.get(s.id, &"")
 			flags |= MatchmakingCodec.SEAT_AUTO
-		if hero != &"":
+		if hero != &"" and flags & (MatchmakingCodec.SEAT_HOVER | MatchmakingCodec.SEAT_BANNING) == 0:
 			flags |= MatchmakingCodec.SEAT_PICKED
 		if s.id == viewer:
 			flags |= MatchmakingCodec.SEAT_YOU
@@ -574,12 +634,23 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 		seats.append({"id": s.id if mine and not s.bot else "", "team": s.team,
 			"lane": MatchmakingCodec.lane_byte(s.lane), "hero": _hero_index(hero), "flags": flags,
 			"name": s.name if mine else ""})
-	var st := {"mode": MatchmakingCodec.PM_ALL_RANDOM if m.aram != null else MatchmakingCodec.PM_DRAFT,
-		"you": you, "seats": seats, "rerolls": 0, "bench": [], "swap_from": []}
+	var mode := MatchmakingCodec.PM_ALL_RANDOM if m.aram != null else MatchmakingCodec.PM_DRAFT
+	if m.draft != null and m.draft.blind:
+		mode = MatchmakingCodec.PM_BLIND
+	var st := {"mode": mode, "you": you, "seats": seats, "rerolls": 0, "bench": [], "swap_from": [],
+		"stage": MatchmakingCodec.PS_PICK, "bans": [], "trade_s": 0}
 	if m.draft != null:
 		st.turn = maxi(0, m.draft.turn)
 		st.turn_team = m.draft.turn_team
 		st.seconds = ceili(maxf(0.0, m.draft.deadline - t))
+		st.bans = m.draft.bans.map(func(h: StringName) -> int: return _hero_index(h))
+		match m.draft.state:
+			DraftSession.State.BANNING:
+				st.stage = MatchmakingCodec.PS_BAN
+			DraftSession.State.FINALIZING, DraftSession.State.DONE:
+				st.stage = MatchmakingCodec.PS_FINALIZE
+				st.trade_s = ceili(maxf(0.0, m.draft.trades_until - t))
+				st.swap_from = m.draft.trade_requests_to(viewer, t).map(func(id: String) -> int: return _seat_index(m, id))
 	else:
 		st.turn = 0
 		st.turn_team = my_team

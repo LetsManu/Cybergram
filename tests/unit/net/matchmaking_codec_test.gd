@@ -31,6 +31,7 @@ func _req_samples() -> Dictionary:
 		MatchmakingCodec.OP_CUSTOM_START: {},
 		MatchmakingCodec.OP_REJOIN: {},
 		MatchmakingCodec.OP_STATE_SYNC: {},
+		MatchmakingCodec.OP_HOVER: {"hero": 6},
 	}
 
 
@@ -45,7 +46,7 @@ func _evt_samples() -> Dictionary:
 			"accepted": 3, "you_accepted": 1},
 		MatchmakingCodec.EV_READY_RESULT: {"outcome": 3, "locked": 120},
 		MatchmakingCodec.EV_PICK_STATE: {"mode": 0, "turn": 2, "turn_team": 1, "seconds": 27, "you": 0, "seats": seats,
-			"rerolls": 1, "bench": [3, 5], "swap_from": [2]},
+			"rerolls": 1, "bench": [3, 5], "swap_from": [2], "stage": 2, "bans": [4, 7], "trade_s": 13},
 		MatchmakingCodec.EV_MATCH_ASSIGNED: {"host": "play.example.org", "port": 7801,
 			"ticket": "cgt1.k1.%s.abcdef0123456789abcdef01.1999999999.%s.%s" % [ID_A, ID_B, ID_A + ID_B],
 			"match": "abcdef0123456789abcdef01", "team": 1, "hero": 4, "map": "slice"},

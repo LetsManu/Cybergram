@@ -20,3 +20,12 @@ Evidence from the virtual display: `production/qa/evidence/p1-status/`.
 - [ ] `/metrics` scraped by Icinga / Prometheus; thresholds from docs/monitoring.md.
 - [ ] `/admin` in a browser asks for a password; with `CYBERGRAM_ADMIN_TOKEN` it shows queues, players (tags only), events.
 - [ ] `docker logs cybergram` shows JSON lines with `player` tags, no names.
+
+## P3: hero select
+Evidence (virtual display): `production/qa/evidence/p3-select/`.
+- [ ] Ranked draft: clicking a hero shows "Wants <hero>" to teammates, not to enemies (two machines).
+- [ ] A teammate's hovered hero is greyed for you; locking it is refused.
+- [ ] Normal blind pick: enemy cards stay empty until everyone has locked, then all heroes appear.
+- [ ] Trade window: "Trade with …" buttons, the offer shows as "Accept: … offers …" for the teammate, accepting swaps the heroes; buttons disappear in the last 5 s.
+- [ ] Ranked: let the timer run out without clicking any hero: lobby cancels, you get the dodge lockout in the status bar, others go back to the queue.
+- [ ] Ready check popup counts 12 s.

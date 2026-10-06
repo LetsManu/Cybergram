@@ -62,3 +62,15 @@ func test_sweep_and_round_trip() -> void:
 	assert_bool(copy.is_locked("a", T0 + 5)).is_true()
 	lt.sweep(T0 + 3600 * 2)
 	assert_int(lt.to_dict().size()).is_equal(0)
+
+
+func test_dodge_has_its_own_ladder_and_locks_every_queue() -> void:
+	var r := _rules()
+	r.dodge_lockout_steps_s = PackedFloat32Array([360.0, 1800.0])
+	r.dodge_strike_decay_s = 86400.0
+	var lt := LockoutTracker.new(r)
+	assert_float(lt.record("a", LockoutTracker.Kind.DODGE, T0)).is_equal(360.0)
+	assert_int(lt.strikes("a", LockoutTracker.Kind.DECLINE, T0)).is_equal(0)
+	assert_bool(lt.is_locked("a", T0 + 359)).is_true()  # normal queues too
+	assert_float(lt.record("a", LockoutTracker.Kind.DODGE, T0 + 400)).is_equal(1800.0)
+	assert_int(lt.strikes("a", LockoutTracker.Kind.DODGE, T0 + 400 + 86400)).is_equal(1)  # one tier per day

@@ -92,12 +92,12 @@ func test_ready_check_timeout_and_result() -> void:
 	fake.step(fake.found_after_s)
 	var rc := f.ready_popup
 	assert_object(rc).is_not_null()
-	assert_float(rc.left_s).is_equal_approx(10.0, 0.01)
-	rc.tick(10.0)
+	assert_float(rc.left_s).is_equal_approx(fake.rules.ready_check_s, 0.01)
+	rc.tick(fake.rules.ready_check_s)
 	assert_int(rc.state).is_equal(MmReadyCheck.State.MISSED)
 	rc.accept()  # too late: nothing sent
 	assert_int(fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"ready").size()).is_equal(0)
-	fake.step(10.0)  # the server times the player out
+	fake.step(fake.rules.ready_check_s)  # the server times the player out
 	assert_object(f.ready_popup).is_null()
 	assert_int(f.play.state).is_equal(MmPlayScreen.State.LOCKED)
 

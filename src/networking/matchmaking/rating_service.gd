@@ -72,10 +72,12 @@ func apply_result(track: StringName, team_a: Array, team_b: Array, winner: int, 
 
 
 ## Ranked dodge in the pick phase: a flat loss, no game counted.
-func apply_dodge_penalty(account_id: String, track: StringName, now_unix: int) -> float:
+## `strikes`: the dodge strikes including this one (P3: from the second on
+## the repeat penalty applies).
+func apply_dodge_penalty(account_id: String, track: StringName, now_unix: int, strikes: int = 1) -> float:
 	var e := entry(account_id, track)
 	var before: float = e.rating
-	e.rating = before - rules.dodge_rating_penalty
+	e.rating = before - (rules.dodge_rating_penalty if strikes <= 1 else rules.dodge_rating_penalty_repeat)
 	e.updated_at = now_unix
 	store.put_entry(account_id, track, e)
 	return e.rating - before

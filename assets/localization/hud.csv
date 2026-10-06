@@ -1024,3 +1024,14 @@ HUD_MMS_DIAG_TITLE,Recent network events
 HUD_MMS_COPY,Copy
 HUD_MMS_COPIED,Copied. Paste it into your bug report.
 HUD_MMS_CLOSE,Close
+HUD_MM_BAN_TITLE,Ban a hero
+HUD_MM_BAN_LOCK,BAN
+HUD_MM_BAN_DONE,BAN LOCKED
+HUD_MM_BANS,Banned: %s
+HUD_MM_BLIND_TITLE,Pick your hero
+HUD_MM_BLIND_SUB,Blind pick: everyone picks at once. Enemy picks show when everyone has locked in.
+HUD_MM_TRADES_OPEN,Everyone is locked in. You can trade heroes with a teammate before the countdown.
+HUD_MM_SEAT_HOVER,Wants %s
+HUD_MM_SEAT_BAN,Bans %s
+HUD_MM_TRADE_OFFER,Trade with %s
+HUD_MM_TRADE_ACCEPT,Accept: %s offers %s

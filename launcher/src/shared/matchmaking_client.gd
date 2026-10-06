@@ -106,9 +106,15 @@ func ready_decline() -> void:
 	_send(MatchmakingCodec.OP_READY_REPLY, {"accept": 0})
 
 
-## Draft pick (5v5) or custom-lobby pick: ContentDB HERO index.
+## Draft pick (5v5) or custom-lobby pick: ContentDB HERO index. In the ban
+## phase (v20) the same request locks the ban.
 func draft_pick(hero: int) -> void:
 	_send(MatchmakingCodec.OP_PICK, {"hero": hero})
+
+
+## v20: declare a hero (allies see it; ban phase: the ban). 0 clears.
+func draft_hover(hero: int) -> void:
+	_send(MatchmakingCodec.OP_HOVER, {"hero": hero})
 
 
 func aram_reroll() -> void:

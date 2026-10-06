@@ -19,6 +19,9 @@ as it is, new tests run inside the existing test job.
 - **InGame vs Reconnecting**: a running match owns its own connection, so a
   closed menu connection during a match stays InGame.
 - **Transport** stays ENet/DTLS (no websockets); protocol bumped to 20.
+- **Champ select formats** (game-design agent, 2026-10-06): Normal blind pick,
+  Ranked draft; a hovered-but-unlocked hero auto-locks even in Ranked (only
+  "nothing hovered" cancels) - softer than the owner's wording, owner to confirm.
 
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +
@@ -39,15 +42,29 @@ as it is, new tests run inside the existing test job.
   Found: the real client adapter never emitted `connection_lost`; the bar now
   reads the transport state itself.
 
+- P3 Champ select (formats from the game-design agent, PROGRESS decisions
+  below): hover / declare intent (allies only), hovered hero auto-locks,
+  Ranked timeout with nothing hovered = dodge (own ladder 360/1800/7200/14400 s,
+  rating 5 then 10), Normal = blind pick 45 s (enemy picks hidden until all
+  locked), 20 s finalize window with pick trades, ban phase built in (0 per
+  team, capped by roster - 8), ready check 12 s, decline ladder
+  60/300/900/1800/3600 s with 24 h tier decay. Protocol 20: OP_HOVER, PICK_STATE
+  stage / bans / trade_s, PM_BLIND, SEAT_HOVER / SEAT_BANNING. Draft screen:
+  hovers, bans, blind, trade offers (screenshots `production/qa/evidence/p3-select/`).
+  Headless simulation `tests/integration/net/matchmaking_sim_test.gd`: 23
+  clients, parties, a decline, a ranked dodge, two matches start, 0 illegal
+  transitions, ~1.5 s. Bugs found by it and fixed: login + queue in one frame
+  left the player stuck as Offline (now via Reconnecting); a draft order
+  shorter than the teams left seats without heroes (now auto-filled).
+
 ## In progress
-- Phase 3 (champ select formats decided with the game-design agent, see below).
+- nothing (waiting for the owner's go for the next phase).
 
 ## Next (prioritised)
-1. Phase 3: estimated wait in UI, ready check 12 s, draft: hover/intent,
-   pick trades, blind pick variant, ban phase (setting, 0 now), lockout timer,
-   bot difficulty and slots in custom lobbies, loading progress, return to
-   party, headless N-client simulation.
-3. Phase 2: party promote / kick / chat / ready flags / invite expiry UI;
+1. Phase 3 leftovers: bot difficulty and bot slots in custom lobbies;
+   per-player loading progress (needs a match-process report); ability
+   preview / team chat in hero select (team chat exists in the old lobby only).
+2. Phase 2: party promote / kick / chat / ready flags / invite expiry UI;
    presence with 7 states + Away; join/invite from friends list; direct
    messages (memory only) with unread counts; toasts; rate limits.
 4. Phase 4: launcher polish (needs human visual checks).

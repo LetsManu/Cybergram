@@ -13,7 +13,12 @@ extends Control
 ## - On timeout the server picks a random legal hero ("AUTO" on the card).
 ## - Leaving = dodge: a warning strip says so (lockout; rating in ranked) and
 ##   LEAVE asks to confirm.
-## Display only: `client.pick(hero)` / `client.dodge()`.
+## P3: selecting a hero declares it (hover, allies see it; an ally's hover is
+## greyed for you); the ban stage bans instead of picks; blind pick (Normal)
+## hides enemy picks until everyone locked; after the last lock teammates may
+## offer / accept hero trades until the final countdown.
+## Display only: `client.pick(hero)` / `client.hover(hero)` / `client.dodge()` /
+## `client.offer_trade(seat)` / `client.accept_trade(seat)`.
 
 signal left()
 
@@ -39,6 +44,9 @@ var _hero_role: Label
 var _lock: Button
 var _dodge: PanelContainer
 var _heroes: Array[StringName] = []
+var _bans: Label
+var _trade_box: VBoxContainer
+var _hover_sent: StringName = &""
 
 
 func _ready() -> void:
@@ -87,12 +95,28 @@ func can_lock(hero: StringName) -> bool:
 
 ## True when `hero` is greyed (held by my team).
 func is_greyed(hero: StringName) -> bool:
-	return MmView.team_taken(state.get("seats", []), int(state.get("my_team", 0))).has(hero)
+	if (state.get("bans", []) as Array).has(hero):
+		return true
+	if state.get("stage", &"pick") == &"ban":
+		return false
+	return MmView.team_taken(state.get("seats", []), int(state.get("my_team", 0)), me()).has(hero)
 
 
 func preview(hero: StringName) -> void:
 	selected = hero
+	_send_hover(hero)
 	_apply()
+
+
+## P3: declare the selected hero while my pick (or ban) is open.
+func _send_hover(hero: StringName) -> void:
+	var s := my_seat()
+	if s.is_empty() or StringName(s.get("hero", &"")) != &"" or bool(s.get("ban_locked", false)):
+		return
+	if is_greyed(hero) or hero == _hover_sent or client == null or not client.has_method("hover"):
+		return
+	_hover_sent = hero
+	client.call("hover", hero)
 
 
 func lock_in() -> void:
@@ -152,6 +176,8 @@ func _build() -> void:
 	centre.add_child(_title)
 	_sub = UiKit.label("", &"small", t.text_dim, HORIZONTAL_ALIGNMENT_CENTER)
 	centre.add_child(_sub)
+	_bans = UiKit.label("", &"small", t.danger, HORIZONTAL_ALIGNMENT_CENTER)
+	centre.add_child(_bans)
 	_turns = HBoxContainer.new()
 	_turns.alignment = BoxContainer.ALIGNMENT_CENTER
 	_turns.add_theme_constant_override("separation", 6)
@@ -193,6 +219,10 @@ func _build() -> void:
 		rows.add_theme_constant_override("separation", 8)
 		box.add_child(rows)
 		_cols.append(rows)
+		if col == 0:
+			_trade_box = VBoxContainer.new()  # P3: trade offers (finalize window)
+			_trade_box.add_theme_constant_override("separation", 6)
+			box.add_child(_trade_box)
 	var info := VBoxContainer.new()
 	info.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	info.offset_left = -300
@@ -251,12 +281,19 @@ func _apply() -> void:
 	if _title == null:
 		return
 	var t := UiKit.tokens()
+	var order: PackedInt32Array = state.get("order", PackedInt32Array([1, 2, 2, 2, 2, 1]))
 	var seats: Array = state.get("seats", [])
 	var my_team := int(state.get("my_team", 0))
 	var turn_team := int(state.get("turn_team", 0))
 	var done := bool(state.get("done", false))
-	if done:
+	var stage: StringName = state.get("stage", &"pick")
+	var blind := bool(state.get("blind", false))
+	if stage == &"ban":
+		_title.text = tr("HUD_MM_BAN_TITLE").to_upper()
+	elif done:
 		_title.text = tr("HUD_MM_DRAFT_DONE").to_upper()
+	elif blind:
+		_title.text = tr("HUD_MM_BLIND_TITLE").to_upper()
 	elif is_my_turn():
 		_title.text = tr("HUD_MM_DRAFT_YOUR_TURN").to_upper()
 	elif turn_team == my_team:
@@ -264,12 +301,19 @@ func _apply() -> void:
 	else:
 		_title.text = tr("HUD_MM_DRAFT_ENEMY_TURN").to_upper()
 	_title.add_theme_color_override("font_color", t.accent_hi if is_my_turn() else t.text)
-	_sub.text = tr(MmView.queue_key(StringName(state.get("queue", MmView.Q_NORMAL)))) + "  ·  " + tr("HUD_MM_DRAFT_SUB")
-	# Turn track.
+	_sub.text = tr(MmView.queue_key(StringName(state.get("queue", MmView.Q_NORMAL)))) + "  ·  " + tr(
+		"HUD_MM_BLIND_SUB" if blind else "HUD_MM_DRAFT_SUB")
+	if done and float(state.get("trade_s", 0.0)) > 0.0:
+		_sub.text = tr("HUD_MM_TRADES_OPEN")
+	var bans: Array = state.get("bans", [])
+	_bans.text = tr("HUD_MM_BANS") % ", ".join(bans.map(func(h: StringName) -> String: return MmView.hero_name(h))) \
+		if not bans.is_empty() else ""
+	# Turn track (none in blind pick: one shared turn).
 	for c in _turns.get_children():
 		_turns.remove_child(c)
 		c.queue_free()
-	var order: PackedInt32Array = state.get("order", PackedInt32Array([1, 2, 2, 2, 2, 1]))
+	if blind:
+		order = PackedInt32Array()
 	var plan := MmView.turn_plan(order, int(state.get("first_team", 0)))
 	for i in plan.size():
 		var seg := ColorRect.new()
@@ -295,6 +339,12 @@ func _apply() -> void:
 		if picked:
 			status = tr("HUD_MM_SEAT_AUTO") if bool(s.get("auto", false)) else tr("HUD_LOBBY_STATE_LOCKED")
 			scol = t.accent if mine else t.danger
+		elif StringName(s.get("ban", &"")) != &"":
+			status = tr("HUD_MM_SEAT_BAN") % MmView.hero_name(StringName(s.ban))
+			scol = t.danger
+		elif StringName(s.get("hover", &"")) != &"":
+			status = tr("HUD_MM_SEAT_HOVER") % MmView.hero_name(StringName(s.hover))
+			scol = t.cyan
 		elif bool(s.get("picking", false)):
 			status = tr("HUD_LOBBY_STATE_PICKING")
 			scol = t.cyan
@@ -320,9 +370,12 @@ func _apply() -> void:
 			_stage.selected = pos
 		_hero_name.text = str(entry.name).to_upper()
 		_hero_role.text = tr(LobbyPhase.role_key(str(entry.stem)))
+	_apply_trades(seats, my_team, done)
 	var mine_hero := StringName(my_seat().get("hero", &""))
 	_lock.disabled = not can_lock(selected)
-	if mine_hero != &"":
+	if stage == &"ban":
+		_lock.text = tr("HUD_MM_BAN_LOCK") if not bool(my_seat().get("ban_locked", false)) else tr("HUD_MM_BAN_DONE")
+	elif mine_hero != &"":
 		_lock.text = tr("HUD_MM_LOCKED_AS") % MmView.hero_name(mine_hero)
 	elif is_greyed(selected):
 		_lock.text = tr("HUD_MM_TAKEN_BY_TEAM")
@@ -333,11 +386,38 @@ func _apply() -> void:
 	_sync_timer()
 
 
+## P3: finalize window: offer trades to locked teammates, accept offers.
+func _apply_trades(seats: Array, my_team: int, done: bool) -> void:
+	for c in _trade_box.get_children():
+		_trade_box.remove_child(c)
+		c.queue_free()
+	if not done or float(state.get("trade_s", 0.0)) <= 0.0 or client == null:
+		return
+	for o: Dictionary in state.get("trades", []):
+		var from := str(o.from)
+		_trade_box.add_child(UiKit.button(tr("HUD_MM_TRADE_ACCEPT") % [str(o.name), MmView.hero_name(StringName(o.hero))],
+			func() -> void: client.call("accept_trade", from), &"primary", 36))
+	var row := HFlowContainer.new()  # compact: one wrapping row of small offers
+	row.add_theme_constant_override("h_separation", 6)
+	row.add_theme_constant_override("v_separation", 6)
+	_trade_box.add_child(row)
+	for s: Dictionary in seats:
+		if int(s.team) != my_team or str(s.id) == me() or bool(s.get("bot", false)) or StringName(s.get("hero", &"")) == &"":
+			continue
+		var to := str(s.id)
+		var b := UiKit.button(tr("HUD_MM_TRADE_OFFER") % str(s.name), func() -> void: client.call("offer_trade", to),
+			&"ghost", 28)
+		b.tooltip_text = MmView.hero_name(StringName(s.hero))
+		row.add_child(b)
+
+
 func _sync_timer() -> void:
 	if _timer == null:
 		return
 	_timer.text = MmView.clock(left_s)
 	var total := float(state.get("turn_s", 30.0))
+	if bool(state.get("done", false)):
+		total = maxf(rules.finalize_s, 1.0)
 	_bar.value = clampf(left_s / maxf(total, 1.0), 0.0, 1.0)
 	var t := UiKit.tokens()
 	_timer.add_theme_color_override("font_color", t.warn if left_s <= 5.0 and is_my_turn() else t.accent)

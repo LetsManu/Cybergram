@@ -33,19 +33,22 @@ off steam in chaotic 3v3 all-random games.
   - **Balancing:** the matchmaker puts premades of similar size against each other where possible, and balances teams by summed MMR.
 
 ### Ready check
-- **Accept window:** 10 s.
-- **Declining or timing out:** puts that player in a short queue lockout that escalates on repeat; everyone else re-queues with priority.
-- **Pick-phase dodge:** counts the same as a decline. In ranked it also costs a small rating penalty.
+- **Accept window:** 12 s (P3, 2026-10-06).
+- **Declining or timing out:** a queue lockout of 60 / 300 / 900 / 1800 / 3600 s (one tier drops per 24 h without an offence); everyone else re-queues with priority.
+- **Pick-phase dodge:** its own, harsher ladder: 360 / 1800 / 7200 / 14400 s, one tier drops per 24 h. In ranked it also costs 5 rating (10 from the second strike on).
 
 ### Lane preference
 - **Choice:** each player picks a primary and a secondary lane from North, Center, South and Flex, or picks Fill.
 - **Use:** these drive team balance and starting assignments, in the style of LoL's position queue.
 
 ### Picking (5v5)
-- **Order:** alternating draft, 1-2-2-2-2-1.
+- **Ranked: draft**, alternating 1-2-2-2-2-1, 30 s per turn.
+- **Normal: blind pick**, everyone at once in 45 s; enemy picks stay hidden until everyone has locked in.
+- **Hover:** selecting a hero declares it to your team; an ally cannot hover or lock a hero a teammate declared. Locking commits.
 - **Uniqueness:** heroes are unique within a team; both teams may field the same hero, since the roster is only 7.
-- **No bans yet:** they come once the roster reaches about 10 heroes.
-- **Pick timer:** on timeout, a random legal hero is picked for you.
+- **Timeout:** a hovered hero is locked for you. With nothing hovered: Normal locks a random legal hero; Ranked cancels champ select and counts it as your dodge (others re-queue with priority).
+- **Trades:** after the last lock a 20 s window: teammates who both locked may trade heroes (offer + accept within 10 s) during the first 15 s; the last 5 s are the countdown.
+- **Bans:** built in, off while the roster is small. Planned 1 per team from 13 heroes, 2 from 18 (total bans never above roster - 8; the server enforces that cap). Both teams ban at once, hidden from the enemy, 25 s; a hovered ban locks at the deadline, no hover = no ban; 4 s reveal.
 
 ### 3v3 All Random
 - **Heroes:** each player is dealt a random hero (team-unique).

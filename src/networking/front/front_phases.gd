@@ -93,10 +93,21 @@ func sync(t: float) -> void:
 			_post_until.erase(k)
 	for id: String in ids:
 		var d := derive(id, t)
-		players.request(id, int(d.phase), t, d.ctx)
+		_enter(id, int(d.phase), t, d.ctx)
 		if int(d.phase) == PhaseMachine.Player.OFFLINE and players.state_of(id) == PhaseMachine.Player.OFFLINE:
 			players.forget(id)  # nothing left to remember about an offline player
 	_sync_parties(t)
+
+
+## Moves `id` to `to`. Coming online while already holding a ticket or a seat
+## (login and queue in one frame, a front restart, a resumed session) passes
+## through RECONNECTING, the legal way back into those states.
+func _enter(id: String, to: int, t: float, ctx: Dictionary) -> void:
+	var P := PhaseMachine.Player
+	var from := players.state_of(id)
+	if from == P.OFFLINE and to != P.OFFLINE and not PhaseMachine.is_legal(PhaseMachine.Kind.PLAYER, from, to):
+		players.request(id, P.RECONNECTING, t, ctx)
+	players.request(id, to, t, ctx)
 
 
 ## {phase, ctx} of `id` from the front's live state.
@@ -161,7 +172,7 @@ func event_fields(id: String, snap: bool, t: float) -> Dictionary:
 ## Answers OP_STATE_SYNC: derive now and send the full state.
 func resync(id: String, t: float) -> void:
 	var d := derive(id, t)
-	players.request(id, int(d.phase), t, d.ctx)
+	_enter(id, int(d.phase), t, d.ctx)
 	front._send(id, MatchmakingCodec.EV_PHASE, MatchmakingCodec.OK, event_fields(id, true, t))
 
 

@@ -38,6 +38,7 @@ const OP_CUSTOM_PICK: int = 18       ## pick a hero in a custom lobby
 const OP_CUSTOM_START: int = 19      ## host: start the custom match
 const OP_REJOIN: int = 20            ## reconnect: ask for a fresh ticket to the own running match
 const OP_STATE_SYNC: int = 21        ## v20: ask for a full PHASE snapshot (after a reconnect)
+const OP_HOVER: int = 22             ## v20: declare a hero (pick or ban phase; hero 0 clears)
 
 ## S->C ops.
 const EV_QUEUE_STATUS: int = 1
@@ -75,6 +76,7 @@ const REQ_SCHEMA := {
 	OP_CUSTOM_START: [],
 	OP_REJOIN: [],
 	OP_STATE_SYNC: [],
+	OP_HOVER: [["hero", "u"]],
 }
 
 const EVT_SCHEMA := {
@@ -86,9 +88,11 @@ const EVT_SCHEMA := {
 	## outcome RR_*, lockout seconds left (when locked).
 	EV_READY_RESULT: [["outcome", "b"], ["locked", "u"]],
 	## mode PM_*, turn, turn team, seconds left, own seat index, seats, own rerolls,
-	## own team bench (heroes), seats asking you to swap.
+	## own team bench (heroes), seats asking you to swap (draft: trade offers),
+	## v20: stage PS_*, banned heroes (after the ban phase), trade seconds left.
 	EV_PICK_STATE: [["mode", "b"], ["turn", "b"], ["turn_team", "b"], ["seconds", "u"], ["you", "b"],
-		["seats", "S"], ["rerolls", "b"], ["bench", "H"], ["swap_from", "H"]],
+		["seats", "S"], ["rerolls", "b"], ["bench", "H"], ["swap_from", "H"], ["stage", "b"], ["bans", "H"],
+		["trade_s", "u"]],
 	EV_MATCH_ASSIGNED: [["host", "s"], ["port", "u"], ["ticket", "T"], ["match", "s"], ["team", "b"],
 		["hero", "u"], ["map", "s"]],
 	EV_RANKED_INFO: [["tracks", "R"]],
@@ -155,6 +159,11 @@ const RR_VOIDED: int = 4     ## match server lost before or during the match: re
 const PM_DRAFT: int = 0
 const PM_ALL_RANDOM: int = 1
 const PM_CUSTOM: int = 2
+const PM_BLIND: int = 3       ## v20: Normal 5v5 blind pick (enemy picks hidden until all locked)
+## v20 pick stages (EV_PICK_STATE stage).
+const PS_PICK: int = 0
+const PS_BAN: int = 1
+const PS_FINALIZE: int = 2
 
 ## Lanes (LaneAssigner ids).
 const LANES: Array[StringName] = [&"north", &"center", &"south", &"flex"]
@@ -166,6 +175,8 @@ const SEAT_AUTO: int = 2     ## hero chosen on timeout / dealt
 const SEAT_PICKING: int = 4  ## this seat picks now
 const SEAT_YOU: int = 8
 const SEAT_PICKED: int = 16
+const SEAT_HOVER: int = 32   ## v20: `hero` is the seat's declared (not locked) hero; allies only
+const SEAT_BANNING: int = 64 ## v20: this seat bans now; `hero` = its ban (own team only)
 
 ## Member flags (custom lobby, match result).
 const MEM_BOT: int = 1

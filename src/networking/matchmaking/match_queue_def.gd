@@ -3,7 +3,8 @@ extends Resource
 ## One matchmaking queue (design/gdd/matchmaking.md §3 "Queues"). Lives inside
 ## MatchmakingRulesDef.queues; data only, no logic.
 
-enum PickMode { DRAFT, ALL_RANDOM, HOST_CHOICE }
+## BLIND (P3): everyone picks at once, enemy picks hidden (Normal 5v5).
+enum PickMode { DRAFT, ALL_RANDOM, HOST_CHOICE, BLIND }
 
 ## Stable queue id used on the wire and in rating tracks ("normal_5v5", ...).
 @export var id: StringName = &""
@@ -27,3 +28,7 @@ enum PickMode { DRAFT, ALL_RANDOM, HOST_CHOICE }
 ## Starting lane slots, one per team member, in assignment order. Values:
 ## &"north", &"center", &"south", &"flex". Empty = no lane assignment (3v3).
 @export var lane_slots: Array[StringName] = []
+## P3: a pick turn that ends with nothing locked and nothing hovered cancels
+## the lobby and counts as a dodge (Ranked). False = a random legal hero is
+## locked instead (Normal, few players online: never throw a lobby away).
+@export var pick_timeout_dodges: bool = false
