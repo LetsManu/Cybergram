@@ -121,8 +121,34 @@ static func bounds_of(meshes: Dictionary) -> Dictionary:
 static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState3D, bounds: Dictionary) -> Array:
 	var out: Array = []
 	var grid := {}
+	rejects = {}
 	var corridors := lane_corridors(md)
-	for c in border_points(def.navmesh, def.edge_step_m):
+	var sb := scaled_bounds(def, bounds)
+	var border := border_points(def.navmesh, def.edge_step_m)
+	# pass 1: street lamps at a steady rhythm along lane / plaza edges
+	var lamps := {}  # edge grid of lamp spots
+	if sb.has(def.lamp_piece):
+		for c in border:
+			var p: Vector3 = c[0]
+			var zone := zone_of(md, def, p)
+			if not def.lamp_zones.has(zone) or out.size() >= def.max_props:
+				continue
+			if _near_same_edge(lamps, p, c[1], def.lamp_spacing_m):
+				continue
+			var pl := _fit_wall(def, space, p, c[1], def.lamp_piece, sb[def.lamp_piece], _scale(def, def.lamp_piece))
+			if pl == null:
+				continue
+			var centre := _foot_centre(pl)
+			if excluded(md, def, centre, pl.foot_radius, corridors) != "" or _crowded(grid, centre, def.min_spacing_m):
+				continue
+			pl.zone = zone
+			pl.team = MapDef.TEAM_NEUTRAL
+			_mark_edge(lamps, p, c[1], def.lamp_spacing_m)
+			_mark(grid, centre, def.min_spacing_m)
+			out.append(pl)
+	# pass 2: clusters (a primary piece + companions along the same edge)
+	var heads := {}
+	for c in border:
 		if out.size() >= def.max_props:
 			break
 		var p: Vector3 = c[0]
@@ -131,11 +157,14 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 		var rng := _rng(def, p)
 		if rng.randf() >= float(def.density.get(zone, 0.0)):
 			continue
+		var spacing := float(def.cluster_spacing.get(zone, def.min_spacing_m))
+		if _near_same_edge(heads, p, n, spacing):
+			continue
 		var pieces := _pick(def, zone, md.nearest_lane(p), md, rng)
 		for piece: StringName in pieces:
-			if not bounds.has(piece):
+			if not sb.has(piece) or piece == def.lamp_piece and zone != &"hq":
 				continue
-			var pl := _fit_wall(def, space, p, n, piece, bounds[piece])
+			var pl := _fit_wall(def, space, p, n, piece, sb[piece], _scale(def, piece))
 			if pl == null:
 				continue
 			pl.zone = zone
@@ -144,8 +173,9 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 			if excluded(md, def, centre, pl.foot_radius, corridors) != "" or _crowded(grid, centre, def.min_spacing_m):
 				continue
 			_mark(grid, centre, def.min_spacing_m)
+			_mark_edge(heads, p, n, spacing)
 			out.append(pl)
-			_add_companion(md, def, space, bounds, pl, p, n, rng, corridors, out)
+			_add_companions(md, def, space, sb, pl, p, n, rng, corridors, out)
 			break
 	# roofs
 	var walk := NavIndex.new(def.walk_navmeshes if not def.walk_navmeshes.is_empty() else [def.navmesh])
@@ -162,8 +192,8 @@ static func place(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState
 			var rng := _rng(def, p)
 			if rng.randf() < def.roof_density:
 				var pieces := _pick(def, &"roof", md.nearest_lane(p), md, rng)
-				if not pieces.is_empty() and bounds.has(pieces[0]):
-					var pl := _fit_roof(def, space, p, pieces[0], bounds[pieces[0]], rng)
+				if not pieces.is_empty() and sb.has(pieces[0]):
+					var pl := _fit_roof(def, space, p, pieces[0], sb[pieces[0]], rng, _scale(def, pieces[0]))
 					if pl != null and not walk.on_walkable(pl.xform.origin, 1.5) and not _crowded(grid, pl.xform.origin, def.min_spacing_m) \
 							and excluded(md, def, pl.xform.origin, pl.foot_radius, corridors) == "":
 						pl.zone = &"roof"
@@ -443,27 +473,67 @@ static func _rng(def: WorldPropsDef, p: Vector3) -> RandomNumberGenerator:
 	return rng
 
 
-## A small piece beside `pl` along the same wall (WorldPropsDef.companions),
-## same rules as any wall prop; it shares the primary's spacing slot.
-static func _add_companion(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState3D, bounds: Dictionary,
+## Up to companion_max small pieces beside `pl` along the same wall
+## (WorldPropsDef.companions), alternating sides, same rules as any wall prop;
+## they share the primary's spacing slot.
+static func _add_companions(md: MapDef, def: WorldPropsDef, space: PhysicsDirectSpaceState3D, sb: Dictionary,
 		pl: Placement, p: Vector3, n: Vector3, rng: RandomNumberGenerator, corridors: Array, out: Array) -> void:
 	var options: Array = def.companions.get(pl.piece, [])
-	if options.is_empty() or rng.randf() >= def.companion_chance or out.size() >= def.max_props:
+	if options.is_empty() or not sb.has(pl.piece):
 		return
-	var piece := StringName(options[rng.randi_range(0, options.size() - 1)])
-	if not bounds.has(piece) or not bounds.has(pl.piece):
-		return
+	var tangent := pl.xform.basis.x.normalized()
+	var reach := {1.0: (sb[pl.piece] as AABB).size.x * 0.5, -1.0: (sb[pl.piece] as AABB).size.x * 0.5}
 	var side := 1.0 if rng.randf() < 0.5 else -1.0
-	var tangent := pl.xform.basis.x
-	var off: float = (bounds[pl.piece] as AABB).size.x * 0.5 + (bounds[piece] as AABB).size.x * 0.5 + 0.15
-	var c := _fit_wall(def, space, p + tangent * off * side, n, piece, bounds[piece])
-	if c == null:
-		return
-	if excluded(md, def, _foot_centre(c), c.foot_radius, corridors) != "":
-		return
-	c.zone = pl.zone
-	c.team = _team_for(md, def, piece, _foot_centre(c))
-	out.append(c)
+	for _i in def.companion_max:
+		if rng.randf() >= def.companion_chance or out.size() >= def.max_props:
+			return
+		var piece := StringName(options[rng.randi_range(0, options.size() - 1)])
+		if not sb.has(piece):
+			continue
+		var w := (sb[piece] as AABB).size.x
+		var off: float = reach[side] + w * 0.5 + rng.randf_range(0.1, 0.4)
+		var c := _fit_wall(def, space, p + tangent * off * side, n, piece, sb[piece], _scale(def, piece))
+		if c != null and excluded(md, def, _foot_centre(c), c.foot_radius, corridors) == "":
+			c.zone = pl.zone
+			c.team = _team_for(md, def, piece, _foot_centre(c))
+			out.append(c)
+			reach[side] = off + w * 0.5
+		side = -side
+
+
+## Bounds scaled by WorldPropsDef.piece_scale (placement works in scaled space).
+static func scaled_bounds(def: WorldPropsDef, bounds: Dictionary) -> Dictionary:
+	var out := {}
+	for k in bounds:
+		var s := _scale(def, k)
+		var b: AABB = bounds[k]
+		out[k] = AABB(b.position * s, b.size * s)
+	return out
+
+
+static func _scale(def: WorldPropsDef, piece: StringName) -> float:
+	return float(def.piece_scale.get(piece, 1.0))
+
+
+## True when a spot on an edge facing the same way (outward normals within
+## 45 degrees) lies within `spacing`: the two sides of a lane keep their own rhythm.
+static func _near_same_edge(grid: Dictionary, p: Vector3, n: Vector3, spacing: float) -> bool:
+	var cell := Vector2i(floori(p.x / spacing), floori(p.z / spacing))
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			for e: Array in grid.get(cell + Vector2i(dx, dz), []):
+				var q: Vector3 = e[0]
+				if (e[1] as Vector3).dot(n) > 0.7 and absf(q.y - p.y) < 3.0 \
+						and Vector2(q.x - p.x, q.z - p.z).length() < spacing:
+					return true
+	return false
+
+
+static func _mark_edge(grid: Dictionary, p: Vector3, n: Vector3, spacing: float) -> void:
+	var cell := Vector2i(floori(p.x / spacing), floori(p.z / spacing))
+	if not grid.has(cell):
+		grid[cell] = []
+	grid[cell].append([p, n])
 
 
 ## Up to two pieces to try, by the zone's weights (lane-specific table first:
@@ -476,19 +546,23 @@ static func _pick(def: WorldPropsDef, zone: StringName, lane: int, md: MapDef, r
 		table = def.weights.get(zone, {})
 	if table.is_empty():
 		return []
-	var names := table.keys()
-	names.sort()
+	# sort as Strings: StringNames compare by their interned pointer, which changes
+	# from run to run (the first build placed different props in every process)
+	var pairs: Array = []
+	for k in table.keys():
+		pairs.append([String(k), float(table[k])])
+	pairs.sort_custom(func(x: Array, y: Array) -> bool: return x[0] < y[0])
 	var total := 0.0
-	for k in names:
-		total += float(table[k])
+	for e in pairs:
+		total += e[1]
 	var out: Array = []
 	for _i in 2:
 		var r := rng.randf() * total
-		for k in names:
-			r -= float(table[k])
+		for e in pairs:
+			r -= e[1]
 			if r <= 0.0:
-				if not out.has(StringName(k)):
-					out.append(StringName(k))
+				if not out.has(StringName(e[0])):
+					out.append(StringName(e[0]))
 				break
 	return out
 
@@ -520,46 +594,62 @@ static func _wall_hit(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vect
 	return h
 
 
+## Rejections per _fit_wall reason since the last place() (diagnostics for
+## docs/assets/props.md; never read by the placement itself).
+static var rejects: Dictionary = {}
+
+
+static func _reject(why: StringName) -> Placement:
+	rejects[why] = int(rejects.get(why, 0)) + 1
+	return null
+
+
 static func _fit_wall(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: Vector3, n: Vector3,
-		piece: StringName, box: AABB) -> Placement:
+		piece: StringName, box: AABB, scale: float = 1.0) -> Placement:
+	# the navmesh floats up to ~0.5 m over the floor: measure from the floor itself
+	var g0 := _ray(space, p + Vector3(0, 1.0, 0), p - Vector3(0, 1.5, 0))
+	if g0.is_empty() or (g0.normal as Vector3).y < 0.9:
+		return _reject(&"no_floor")
+	p = Vector3(p.x, (g0.position as Vector3).y, p.z)
 	var probe_h := 0.6
 	var h := _wall_hit(space, p + Vector3(0, probe_h, 0) - n * 0.3, n, def.wall_search_m + 0.3)
 	if h.is_empty():
-		return null
+		return _reject(&"no_wall")
 	var wn: Vector3 = h.normal
 	var wall_dir := Vector3(-wn.x, 0, -wn.z).normalized()
 	if wall_dir.dot(n) < 0.7:
-		return null
+		return _reject(&"wall_angle")
 	var wall_pt: Vector3 = h.position
 	var tangent := Vector3.UP.cross(wall_dir).normalized()
 	var foot := _foot_rect(def, piece, box)
 	var depth := foot.size.y
 	if depth + def.wall_gap_m > def.max_wall_depth_m:
-		return null
+		return _reject(&"too_deep")
 	# local frame: +Z towards the wall, +X = tangent, origin on the floor
 	var basis := Basis(tangent, Vector3.UP, wall_dir)
 	# the wall must run along the whole width (ends and centre), same plane
 	var dist0 := (wall_pt - (p + Vector3(0, probe_h, 0))).dot(wall_dir)
 	var anchor := p + Vector3(0, probe_h, 0)
-	for s: float in [foot.position.x, foot.end.x]:
+	var half_anchor := def.min_anchor_len_m * 0.5
+	for s: float in [minf(foot.position.x, -half_anchor), maxf(foot.end.x, half_anchor), 0.0]:
 		var a := anchor + tangent * s - wall_dir * 0.3
 		var hh := _wall_hit(space, a, wall_dir, def.wall_search_m + 0.6)
 		if hh.is_empty():
-			return null
+			return _reject(&"edge_short")
 		var d := ((hh.position as Vector3) - anchor).dot(wall_dir)
 		if absf(d - dist0) > 0.15:
-			return null
+			return _reject(&"edge_uneven")
 	# a real wall, not a low crate or kerb: it reaches min_wall_h_m
 	var lowtop := anchor + Vector3(0, def.min_wall_h_m - probe_h, 0) - wall_dir * 0.3
 	var hl := _wall_hit(space, lowtop, wall_dir, def.wall_search_m + 0.6)
 	if hl.is_empty() or absf(((hl.position as Vector3) - lowtop).dot(wall_dir) - 0.3 - dist0) > 0.15:
-		return null
+		return _reject(&"edge_low")
 	# wall-mounted pieces need the wall up to their top (not a 1.1 m rail)
 	if def.wall_mounted.has(piece):
 		var top := anchor + Vector3(0, box.end.y - 0.2 - probe_h, 0) - wall_dir * 0.3
 		var ht := _wall_hit(space, top, wall_dir, def.wall_search_m + 0.6)
 		if ht.is_empty() or absf(((ht.position as Vector3) - top).dot(wall_dir) - 0.3 - dist0) > 0.15:
-			return null
+			return _reject(&"wall_mount_low")
 	# origin: back of the mesh bounds on the wall face (minus the gap)
 	var target := anchor + wall_dir * (dist0 - def.wall_gap_m)
 	var origin := target - basis * Vector3(0, 0, box.end.z)
@@ -573,28 +663,28 @@ static func _fit_wall(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: V
 	for c in corners:
 		var g := _ray(space, Vector3(c.x, p.y + 1.2, c.z), Vector3(c.x, p.y - 1.2, c.z))
 		if g.is_empty() or (g.normal as Vector3).y < 0.9:
-			return null
+			return _reject(&"floor_missing")
 		ys.append((g.position as Vector3).y)
 	var y_lo: float = ys.min()
 	var y_hi: float = ys.max()
 	if y_hi - y_lo > def.max_floor_spread_m or absf(y_lo - p.y) > 0.6:
-		return null
+		return _reject(&"floor_uneven")
 	origin.y = y_lo
 	for i in corners.size():
 		corners[i].y = y_lo
 	var xf := Transform3D(basis, origin)
 	if not _clear(space, xf, box, y_hi - y_lo):
-		return null
+		return _reject(&"blocked")
 	# final check, the rule itself: from every footprint corner at the floor the
 	# wall is within max_wall_depth_m (catches steps, gaps under a rail, slopes)
 	for c in corners:
 		var from := c + Vector3(0, probe_h, 0) - wall_dir * 0.02
-		if _wall_hit(space, from, wall_dir, def.max_wall_depth_m).is_empty():
-			return null
+		if _wall_hit(space, from, wall_dir, def.max_wall_depth_m + 0.03).is_empty():
+			return _reject(&"corner_far")
 	var pl := Placement.new()
 	pl.piece = piece
 	pl.kind = &"wall"
-	pl.xform = xf
+	pl.xform = Transform3D(xf.basis.scaled(Vector3.ONE * scale), xf.origin)
 	pl.wall_dir = wall_dir
 	pl.foot = corners
 	pl.foot_radius = foot.size.length() * 0.5
@@ -602,7 +692,7 @@ static func _fit_wall(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: V
 
 
 static func _fit_roof(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: Vector3, piece: StringName,
-		box: AABB, rng: RandomNumberGenerator) -> Placement:
+		box: AABB, rng: RandomNumberGenerator, scale: float = 1.0) -> Placement:
 	var g := _ray(space, Vector3(p.x, 80, p.z), Vector3(p.x, -20, p.z))
 	if g.is_empty() or (g.normal as Vector3).y < 0.95 or (g.position as Vector3).y < def.roof_min_y:
 		return null
@@ -624,7 +714,7 @@ static func _fit_roof(def: WorldPropsDef, space: PhysicsDirectSpaceState3D, p: V
 	var pl := Placement.new()
 	pl.piece = piece
 	pl.kind = &"roof"
-	pl.xform = xf
+	pl.xform = Transform3D(xf.basis.scaled(Vector3.ONE * scale), xf.origin)
 	pl.foot = corners
 	pl.foot_radius = Vector2(box.size.x, box.size.z).length() * 0.5
 	return pl

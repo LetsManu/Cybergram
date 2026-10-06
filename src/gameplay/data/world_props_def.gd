@@ -41,8 +41,21 @@ extends Resource
 ## mesh overhangs above head height (lamp arm, sign board): {piece: Vector2}.
 ## Pieces not listed use their mesh bounds.
 @export var foot_override: Dictionary = {}
-## Lowest wall a prop may stand against (m): rails (1.1 m) count, crates and kerbs do not.
-@export var min_wall_h_m: float = 0.95
+## Lowest edge a prop may stand against (m): railings, kerbs, deck lips count.
+@export var min_wall_h_m: float = 0.5
+## The edge must run straight for at least this long around the prop (m), so a
+## lone crate or post in the open is never an anchor.
+@export var min_anchor_len_m: float = 2.4
+## Distance between cluster heads along an edge, per zone (m).
+@export var cluster_spacing: Dictionary = {&"lane": 14.0, &"plaza": 9.0, &"hq": 6.0, &"flank": 12.0}
+## Most companions per cluster.
+@export var companion_max: int = 3
+## Street-lamp rhythm: the piece, the zones, the spacing along one edge (m).
+@export var lamp_piece: StringName = &"street_lamp"
+@export var lamp_zones: Array[StringName] = [&"lane", &"plaza"]
+@export var lamp_spacing_m: float = 20.0
+## Uniform placement scale per piece (real-world size against a 1.8 m hero).
+@export var piece_scale: Dictionary = {}
 ## Small pieces that may stand beside a placed piece on the same wall: {piece: [pieces]}.
 @export var companions: Dictionary = {}
 ## Chance that a placed piece gets a companion.

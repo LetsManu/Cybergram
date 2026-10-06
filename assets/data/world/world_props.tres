@@ -14,15 +14,37 @@ edge_step_m = 2.0
 wall_search_m = 1.6
 max_wall_depth_m = 1.2
 wall_gap_m = 0.04
-max_floor_spread_m = 0.2
-min_spacing_m = 3.0
+max_floor_spread_m = 0.45
+min_spacing_m = 3.5
 density = {
 &"flank": 0.35,
 &"hq": 0.55,
-&"lane": 0.75,
-&"plaza": 0.7
+&"lane": 0.8,
+&"plaza": 0.8
 }
-min_wall_h_m = 0.95
+min_wall_h_m = 0.5
+min_anchor_len_m = 1.6
+cluster_spacing = {
+&"flank": 12.0,
+&"hq": 6.0,
+&"lane": 14.0,
+&"plaza": 9.0
+}
+companion_max = 3
+lamp_piece = &"street_lamp"
+lamp_zones = Array[StringName]([&"lane", &"plaza"])
+lamp_spacing_m = 20.0
+piece_scale = {
+&"ac_unit": 1.3,
+&"barrel": 1.1,
+&"barrier": 1.15,
+&"cargo": 1.15,
+&"crate": 1.2,
+&"crate_stack": 1.15,
+&"debris": 1.3,
+&"planter": 1.15,
+&"roof_vent": 1.3
+}
 companions = {
 &"bench": [&"planter", &"barrel"],
 &"crate": [&"barrel", &"crate", &"debris"],
@@ -35,7 +57,7 @@ companions = {
 &"kiosk": [&"planter", &"cargo"],
 &"cargo": [&"crate", &"barrel"]
 }
-companion_chance = 0.55
+companion_chance = 0.7
 weights = {
 &"flank": {
 &"barrel": 2.0,

@@ -5,11 +5,11 @@ extends GdUnitTestSuite
 ## wall prop's floor footprint in the strip along a wall, puts roof props only
 ## off the walkable navmesh, and stays within its count budget.
 ##
-## Budget stated here (docs/assets/props.md "Perf"): 150..400 props on the map.
+## Budget stated here (docs/assets/props.md "Perf"): 300..800 props on the map.
 
 const MAP_DEF := "res://assets/data/match/map_front.tres"
-const MIN_PROPS := 150
-const MAX_PROPS := 400
+const MIN_PROPS := 300
+const MAX_PROPS := 800
 ## Ray slack when re-measuring a footprint against its wall (m).
 const EPS := 0.08
 
@@ -165,3 +165,28 @@ func test_other_map_spawn_returns_null() -> void:
 	other.id = &"not_front"
 	var parent: Node = auto_free(Node.new())
 	assert_object(WorldProps.spawn(parent, other)).is_null()
+
+
+## Regression: piece weights were walked in StringName order, which is the
+## interned pointer order and changes from process to process, so every run
+## placed different props. The walk must be alphabetical.
+func test_pick_walks_weights_alphabetically() -> void:
+	var names: Array[StringName] = []
+	for x in ["zc", "zb", "za"]:  # interned in reverse alphabetical order
+		names.append(StringName("wp_pick_%s_%d" % [x, Time.get_ticks_usec()]))
+	var table := {}
+	for n in names:
+		table[n] = 1.0
+	var def := WorldPropsDef.new()
+	def.weights = {&"lane": table}
+	var seed_ok := -1
+	for sd in 200:
+		var probe := RandomNumberGenerator.new()
+		probe.seed = sd
+		if probe.randf() < 0.3:
+			seed_ok = sd
+			break
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_ok
+	var picked := WorldProps._pick(def, &"lane", -1, MapDef.new(), rng)
+	assert_str(String(picked[0])).is_equal(String(names[2]))  # the "za" one
