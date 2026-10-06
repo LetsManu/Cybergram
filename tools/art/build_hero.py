@@ -678,7 +678,8 @@ def make_lod(h, body):
     bpy.context.scene.collection.objects.link(lod)
     _activate(lod)
     dec = lod.modifiers.new("dec", "DECIMATE")
-    dec.ratio = min(1.0, LOD_TRIS / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons)))
+    target = h.d.get("lod_tris", LOD_TRIS)  # Wardlings: a far LOD for 100+ on screen
+    dec.ratio = min(1.0, target / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons)))
     bpy.ops.object.modifier_apply(modifier=dec.name)
     return lod
 

@@ -473,3 +473,8 @@ import hero_defs_gen_b  # noqa: E402  (W16-HERO-B: Liora, Sable, Juniper on the 
 
 HEROES.update(hero_defs_gen_b.HEROES)
 WEAPONS.update(hero_defs_gen_b.WEAPONS)
+
+import hero_defs_wardling  # noqa: E402  (Wardling v2: rigged mini-soldier on the bespoke pipeline)
+
+HEROES.update(hero_defs_wardling.HEROES)
+WEAPONS.update(hero_defs_wardling.WEAPONS)
