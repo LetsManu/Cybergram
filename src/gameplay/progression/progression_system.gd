@@ -50,6 +50,7 @@ enum Beacon { NONE, ATTUNING, READY, UNDER_ATTACK }
 ## Forward Beacons (§3.5): every Mid hardpoint (1 on the slice, 3 on the full
 ## map), its last seen owner and when that owner took it.
 var _mids: Array[HardpointSim] = []
+var _sentinel_deaths: Dictionary = {}  # HardpointSim -> match seconds of the last Sentinel death
 var _mid_owner: Dictionary = {}  # HardpointSim -> owner
 var _mid_since: Dictionary = {}  # HardpointSim -> match seconds
 
@@ -477,10 +478,14 @@ func _on_wardling_removed(w: WardlingSim, killer_id: int) -> void:
 		var contrib := w.hit_by.has(h.net_id) and server.tick - int(w.hit_by[h.net_id]) <= window
 		if contrib or (not h.combat.dead and _flat(h.state.position, pos) <= rules.share_radius_m):
 			list.append(h)
-	var squad := w.owner_net_id != 0 or w.squad != null
+	var squad := w.owner_net_id != 0 or w.squad != null or w.garrison != null
 	var tier := server.wardlings.tier if server.wardlings != null else 1
 	var split := EconomyMath.wardling_lumen_split(rules, squad, tier, list.size())
 	var xp := EconomyMath.wardling_exp(rules, squad, tier, list.size())
+	if w.garrison != null:  # §11 Sentinel bounty with RepeatDecay per hardpoint
+		var m := sentinel_bounty_mult(w.garrison.hp, server.match_seconds())
+		split = [split[0] * m, split[1] * m]
+		xp *= m
 	var mote := Mote.new()
 	mote.pos = pos
 	mote.team = kt
@@ -492,6 +497,17 @@ func _on_wardling_removed(w: WardlingSim, killer_id: int) -> void:
 	if list.is_empty():
 		mote.unwitnessed = split[1]  # §12: the instant 75% is not paid
 	motes.append(mote)
+
+
+## The Sentinel bounty multiplier for a death at `hp` at match time `now_s`
+## (1.5, or × 0.5 within 180 s of the last Sentinel death there); records it.
+func sentinel_bounty_mult(hp: HardpointSim, now_s: float) -> float:
+	var last: float = float(_sentinel_deaths.get(hp, -1e9))
+	_sentinel_deaths[hp] = now_s
+	var m := rules.sentinel_bounty_mult
+	if now_s - last <= rules.sentinel_repeat_window_s:
+		m *= rules.sentinel_repeat_mult
+	return m
 
 
 func _step_motes(t: int) -> void:

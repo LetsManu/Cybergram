@@ -16,13 +16,13 @@ const TRANSITIONS := {
 	State.FOLLOW: [State.HOLD, State.ENGAGE, State.RETURN, State.ATTACK_TARGET, State.CAPTURE, State.DISSOLVING],
 	State.HOLD: [State.FOLLOW, State.ENGAGE, State.RETURN, State.ATTACK_TARGET, State.CAPTURE, State.DISSOLVING],
 	State.ENGAGE: [State.FOLLOW, State.HOLD, State.RETURN, State.ATTACK_TARGET, State.CAPTURE, State.MARCH,
-		State.DISSOLVING],
+		State.GARRISONED, State.DISSOLVING],
 	State.RETURN: [State.FOLLOW, State.HOLD, State.ENGAGE, State.ATTACK_TARGET, State.CAPTURE, State.DISSOLVING],
 	State.ATTACK_TARGET: [State.FOLLOW, State.HOLD, State.ENGAGE, State.RETURN, State.CAPTURE, State.DISSOLVING],
 	State.CAPTURE: [State.FOLLOW, State.HOLD, State.ENGAGE, State.RETURN, State.ATTACK_TARGET, State.MARCH,
 		State.DISSOLVING],
 	State.MARCH: [State.ENGAGE, State.CAPTURE],
-	State.GARRISONED: [State.ENGAGE],
+	State.GARRISONED: [State.ENGAGE, State.DISSOLVING],
 	State.DISSOLVING: [],
 }
 
@@ -69,7 +69,7 @@ func _init(w: WardlingSim, ww: WardlingWorld, r: WardlingRulesDef) -> void:
 	body = w
 	world = ww
 	rules = r
-	state = State.MARCH if w.wave != null else State.FOLLOW
+	state = State.MARCH if w.wave != null else (State.GARRISONED if w.garrison != null else State.FOLLOW)
 
 
 ## Pure transition choice (no side effects). Always returns `state` or one of
@@ -140,6 +140,16 @@ func perceive() -> Percept:
 		p.threat = _target != null
 		p.at_front = wv.target_index >= 0 and _flat(pos, wv.target_point) <= wv.target_radius * rules.front_arrive_frac
 		return p
+	if body.garrison != null:  # C5 Sentinel: hold the post, shoot the Garrison's threat inside its range
+		var g := body.garrison
+		p.allegiance = Allegiance.GARRISON
+		p.dissolving = g.dissolve_tick >= 0
+		_target = world.live_entity(g.threat_id)
+		var hit := _own_attacker()
+		if hit != null:
+			_target = hit
+		p.threat = _target != null
+		return p
 	var sq := body.squad
 	if sq == null:
 		p.dissolving = true
@@ -202,6 +212,13 @@ func _act(tick: int) -> void:
 			body.clear_attack()
 			body.set_display_flags(0)
 			_march()
+		State.GARRISONED:
+			body.clear_attack()
+			body.set_display_flags(0)
+			var g := body.garrison
+			var i := g.slot_of(body) if g != null else -1
+			if i >= 0:
+				body.set_move_target(g.posts[i], body.def.move_speed, rules.arrive_slot_m)
 		State.DISSOLVING:
 			body.stop()
 			if sq != null and _target == null:
@@ -258,12 +275,16 @@ func _fire_at(tick: int, focused: bool, report: bool) -> bool:
 
 
 func _leash_anchor() -> Vector3:
+	if body.garrison != null:
+		return body.garrison.centre()
 	if body.wave != null:
 		return body.wave.target_point if body.wave.target_index >= 0 else body.global_position
 	return body.squad.anchor
 
 
 func _leash_radius(focused: bool) -> float:
+	if body.garrison != null:  # Sentinels never leave the zone (§11)
+		return body.garrison.zone_radius()
 	if body.wave != null:
 		return rules.wave_engage_m + body.wave.target_radius
 	var sq := body.squad

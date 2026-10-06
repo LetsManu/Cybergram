@@ -22,6 +22,8 @@ const KIND_WARDLING: int = EntityRegistry.KIND_WARDLING
 ## Personal squads keep this distance band when choosing a firing spot.
 const VANGUARD_STATE: int = 5
 const STATE_DISSOLVING_BIT: int = 1 << 5
+## Snapshot state low bits for a Garrison Sentinel (C5; squads use 0..4, Vanguard 5).
+const GARRISON_STATE: int = 6
 
 var server: ServerWorld
 var map_def: MapDef
@@ -45,6 +47,12 @@ var squads: Dictionary = {}
 ## Squads whose owner died (DeathHold until they dissolve).
 var orphan_squads: Array[Squad] = []
 var waves: Array[VanguardWave] = []
+## C5 Garrisons: the holder's per hardpoint (HardpointSim -> Garrison), and the
+## old owners' dissolving after a flip.
+var garrisons: Dictionary = {}
+var dissolving_garrisons: Array[Garrison] = []
+var _garrison_seen: Dictionary = {}  # HardpointSim -> owner last tick
+var _sentinel_defs: Dictionary = {}  # tier -> WardlingDef
 
 ## Perf counters (µs).
 var last_step_usec: int = 0
@@ -113,6 +121,8 @@ func step() -> void:
 	MinionmancerHooks.step(self, t)  # E10: Elite / Turned expiry
 	if vanguard_enabled and map_def != null:
 		_vanguard_rules(t)
+	if rules.garrisons_enabled and server.objectives != null:
+		_garrison_rules(t)
 	var a := Time.get_ticks_usec()
 	_section(&"rules", a - t0)
 	if think_hook.is_valid():
@@ -517,10 +527,93 @@ func _vanguard_rules(t: int) -> void:
 			vanguard_wave_spawned.emit(team, lane, n)
 
 
+## C5 Garrison Sentinels (wardlings-and-economy.md §11): 2 per held hardpoint,
+## sentinel_settle_s after a capture (at once for the starting owners), each
+## respawning sentinel_respawn_s after it dies; on a flip the old ones
+## dissolve over sentinel_dissolve_s without a bounty. Never minted past the
+## AI budget. Living Sentinels follow the Surge tier (HP fraction kept).
+func _garrison_rules(t: int) -> void:
+	for hp: HardpointSim in server.objectives.all:
+		if hp.def.garrison_points.is_empty():
+			continue
+		var seen: int = _garrison_seen.get(hp, -99)
+		if hp.owner != seen:
+			_garrison_seen[hp] = hp.owner
+			var old: Garrison = garrisons.get(hp)
+			if old != null:
+				garrisons.erase(hp)
+				old.dissolve_tick = t + roundi(rules.sentinel_dissolve_s * tick_hz)
+				dissolving_garrisons.append(old)
+			if hp.owner != MapDef.TEAM_NEUTRAL:
+				var posts := hp.def.garrison_points.slice(0, rules.sentinels_per_hardpoint)
+				var first := t if seen == -99 else t + roundi(rules.sentinel_settle_s * tick_hz)
+				garrisons[hp] = Garrison.new(hp, hp.owner, posts, first)
+	for g: Garrison in garrisons.values():
+		for i in g.posts.size():
+			var m: WardlingSim = g.members[i]
+			if m != null:
+				if m.tier != tier:
+					_morph_sentinel(m)
+				continue
+			if t >= g.due_tick[i] and wardlings.size() < rules.ai_agent_budget:
+				var w := _mint(sentinel_def(tier), g.team, g.posts[i], 0, null, null, g)
+				if w != null:
+					g.members[i] = w
+		if (t + g.hp.index) % rules.garrison_think_interval_ticks == 0:
+			g.threat_id = _garrison_threat(g)
+	for i in range(dissolving_garrisons.size() - 1, -1, -1):
+		var g := dissolving_garrisons[i]
+		if t >= g.dissolve_tick:
+			for m in g.members:
+				if m != null:
+					_despawn(m, 0)  # dissolved: no bounty
+			dissolving_garrisons.remove_at(i)
+
+
+## The Sentinel WardlingDef for Surge `t` (the Picket body with §11 stats).
+func sentinel_def(t: int) -> WardlingDef:
+	var k := clampi(t, 1, 3)
+	if not _sentinel_defs.has(k):
+		var d := picket.duplicate() as WardlingDef
+		d.id = &"wardling_sentinel"
+		d.display_name = "Sentinel"
+		d.glyph = "Sn"
+		var i := mini(k - 1, rules.sentinel_hp.size() - 1)
+		d.max_hp = rules.sentinel_hp[i]
+		d.bolt_damage = rules.sentinel_dps[mini(k - 1, rules.sentinel_dps.size() - 1)] * d.fire_interval_s
+		d.range_m = rules.sentinel_range_m
+		_sentinel_defs[k] = d
+	return _sentinel_defs[k]
+
+
+func _morph_sentinel(w: WardlingSim) -> void:
+	var frac := w.health.hp / w.health.max_hp
+	w.def = sentinel_def(tier)
+	w.health.max_hp = w.def.max_hp
+	w.health.hp = frac * w.def.max_hp
+	w.tier = tier
+
+
+## Nearest enemy inside the Sentinels' range of the zone centre (heroes too:
+## the hero gate is removed for Sentinels, §11).
+func _garrison_threat(g: Garrison) -> int:
+	var c := g.centre()
+	var best := 0
+	var best_d := INF
+	for e in enemies_near(c, rules.sentinel_range_m, g.team):
+		if e is GeneratorTarget:
+			continue
+		var d := _flat(feet_of(e), c)
+		if d < best_d or (int(e.get("net_id")) == g.threat_id and d < best_d + rules.repath_m):
+			best_d = d
+			best = e.get("net_id")
+	return best
+
+
 # --- Bodies -----------------------------------------------------------------
 
 func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int, squad: Squad = null,
-		wave: VanguardWave = null) -> WardlingSim:
+		wave: VanguardWave = null, garrison: Garrison = null) -> WardlingSim:
 	var w := WardlingSim.new()
 	w.setup(def, team, snap(pos))
 	server.add_child(w)
@@ -532,6 +625,7 @@ func _mint(def: WardlingDef, team: int, pos: Vector3, owner_id: int, squad: Squa
 	w.owner_net_id = owner_id
 	w.squad = squad
 	w.wave = wave
+	w.garrison = garrison
 	if squad != null:
 		squad.members.append(w)
 	if wave != null:
@@ -570,6 +664,12 @@ func _despawn(w: WardlingSim, killer_id: int) -> void:
 		w.wave.members.erase(w)
 		if w.wave.members.is_empty():
 			waves.erase(w.wave)
+	if w.garrison != null:
+		var g := w.garrison
+		var i := g.slot_of(w)
+		if i >= 0:
+			g.members[i] = null
+			g.due_tick[i] = server.tick + roundi(rules.sentinel_respawn_s * tick_hz)
 	if w.agent.is_valid():
 		NavigationServer3D.free_rid(w.agent)
 		w.agent = RID()
@@ -816,10 +916,11 @@ func write_snapshot(s: SnapshotData) -> void:
 		e.vanguard = w.wave != null
 		e.owner_net_id = w.owner_net_id
 		e.tier = w.tier
-		var st := VANGUARD_STATE if w.wave != null else (w.squad.command if w.squad != null else 0)
+		var st := VANGUARD_STATE if w.wave != null else (GARRISON_STATE if w.garrison != null \
+			else (w.squad.command if w.squad != null else 0))
 		st |= (w.display_flags & 3) << 3
 		st |= MinionmancerHooks.state_bits(w, server.tick)  # E10: Elite / Turned
-		if w.squad != null and w.squad.is_dissolving():
+		if (w.squad != null and w.squad.is_dissolving()) or (w.garrison != null and w.garrison.dissolve_tick >= 0):
 			st |= STATE_DISSOLVING_BIT
 		e.state = st
 		s.wardlings.append(e)

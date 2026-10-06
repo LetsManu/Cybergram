@@ -46,6 +46,11 @@ extends Resource
 @export_range(0.0, 600.0, 1.0) var trickle_start_s: float = 60.0
 @export var lumen_vanguard: PackedInt32Array = PackedInt32Array([35, 45, 55])
 @export var lumen_squad: PackedInt32Array = PackedInt32Array([60, 75, 90])
+## §11 / §17: a Garrison Sentinel pays this × the squad-Wardling bounty; a
+## Sentinel death at the same hardpoint within the window pays × repeat_mult.
+@export_range(1.0, 3.0, 0.05) var sentinel_bounty_mult: float = 1.5
+@export_range(0.0, 600.0, 5.0) var sentinel_repeat_window_s: float = 180.0
+@export_range(0.0, 1.0, 0.05) var sentinel_repeat_mult: float = 0.5
 ## §12: 25% of a Wardling bounty sits in the Core's Lumen Mote.
 @export_range(0.0, 1.0, 0.01) var mote_fraction: float = 0.25
 @export_range(0.5, 60.0, 0.5) var mote_life_s: float = 10.0
