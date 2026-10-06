@@ -9,7 +9,8 @@ Pieces (each built around its own attachment point, which is its local origin):
   crown             tier III: three team crystal shards in chrome claws (Head)
   sash, sash_own    personal squad: team owner band across the chest (UpperChest);
                     _own adds the gold knot (your own squad)
-  ring_own          own squad: ground ring (model root)
+(The own-squad ground ring is a runtime torus in WardlingRig: one long thin strip
+would take most of this atlas.)
   pennant           Vanguard: pole and team flag off the back reactor (UpperChest)
   elite             Vesper's Elite: gold halo and floating spindle over the helmet (Head)
 Neutral colours with team channels, so one bake serves both teams.
@@ -88,8 +89,6 @@ def build():
             a.box("Root", (0.125, 0.17, -0.08), (0.012, 0.01, 0.1), "neon", "team_emit", bevel=0.3)
             if own:
                 a.sphere("Root", (-0.13, 0.15, 0.06), (0.035, 0.03, 0.035), "gold_glow", "emit", seg=(10, 6))
-    with a.piece("ring_own", apart=nxt()):
-        a.torus("Root", (0, 0, 0.01), (0, 0, 1), 0.55, 0.02, "team", "team_emit", seg=(40, 3))
     with a.piece("pennant", apart=nxt()):
         a.cyl("Root", (0, 0, 0), (0, 0, 0.62), 0.012, 0.01, "chrome", "chrome", seg=6)
         a.sphere("Root", (0, 0, 0.63), (0.02, 0.02, 0.02), "trim", "chrome", seg=(8, 4))
