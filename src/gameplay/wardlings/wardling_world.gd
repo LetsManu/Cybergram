@@ -113,22 +113,49 @@ func step() -> void:
 	MinionmancerHooks.step(self, t)  # E10: Elite / Turned expiry
 	if vanguard_enabled and map_def != null:
 		_vanguard_rules(t)
+	var a := Time.get_ticks_usec()
+	_section(&"rules", a - t0)
 	if think_hook.is_valid():
-		var a := Time.get_ticks_usec()
 		think_hook.call(t)
 		last_think_usec = Time.get_ticks_usec() - a
 		think_usec_total += last_think_usec
+	a = _lap(&"think", a)
 	_service_paths()
+	a = _lap(&"paths", a)
 	for w in wardlings:
 		_move(w)
+	a = _lap(&"move", a)
 	for w in wardlings:
 		_fire(w)
+	a = _lap(&"fire", a)
 	_rebuild_grid()
 	projectiles.step(dt, _candidates, _on_bolt_hit)
+	a = _lap(&"bolts", a)
 	_despawn_dead()
 	last_step_usec = Time.get_ticks_usec() - t0
 	step_usec_total += last_step_usec
 	steps += 1
+
+
+## Moving Wardling ticks and how many of them ran the full navmesh snap
+## (perf gate: tests/performance/wardling_perf_gate_test.gd).
+var moves: int = 0
+var snaps: int = 0
+
+
+## Accumulated usec per step section (rules, think, paths, move, fire, bolts):
+## the server's perf log divides by `steps` (docs/performance.md).
+var section_usec: Dictionary = {}
+
+
+func _section(k: StringName, usec: int) -> void:
+	section_usec[k] = int(section_usec.get(k, 0)) + usec
+
+
+func _lap(k: StringName, since: int) -> int:
+	var now := Time.get_ticks_usec()
+	_section(k, now - since)
+	return now
 
 
 # --- Queries for brains (read-only) ---------------------------------------
@@ -624,9 +651,19 @@ func _move(w: WardlingSim) -> void:
 		return
 	var np := pos + v * dt
 	if nav_ready():
-		var s := snap(np)
-		if absf(s.y - np.y) < 2.0:
-			np = s
+		# Perf (docs/performance.md): the navmesh closest-point query was ~80 %
+		# of the Wardling step. On a path, take the height from the path segment
+		# (its points lie on the navmesh) and do the full snap only every
+		# rules.snap_every ticks per Wardling (staggered) or off a path.
+		var seg_y := path_height(w, np) if not w.path.is_empty() else NAN
+		moves += 1
+		if is_nan(seg_y) or (server.tick + w.net_id) % maxi(rules.snap_every, 1) == 0:
+			snaps += 1
+			var s := snap(np)
+			if absf(s.y - np.y) < 2.0:
+				np = s
+		elif absf(seg_y - np.y) < 2.0:
+			np.y = seg_y
 	# Stuck (pinned against the mesh edge): re-path from here.
 	if _flat(np, pos) < v.length() * dt * 0.2:
 		w.stuck_ticks += 1
@@ -791,6 +828,31 @@ func write_snapshot(s: SnapshotData) -> void:
 
 
 # --- Helpers ----------------------------------------------------------------
+
+## Floor height at `p` from the Wardling's current path segment (the path
+## points lie on the navmesh), or NAN when `p` is not along that segment.
+func path_height(w: WardlingSim, p: Vector3) -> float:
+	var i := w.path_index
+	if i <= 0 or i >= w.path.size():
+		return NAN
+	return segment_height(w.path[i - 1], w.path[i], p) - _nav_offset()
+
+
+## Height of segment a -> b at the projection of `p` (XZ), NAN when `p`
+## projects outside it or lies more than 1 m beside it. Pure.
+static func segment_height(a: Vector3, b: Vector3, p: Vector3) -> float:
+	var ab := Vector2(b.x - a.x, b.z - a.z)
+	var l2 := ab.length_squared()
+	if l2 < 1e-6:
+		return NAN
+	var ap := Vector2(p.x - a.x, p.z - a.z)
+	var t := ap.dot(ab) / l2
+	if t < -0.05 or t > 1.05:
+		return NAN
+	if (ap - ab * clampf(t, 0.0, 1.0)).length() > 1.0:
+		return NAN
+	return lerpf(a.y, b.y, clampf(t, 0.0, 1.0))
+
 
 static func _flat(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()

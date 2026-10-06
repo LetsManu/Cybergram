@@ -36,6 +36,7 @@ var key: StringName = &""
 var team: int = ModelPalette.TEAM_NEUTRAL
 var body: RiggedHeroModel
 var _props: Dictionary = {}
+var _atts: Dictionary = {}  # bone name -> BoneAttachment3D
 var _ring_own: MeshInstance3D
 
 static var _ring_mats: Dictionary = {}
@@ -72,6 +73,7 @@ func set_tier(tier_: int) -> void:
 	for n in [&"plate_l", &"plate_r", &"crest"]:
 		_show(n, tier_ >= 2)
 	_show(&"crown", tier_ >= 3)
+	_refresh_attachments()
 
 
 ## 0 = Vanguard (pennant), 1 = someone's squad (sash), 2 = own squad (knot + ring).
@@ -82,6 +84,7 @@ func set_marks(kind: int, turned: bool, elite: bool) -> void:
 	if _ring_own != null:
 		_ring_own.visible = kind == 2
 	_show(&"elite", elite)
+	_refresh_attachments()
 
 
 ## Animation LOD stride for a camera `dist_m` away (pure; see ANIM_LOD).
@@ -150,6 +153,7 @@ func _build(team_: int) -> void:
 	for c in get_children():
 		c.queue_free()
 	_props.clear()
+	_atts.clear()
 	team = team_
 	key = key_for(team_)
 	body = HeroModelLoader.build(key, team_) as RiggedHeroModel
@@ -204,14 +208,38 @@ func _attach(n: StringName, mi: MeshInstance3D, bone: int, rest: Transform3D, at
 	mi.get_parent().remove_child(mi)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.layers = GfxQuality.character_layers()
-	var att := BoneAttachment3D.new()
-	att.name = "Prop_" + String(n)
-	att.bone_name = body.skeleton.get_bone_name(bone)
-	body.skeleton.add_child(att)
+	# Perf (docs/performance.md): one BoneAttachment3D per bone, shared by its
+	# props; an attachment whose props are all hidden stops updating.
+	var bone_name := body.skeleton.get_bone_name(bone)
+	var att: BoneAttachment3D = _atts.get(bone_name)
+	if att == null:
+		att = BoneAttachment3D.new()
+		att.name = "Props_" + bone_name
+		att.bone_name = bone_name
+		body.skeleton.add_child(att)
+		_atts[bone_name] = att
 	# Keep the prop upright and placed in model space at rest; it follows the bone from there.
 	mi.transform = rest.affine_inverse() * Transform3D(Basis(), at)
 	att.add_child(mi)
 	_props[n] = mi
+
+
+## Attachments with no visible prop stop updating (and hide), the rest run.
+func _refresh_attachments() -> void:
+	for att: BoneAttachment3D in _atts.values():
+		var any := false
+		for c in att.get_children():
+			if (c as Node3D).visible:
+				any = true
+				break
+		att.visible = any
+		att.process_mode = Node.PROCESS_MODE_INHERIT if any else Node.PROCESS_MODE_DISABLED
+
+
+## Number of attachments still updating (tests, perf log).
+func active_attachments() -> int:
+	return _atts.values().filter(func(a: BoneAttachment3D) -> bool:
+		return a.process_mode != Node.PROCESS_MODE_DISABLED).size()
 
 
 func _tint_props() -> void:

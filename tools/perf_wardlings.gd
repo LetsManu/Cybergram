@@ -2,15 +2,18 @@ extends SceneTree
 ## Wardling v2 CPU cost (docs/assets/wardling.md): N rigged Wardlings walking in
 ## a circle, mean main-thread frame time over the measured frames. Headless
 ## measures the animation / script cost only (no rendering).
-##   $GODOT --headless --path . -s res://tools/perf_wardlings.gd -- [--n 100]
+##   $GODOT --headless --path . -s res://tools/perf_wardlings.gd -- [--n 100] [--near] [--frames 600]
 
 func _initialize() -> void:
 	var n := 100
 	var args := OS.get_cmdline_user_args()
 	var near := args.has("--near")
+	var frames := 120
 	for i in args.size():
 		if args[i] == "--n":
 			n = int(args[i + 1])
+		elif args[i] == "--frames":
+			frames = int(args[i + 1])
 	var holder := Node3D.new()
 	root.add_child(holder)
 	var cam := Camera3D.new()
@@ -24,8 +27,8 @@ func _initialize() -> void:
 		ws.append(w)
 	for f in 30:
 		await process_frame
-	var frames := 120
 	var proc := 0.0
+	var wall0 := Time.get_ticks_usec()
 	for f in frames:
 		for i in ws.size():
 			var a := TAU * i / ws.size() + f * 0.05
@@ -35,6 +38,7 @@ func _initialize() -> void:
 		await process_frame
 		proc += Performance.get_monitor(Performance.TIME_PROCESS)
 	var ms := proc * 1000.0 / frames
-	print("[perf] %d Wardlings %s (rig %s): %.2f ms process time per frame (animation + scripts, headless)" % [
-		n, "all at 12 m" if near else "spread 5-100 m", ws[0].rig != null, ms])
+	var wall_ms := (Time.get_ticks_usec() - wall0) / 1000.0 / frames
+	print("[perf] %d Wardlings %s (rig %s): %.2f ms process time per frame, %.2f ms wall per frame (animation + scripts, headless, %d frames)" % [
+		n, "all at 12 m" if near else "spread 5-100 m", ws[0].rig != null, ms, wall_ms, frames])
 	quit(0)

@@ -544,6 +544,10 @@ func step_tick() -> void:
 			print("[server] wardlings=%d step avg %.3f ms (last %.3f) | AI think avg %.3f ms (last %.3f) | paths %d" % [
 				w.wardlings.size(), w.step_usec_total / 1000.0 / w.steps, w.last_step_usec / 1000.0,
 				w.think_usec_total / 1000.0 / w.steps, w.last_think_usec / 1000.0, w.path_queries])
+			var parts := PackedStringArray()
+			for k: StringName in w.section_usec:
+				parts.append("%s %.3f" % [k, float(w.section_usec[k]) / 1000.0 / w.steps])
+			print("[server] wardling step ms by section: " + ", ".join(parts))
 	if _quit_after_ticks > 0 and server.tick >= _quit_after_ticks:
 		print("[server] quit after %d ticks, entities=%d" % [server.tick, server.registry.count()])
 		get_tree().quit()
