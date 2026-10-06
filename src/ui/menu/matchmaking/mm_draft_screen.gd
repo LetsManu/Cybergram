@@ -47,6 +47,9 @@ var _heroes: Array[StringName] = []
 var _bans: Label
 var _trade_box: VBoxContainer
 var _hover_sent: StringName = &""
+## v20: the shown hero's abilities (key chip + name) and the team chat.
+var _skills: HBoxContainer
+var chat: SocialChatBox
 
 
 func _ready() -> void:
@@ -232,11 +235,12 @@ func _build() -> void:
 			_trade_box = VBoxContainer.new()  # P3: trade offers (finalize window)
 			_trade_box.add_theme_constant_override("separation", 6)
 			box.add_child(_trade_box)
+			_build_chat(box)
 	var info := VBoxContainer.new()
 	info.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	info.offset_left = -300
 	info.offset_right = 300
-	info.offset_top = 590
+	info.offset_top = 562  # v20: room for the ability row above the hero thumbs
 	info.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(info)
@@ -246,6 +250,11 @@ func _build() -> void:
 	_hero_name = MmKit.title("", 32)
 	_hero_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.add_child(_hero_name)
+	_skills = HBoxContainer.new()  # v20: ability preview
+	_skills.name = "Skills"
+	_skills.alignment = BoxContainer.ALIGNMENT_CENTER
+	_skills.add_theme_constant_override("separation", 16)
+	info.add_child(_skills)
 	var grid := HBoxContainer.new()
 	grid.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	grid.offset_left = -340
@@ -285,11 +294,58 @@ func _build() -> void:
 	_lock.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_lock.add_theme_font_override("font", UiKit.display_font(700, UiKit.track(18, 0.24)))
 	add_child(_lock)
-	_dodge = MmKit.banner("", &"warn")
-	_dodge.position = Vector2(40, 700)
-	_dodge.custom_minimum_size.x = 400
-	_dodge.size.x = 400
+	_dodge = MmKit.banner("", &"warn")  # v20: right, above Lock In (the team chat is bottom left)
+	_dodge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_dodge.offset_left = -440
+	_dodge.offset_right = -40
+	_dodge.offset_top = -150
+	_dodge.offset_bottom = -100
+	_dodge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_dodge.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(_dodge)
+
+
+## v20: team chat under the own team (lines come from the client; the server
+## cleans, rate-limits and relays them to teammates only).
+func _build_chat(box: VBoxContainer) -> void:
+	if client == null or not client.has_method("select_say"):
+		return
+	box.add_child(MmKit.caption(tr("HUD_MM_TEAM_CHAT"), 11, UiKit.tokens().text_dim))
+	chat = SocialChatBox.new()
+	chat.name = "TeamChat"
+	chat.view_height = 64.0
+	chat.send = func(text: String) -> void: client.call("select_say", text)
+	box.add_child(chat)
+	if client.has_signal("select_chat_changed"):
+		client.connect("select_chat_changed", _on_select_chat)
+	_on_select_chat.call_deferred()
+
+
+func _on_select_chat() -> void:
+	if chat != null and client != null and client.has_method("select_chat_lines"):
+		chat.set_lines(client.call("select_chat_lines"))
+
+
+## v20: key chip + name of each ability of `stem` (the ultimate is marked).
+func _show_skills(stem: String) -> void:
+	for c in _skills.get_children():
+		_skills.remove_child(c)
+		c.queue_free()
+	var def := HeroShowcase.hero_def(stem)
+	if def == null:
+		return
+	var t := UiKit.tokens()
+	for k in def.skills.size():
+		var sk := def.skills[k]
+		if sk == null:
+			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		row.add_child(UiKit.key_chip(HeroShowcase.skill_key(k)))
+		var nm := UiKit.label(sk.display_name, &"small", t.accent_hi if sk.ultimate else t.text)
+		row.add_child(nm)
+		row.tooltip_text = sk.display_name + ("  ·  " + tr("HUD_MM_ULTIMATE") if sk.ultimate else "")
+		_skills.add_child(row)
 
 
 func _apply() -> void:
@@ -385,6 +441,9 @@ func _apply() -> void:
 			_stage.selected = pos
 		_hero_name.text = str(entry.name).to_upper()
 		_hero_role.text = tr(LobbyPhase.role_key(str(entry.stem)))
+		if _skills.get_meta(&"stem", "") != str(entry.stem):
+			_skills.set_meta(&"stem", str(entry.stem))
+			_show_skills(str(entry.stem))
 	_apply_trades(seats, my_team, done)
 	var mine_hero := StringName(my_seat().get("hero", &""))
 	_lock.disabled = not can_lock(selected)

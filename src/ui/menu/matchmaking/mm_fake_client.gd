@@ -58,6 +58,8 @@ signal phase_changed(state: Dictionary)
 signal party_chat_changed()
 ## v20: loading percent per seat (pick-state seat order; bots 100).
 signal load_progress(loads: Array)
+## v20: the hero select team chat changed.
+signal select_chat_changed()
 ## Answers to honour / report: {op: &"honour"|&"report", target, ok}.
 signal feedback_result(result: Dictionary)
 ## W20-WEB public leaderboard opt-in: {public: bool, available: bool}
@@ -430,6 +432,26 @@ func party_chat_lines() -> Array:
 	return party_chat
 
 
+## v20 hero select team chat (the fake echoes like the server).
+var select_chat: Array = []
+
+
+func select_say(text: String) -> void:
+	sent.append({"op": &"select_chat", "text": text})
+	select_chat.append({"name": "You", "text": text, "mine": true})
+	select_chat_changed.emit()
+
+
+## Test / preview: a teammate writes in hero select.
+func teammate_says(name: String, text: String) -> void:
+	select_chat.append({"name": name, "text": text, "mine": false})
+	select_chat_changed.emit()
+
+
+func select_chat_lines() -> Array:
+	return select_chat
+
+
 ## Test / preview: you are locked out for `seconds`.
 func lock_out(seconds: float) -> void:
 	locked_until = now + seconds
@@ -466,6 +488,7 @@ func _status(state: StringName) -> Dictionary:
 
 func _propose() -> void:
 	phase = &"found"
+	select_chat.clear()
 	_match_id += 1
 	_me_accepted = false
 	var size := 3 if queue == MmView.Q_ARAM else 5

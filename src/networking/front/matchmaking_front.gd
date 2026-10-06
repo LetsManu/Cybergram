@@ -104,6 +104,7 @@ var _recent: Dictionary = {}         # match id -> {participants, names, until}
 var _customs: Dictionary = {}        # host id -> custom lobby
 var _custom_of: Dictionary = {}      # member id -> host id
 var _last_strike: Dictionary = {}    # account id -> unix time of the last strike
+var _chat_rate: Dictionary = {}      # account id -> ChatFilter.RateLimiter (hero select chat)
 var _since_status: float = 0.0
 var _last_housekeeping: float = -1.0e12
 var _last_now: float = 0.0
@@ -194,6 +195,8 @@ func handle(peer: int, data: PackedByteArray) -> bool:
 			_hover(peer, me, int(r.hero), t)
 		MatchmakingCodec.OP_LOAD_PROGRESS:
 			_load_progress(peer, me, int(r.pct))
+		MatchmakingCodec.OP_SELECT_CHAT:
+			_select_chat(peer, me, str(r.text), t)
 	phases.sync(t)
 	return true
 
@@ -672,6 +675,8 @@ func _pick_state_for(m: Match, viewer: String, t: float) -> Dictionary:
 
 func _allocate(m: Match, t: float) -> void:
 	m.state = State.STARTING
+	for id in _humans(m):
+		_chat_rate.erase(id)  # hero select chat is over
 	if m.custom:
 		phases.lobby(m.id, PhaseMachine.Lobby.CHAMP_SELECT, t)  # the custom lobby was its champ select
 	phases.lobby(m.id, PhaseMachine.Lobby.LOADING, t)
@@ -762,6 +767,34 @@ func _load_progress(peer: int, me: String, pct: int) -> void:
 		_send(id, MatchmakingCodec.EV_LOAD_PROGRESS, MatchmakingCodec.OK, {"loads": m.loads.duplicate()})
 
 
+## v20: hero select team chat. Only during the pick phase, only to the
+## sender's human teammates who have not blocked them; cleaned by ChatFilter,
+## rate-limited per account. Online only: never stored and never logged.
+func _select_chat(peer: int, me: String, raw: String, t: float) -> void:
+	var op := MatchmakingCodec.OP_SELECT_CHAT
+	var m: Match = _account_match.get(me)
+	if m == null or m.state != State.PICK:
+		_ack(peer, op, MatchmakingCodec.E_NOT_ALLOWED)
+		return
+	var text := ChatFilter.sanitize(raw)
+	if text == "":
+		_ack(peer, op, MatchmakingCodec.E_BAD_REQUEST)
+		return
+	var rl: ChatFilter.RateLimiter = _chat_rate.get_or_add(me, ChatFilter.RateLimiter.new())
+	if not rl.allow(t):
+		_ack(peer, op, MatchmakingCodec.E_RATE)
+		return
+	var i := _seat_index(m, me)
+	var team := int(m.seats[i].team)
+	for s: Dictionary in m.seats:
+		if s.bot or int(s.team) != team:
+			continue
+		var o: Dictionary = accounts.store.get_by_id(str(s.id)) if accounts != null and accounts.store != null else {}
+		if not o.is_empty() and (o.get("blocks", []) as Array).has(me):
+			continue  # a block hides chat too
+		_send(str(s.id), MatchmakingCodec.EV_SELECT_CHAT, MatchmakingCodec.OK, {"seat": i, "text": text})
+
+
 func _send_assigned(m: Match, id: String, t: float) -> bool:
 	var tk: Dictionary = supervisor.issue_join_ticket(m.id, id, t)
 	if tk.is_empty():
@@ -790,6 +823,8 @@ func _void(m: Match, reason: String) -> void:
 	var t := now()
 	_log("[front] match_voided id=%s reason=%s" % [m.id, reason.left(64)])
 	var was_running := m.state == State.RUNNING
+	for id in _humans(m):
+		_chat_rate.erase(id)
 	phases.lobby(m.id, PhaseMachine.Lobby.CANCELLED, t)
 	metrics.inc("cybergram_matches_total", {"event": "voided"})
 	_end(m)
@@ -1290,6 +1325,7 @@ func erase_account(id: String) -> void:
 		history.erase_account(id)
 	lockouts.erase(id)
 	_last_strike.erase(id)
+	_chat_rate.erase(id)
 	_save_lockouts()
 	matchmaker.leave(id)
 	_queued.erase(id)

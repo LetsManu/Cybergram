@@ -63,6 +63,12 @@ friend you wrote to, only while they are online. If they are offline, the
 message is refused, not kept. Nothing is written to disk or to the log. People
 who blocked you never receive your messages, invites or join requests.
 
+**Hero select team chat is never stored.** During hero select the server passes
+a line only to your teammates in that match who are online and have not
+blocked you. It is not kept, not logged, and gone when hero select ends. Your
+match loading progress (a percentage) is shown to the other players of the
+match and forgotten when the match ends.
+
 **Your status for friends.** Friends see whether you are online, away, in a
 queue, in hero select or in a match, and which mode. "Away" is something you
 set; it lasts while you are connected.

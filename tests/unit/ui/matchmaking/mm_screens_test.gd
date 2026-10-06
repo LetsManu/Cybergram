@@ -138,6 +138,40 @@ func test_loading_screen_shows_every_players_progress() -> void:
 	assert_int(int(loads[-1].pct) % 10).is_equal(0)
 
 
+func test_draft_shows_abilities_and_team_chat() -> void:
+	var f := _flow()
+	_to_pick(MmView.Q_NORMAL)
+	var d := f.page as MmDraftScreen
+	assert_object(d.chat).is_not_null()
+	d.preview(d.selected)
+	var def := HeroShowcase.hero_def(str(MmView.hero_entry(d.selected).stem))
+	assert_int(d._skills.get_child_count()).is_equal(def.skills.size())
+	assert_str(_all_text(d._skills)).contains(def.skills[0].display_name)
+	var other: StringName = &""
+	for h: StringName in d._thumbs:
+		if h != d.selected:
+			other = h
+			break
+	d.preview(other)
+	var def2 := HeroShowcase.hero_def(str(MmView.hero_entry(other).stem))
+	assert_str(_all_text(d._skills)).contains(def2.skills[0].display_name)
+	d.chat.send.call("top or mid?")
+	assert_array(fake.sent.filter(func(m: Dictionary) -> bool: return m.op == &"select_chat")).is_not_empty()
+	fake.teammate_says("Nyx", "mid")
+	await get_tree().process_frame
+	assert_str(d.chat._log.get_parsed_text()).contains("Nyx")
+	assert_str(d.chat._log.get_parsed_text()).contains("top or mid?")
+
+
+static func _all_text(n: Node) -> String:
+	var out := PackedStringArray()
+	if n is Label:
+		out.append((n as Label).text)
+	for c in n.get_children():
+		out.append(_all_text(c))
+	return "\n".join(out)
+
+
 func test_ready_check_timeout_and_result() -> void:
 	var f := _flow()
 	fake.join_queue(MmView.Q_NORMAL, [&"fill"])

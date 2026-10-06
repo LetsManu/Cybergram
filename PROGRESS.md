@@ -90,19 +90,31 @@ as it is, new tests run inside the existing test job.
   Already present before P4 (kept): tokens resource, page transitions with
   reduce-motion, toasts, loading / error / empty states, settings, patch notes.
 
+- V17 leftovers (before the v17 roll-out, owner 2026-10-06):
+  - Invite expiry countdown (server sends seconds left; menu + launcher) and
+    the launcher's friends view with the 7 presence states + mode, ready
+    marks, "Ask to join" (12013dd, `production/qa/evidence/p5-launcher/`).
+  - Custom games: bots per team ("fill" or 0-5) and Easy / Normal / Hard
+    (OP_CUSTOM_BOTS); the match process caps its bots per team; the host can
+    change map / mode / size after opening (was refused). Found by the new
+    test: OP_CUSTOM_BOTS was not dispatched. (4a711d7)
+  - Per-player loading progress: the client loads map + hero on loader
+    threads while the loading screen shows, reports 10 % steps
+    (OP_LOAD_PROGRESS); the front relays every seat's percent
+    (EV_LOAD_PROGRESS); hand-over when loaded (max 30 s) instead of after a
+    fixed 1.5 s. (231ba77)
+  - Hero select: team chat (OP_SELECT_CHAT / EV_SELECT_CHAT: teammates only,
+    ChatFilter, rate limit E_RATE, blocks respected, never stored or logged)
+    and the ability row under the hero name.
+  Evidence: `production/qa/evidence/p5-custom/`.
+
 ## In progress
-- nothing (all phases done; see Next for leftovers).
+- nothing.
 
 ## Next (prioritised)
-1. Phase 3 leftovers: bot difficulty and bot slots in custom lobbies;
-   per-player loading progress (needs a match-process report); ability
-   preview / team chat in hero select (team chat exists in the old lobby only).
-2. Phase 2 leftovers: the separate launcher app's social view still shows
-   the W15 states (the game menu has the full set); invite-expiry countdown
-   is not shown (invites expire after 120 s server-side).
-3. Phase 4 leftovers: the separate launcher app was not restyled in this
-   pass (the game menu is the queueing client); human checks in
-   docs/manual-checklist.md.
+1. Human checks in docs/manual-checklist.md (P1-P4 and v17).
+2. Release v0.17.0 (game 0.17.0, launcher 1.7.0, protocol 20) when the owner
+   says so.
 
 ## Manual checks needed (no display in the cloud session)
 See `docs/manual-checklist.md` (created with P1d).

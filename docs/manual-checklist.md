@@ -47,3 +47,13 @@ Evidence (virtual display): `production/qa/evidence/p2-social/`.
 - [ ] Controller only (Xbox / PS pad): the same path with D-pad, A, B.
 - [ ] Open `assets/ui/ui_kit_theme.tres` in the Godot editor: the theme preview looks like the game menus.
 - [ ] Page transitions feel smooth; with "Reduce motion" on they are instant.
+
+## v17: custom bots, loading progress, hero select chat, launcher social
+Evidence (virtual display): `production/qa/evidence/p5-custom/`, `production/qa/evidence/p5-launcher/`.
+- [ ] Custom game: set Concord bots to 1 and Hard, start: the match has exactly one allied bot and plays harder bots.
+- [ ] Custom game: change map / size after opening the lobby (works, no error).
+- [ ] Loading screen: every card fills up at its own pace; a slow PC shows a lower percent to the others; the game starts after your own bar is full.
+- [ ] Hero select team chat: teammates see your lines, enemies do not; a player who blocked you does not; spamming shows "You are sending too fast".
+- [ ] Hero select: the four abilities under the hero name change when you click another hero; the dodge warning does not cover Lock In.
+- [ ] Invite countdown: a party invite shows the seconds left in the game menu and in the launcher, and disappears at 0.
+- [ ] Launcher friends list: In queue / In hero select / In match / Away with the mode; "Ask to join" on a friend in a party.

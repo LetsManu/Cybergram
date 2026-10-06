@@ -55,6 +55,9 @@ signal request_failed(op: int, code: int)
 signal phase_changed(state: Dictionary)
 ## v20: loading percent of every seat (EV_PICK_STATE seat order; bots 100).
 signal load_progress(loads: Array)
+## v20: a hero select team chat line (seat index in last_pick, server-cleaned
+## text; your own lines come back too).
+signal select_chat(seat: int, text: String)
 
 const SERVER_PEER: int = 1
 
@@ -221,6 +224,13 @@ func report_load(pct: int) -> void:
 	_send(MatchmakingCodec.OP_LOAD_PROGRESS, {"pct": clampi(pct, 0, 100)})
 
 
+## v20: a line to the own team in hero select (the server cleans and relays it).
+func select_say(text: String) -> void:
+	var s := text.strip_edges()
+	if s != "":
+		_send(MatchmakingCodec.OP_SELECT_CHAT, {"text": s.left(LobbyCodec.CHAT_MAX_CHARS)})
+
+
 ## Index of a queue id in the standard queue list (MatchmakingRulesDef order), or 255.
 static func queue_index(id: StringName) -> int:
 	var i := QUEUE_IDS.find(id)
@@ -310,6 +320,9 @@ func handle(b: PackedByteArray) -> bool:
 		MatchmakingCodec.EV_LOAD_PROGRESS:
 			if code == MatchmakingCodec.OK:
 				load_progress.emit(d.loads)
+		MatchmakingCodec.EV_SELECT_CHAT:
+			if code == MatchmakingCodec.OK:
+				select_chat.emit(int(d.seat), str(d.text))
 	return true
 
 

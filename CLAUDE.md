@@ -29,8 +29,8 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 ## Online architecture (short)
 
 Front process (`--front`, UDP 7777, ENet/DTLS): AccountService (accounts,
-friends, parties) + MatchmakingFront (queues, ready check, draft, custom
-lobbies) + FrontPhases (player / party / lobby state machines, pushed as
+friends, parties) + MatchmakingFront (queues, ready check, draft + team chat,
+custom lobbies with bot slots, loading progress relay) + FrontPhases (player / party / lobby state machines, pushed as
 versioned `EV_PHASE`, protocol 20) + OpsHttpServer (`/health`, `/metrics`,
 `/admin` on TCP 8090). Matches run in separate processes (MatchSupervisor).
 The game's main menu (`src/ui/menu/matchmaking/`) is the queueing client; the

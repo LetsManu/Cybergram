@@ -34,6 +34,7 @@ func _req_samples() -> Dictionary:
 		MatchmakingCodec.OP_HOVER: {"hero": 6},
 		MatchmakingCodec.OP_CUSTOM_BOTS: {"bots_a": 2, "bots_b": MatchmakingCodec.BOTS_FILL, "difficulty": 2},
 		MatchmakingCodec.OP_LOAD_PROGRESS: {"pct": 40},
+		MatchmakingCodec.OP_SELECT_CHAT: {"text": "mid? ich gehe oben — ok"},
 	}
 
 
@@ -62,6 +63,7 @@ func _evt_samples() -> Dictionary:
 			"bots_a": 1, "bots_b": 255, "difficulty": 0, "members": members},
 		MatchmakingCodec.EV_ACK: {"req": 4},
 		MatchmakingCodec.EV_LOAD_PROGRESS: {"loads": [100, 40, 0, 100, 70, 100]},
+		MatchmakingCodec.EV_SELECT_CHAT: {"seat": 3, "text": "gl hf"},
 		MatchmakingCodec.EV_PHASE: {"epoch": 1_800_000_000, "seq": 70_000, "phase": 3, "prev": 2, "snap": 1,
 			"queue": 0, "party_size": 2, "leader": 1, "waited": 61, "estimate": 75, "locked": 0,
 			"match": "abcdef0123456789abcdef01", "party": ID_B},

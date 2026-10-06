@@ -35,6 +35,8 @@ signal phase_changed(state: Dictionary)
 signal party_chat_changed()
 ## v20: loading percent per seat (pick-state seat order; bots 100).
 signal load_progress(loads: Array)
+## v20: the hero select team chat changed (select_chat_lines()).
+signal select_chat_changed()
 
 const QS := {0: &"idle", 1: &"queued", 2: &"busy", 3: &"busy", 4: &"busy", 5: &"locked"}
 const RR := {0: &"go", 1: &"requeued", 2: &"removed", 3: &"locked", 4: &"voided"}
@@ -55,6 +57,8 @@ var events := ClientEventLog.new()
 var social: SocialModel
 ## P1: seconds online without a PHASE event (-1 = got one); resync once at the limit.
 var _phase_wait_s: float = 0.0
+## v20: hero select team chat of the current match ([{name, text, mine}]), memory only.
+var select_chat: Array = []
 
 
 func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRulesDef = null) -> void:
@@ -89,8 +93,10 @@ func _init(mm_: MatchmakingClient, lobby_: Object = null, rules_: MatchmakingRul
 		_join_wait_s = -1.0
 		queue_changed.emit({"state": &"locked", "queue": &"", "waited_s": 0.0, "estimate_s": 0.0, "in_queue": 0,
 			"locked_s": float(d.get("seconds", 0)), "err": "HUD_MM_ERR_LOCKED"}))
+	mm.select_chat.connect(_on_select_chat)
 	mm.ready_check.connect(func(deadline: float) -> void:
 		_join_wait_s = -1.0
+		select_chat.clear()
 		match_found.emit(found_of(mm.last_ready, deadline - _now())))
 	mm.ready_result.connect(func(d: Dictionary) -> void:
 		ready_result.emit({"outcome": RR.get(int(d.get("outcome", 0)), &"requeued"), "locked_s": float(d.get("locked", 0)),
@@ -210,6 +216,24 @@ func party_chat_lines() -> Array:
 		return []
 	return social.party_chat.map(func(l: Dictionary) -> Dictionary:
 		return {"name": l.name, "text": l.text, "mine": str(l.id) == social.me})
+
+
+## v20: say `text` to the own team in hero select.
+func select_say(text: String) -> void:
+	mm.select_say(text)
+
+
+func select_chat_lines() -> Array:
+	return select_chat
+
+
+func _on_select_chat(seat: int, text: String) -> void:
+	var seats: Array = mm.last_pick.get("seats", [])
+	var name := str((seats[seat] as Dictionary).get("name", "")) if seat < seats.size() else ""
+	select_chat.append({"name": name, "text": text, "mine": seat == int(mm.last_pick.get("you", -1))})
+	if select_chat.size() > 50:
+		select_chat.pop_front()
+	select_chat_changed.emit()
 
 
 ## v20: own loading percent for the other players' loading screens.
@@ -436,6 +460,8 @@ static func error_key(code: int) -> String:
 			return "HUD_MM_ERR_BUSY"
 		MatchmakingCodec.E_TOO_LATE:
 			return "HUD_MM_ERR_TOO_LATE"
+		MatchmakingCodec.E_RATE:
+			return "HUD_SOCIAL_SLOW_DOWN"
 	return "HUD_MM_ERR_GENERIC"
 
 

@@ -197,3 +197,14 @@ over the kit for older call sites (lobby); new code calls `UiKit`.
   Accept shows a hero, Accept on the shown hero locks it in (mouse: click shows,
   double-click locks). Back (Esc / B): play screen -> back (not while queued),
   hero select -> leave (asks first: it is a dodge), ready check -> decline.
+
+## v17 (2026-10-06): custom bots, loading progress, hero select chat
+
+- **Custom lobby.** Per team a "- n +" bot counter ("Fill" = every empty
+  seat) and Easy / Normal / Hard chips; seats show "Bot · Hard" or "Open slot".
+- **Loading screen.** Each portrait card has its player's bar and percent
+  (accent for allies, danger for enemies; bots 100 %). The bottom bar is your
+  own real load (map + hero on loader threads); "Loading the map…" until done.
+- **Hero select.** Team chat (SocialChatBox) under your team; the dodge
+  warning sits right, above Lock In. Under the hero name: one line with the
+  four abilities (key chip + name; the ultimate in accent).

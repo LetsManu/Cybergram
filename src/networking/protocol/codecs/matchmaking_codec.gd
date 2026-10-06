@@ -12,7 +12,7 @@ extends RefCounted
 ## Field types: b = u8, u = u16, w = u32, d = signed i16 (rating deltas x10),
 ## i = account id (16 B, zeros = none / bot / hidden), s = str8 (<= 64 B),
 ## T = join ticket str8 (<= 255 B ASCII), S = seat list, H = u16 list,
-## R = ranked list, M = member list.
+## R = ranked list, M = member list, m = v20 chat text str8 (<= 240 B).
 ## Time on the wire is always "seconds left" (no shared clock).
 ## Heroes are ContentDB HERO indices (u16, 0 = none); lanes are LANE_* (u8).
 
@@ -41,6 +41,7 @@ const OP_STATE_SYNC: int = 21        ## v20: ask for a full PHASE snapshot (afte
 const OP_HOVER: int = 22             ## v20: declare a hero (pick or ban phase; hero 0 clears)
 const OP_CUSTOM_BOTS: int = 23       ## v20: host: bots per team (255 = fill) and bot difficulty
 const OP_LOAD_PROGRESS: int = 24     ## v20: own match loading progress, percent (only rises)
+const OP_SELECT_CHAT: int = 25       ## v20: hero select team chat line (own team only, never stored)
 
 ## S->C ops.
 const EV_QUEUE_STATUS: int = 1
@@ -56,6 +57,7 @@ const EV_CUSTOM_STATE: int = 10
 const EV_ACK: int = 11               ## answer to a request: code = OK or an error
 const EV_PHASE: int = 12             ## v20: the player's state machine (PhaseMachine.Player), versioned
 const EV_LOAD_PROGRESS: int = 13     ## v20: every seat's loading percent (seat order; bots 100)
+const EV_SELECT_CHAT: int = 14       ## v20: a teammate's hero select chat line (seat index, cleaned text)
 
 const REQ_SCHEMA := {
 	OP_QUEUE_JOIN: [["queue", "b"], ["lane1", "b"], ["lane2", "b"]],
@@ -82,6 +84,7 @@ const REQ_SCHEMA := {
 	OP_HOVER: [["hero", "u"]],
 	OP_CUSTOM_BOTS: [["bots_a", "b"], ["bots_b", "b"], ["difficulty", "b"]],
 	OP_LOAD_PROGRESS: [["pct", "b"]],
+	OP_SELECT_CHAT: [["text", "m"]],
 }
 
 const EVT_SCHEMA := {
@@ -121,6 +124,8 @@ const EVT_SCHEMA := {
 		["party", "s"]],
 	## v20: loading percent per seat, in EV_PICK_STATE seat order (0-100).
 	EV_LOAD_PROGRESS: [["loads", "H"]],
+	## v20: seat index (EV_PICK_STATE order) and the server-cleaned text.
+	EV_SELECT_CHAT: [["seat", "b"], ["text", "m"]],
 }
 ## Events whose fields travel with any code (the code is an error detail).
 const ALWAYS_FIELDS := [EV_QUEUE_STATUS, EV_READY_RESULT, EV_ACK]
@@ -146,7 +151,8 @@ const E_DUPLICATE: int = 16
 const E_BUSY: int = 17         ## no match server free right now
 const E_DRAINING: int = 18     ## the server is restarting for a patch
 const E_TOO_LATE: int = 19     ## remake window over
-const CODE_COUNT: int = 20
+const E_RATE: int = 20         ## v20: sending too fast (hero select chat)
+const CODE_COUNT: int = 21
 
 ## Queue status states.
 const QS_IDLE: int = 0
@@ -219,6 +225,7 @@ const CP_CLOSED: int = 2
 const CUSTOM_MAPS: Array[StringName] = [&"shardline_front", &"slice"]
 
 const STR_MAX: int = 64
+const CHAT_MAX: int = 240  ## v20: "m" fields (LobbyCodec.CHAT_MAX_BYTES)
 const TICKET_MAX: int = 255
 const MAX_SEATS: int = 10
 const MAX_LIST: int = 16
@@ -305,6 +312,8 @@ static func _write(w: LobbyCodec.Writer, schema: Array, f: Dictionary) -> void:
 				w.id(str(v) if v != null else "")
 			"s":
 				w.str8(str(v) if v != null else "", STR_MAX)
+			"m":
+				w.str8(str(v) if v != null else "", CHAT_MAX)
 			"T":
 				var t := str(v) if v != null else ""
 				w.str8(t if t.length() <= TICKET_MAX else "", TICKET_MAX)
@@ -370,6 +379,8 @@ static func _read(r: LobbyCodec.Reader, schema: Array) -> Dictionary:
 				d[field[0]] = r.id()
 			"s":
 				d[field[0]] = r.str8(STR_MAX)
+			"m":
+				d[field[0]] = r.str8(CHAT_MAX)
 			"T":
 				d[field[0]] = r.str8(TICKET_MAX)
 			"H":
