@@ -220,7 +220,13 @@ summarised here so the plan survives a new session):
    DTLS-level rejects carry no source IP (the engine does not expose it).
    Launcher self-update now finishes in a helper process when Windows locks the
    running exe (embedded pck); launchers older than this need one manual update.
-2. **Part 2 CI + validators:** job / step timeouts, concurrency cancel, caching,
+2. **Done 2026-10-06 (Parts 2-4):** CI concurrency / timeouts / hang guard /
+   launcher job, 3 consecutive green runs (135-137); placement helper +
+   validator gating CI (docs/placement.md); scene validator; shared cel ramp for
+   heroes and map, outline ranks (docs/shading-audit.md); cover boxes dressed
+   with kit crates, decals skip characters, South amber -> teal, zone palettes
+   (art bible 6.2a). Open items: docs/polish-backlog.md.
+   **Part 2 CI + validators:** job / step timeouts, concurrency cancel, caching,
    fast smoke job, 3 consecutive green runs; scene validator (collision, navmesh,
    props off routes, materials, budgets, LODs, team symmetry); placement validator
    (the rule above, waiver tag with reason, report, fails CI); a test per rule.
