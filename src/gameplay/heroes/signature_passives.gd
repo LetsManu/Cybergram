@@ -64,6 +64,8 @@ var rend_until_tick: int = NEVER
 ## Planted: last horizontal position (stillness is measured tick to tick).
 var _last_pos: Vector3 = Vector3.INF
 var _crouching: bool = false
+## Planted state as of the latest step() (read by the snapshot code).
+var planted: bool = false
 
 
 func _init(combat_: HeroCombat, tick_hz_: int, rules_: SignatureRulesDef = null) -> void:
@@ -117,8 +119,9 @@ func step(tick: int, pos: Vector3 = Vector3.ZERO, crouching: bool = false) -> vo
 		health.brace_dr = rules.brace_dr if tick < brace_until_tick else 0.0
 	if has(GROUNDING):
 		combat.status.cc_duration_mult = rules.grounding_mult
+	planted = has(PLANTED) and is_planted(tick)
 	if has(PLANTED):
-		combat.status.knockback_mult = rules.planted_knockback_mult if is_planted(tick) else 1.0
+		combat.status.knockback_mult = rules.planted_knockback_mult if planted else 1.0
 	var w := combat.weapon
 	if w == null:
 		return
@@ -154,9 +157,9 @@ func overdrive_on(tick: int) -> bool:
 	return last_fire_tick - streak_start_tick >= ticks(rules.overdrive_after_s)
 
 
-## Client recoil kick multiplier (Planted -25% more), 1.0 otherwise.
-func recoil_mult(tick: int) -> float:
-	return rules.planted_recoil_mult if has(PLANTED) and is_planted(tick) else 1.0
+## Recoil kick multiplier (Planted: -25% more) as of the latest step(), 1.0 otherwise.
+func recoil_mult() -> float:
+	return rules.planted_recoil_mult if planted else 1.0
 
 
 ## Siegebreaker: weapon damage multiplier vs Ward Generators and an Exposed Uplink.
@@ -293,6 +296,7 @@ func _clear(id: StringName) -> void:
 			combat.status.cc_duration_mult = 1.0
 		PLANTED:
 			combat.status.knockback_mult = 1.0
+			planted = false
 		OVERDRIVE_LOOP:
 			if w != null:
 				w.passive_bloom_mult = 1.0

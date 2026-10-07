@@ -7,7 +7,7 @@ extends RefCounted
 ## It serves the team that holds the hardpoint, switching supply_switch_delay_s
 ## after a flip (owner_at(), pure, shared with the client view and sounds).
 ##   Mechanical heroes of that team within supply_refill_radius_m refill
-##   supply_refill_frac_s of their max reserve per second.
+##   supply_refill_frac_s of their max reserve per second (x1.5 with Deep Reserve).
 ##   Mana heroes of that team who touch it (supply_touch_radius_m) get their
 ##   regen delay cut by supply_mana_delay_cut for supply_mana_buff_s, at most
 ##   once per supply_mana_cooldown_s.
@@ -93,9 +93,15 @@ func step(dt: float, now_s: float, tick: int, tick_rate: int, heroes: Array) -> 
 			var feed := h.combat.weapon.feed
 			if feed is MagazineFeed:
 				if d <= rules.supply_refill_radius_m:
-					_refill(h.net_id, feed as MagazineFeed, dt)
+					_refill(h.net_id, feed as MagazineFeed, dt * _refill_mult(h))
 			elif d <= rules.supply_touch_radius_m:
 				_mana_touch(h, now_s, tick, tick_rate)
+
+
+## Deep Reserve (Reservoir Frame, items-and-armory.md §3.5.3): Mech refills
+## from Supply Caches +50% (SignatureRulesDef). Ammo Sparks do not exist yet.
+static func _refill_mult(h: HeroBody) -> float:
+	return h.combat.passives.refill_mult() if h.combat.passives != null else 1.0
 
 
 ## True while `h` carries the Mana regen buff.

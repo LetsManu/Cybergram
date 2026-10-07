@@ -91,6 +91,8 @@ var content: ContentDB = ContentDB.shared()
 var ammo_fx: AmmoEffects
 ## Hero net id -> last tick it took or dealt damage (Stride Rig out-of-combat speed).
 var _last_combat_tick: Dictionary = {}
+## Armory v2 Signature passives (items-and-armory.md §3.5.3): kill assists for Kindle.
+var assists: AssistTracker = AssistTracker.new()
 
 
 ## Builds the map and session. Call after the node is in the tree.
@@ -118,8 +120,11 @@ func _setup_stats() -> void:
 	var f := load(MVP_FORMULA_PATH) as MvpFormulaDef
 	if f != null:
 		stats.assist_window_ticks = roundi(f.assist_window_s * net.tick_rate_hz)
+	assists.window_ticks = stats.assist_window_ticks
 	hero_damaged.connect(func(victim: int, attacker: int, amount: float) -> void:
 		stats.record_damage(attacker, victim, amount, tick)
+		if hero(attacker) != null:
+			assists.record_damage(attacker, victim, tick)
 		_note_combat(victim)
 		_note_combat(attacker))
 	hero_died.connect(func(victim: int, killer: int) -> void:
@@ -330,6 +335,7 @@ func step() -> void:
 		_step_hero(d[0], _cmd)
 	_step_bolts()
 	_step_ammo()  # Armory v2: Burn ticks, Chill / Scorched, meter decay
+	_step_passives()  # Armory v2 Signature passives
 	if wardlings != null:
 		wardlings.step()
 	abilities.step()
@@ -507,6 +513,8 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 	var casts_before := _cast_counts(h)
 	abilities.post_move(h, cmd)  # E10: charge contact, skill casts
 	_broadcast_casts(h, casts_before)
+	if c.passives.has(SignaturePassives.RESONANT_CAST) and _cast_counts(h)[3] > casts_before[3]:
+		c.passives.on_ult_cast(tick)  # Resonant Cast
 	if cmd.squad_cmd != InputCommand.SQUAD_NONE and wardlings != null and not c.dead:
 		wardlings.issue_command(h, cmd)
 	if c.dead or c.weapon == null:
@@ -515,6 +523,7 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 	var sprinting := cmd.has(InputCommand.BTN_SPRINT) and cmd.move.y > 0.0 and not h.state.crouching
 	_apply_weapon_items(c)
 	if c.weapon.step(cmd, c.local_tick, not sprinting and c.can_shoot()):
+		c.passives.on_fired(tick)  # Overdrive Loop streak, Cold Start
 		_fire(h, cmd)
 
 
@@ -581,6 +590,7 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 	var pot := ammo_fx.potency(ammo, c.ammo_mod)
 	var fr: float = DamageMath.range_conversion(wdef, c.stats.get_value(StatCatalog.FALLOFF_RANGE))[0]
 	var hs_bonus := c.stats.get_value(StatCatalog.HEADSHOT_BONUS)
+	var siege := c.passives.siege_mult()  # Siegebreaker: Ward Generators and Exposed Uplinks
 	for dir in dirs:
 		var clip := abilities.clip_shot(origin, dir, max_range, c.team)  # E10: enemy shield walls
 		var hit := _tracer.trace(space, origin, dir, clip[0], targets, view_tick, view_alpha)
@@ -600,11 +610,11 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 		ends.append(origin + dir * end_d)
 		if hit.target != null or end_d < max_range - 1e-3:
 			stopped = true
-		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, wdef, wm, dist_off):
+		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, wdef, wm * siege, dist_off):
 			stopped = true
 			continue
 		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, wdef,
-				wm * DamageMath.ammo_mult(ammo, DamageMath.TARGET_STRUCTURE, false, pot), dist_off):
+				wm * siege * DamageMath.ammo_mult(ammo, DamageMath.TARGET_STRUCTURE, false, pot), dist_off):
 			stopped = true
 			continue
 		if hit.target == null:
@@ -617,12 +627,13 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO, false, pot)
 		var id := hit.target.net_id
 		if not per_target.has(id):
-			per_target[id] = [0.0, 0, hit.point]
+			per_target[id] = [0.0, 0, hit.point, hit.distance + dist_off]
 		per_target[id][0] += raw
 		if hit.headshot:
 			per_target[id][1] |= GameEvent.FLAG_HEADSHOT
 	if tracers:
 		_broadcast_tracers(h.net_id, ends)
+	var refunded := false  # True Line: one refund per shot
 	for id in per_target:
 		var target := hero(id)
 		var rec: Array = per_target[id]
@@ -638,8 +649,11 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 			hero_damaged.emit(id, h.net_id, applied)
 			hero_damage_taken.emit(id, applied, DamageInfo.Type.WEAPON)
 		var final := applied + target.combat.health.last_absorbed
+		target.combat.passives.on_damaged(DamageInfo.Type.WEAPON, applied, final, tick)
 		if final > 0.0:
 			_apply_ammo_hit(h, tst, DamageMath.TARGET_HERO, final, target, target.state.position)
+			_passive_hit(h, target, rec, refunded)
+			refunded = refunded or (rec[1] & GameEvent.FLAG_HEADSHOT) != 0
 		var ev_flags: int = rec[1]
 		if not target.combat.health.is_alive() and not target.combat.dead:
 			ev_flags |= GameEvent.FLAG_KILL
@@ -724,6 +738,7 @@ func damage_hero(target: HeroBody, info: DamageInfo) -> float:
 	if applied > 0.0:
 		hero_damaged.emit(target.net_id, info.source_net_id, applied)
 		hero_damage_taken.emit(target.net_id, applied, info.type)
+	target.combat.passives.on_damaged(info.type, applied, applied + target.combat.health.last_absorbed, tick)
 	if not target.combat.health.is_alive():
 		_kill(target, info.source_net_id)
 	return applied
@@ -771,6 +786,63 @@ func is_out_of_combat(net_id: int) -> bool:
 func _note_combat(net_id: int) -> void:
 	if net_id > 0:
 		_last_combat_tick[net_id] = tick
+
+
+# --- Armory v2: Signature passives (items-and-armory.md §3.5.3) ---------------------
+
+## Per tick: which passives each hero has (its active item copies), then their
+## timers and continuous effects. With the v1 catalog no item has a passive.
+func _step_passives() -> void:
+	for o in _hero_bodies():
+		var hb := o as HeroBody
+		if hb.combat == null:
+			continue
+		hb.combat.passives.set_active(_passive_ids(hb), tick)
+		hb.combat.passives.step(tick, hb.state.position, hb.state.crouching)
+
+
+## Passive ids of `h`'s active items (ItemShop applies stats per active copy:
+## HeroProgress.inv_applied; spares never count).
+func _passive_ids(h: HeroBody) -> Array:
+	var out: Array = []
+	if progression == null or progression.catalog == null:
+		return out
+	var p: HeroProgress = progression.progress.get(h.net_id)
+	if p == null:
+		return out
+	for idx in p.inv_applied:
+		var it := progression.catalog.at(idx)
+		if it != null and it.passive != &"":
+			out.append(it.passive)
+	return out
+
+
+## Shooter-side passives of one weapon hit on a hero (`rec` = per-target record:
+## raw, flags, point, distance): Rend, Long Reach, True Line (once per shot).
+func _passive_hit(h: HeroBody, target: HeroBody, rec: Array, refunded: bool) -> void:
+	var sp := h.combat.passives
+	if sp.active.is_empty():
+		return
+	var r := sp.rules
+	if sp.has(SignaturePassives.REND):
+		target.combat.passives.add_rend(tick, r)
+	if sp.has(SignaturePassives.LONG_REACH) and not target.combat.dead and h.combat.weapon != null \
+			and float(rec[3]) > h.combat.weapon.def.falloff_start_m:
+		target.combat.status.apply(StatusComponent.Kind.SLOW, sp.ticks(r.long_reach_s), r.long_reach_slow,
+			StatusComponent.SOURCE_LONG_REACH, tick, h.net_id)
+	if not refunded and (int(rec[1]) & GameEvent.FLAG_HEADSHOT) != 0:
+		sp.on_head_hit()
+
+
+## Kindle for the killer and every assister of `victim_id`'s death.
+func _kindle(victim_id: int, killer_id: int) -> void:
+	var ids := assists.assisters(victim_id, killer_id, tick)
+	if hero(killer_id) != null:
+		ids.append(killer_id)
+	for id in ids:
+		var k := hero(id)
+		if k != null and k.combat != null:
+			k.combat.passives.on_kill_or_assist()
 
 
 ## Ammo state of an enemy object (HeroBody or WardlingSim).
@@ -923,6 +995,8 @@ func _kill(victim: HeroBody, killer_id: int) -> void:
 		c.respawn_tick = tick + RespawnSystem.respawn_ticks(rules, tick, net.tick_rate_hz)
 	victim.collision_layer = 0  # corpses do not block
 	c.status.ammo.clear()  # Burn / Charge / Chill end with the hero
+	c.passives.on_death()  # Signature passive timers, overshield, stacks
+	_kindle(victim.net_id, killer_id)
 	var ev := GameEvent.kill(victim.net_id, killer_id, victim.state.position)
 	for peer in session.clients:
 		_queue_event(peer, ev)
@@ -967,7 +1041,8 @@ func _spawn_hero(spawn: Vector3, def: HeroDef, team: int) -> HeroBody:
 	h.combat.home_spawn = spawn
 	var hid := h.net_id
 	h.combat.health.healed.connect(func(amount: float, src: int) -> void:
-		stats.record_heal(src if src > 0 else hid, amount))
+		stats.record_heal(src if src > 0 else hid, amount)
+		assists.record_heal(src, hid, tick))
 	return h
 
 
@@ -1269,9 +1344,9 @@ static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:
 		# (snippet in the C2 report); until then the client predicts v1 values.
 		if "weapon_rate_mult" in o:
 			o.set("weapon_rate_mult", c.weapon.total_rate_mult())
-			o.set("weapon_spread_mult", c.weapon.spread_mult)
-			o.set("weapon_recoil_mult", c.weapon.recoil_mult)
-			o.set("weapon_kick_mult", c.stats.get_value(StatCatalog.RECOIL_MULT))
+			o.set("weapon_spread_mult", c.weapon.spread_mult * c.weapon.passive_cone_mult)
+			o.set("weapon_recoil_mult", c.weapon.recoil_mult * c.weapon.passive_bloom_mult)
+			o.set("weapon_kick_mult", c.stats.get_value(StatCatalog.RECOIL_MULT) * c.passives.recoil_mult())
 	return o
 
 
