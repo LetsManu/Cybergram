@@ -97,6 +97,9 @@ var debug_uplink_integrity: float = -1.0
 ## E13/E15 debug: start level (0 = off) and the Armory evidence setup.
 var debug_level: int = 0
 var debug_armory: bool = false
+## Armory step 6 evidence: --debug-armory plus the My builds tab with a sample
+## build held in memory only (never written to user://builds.json).
+var debug_armory_builds: bool = false
 ## W16-SDWATER debug: spawn in the first water zone of the map (splash / wading evidence).
 var debug_water: bool = false
 ## E11 bots: --bots (player + 9 bots), --bots-only (10 bots, no player; with
@@ -312,6 +315,9 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.debug_level = clampi(args[i].to_int(), 0, 15)
 			"--debug-armory":
 				c.debug_armory = true
+			"--debug-armory-builds":
+				c.debug_armory = true
+				c.debug_armory_builds = true
 			"--debug-water":
 				c.debug_water = true
 			"--debug-skill-demo":

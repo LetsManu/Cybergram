@@ -25,6 +25,8 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 - Layer check: `tools/ci/check_deps.sh`. Launcher copies of shared scripts: `launcher/tools/sync_shared.sh`.
 - Armory (items, build guides, recommendations): `docs/armory.md`. Regenerate the hero guides with
   `python3 tools/armory/build_guides.py`; data checks + advisor tests: `-a res://tests/unit/economy`.
+  Private builds live in `user://builds.json` (`CustomBuildStore`); bots buy through `ACTION_BUY`
+  with the same `BuildAdvisor`. Screenshot the My builds tab with `--map slice --debug-armory-builds`.
   Catalog order is the wire id: append items only.
 - Screenshot under a virtual display: `GODOT=... tools/ci/capture_scene.sh res://src/ui/menu/matchmaking/mm_preview.tscn out.png 90 --mm queued`
 - Server (front + match processes): `tools/server/docker-compose.yml`; monitoring: `docs/monitoring.md`.

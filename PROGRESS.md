@@ -46,9 +46,14 @@ as it is, new tests run inside the existing test job.
     Penetrator, Bastion Weave, Null Weave, Harmonic Tether, Quick Mint,
     Bulwark Protocol, with their stats, combat hooks, icons, GDD + registry,
     guide branches; `armory_new_items_test.gd`).
+  - Step 6: bots buy their guide through `ACTION_BUY` (`BotBrain._decide_shop`);
+    private builds in `user://builds.json` (`CustomBuildStore`) with a My
+    builds tab (use, new from guide, duplicate, delete, copy / paste, + / -
+    from the catalog), warnings instead of deletions.
   - Gaps: Bulwark's body-block radius; per-hero item restrictions (Hex /
-    Focus Lens kept by the guide only).
-  - Next: step 6 (custom local builds; bots shop through `ACTION_BUY`), step 7
+    Focus Lens kept by the guide only); build rename / notes have no text
+    field yet.
+  - Next: step 7
     (balance report, 1080p / 720p screenshots, `docs/item-shop-polish.md`,
     release: protocol 21 needs launcher 1.9.0 and a server + client update).
 

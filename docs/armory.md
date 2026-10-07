@@ -154,6 +154,52 @@ Commands) and run the validator.
 node they follow, and, when the branch depends on the situation, `conditions`
 and `skippable = true`.
 
+## Custom builds (private, on this PC)
+
+Players can keep their own builds next to the hero guide. They are stored in
+`user://builds.json` only and never reach a server.
+
+| Piece | File |
+|---|---|
+| Store, file format, export / import, warnings | `CustomBuildStore` (`src/gameplay/progression/custom_build_store.gd`) |
+| My builds tab logic | `BuildsViewModel` (`src/ui/hud/builds_view_model.gd`) |
+| Drawing and keys | `ArmoryPanel` (My builds tab) |
+
+- **File.** Versioned JSON: `{"version": 1, "selected": {hero: id}, "builds": [...]}`.
+  Each build has `id`, `hero`, `name`, `notes` and `steps`; a step is
+  `{"item", "target", "section", "alts", "note"}`. A damaged or foreign file
+  is refused and left on disk; the shop then starts with no custom builds.
+- **Warnings, never deletions.** Unknown items, a tier the line does not have,
+  an item that does not fit the gun, unknown alternatives: all are listed
+  under the build, and the build is kept as written.
+- **Using a build.** The build in use replaces the hero guide in the
+  Recommended tab and the path strip. It becomes a guide of ordered nodes
+  (each step needs the one before), so the same `BuildAdvisor` reads it.
+  Alternatives work as in the guides.
+- **Editing in the Armory** (My builds tab): Enter / A uses a build;
+  N / L3 makes a new build from the hero guide's core path; D / R3
+  duplicates; Delete / X twice deletes; C copies a build string, V pastes
+  one (only builds for this hero are accepted). In the catalog tabs,
+  + / RT adds the focused item (next tier) to the build in use and - / LT
+  removes it. With the hero guide in use, + first makes a copy of it.
+- **Sharing.** `CustomBuildStore.export_string()` gives one line
+  (`CGB1:` + base64 JSON). There is no online sharing.
+- **Not built yet.** Renaming and notes have store calls
+  (`rename`, `set_notes`) but no text field in the panel; new builds are
+  named "My build N".
+
+## Bots
+
+Bots shop through the same path as players (`BotBrain._decide_shop`). While on
+the Armory pad (or in the Sanctum), a bot builds a `BuildState` from its server
+wallet and both teams' heroes, asks `BuildAdvisor` for its hero's default
+guide, and sends the top step as `ACTION_BUY`. It saves for that step rather
+than buying something lower. It only re-evaluates when Lumen, purchases,
+Med-Packs or the advice signals change, so a refused request is not repeated.
+Each purchase is logged in the bot log (`t<tick> h<id> buy <item> x<target>
+(<node>)`) and by the server's `armory.*` lines. Test:
+`tests/integration/bots/bot_match_test.gd` (`test_bots_shop_their_guides_through_action_buy`).
+
 ## Recommendation rules (BuildAdvisor)
 
 **Scoring.** A node's score is `priority` plus the bonus of every matched rule
@@ -209,6 +255,7 @@ What each suite covers:
   - `price_of`, the wire round-trip, the pinned catalog order
 - `armory_validator_test.gd`: the data checks.
 - `armory_new_items_test.gd`: Barrel, Weave and squad items: stats, combat hooks, guide branches.
+- `custom_builds_test.gd` and `builds_view_model_test.gd`: private builds and the My builds tab.
 - `build_advisor_test.gd`: recommendations.
 - `shop_model_test.gd`: shop logic.
 

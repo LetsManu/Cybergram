@@ -13,6 +13,10 @@ extends HudWidget
 ## purchase, R jumps to the recommended item, / or Ctrl+F searches, Esc closes.
 ## Mouse: click selects, double-click buys, wheel scrolls, buttons and tabs.
 ## Gamepad: D-pad moves, LB/RB tabs, A buys, X sells, R3 undoes, Y / B close.
+## My builds tab (private builds, BuildsViewModel): Enter / A follows a build,
+## N / L3 new from the guide, D / R3 duplicate, Delete / X twice deletes,
+## C copies and V pastes a build string. In the catalog, + / RT adds the
+## focused item to the build in use and - / LT removes it.
 ## Never mutates state: requests go through PlayerInputSource.request_action
 ## and the server re-checks every rule (ShopModel holds the pure logic).
 
@@ -67,12 +71,16 @@ var _pending: Dictionary = {}
 var _last_index: int = -1
 var _mouse_before: int = -1
 var _was_open: bool = false
+## Private builds of this PC (user://builds.json).
+var builds_vm: BuildsViewModel
 ## --debug-armory: open once when the hero first stands on the pad.
 var _auto_open: bool = false
+## --debug-armory-builds: open on My builds with a sample build.
+var _debug_builds: bool = false
 
 const _KEYS: Array[int] = [KEY_F, KEY_B, KEY_ESCAPE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_KP_ENTER,
 	KEY_1, KEY_2, KEY_3, KEY_BACKSPACE, KEY_Q, KEY_E, KEY_PAGEUP, KEY_PAGEDOWN, KEY_SLASH, KEY_R, KEY_Z, KEY_O, KEY_TAB,
-	KEY_I]
+	KEY_I, KEY_N, KEY_D, KEY_C, KEY_V, KEY_DELETE, KEY_EQUAL, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]
 const _JOY: Array[int] = [JOY_BUTTON_Y, JOY_BUTTON_B, JOY_BUTTON_A, JOY_BUTTON_X, JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN,
 	JOY_BUTTON_DPAD_LEFT, JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER,
 	JOY_BUTTON_RIGHT_STICK, JOY_BUTTON_LEFT_STICK, JOY_BUTTON_BACK]
@@ -85,6 +93,10 @@ func bind(c: HudContext) -> void:
 	_advice_rules = load(AdviceRulesDef.DEFAULT_PATH) as AdviceRulesDef
 	var lc = c.session.get("launch_config") if c.session != null else null
 	_auto_open = lc != null and lc.get("debug_armory") == true
+	_debug_builds = lc != null and lc.get("debug_armory_builds") == true
+	# --debug-armory-builds: an in-memory store, so evidence runs never touch the player's file.
+	builds_vm = BuildsViewModel.new(null, "" if _debug_builds else CustomBuildStore.DEFAULT_PATH)
+	builds_vm.load_store()
 
 
 ## True while something must be drawn: the shop or the off-pad hint.
@@ -113,6 +125,9 @@ func poll() -> void:
 	model.hero_id = client.hero_def.id
 	model.weapon = client.hero_def.weapon
 	model.advice_rules = _advice_rules
+	if builds_vm != null:
+		builds_vm.setup(client.hero_def.id, client.catalog, client.hero_def.weapon, _builds)
+		model.set_custom_guide(builds_vm.active_guide())
 	model.update(client.progress)
 	if open:
 		_update_context(client)
@@ -123,6 +138,8 @@ func poll() -> void:
 	elif _auto_open:
 		_auto_open = false
 		open = true
+		if _debug_builds:
+			_seed_debug_build(client)
 	if not searching:
 		# Ctrl+F searches inside the open panel; it must not toggle it shut.
 		var toggle := _toggle_edge() and not (open and Input.is_key_pressed(KEY_CTRL))
@@ -149,12 +166,13 @@ func _sync_open() -> void:
 		return
 	_was_open = open
 	if open:
-		tab = ShopModel.Tab.RECOMMENDED
+		tab = ShopModel.Tab.BUILDS if _debug_builds else ShopModel.Tab.RECOMMENDED
 		query = ""
 		searching = false
 		_scroll = 0
 		_refresh_rows()
-		_jump_recommended()
+		if tab != ShopModel.Tab.BUILDS:
+			_jump_recommended()
 		_mouse_before = Input.mouse_mode
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
@@ -176,7 +194,12 @@ func _update_context(client: ClientWorld) -> void:
 
 
 func _refresh_rows() -> void:
-	_rows = model.rows(tab, query)
+	if tab == ShopModel.Tab.BUILDS:
+		_rows.clear()
+		for i in builds_vm.entries().size() if builds_vm != null else 0:
+			_rows.append(i)
+	else:
+		_rows = model.rows(tab, query)
 	selected = clampi(selected, 0, maxi(0, _rows.size() - 1))
 	_ensure_visible()
 
@@ -232,6 +255,9 @@ func _panel_keys() -> void:
 		_refresh_rows()
 	if _e(KEY_I):
 		expert = not expert
+	if tab == ShopModel.Tab.BUILDS:
+		_builds_keys()
+		return
 	if _e(KEY_SLASH) or (_e(KEY_F) and Input.is_key_pressed(KEY_CTRL)):
 		searching = true
 	if _e(KEY_DOWN) or _je(JOY_BUTTON_DPAD_DOWN):
@@ -256,6 +282,89 @@ func _panel_keys() -> void:
 			_buy(idx, t + 1)
 	if _e(KEY_BACKSPACE) or _je(JOY_BUTTON_X):
 		_sell(idx)
+	if _e(KEY_EQUAL) or _e(KEY_KP_ADD) or _track(3001, Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.6):
+		_add_to_build(idx)
+	if _e(KEY_MINUS) or _e(KEY_KP_SUBTRACT) or _track(3002, Input.get_joy_axis(0, JOY_AXIS_TRIGGER_LEFT) > 0.6):
+		_remove_from_build(idx)
+
+
+# --- My builds ----------------------------------------------------------------------
+
+func _builds_keys() -> void:
+	if _e(KEY_DOWN) or _je(JOY_BUTTON_DPAD_DOWN):
+		_move_build(1)
+	if _e(KEY_UP) or _je(JOY_BUTTON_DPAD_UP):
+		_move_build(-1)
+	if _e(KEY_ENTER) or _e(KEY_KP_ENTER) or _je(JOY_BUTTON_A):
+		if builds_vm.use(selected):
+			_show_toast(tr("HUD_BUILDS_USED") % _build_name(builds_vm.entries()[selected]), HudPalette.TEAL)
+	if _e(KEY_N) or _je(JOY_BUTTON_LEFT_STICK):
+		_select_build(builds_vm.new_from_default(), "HUD_BUILDS_CREATED")
+	if _e(KEY_D) or _je(JOY_BUTTON_RIGHT_STICK):
+		_select_build(builds_vm.duplicate_entry(selected), "HUD_BUILDS_CREATED")
+	if _e(KEY_DELETE) or _e(KEY_BACKSPACE) or _je(JOY_BUTTON_X):
+		if builds_vm.delete_entry(selected):
+			_refresh_rows()
+			_show_toast(tr("HUD_BUILDS_DELETED"), HudPalette.BRASS)
+		elif builds_vm.confirm_delete != "":
+			_show_toast(tr("HUD_BUILDS_DELETE_CONFIRM"), HudPalette.BRASS)
+	if _e(KEY_C):
+		var t := builds_vm.export_entry(selected)
+		if t != "":
+			DisplayServer.clipboard_set(t)
+			_show_toast(tr("HUD_BUILDS_COPIED"), HudPalette.TEAL)
+	if _e(KEY_V):
+		var e := builds_vm.import_text(DisplayServer.clipboard_get())
+		if e >= 0:
+			_select_build(e, "HUD_BUILDS_PASTED")
+		else:
+			_show_toast(tr("HUD_BUILDS_PASTE_BAD"), HudPalette.BRASS)
+
+
+## Evidence only: a custom build from the guide plus one off-family item (a warning).
+func _seed_debug_build(client: ClientWorld) -> void:
+	var e := builds_vm.new_from_default()
+	builds_vm.use(e)
+	var odd := &"rifling" if client.hero_def.weapon.feed_kind == 0 else &"focus_lens"
+	builds_vm.add_item(client.catalog.index_of(odd), 1)
+	builds_vm.add_item(client.catalog.index_of(&"quick_mint"), 1)
+	_sync_open()
+	selected = e
+
+
+func _move_build(delta: int) -> void:
+	selected = clampi(selected + delta, 0, maxi(0, _rows.size() - 1))
+	builds_vm.confirm_delete = ""
+
+
+func _select_build(entry: int, toast_key: String) -> void:
+	if entry < 0:
+		return
+	_refresh_rows()
+	selected = entry
+	_show_toast(tr(toast_key), HudPalette.TEAL)
+
+
+func _build_name(e: Dictionary) -> String:
+	return tr("HUD_BUILDS_DEFAULT") if String(e["id"]) == "" else String(e["name"])
+
+
+## + / RT on a catalog item: the next tier (or one more Med-Pack) joins the
+## build in use (a new build from the guide when the guide is in use).
+func _add_to_build(idx: int) -> void:
+	var it := model.catalog.at(idx)
+	var target := 1
+	if it.kind == ArmoryItemDef.Kind.MOUNT:
+		target = mini(model.held_tier(idx) + 1, it.tiers())
+	if builds_vm.add_item(idx, target) > 0:
+		var b := builds_vm.store.find(builds_vm.active_id())
+		_show_toast(tr("HUD_BUILDS_ADDED") % String(b["name"]), HudPalette.TEAL)
+
+
+func _remove_from_build(idx: int) -> void:
+	if builds_vm.remove_item(idx):
+		var b := builds_vm.store.find(builds_vm.active_id())
+		_show_toast(tr("HUD_BUILDS_REMOVED") % String(b["name"]), HudPalette.BRASS)
 
 
 ## Moves `delta` tabs left / right through the visible tabs (wraps).
@@ -434,7 +543,7 @@ func _gui_input(event: InputEvent) -> void:
 	if not open:
 		return
 	if event is InputEventMouseMotion:
-		_hover = _card_at(event.position)
+		_hover = _card_at(event.position) if tab != ShopModel.Tab.BUILDS else -1
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN or mb.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -457,6 +566,14 @@ func _click(pos: Vector2, double: bool) -> void:
 		if _tab_rect(i).has_point(pos):
 			_set_tab(tabs[i])
 			return
+	if tab == ShopModel.Tab.BUILDS:
+		for i in _rows.size():
+			if _build_row_rect(i).has_point(pos):
+				selected = i
+				builds_vm.confirm_delete = ""
+				if double:
+					builds_vm.use(i)
+		return
 	var c := _card_at(pos)
 	if c >= 0:
 		selected = c
@@ -475,7 +592,8 @@ func _click(pos: Vector2, double: bool) -> void:
 		if _tier_rect(t).has_point(pos) and idx >= 0 and model.catalog.at(idx).tiers() > t:
 			_buy(idx, t + 1)
 	var path := model.path()
-	for s in path.size():
+	var win := _strip_window()
+	for s in range(win.x, win.x + win.y):
 		if _chip_rect(s).has_point(pos):
 			var ci: int = path[s]["item"]
 			if ci >= 0:
@@ -488,6 +606,14 @@ func _click(pos: Vector2, double: bool) -> void:
 
 
 # --- Layout (design units, shared by drawing and hit tests) ----------------------------
+
+const BUILD_ROW_H: float = 58.0
+## Narrowest build-strip chip (glyph + tier label without overlap).
+const STRIP_MIN_W: float = 66.0
+
+
+func _build_row_rect(i: int) -> Rect2:
+	return Rect2(PAD, GRID_Y + i * (BUILD_ROW_H + 6.0), _left_w(), BUILD_ROW_H)
 
 func _cols() -> int:
 	return 3 if (_left_w() - 2.0 * GAP) / 3.0 >= WIDE_CARD_W else 2
@@ -541,7 +667,32 @@ func _tab_rect(pos: int) -> Rect2:
 
 
 func _tab_w(t: int) -> float:
-	return text_width(tr(ShopModel.TAB_KEYS[t]), 16, ctx.font_display) + 34.0
+	return caps_width(tr(ShopModel.TAB_KEYS[t]), _tab_font(), 0.2) + _tab_pad()
+
+
+## Tab label size: 16, smaller on narrow panels (720p) so all tabs keep at
+## least 14 px of padding and the last one never spills past the panel edge.
+func _tab_font() -> int:
+	for fs in [16, 14, 13, 12]:
+		if _tab_words(fs) + 14.0 * model.tabs().size() <= _tab_room():
+			return fs
+	return 12
+
+
+func _tab_pad() -> float:
+	var n := model.tabs().size()
+	return clampf((_tab_room() - _tab_words(_tab_font())) / maxf(1.0, n), 10.0, 34.0)
+
+
+func _tab_words(fs: int) -> float:
+	var w := 0.0
+	for t in model.tabs():
+		w += caps_width(tr(ShopModel.TAB_KEYS[t]), fs, 0.2)
+	return w
+
+
+func _tab_room() -> float:
+	return size.x - 2.0 * PAD - 6.0 * (model.tabs().size() - 1)
 
 
 func _search_rect() -> Rect2:
@@ -552,12 +703,15 @@ func _close_rect() -> Rect2:
 	return Rect2(size.x - PAD - 44.0, 14.0, 44.0, 40.0)
 
 
+## BUY and SELL share the footer right of the key hints: BUY 58%, SELL the
+## rest (fixed widths left SELL 30 px wide on a 720p panel).
 func _buy_rect() -> Rect2:
-	return Rect2(size.x * 0.60, size.y - FOOTER_H + 6.0, 250.0, 56.0)
+	var avail := size.x - PAD - size.x * 0.60
+	return Rect2(size.x * 0.60, size.y - FOOTER_H + 6.0, minf(250.0, (avail - 12.0) * 0.58), 56.0)
 
 
 func _sell_rect() -> Rect2:
-	var x := size.x * 0.60 + 262.0
+	var x := _buy_rect().end.x + 12.0
 	return Rect2(x, size.y - FOOTER_H + 6.0, size.x - PAD - x, 56.0)
 
 
@@ -566,10 +720,27 @@ func _tier_rect(t: int) -> Rect2:
 	return Rect2(d.position.x + 12.0, d.position.y + 250.0 + 32.0 * t, d.size.x - 24.0, 30.0)
 
 
+## Chip rect of path step `step` (only steps inside _strip_window() are shown).
 func _chip_rect(step: int) -> Rect2:
-	var n := maxi(1, model.path().size() if model != null else 1)
+	var win := _strip_window()
+	var n := maxi(1, win.y)
 	var w := minf(84.0, (_left_w() + GAP) / n)
-	return Rect2(PAD + step * w, size.y - FOOTER_H - BUILD_H + 38.0, w - 6.0, 52.0)
+	return Rect2(PAD + (step - win.x) * w, size.y - FOOTER_H - BUILD_H + 38.0, w - 6.0, 52.0)
+
+
+## (first step, count) of the path chips that fit at STRIP_MIN_W each; a long
+## path scrolls so the next step stays in view (two done steps before it).
+func _strip_window() -> Vector2i:
+	var path := model.path() if model != null else []
+	var fit := maxi(1, floori((_left_w() + GAP) / STRIP_MIN_W))
+	if path.size() <= fit:
+		return Vector2i(0, path.size())
+	var nxt := 0
+	for k in path.size():
+		if bool(path[k]["next"]):
+			nxt = k
+			break
+	return Vector2i(clampi(nxt - 2, 0, path.size() - fit), fit)
 
 
 # --- Drawing ------------------------------------------------------------------------
@@ -590,11 +761,80 @@ func _draw() -> void:
 		PackedColorArray([bg0, bg1, bg1, bg0]))
 	_draw_header(p)
 	_draw_tabs()
-	_draw_cards()
+	if tab == ShopModel.Tab.BUILDS:
+		_draw_builds()
+	else:
+		_draw_cards()
+		_draw_detail()
 	_draw_build_strip()
-	_draw_detail()
 	_draw_footer()
 	_draw_toast()
+
+
+## My builds: the list (left) and the selected build's steps and warnings (right).
+func _draw_builds() -> void:
+	var es := builds_vm.entries()
+	var max_rows := maxi(1, floori((_grid_h() + 6.0) / (BUILD_ROW_H + 6.0)))
+	for i in mini(es.size(), max_rows):
+		var e: Dictionary = es[i]
+		var r := _build_row_rect(i)
+		draw_rect(r, SEL_BG if i == selected else CARD_BG)
+		if bool(e["active"]):
+			draw_rect(Rect2(r.position, Vector2(3.0, r.size.y)), HudPalette.TEAL)
+		var name_ := _fit(_build_name(e), 18, r.size.x - 190.0, ctx.font_display)
+		text(name_, r.position + Vector2(16.0, 26.0), 18, HudPalette.IVORY, ctx.font_display)
+		var sub := tr("HUD_BUILDS_STEPS") % int(e["steps"])
+		var w: PackedStringArray = e["warnings"]
+		if not w.is_empty():
+			sub += "  ·  " + tr("HUD_BUILDS_WARN") % w.size()
+		text(sub, r.position + Vector2(16.0, 47.0), 13, HudPalette.BRASS if not w.is_empty() else HudPalette.MUTED,
+			ctx.font_body)
+		if bool(e["active"]):
+			caps(tr("HUD_BUILDS_ACTIVE"), Vector2(0.0, r.position.y + 34.0), 13, HudPalette.TEAL, 0.2,
+				HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 14.0)
+		elif builds_vm.confirm_delete != "" and builds_vm.confirm_delete == String(e["id"]):
+			caps(tr("HUD_BUILDS_DELETE_CONFIRM"), Vector2(0.0, r.position.y + 34.0), 12, HudPalette.BRASS, 0.12,
+				HORIZONTAL_ALIGNMENT_RIGHT, r.end.x - 14.0)
+	# Detail: steps of the selected build (the guide's own notes for entry 0).
+	var d := _detail_rect()
+	if selected < 0 or selected >= es.size():
+		return
+	var e: Dictionary = es[selected]
+	caps(_fit(_build_name(e), 22, d.size.x - 24.0, ctx.font_display), d.position + Vector2(12.0, 28.0), 22,
+		HudPalette.IVORY, 0.12)
+	caps(tr("HUD_BUILDS_LOCAL"), d.position + Vector2(12.0, 48.0), 11, HudPalette.DIM, 0.16)
+	var y := d.position.y + 76.0
+	if String(e["id"]) == "":
+		draw_multiline_string(ctx.font_body, Vector2(d.position.x + 12.0, y), tr("HUD_BUILDS_DEFAULT_NOTE"),
+			HORIZONTAL_ALIGNMENT_LEFT, d.size.x - 24.0, ts(15), 4, HudPalette.MUTED)
+		return
+	var b := builds_vm.build_at(selected)
+	var steps: Array = b["steps"]
+	var cat := ctx.client.catalog
+	for k in steps.size():
+		if y > d.end.y - 16.0 - 20.0 * mini((e["warnings"] as PackedStringArray).size(), 3) - 10.0:
+			text("…", Vector2(d.position.x + 12.0, y), 15, HudPalette.DIM)
+			break
+		var st: Dictionary = steps[k]
+		var it := cat.find(StringName(st["item"]))
+		var label := it.label() if it != null else String(st["item"])
+		var tgt := int(st["target"])
+		var suffix := ""
+		if it != null and it.kind == ArmoryItemDef.Kind.MOUNT:
+			suffix = " " + TIER_NAMES[clampi(tgt, 0, 3)] if tgt <= 3 else " ?"
+		elif tgt > 1:
+			suffix = " ×%d" % tgt
+		text("%d." % (k + 1), Vector2(d.position.x + 12.0, y), 14, HudPalette.DIM, ctx.font_numbers)
+		text(_fit(label + suffix, 15, d.size.x - 60.0), Vector2(d.position.x + 44.0, y), 15,
+			HudPalette.IVORY if it != null else HudPalette.BRASS)
+		y += 24.0
+	# Warnings pinned to the bottom of the pane, one line each, a brass diamond as the bullet.
+	var w: PackedStringArray = e["warnings"]
+	var n := mini(w.size(), 3)
+	for k in n:
+		var wy := d.end.y - 8.0 - 20.0 * (n - 1 - k)
+		diamond(Vector2(d.position.x + 16.0, wy - 5.0), 3.5, HudPalette.BRASS)
+		text(_fit(w[k], 13, d.size.x - 40.0), Vector2(d.position.x + 28.0, wy), 13, HudPalette.BRASS)
 
 
 func _draw_hint() -> void:
@@ -643,7 +883,7 @@ func _draw_tabs() -> void:
 		var on := t == tab
 		if on:  # v0.12: no tab boxes; a 2 px brass underline on the selected tab
 			draw_rect(Rect2(r.position.x + 12.0, r.end.y - 2.0, r.size.x - 24.0, 2.0), HudPalette.BRASS)
-		caps_c(tr(ShopModel.TAB_KEYS[t]), r.get_center(), 16, HudPalette.IVORY if on else HudPalette.MUTED, 0.2)
+		caps_c(tr(ShopModel.TAB_KEYS[t]), r.get_center(), _tab_font(), HudPalette.IVORY if on else HudPalette.MUTED, 0.2)
 	var s := _search_rect()
 	draw_rect(s, Color(HudPalette.INK_DEEP, 0.6))
 	draw_rect(s.grow(-0.5), HudPalette.BRASS if searching else HudPalette.HAIR_STRONG, false, 1.0)
@@ -653,13 +893,14 @@ func _draw_tabs() -> void:
 	else:
 		text(shown, s.position + Vector2(12.0, 26.0), 16, HudPalette.IVORY)
 	# View options (catalog tabs): sort and the affordable-only filter.
-	if tab != ShopModel.Tab.RECOMMENDED:
+	if tab != ShopModel.Tab.RECOMMENDED and tab != ShopModel.Tab.BUILDS:
 		var opt := tr(ShopModel.SORT_KEYS[model.sort_mode])
 		if model.affordable_only:
 			opt += "  ·  " + tr("HUD_SHOP_FILTER_AFFORDABLE")
-		text(opt, Vector2(s.end.x + 16.0, s.position.y + 26.0), 14,
+		# Inside the search box, right-aligned: beside it, it ran into the Lumen total at 720p.
+		text(opt, Vector2(s.position.x, s.position.y + 26.0), 13,
 			HudPalette.BRASS if model.affordable_only or model.sort_mode != ShopModel.Sort.DEFAULT else HudPalette.DIM,
-			ctx.font_body)
+			ctx.font_body, HORIZONTAL_ALIGNMENT_RIGHT, s.size.x - 12.0)
 
 
 func _draw_cards() -> void:
@@ -718,9 +959,11 @@ func _draw_cards() -> void:
 		if st == ShopModel.State.AVAILABLE or st == ShopModel.State.CANT_AFFORD:
 			diamond(Vector2(tx + 7.0, r.position.y + 55.0), 5.0, Color(col, a), false)
 			lx += 20.0
-		text(_fit(label, 17, r.end.x - lx - 8.0, ctx.font_numbers), Vector2(lx, r.position.y + 62.0), 17, Color(col, a),
+		var pips_room := 18.0 * it.tiers() + 18.0 if it.tiers() > 1 else 0.0
+		text(_fit(label, 17, r.end.x - lx - 8.0 - pips_room, ctx.font_numbers), Vector2(lx, r.position.y + 62.0), 17, Color(col, a),
 			ctx.font_numbers)
-		_draw_pips(it, held, Vector2(tx, r.position.y + 84.0), a)
+		# Pips on the price line, right-aligned: below the price they ran into the reason line.
+		_draw_pips(it, held, Vector2(r.end.x - 14.0 - 18.0 * it.tiers(), r.position.y + 61.0), a)
 		var adv := model.advice_for(idx) if tab == ShopModel.Tab.RECOMMENDED else null
 		if adv != null:  # Recommended tab: the one-line reason, clear of the NEXT / SITUATIONAL chips
 			var chip_w := 0.0
@@ -728,8 +971,11 @@ func _draw_cards() -> void:
 				chip_w += caps_width(tr("HUD_SHOP_NEXT"), 12, 0.16) + 20.0
 			if adv.situational:
 				chip_w += caps_width(tr("HUD_SHOP_SITUATIONAL"), 12, 0.18) + 14.0
-			text(_fit(tr(adv.reason_key), 13, r.end.x - tx - 12.0 - chip_w), Vector2(tx, r.position.y + 96.0), 13,
-				Color(HudPalette.BRASS_HI if adv.situational else HudPalette.MUTED, a), ctx.font_body)
+			# Too little room beside the chips: skip the line (the detail pane shows it) rather than "T..".
+			var reason := _fit(tr(adv.reason_key), 13, r.end.x - tx - 12.0 - chip_w)
+			if reason.length() >= 8:
+				text(reason, Vector2(tx, r.position.y + 96.0), 13,
+					Color(HudPalette.BRASS_HI if adv.situational else HudPalette.MUTED, a), ctx.font_body)
 		elif it.kind == ArmoryItemDef.Kind.CONSUMABLE:
 			text(tr("HUD_ARMORY_CARRY") % [p.medpacks, it.carry_limit], Vector2(tx, r.position.y + 94.0), 13,
 				Color(HudPalette.MUTED, a))
@@ -773,10 +1019,19 @@ func _draw_build_strip() -> void:
 		text(tr("HUD_SHOP_NO_BUILD"), Vector2(PAD, y + 28.0), 15, HudPalette.MUTED)
 		return
 	caps(tr("HUD_SHOP_RECOMMENDED") % b.display_name, Vector2(PAD, y + 28.0), 15, HudPalette.MUTED, 0.22)
-	text(tr("HUD_SHOP_JUMP_KEY"), Vector2(0.0, y + 28.0), 13, HudPalette.MUTED, ctx.font_body,
-		HORIZONTAL_ALIGNMENT_RIGHT, PAD + _left_w())
 	var path := model.path()
-	for s in path.size():
+	var win := _strip_window()
+	var hint := tr("HUD_SHOP_JUMP_KEY")
+	if win.y < path.size():
+		hint = tr("HUD_SHOP_STRIP_RANGE") % [win.x + 1, win.x + win.y, path.size()] + "  ·  " + hint
+	# Never under the title: drop to the bare key hint, then nothing, when space runs out.
+	var title_end := PAD + caps_width(tr("HUD_SHOP_RECOMMENDED") % b.display_name, 15, 0.22) + 16.0
+	if PAD + _left_w() - text_width(hint, 13) < title_end:
+		hint = tr("HUD_SHOP_JUMP_KEY")
+	if PAD + _left_w() - text_width(hint, 13) < title_end:
+		hint = ""
+	text(hint, Vector2(0.0, y + 28.0), 13, HudPalette.MUTED, ctx.font_body, HORIZONTAL_ALIGNMENT_RIGHT, PAD + _left_w())
+	for s in range(win.x, win.x + win.y):
 		var e: Dictionary = path[s]
 		var r := _chip_rect(s)
 		var it := ctx.client.catalog.at(int(e["item"]))
@@ -787,12 +1042,14 @@ func _draw_build_strip() -> void:
 		var a := 0.4 if done else 1.0
 		cut_fill(r, 8.0, Color(0.051, 0.075, 0.094, 0.9))
 		cut_line(r, 8.0, HudPalette.BRASS if nxt else HudPalette.HAIR_STRONG, 1.5 if nxt else 1.0)
-		ShopIcons.draw(self, it, Rect2(r.position + Vector2(6.0, 8.0), Vector2(36.0, 36.0)), Color(1, 1, 1, a))
+		# Glyph left, tier label right of it, check mark top-right: sized to the chip so nothing overlaps.
+		var g := minf(36.0, r.size.x - 30.0)
+		ShopIcons.draw(self, it, Rect2(r.position + Vector2(5.0, (r.size.y - g) * 0.5), Vector2(g, g)), Color(1, 1, 1, a))
 		var tgt: int = e["target"]
 		var lab: String = TIER_NAMES[mini(tgt, 3)] if it.tiers() > 1 else ("x%d" % tgt if it.kind == ArmoryItemDef.Kind.CONSUMABLE else "")
-		text(lab, r.position + Vector2(48.0, 32.0), 16, Color(HudPalette.IVORY, a), ctx.font_numbers)
+		text(lab, Vector2(r.position.x + g + 8.0, r.position.y + 36.0), 14, Color(HudPalette.IVORY, a), ctx.font_numbers)
 		if done:
-			ShopIcons.check(self, r.position + Vector2(r.size.x - 12.0, 12.0), 6.0, HudPalette.TEAL)
+			ShopIcons.check(self, r.position + Vector2(r.size.x - 11.0, 11.0), 5.0, HudPalette.TEAL)
 
 
 func _draw_detail() -> void:
@@ -806,8 +1063,22 @@ func _draw_detail() -> void:
 	var x := d.position.x + 16.0
 	var y := d.position.y
 	ShopIcons.draw(self, it, Rect2(Vector2(x, y + 16.0), Vector2(84.0, 84.0)), Color.WHITE)
-	caps(_kind_line(it, idx), Vector2(x + 100.0, y + 30.0), 15, HudPalette.BRASS, 0.22)
-	caps(it.label(), Vector2(x + 100.0, y + 64.0), 27, HudPalette.IVORY, 0.12)
+	var kind := _kind_line(it, idx)
+	var ksz := 15
+	while ksz > 11 and caps_width(kind, ksz, 0.22) > d.end.x - 16.0 - (x + 100.0):
+		ksz -= 1
+	caps(kind, Vector2(x + 100.0, y + 30.0), ksz, HudPalette.BRASS, 0.22)
+	# Title shrinks (27 down to 18) and then cuts so it never passes the panel edge.
+	var title_w := d.end.x - 16.0 - (x + 100.0)
+	var tsz := 27
+	while tsz > 18 and caps_width(it.label(), tsz, 0.12) > title_w:
+		tsz -= 1
+	var title := it.label()
+	while title.length() > 2 and caps_width(title + "..", tsz, 0.12) > title_w and caps_width(title, tsz, 0.12) > title_w:
+		title = title.left(title.length() - 1)
+	if title != it.label():
+		title += ".."
+	caps(title, Vector2(x + 100.0, y + 64.0), tsz, HudPalette.IVORY, 0.12)
 	var bx := x + 100.0
 	var why := model.reason_key(idx)
 	var held := model.held_tier(idx)
@@ -964,7 +1235,13 @@ func _damage_delta(p: SnapshotData.ProgressState, it: ArmoryItemDef) -> String:
 func _draw_footer() -> void:
 	var y := size.y - FOOTER_H
 	draw_line(Vector2(PAD, y), Vector2(size.x - PAD, y), HudPalette.HAIR_STRONG, 1.0)
-	var keys := tr("HUD_SHOP_PAD_KEYS") if not Input.get_connected_joypads().is_empty() else tr("HUD_SHOP_KEYS")
+	var pad := not Input.get_connected_joypads().is_empty()
+	var keys := tr("HUD_SHOP_PAD_KEYS") if pad else tr("HUD_SHOP_KEYS")
+	if tab == ShopModel.Tab.BUILDS:
+		# No buy button here: the key line gets the full width, one line, centred in the footer.
+		keys = tr("HUD_BUILDS_PAD") if pad else tr("HUD_BUILDS_KEYS")
+		text(_fit(keys, 13, size.x - 2.0 * PAD), Vector2(PAD, y + FOOTER_H * 0.5 + 5.0), 13, HudPalette.MUTED)
+		return
 	draw_multiline_string(ctx.font_body, Vector2(PAD, y + 30.0), keys, HORIZONTAL_ALIGNMENT_LEFT,
 		_buy_rect().position.x - PAD - 12.0, ts(13), 2, HudPalette.MUTED)
 	var idx := _sel_index()
@@ -978,17 +1255,24 @@ func _draw_footer() -> void:
 	var bl := _buy_label(idx, it, st)
 	if ok:
 		cut_fill(b, 12.0, HudPalette.BRASS)
-		var f := ctx.caps_font(ts(19), 0.2)
-		var lw := f.get_string_size(bl.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, ts(19)).x
+		# Label shrinks (19 down to 13) so label + key chip stay inside the button.
+		var bsz := 19
+		while bsz > 13 and caps_width(bl, bsz, 0.2) + 42.0 > b.size.x - 16.0:
+			bsz -= 1
+		var f := ctx.caps_font(ts(bsz), 0.2)
+		var lw := f.get_string_size(bl.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, ts(bsz)).x
 		var lx := b.get_center().x - (lw + 42.0) * 0.5
-		draw_string(f, Vector2(lx, b.get_center().y + ts(19) * 0.36), bl.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, ts(19), HudPalette.INK)
+		draw_string(f, Vector2(lx, b.get_center().y + ts(bsz) * 0.36), bl.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, ts(bsz), HudPalette.INK)
 		var kr := Rect2(Vector2(lx + lw + 12.0, b.get_center().y - 14.0), Vector2(30.0, 28.0))
 		draw_rect(kr.grow(-0.5), Color(HudPalette.INK, 0.5), false, 1.0)
 		draw_string(ctx.font_mono, Vector2(kr.position.x, kr.get_center().y + ts(15) * 0.36), "↵", HORIZONTAL_ALIGNMENT_CENTER,
 			kr.size.x, ts(15), HudPalette.INK)
 	else:
 		cut_line(b, 12.0, HudPalette.HAIR_STRONG, 1.0)
-		caps_c(bl, b.get_center(), 17, HudPalette.DIM, 0.16)
+		var gsz := 17
+		while gsz > 11 and caps_width(bl, gsz, 0.16) > b.size.x - 16.0:
+			gsz -= 1
+		caps_c(bl, b.get_center(), gsz, HudPalette.DIM, 0.16)
 	var s := _sell_rect()
 	var sock := model.sell_socket(idx)
 	var label := ""
@@ -1005,7 +1289,14 @@ func _draw_footer() -> void:
 	else:
 		label = tr("HUD_SHOP_BTN_SELL_NA")
 	draw_rect(s.grow(-0.5), HudPalette.HAIR_STRONG, false, 1.0)  # ghost SELL
-	caps_c(label, s.get_center(), 16, HudPalette.MUTED if can else HudPalette.DIM, 0.2)
+	var lsz := 16
+	while lsz > 11 and caps_width(label, lsz, 0.2) > s.size.x - 16.0:
+		lsz -= 1
+	if caps_width(label, lsz, 0.2) > s.size.x - 16.0:  # still too long: two lines
+		draw_multiline_string(ctx.font_body, Vector2(s.position.x + 8.0, s.get_center().y + 4.0), label,
+			HORIZONTAL_ALIGNMENT_CENTER, s.size.x - 16.0, ts(12), 2, HudPalette.MUTED if can else HudPalette.DIM)
+	else:
+		caps_c(label, s.get_center(), lsz, HudPalette.MUTED if can else HudPalette.DIM, 0.2)
 
 
 func _buy_label(index: int, it: ArmoryItemDef, st: int) -> String:

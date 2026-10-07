@@ -24,7 +24,7 @@ extends RefCounted
 ##   var rows := m.rows(ShopModel.Tab.CORE, "ember")
 
 ## Tab ids (values are stable; RECOMMENDED and BARREL were appended in v21).
-enum Tab { ALL, CORE, FRAME, CHAMBER, SQUAD, CONSUMABLES, RECOMMENDED, BARREL }
+enum Tab { ALL, CORE, FRAME, CHAMBER, SQUAD, CONSUMABLES, RECOMMENDED, BARREL, BUILDS }
 ## Why an item cannot be bought right now (AVAILABLE = it can).
 enum State { AVAILABLE, CANT_AFFORD, OWNED, MAXED, LOCKED, WRONG_FAMILY, CARRY_FULL, DISABLED }
 ## Catalog list order.
@@ -32,10 +32,11 @@ enum Sort { DEFAULT, PRICE, NAME }
 
 ## Localization keys per Tab value (HUD_ rows in hud.csv).
 const TAB_KEYS: Array[String] = ["HUD_SHOP_TAB_ALL", "HUD_SOCKET_CORE", "HUD_SOCKET_FRAME", "HUD_SOCKET_CHAMBER",
-	"HUD_ARMORY_SQUAD", "HUD_ARMORY_CONSUMABLES", "HUD_SHOP_TAB_REC", "HUD_SOCKET_BARREL"]
+	"HUD_ARMORY_SQUAD", "HUD_ARMORY_CONSUMABLES", "HUD_SHOP_TAB_REC", "HUD_SOCKET_BARREL", "HUD_SHOP_TAB_BUILDS"]
 ## Tabs left to right (Barrel only while the catalog sells Barrel lines: tabs()).
+## BUILDS is the player's private builds (BuildsViewModel), not catalog rows.
 const TAB_ORDER: Array[int] = [Tab.RECOMMENDED, Tab.ALL, Tab.CORE, Tab.FRAME, Tab.BARREL, Tab.CHAMBER, Tab.SQUAD,
-	Tab.CONSUMABLES]
+	Tab.CONSUMABLES, Tab.BUILDS]
 ## Display order of the sections inside the All tab.
 const SECTION_ORDER: Array[int] = [Tab.CORE, Tab.FRAME, Tab.BARREL, Tab.CHAMBER, Tab.SQUAD, Tab.CONSUMABLES]
 const SORT_KEYS: Array[String] = ["HUD_SHOP_SORT_DEFAULT", "HUD_SHOP_SORT_PRICE", "HUD_SHOP_SORT_NAME"]
@@ -43,6 +44,9 @@ const SORT_KEYS: Array[String] = ["HUD_SHOP_SORT_DEFAULT", "HUD_SHOP_SORT_PRICE"
 var catalog: ArmoryCatalogDef
 var rules: EconomyRulesDef
 var builds: RecommendedBuildsDef
+## The player's selected private build (CustomBuildStore.selected_guide), or
+## null for the hero's default guide.
+var custom_guide: RecommendedBuildDef
 var hero_id: StringName = &""
 var weapon: WeaponDef
 var progress: SnapshotData.ProgressState
@@ -361,10 +365,18 @@ static func result_key(r: int) -> String:
 # --- Recommended build ----------------------------------------------------------------
 
 func build() -> RecommendedBuildDef:
+	if custom_guide != null:
+		return custom_guide
 	if builds == null:
 		return null
 	var b := builds.for_hero(hero_id, mode)
 	return b if b != null else builds.for_hero(hero_id)
+
+
+## Uses `g` (a custom build's guide) instead of the default; null = default.
+func set_custom_guide(g: RecommendedBuildDef) -> void:
+	custom_guide = g
+	_advice = null
 
 
 ## What BuildAdvisor sees for this hero (holdings, Lumen, gun, context, signals).

@@ -223,7 +223,8 @@ func test_tabs_start_with_recommended_and_hide_an_empty_barrel_socket() -> void:
 	var tabs := m.tabs()
 	assert_int(tabs[0]).is_equal(ShopModel.Tab.RECOMMENDED)
 	assert_bool(tabs.has(ShopModel.Tab.BARREL)).is_true()
-	assert_int(tabs.size()).is_equal(8)
+	assert_int(tabs.size()).is_equal(9)
+	assert_int(tabs[-1]).is_equal(ShopModel.Tab.BUILDS)
 	# A catalog that sells nothing for the Barrel hides that tab.
 	var trimmed := ArmoryCatalogDef.new()
 	for it in _cat.items:
@@ -231,7 +232,7 @@ func test_tabs_start_with_recommended_and_hide_an_empty_barrel_socket() -> void:
 			trimmed.items.append(it)
 	m.catalog = trimmed
 	assert_bool(m.tabs().has(ShopModel.Tab.BARREL)).is_false()
-	assert_int(m.tabs().size()).is_equal(7)
+	assert_int(m.tabs().size()).is_equal(8)
 
 
 func test_recommended_tab_lists_open_advice_with_reasons() -> void:
