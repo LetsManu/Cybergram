@@ -44,6 +44,10 @@ enum Section { OPENING, EARLY, SPIKE, CORE, SQUAD, CONSUMABLE, DEFENSIVE, OFFENS
 @export_range(0, 7200) var max_s: int = 0
 ## For expert view only: shown when "expert detail" is on.
 @export var expert: bool = false
+## Armory v2: the item itself must be held. Without it a part already built
+## into an owned item counts as done (a starter Shard that became a Facet);
+## with it, a late open-slot step wants its own copy.
+@export var keep: bool = false
 
 
 func target_or_one() -> int:

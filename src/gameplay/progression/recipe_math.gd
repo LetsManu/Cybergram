@@ -59,6 +59,31 @@ static func _resolve(cat: ArmoryCatalogDef, pool: Array, index: int, socket: int
 	return cost
 
 
+## Parts of `index` that are not owned (matched like resolve): every missing
+## Assembly and every missing component under it, in recipe order. The
+## advisor picks the next part to buy from this list (§3.10 rule 2).
+static func missing(cat: ArmoryCatalogDef, pool: Array, index: int) -> Array[int]:
+	var out: Array[int] = []
+	var it := cat.at(index)
+	if it == null or it.recipe.is_empty():
+		return out
+	_missing(cat, pool, index, it.socket, {}, out)
+	return out
+
+
+static func _missing(cat: ArmoryCatalogDef, pool: Array, index: int, socket: int, used: Dictionary, out: Array[int]) -> void:
+	for part in cat.at(index).recipe:
+		var pi := cat.index_of(StringName(part))
+		var e := _match(pool, pi, socket, used)
+		if not e.is_empty():
+			used[e["key"]] = true
+			continue
+		out.append(pi)
+		var pit := cat.at(pi)
+		if pit != null and not pit.recipe.is_empty():
+			_missing(cat, pool, pi, socket, used, out)
+
+
 ## Best owned instance of catalog item `index` not used yet: the target's
 ## socket first, then the last matching open slot (a spare before the active copy).
 static func _match(pool: Array, index: int, socket: int, used: Dictionary) -> Dictionary:

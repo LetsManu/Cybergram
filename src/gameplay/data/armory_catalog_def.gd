@@ -25,3 +25,11 @@ func find(id: StringName) -> ArmoryItemDef:
 
 func at(index: int) -> ArmoryItemDef:
 	return items[index] if index >= 0 and index < items.size() else null
+
+
+## True for the Armory v2 recipe catalog (any item with a recipe tier).
+func is_recipe_catalog() -> bool:
+	for it in items:
+		if it != null and it.tier != ArmoryItemDef.Tier.NONE:
+			return true
+	return false
