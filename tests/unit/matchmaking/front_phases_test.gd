@@ -290,6 +290,35 @@ func test_abandon_releases_the_leaver_from_in_game() -> void:
 
 
 
+
+## Owner log 2026-10-07: "rejected player ...: Idle -> PostGame". A player who
+## abandoned (already back to Idle) must stay Idle when the match ends; only the
+## players still in it get the post-game window.
+func test_match_end_after_abandon_keeps_the_leaver_idle() -> void:
+	var a := _client(2)
+	var b := _client(3)
+	_step(0.2)
+	a.matchmaking.queue_join(&"normal_5v5")
+	b.matchmaking.queue_join(&"normal_5v5")
+	_step(0.5)
+	a.matchmaking.ready_accept()
+	b.matchmaking.ready_accept()
+	_step(0.5)
+	a.matchmaking.draft_pick(1)
+	b.matchmaking.draft_pick(2)
+	_step(_rules.pick_turn_s + 1.0)
+	var mid: String = _sup.requests[0].match_id
+	_sup.match_started.emit(mid, {"host": "", "port": 7801})
+	_step(0.3)
+	_sup.abandon_reported.emit(mid, _id(2))
+	_step(0.3)
+	assert_int(_front.phases.players.state_of(_id(2))).is_equal(P.IDLE)
+	_sup.match_result.emit(mid, {"winner": 0, "players": [], "abandons": [_id(2)], "duration_s": 600})
+	_step(0.3)
+	assert_int(_front.phases.players.state_of(_id(2))).is_equal(P.IDLE)
+	assert_int(_front.phases.players.state_of(_id(3))).is_equal(P.POST_GAME)
+	assert_int(_front.phases.players.illegal_count).is_equal(0)
+
 ## Owner log 2026-10-06: a player who closed the game during a running match
 ## (front connection gone, seat kept: InGame) stayed InGame after the match
 ## ended, and every sync logged "rejected player ...: InGame -> Offline".

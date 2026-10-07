@@ -61,10 +61,13 @@ func lobby(match_id: String, state: PhaseMachine.Lobby, t: float) -> void:
 
 # --- players ------------------------------------------------------------------------
 
-## Marks the post-game window of a finished match's players.
+## Marks the post-game window of a finished match's players. A player who
+## already left the match (abandon: back to Idle / In party) gets none, so the
+## match end never asks for an illegal Idle -> PostGame move.
 func post_game(ids: Array, t: float) -> void:
 	for id in ids:
-		_post_until[str(id)] = t + POST_GAME_S
+		if players.can(str(id), PhaseMachine.Player.POST_GAME):
+			_post_until[str(id)] = t + POST_GAME_S
 
 
 ## The player acted (queue, custom lobby): the post-game window ends.
