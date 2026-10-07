@@ -4,13 +4,14 @@
 *Status: Draft — authored autonomously by systems-designer + economy-designer (modes.automation: autonomous, rigor: minimal). All 8 standard GDD sections are included even though `minimal` requires none, because this system defines damage, prices and caps that other docs will tune against.*
 *Binding source: `design/gdd/game-concept.md` → **## Canon** (C1–C18). Owner intent: `/ideas` → "Weapons".*
 *Sibling docs: `heroes.md` (owns hero HP/armor §3.1, DPS and range bands §3.2, TTK targets §5.2, skills), `wardlings-and-economy.md` (owns the Lumen income curve §17–§18, Wardling drops and squad upgrades), `match-flow-and-map.md` (owns Supply Caches, Barricades, structures), art bible (owns palette and shape language). Values taken from them are cited by section.*
+*Armory v2 (owner-approved 2026-10-07): items, recipes, open item slots, the catalog, shop math and the item caps now live in `items-and-armory.md`. This doc keeps the weapons, sockets, ammo, the damage formula and the TTK targets. Sections replaced by v2 are marked; the v1 tables are kept below as history only.*
 *Consistency pass 2026-10-02: weapon numbers retuned to the `heroes.md` bands and HP/armor (the earlier "[assumed]" values are gone); Ryker's rifle renamed **Breakline AR-7**; Liora's heal-beam alt-fire added (§3.3.1); Supply Cache Mana benefit added; slice reduced to the 2 slice heroes' weapons.*
 
 ---
 
 ## 1. Overview
 
-Every hero carries **one signature weapon** (no weapon swapping, no pickups) and it is their primary damage source (Anti-Pillar: guns are not decoration). Weapons are fed one of two ways (C16): **Mana guns** fire from a recharging pool; **Mechanical guns** fire from magazines backed by a finite reserve. During a match the player spends Lumen at the HQ Armory (C14) to **mount** upgrades physically onto the gun: **Crystals** on Mana guns, **Chips** on Mechanical guns, into fixed **sockets** (Core, Barrel, Frame) plus a **Chamber** that holds one **Ammo Type** and one **Ammo Mod**. Each mount comes in three tiers that map 1:1 to the Armory price bands (Minor / Standard / Major), and every tier changes the weapon's mesh, VFX and sound so an opponent can read your build from across a lane (Pillar 4). Everything resets at match end.
+Every hero carries **one signature weapon** (no weapon swapping, no pickups) and it is their primary damage source (Anti-Pillar: guns are not decoration). Weapons are fed one of two ways (C16): **Mana guns** fire from a recharging pool; **Mechanical guns** fire from magazines backed by a finite reserve. During a match the player spends Lumen at the HQ Armory (C14) to **mount** upgrades physically onto the gun: **Crystals** on Mana guns, **Chips** on Mechanical guns, into fixed **sockets** (Core, Barrel, Frame) plus a **Chamber** that holds one **Ammo Type** and one **Ammo Mod**. Weapon parts are built from recipes (Component → Assembly → Signature, `items-and-armory.md` §3.2); a socket holds a finished part (Assembly or Signature), and components wait in the hero's open item slots until then. Every tier changes the weapon's mesh, VFX and sound so an opponent can read your build from across a lane (Pillar 4). Everything resets at match end.
 
 ## 2. Player Fantasy
 
@@ -75,13 +76,17 @@ Liora heals with mana through her weapon (owner intent; Canon C16 keeps skills o
 
 | Socket | Line | Effect on the beam |
 | ---- | ---- | ---- |
-| Core | Ember Heart, Tempest Shard, Prism Eye | None (damage lines do not change heal output). |
-| Core | Wellspring | Heal-beam assists count as assists, so it refills the pool on them. |
-| Barrel | Focus Lens | Beam lock range +12% / +20% / +30% (18 → 20.2 / 21.6 / 23.4 m; leash scales the same). |
-| Barrel | Stillwater Ring, Velocity Facet | None (bolts only). |
-| Frame | Reservoir | Pool +20 / 35 / 50% → beam from full lasts 4.8 / 5.4 / 6.0 s. |
-| Frame | Flux Coil | Faster regen and shorter delay → more beam uptime between bursts. |
-| Frame | Anchor Crystal | None. |
+*Item names updated to Armory v2 (`items-and-armory.md` §3.5), 2026-10-07.*
+
+| Socket | Item | Effect on the beam |
+| ---- | ---- | ---- |
+| Core | Ember Facet, Pulse Facet, Tempest Heart, Prism Eye; Ember / Tempo components | None (damage and fire-rate stats do not change heal output). |
+| Core | Ember Heart (passive Kindle) | Heal-beam assists count as assists, so Kindle refills 30% of the pool on them. |
+| Barrel | Lens Shard, Longsight Ring, Longsight Lens | Beam lock range +10% / +18% / +30% (18 → 19.8 / 21.2 / 23.4 m; leash scales the same). |
+| Barrel | Bore Ring, Breaker Bore; Steady Shard | None (bolts only). |
+| Frame | Wellframe, Reservoir Frame | Pool +15% / +45% → beam from full lasts 4.6 / 5.8 s. |
+| Frame | Feed Shard, Wellframe, Flux Coil | Faster regen and shorter delay → more beam uptime between bursts. |
+| Frame | Anchor Frame | Pool +15% only. |
 | Chamber | Any Ammo Type / Mod | Never applies to the beam (ammo effects never apply to allies, §3.1). Siphon on bolts still restores mana that the beam can spend. |
 
 The Supply Cache Mana benefit (C5, §3.5) also shortens the beam's regen delay.
@@ -102,7 +107,7 @@ Reference targets are the `heroes.md` §3.1 values at level 1: **225 HP / 0% arm
 
 ¹ 39 hits, so one 1.6 s reload in practice. ² The pool empties first (Whisperfang at 2.9 s, Glitchcaster at 4.5 s), so a Brannoc kill needs a second engagement. ³ Within the ±10% acceptance tolerance of `heroes.md` AC 3.
 
-Global rules: (a) a **fully built** weapon (Tier III Core + matching Barrel/Frame + ammo type) may cut body TTK by **15–25%**, never more; (b) **no weapon may reach a body TTK_ideal below 0.80 s against a level-matched 250 HP target** at any build without an ultimate (the `heroes.md` §5.2 floor); (c) Brannoc TTK must stay ≥ 2.5× the 250 HP TTK for every non-tank weapon (Piercing included).
+Global rules: (a) a hero's **full item build** (sockets, loose components and Chamber, with ammo effects such as Brittle and Burn counted) may cut body TTK by **15–25%**, never more; enforced by the throughput cap `G_hit ≤ 1.333` (`items-and-armory.md` §3.7, §4.3); (b) **no weapon may reach a body TTK_ideal below 0.80 s against a level-matched 250 HP target** at any build without an ultimate (the `heroes.md` §5.2 floor); (c) Brannoc TTK must stay **≥ 2.35×** the 250 HP TTK for every non-tank weapon, penetration at its 0.60 cap included (550 / 0.92 = 598 EHP = 2.39×). *Revised 2026-10-07 (owner): (a) now covers the whole item build; (c) relaxed from 2.5× (which 60% penetration already broke) to 2.35×.* (d) A full **defensive** build lengthens TTK by at most +25% against a full damage build with the counter and +50% without (`items-and-armory.md` §3.7, §4.5).
 
 **Reference structure DPS (used by `match-flow-and-map.md` F4/F9): 80 per hero at mid-match gear.** Derivation: roster mean sustained body DPS ≈ 125 at L1 (§3.3) × L10 1.225 × Tier II Core 1.11 ≈ 170 nominal, × ≈ 0.47 siege uptime (reloads, mana duty cycles, skill casts, repositioning under defender fire) ≈ 80.
 
@@ -122,7 +127,9 @@ Global rules: (a) a **fully built** weapon (Tier III Core + matching Barrel/Fram
 
 ### 3.6 The Mount System
 
-**Principle:** every purchase is a physical object mounted on the gun. No invisible stat item exists (Pillar 4 design test).
+**Principle:** every purchase is a physical object, mounted on the gun or worn on the hero's body. No invisible stat item exists (Pillar 4 design test).
+
+**Armory v2 (2026-10-07):** each socket holds one **finished** weapon part (an Assembly or a Signature, `items-and-armory.md` §3.2). Weapon components wait in the hero's 6 open item slots, shown on the belt, until their part is mounted (`items-and-armory.md` §3.4). Each weapon item is one entry with a Crystal form and a Chip form (§3.3 there). The Weaves no longer use the Frame socket; they became the Plate and Null body-gear lines. §3.6.2 and §3.6.4 rules 2–4 below are replaced by `items-and-armory.md` §3.2 and §3.6.
 
 #### 3.6.1 Sockets (identical layout on all 7 weapons)
 
@@ -136,6 +143,8 @@ Global rules: (a) a **fully built** weapon (Tier III Core + matching Barrel/Fram
 Every weapon is authored with four attach markers (`socket_core`, `socket_barrel`, `socket_frame`, `socket_chamber`) as `Marker3D` nodes in first- and third-person rigs. Mount meshes are shared per family and placed via per-weapon scale/offset presets, so the art cost is *families × tiers*, not *families × tiers × weapons*.
 
 #### 3.6.2 Tiers (rarity) and price bands
+
+*Replaced by Armory v2 (`items-and-armory.md` §3.2): Tier I = Component (250–450), Tier II = Assembly (800–1,100), Tier III = Signature (2,400–3,200), built by recipe, not upgraded in place. The visual signal column below still applies (Component = small, Assembly = medium, Signature = large). v1 text kept as history:*
 
 Each Crystal/Chip is a **line** with three tiers. Tier = rarity = price band. A socket holds one tier of one line.
 
