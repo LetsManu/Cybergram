@@ -40,6 +40,17 @@ const GRID_W: float = 676.0
 const DETAIL_X: float = 846.0
 const REC_RIGHT_X: float = 820.0
 const STEP_W: float = 58.0
+## Recommended grid (canvas units): cell = icon + 2 name lines + price.
+const CELL_W: float = 92.0
+const CELL_H: float = 96.0
+const ICON: float = 46.0
+const MINI: float = 30.0
+const NAME_PX: float = 12.0
+const GUTTER: float = 14.0
+const CHEVRON_W: float = 26.0
+const SECTION_GAP: float = 30.0
+const LEFT_W: float = DETAIL_X - 10.0 - 2.0 * PAD
+const MAX_CORE_TILES: int = 10
 const TOAST_LIFE_S: float = 2.5
 const HINT_LIFE_S: float = 2.5
 const PENDING_TIMEOUT_S: float = 1.5
@@ -66,6 +77,8 @@ var _scroll: float = 0.0
 var _view: Vector2 = Vector2(BODY_Y, BODY_B)
 ## Bottom of the Core steps (canvas units, unscrolled): the "more below" hint.
 var _core_bottom: float = 0.0
+## Item under the mouse (-1 = none); the detail pane prefers it over the focus.
+var _hover: int = -1
 ## Bottom of the right Recommended column (Situational + Ammo cards).
 var _right_bottom: float = 0.0
 ## Evidence only (env CYBERGRAM_SHOP_EVIDENCE=full): fill the open slots, then
@@ -377,6 +390,7 @@ func _ensure_visible() -> void:
 
 func _set_tab(t: int) -> void:
 	tab = t
+	_hover = -1
 	sel = 0
 	area = Area.MAIN
 	_scroll = 0.0
@@ -589,6 +603,12 @@ func _input(event: InputEvent) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if not open:
 		return
+	if event is InputEventMouseMotion:
+		_hover = -1
+		var mp: Vector2 = (event as InputEventMouseMotion).position / _k
+		for i in _items.size():
+			if _shown(i).has_point(mp):
+				_hover = i
 	if event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		var p := mb.position / _k
@@ -670,54 +690,72 @@ func _layout() -> void:
 		else clampi(sel, 0, maxi(0, builds_vm.entries().size() - 1))
 
 
+## Recommended (§3.9), LoL-style: compact tiles (icon, name, one price) on an
+## even grid, no scrolling and no truncated text. Row 1: Starter | Ammo;
+## row 2: the Core path in step order (chevrons between steps, the other
+## choices as a small "or" stack under a step); row 3: Squad | Situational.
+## Reasons, stats and recipes live in the detail pane on the right.
 func _layout_rec() -> void:
 	var s := model.sections()
-	var y := BODY_Y + 20.0
-	_labels.append({"key": "HUD_SHOP2_SEC_STARTER", "pos": Vector2(PAD, y - 6.0)})
-	var starter: Array = s["starter"]
-	var sw := (REC_RIGHT_X - PAD - 12.0 - 8.0 * 3.0) / 4.0
-	for i in mini(starter.size(), 4):
-		_items.append({"rect": Rect2(PAD + i * (sw + 8.0), y, sw, CARD_H), "index": int(starter[i]["next"]),
-			"goal": int(starter[i]["goal"]), "card": starter[i]})
-	y += CARD_H + 26.0
-	_labels.append({"key": "HUD_SHOP2_SEC_CORE", "pos": Vector2(PAD, y - 6.0)})
-	_view = Vector2(y, BODY_B)
-	var rows: Array = s["core"]
-	var cw := (REC_RIGHT_X - PAD - 12.0 - STEP_W - 8.0 * 2.0) / 3.0
+	var best := model.advice().best()
+	var best_goal := best.goal_index if best != null else -1
+	var y := BODY_Y + 28.0
 	var x := PAD
-	var ry := y
-	for r in rows.size():
-		var cards: Array = rows[r]["cards"]
-		var bw := STEP_W + cards.size() * (cw + 8.0) - 8.0
-		if x > PAD and x + bw > REC_RIGHT_X - 12.0:
-			x = PAD
-			ry += CARD_PITCH
-		_labels.append({"step": r + 1, "pos": Vector2(x, ry), "scroll": true, "next": bool(rows[r]["next"])})
-		for c in cards.size():
-			_items.append({"rect": Rect2(x + STEP_W + c * (cw + 8.0), ry, cw, CARD_H), "index": int(cards[c]["next"]),
-				"goal": int(cards[c]["goal"]), "card": cards[c], "scroll": true})
-		x += bw + 16.0
-	_core_bottom = ry + CARD_H if not rows.is_empty() else y
-	var rx := REC_RIGHT_X
-	var rw := VW - PAD - rx
-	var yy := BODY_Y + 20.0
-	_labels.append({"key": "HUD_SHOP2_SEC_SITUATIONAL", "pos": Vector2(rx, yy - 6.0)})
-	var sit: Array = s["situational"]
-	if sit.is_empty():
-		_labels.append({"key": "HUD_SHOP2_SEC_NONE", "pos": Vector2(rx, yy + 22.0), "muted": true})
-		yy += 36.0
-	for i in mini(sit.size(), 3):
-		_items.append({"rect": Rect2(rx, yy, rw, CARD_H), "index": int(sit[i]["next"]), "goal": int(sit[i]["goal"]),
-			"card": sit[i]})
-		yy += CARD_PITCH
-	yy += 20.0
-	_labels.append({"key": "HUD_SHOP2_SEC_AMMO", "pos": Vector2(rx, yy - 6.0)})
+	_labels.append({"key": "HUD_SHOP2_SEC_STARTER", "pos": Vector2(x, y - 8.0)})
+	var starter: Array = s["starter"]
+	for i in mini(starter.size(), 3):
+		_add_cell(starter[i], Vector2(x, y), 0, best_goal)
+		x += CELL_W + GUTTER
+	x = maxf(x + GUTTER * 2.0, PAD + 3.0 * (CELL_W + GUTTER) + GUTTER * 2.0)
+	_labels.append({"key": "HUD_SHOP2_SEC_AMMO", "pos": Vector2(x, y - 8.0)})
 	var ammo: Array = s["ammo"]
 	for i in mini(ammo.size(), 2):
-		_items.append({"rect": Rect2(rx, yy, rw, CARD_H), "index": int(ammo[i]["next"]), "goal": int(ammo[i]["goal"]),
-			"card": ammo[i]})
-		yy += CARD_PITCH
-	_right_bottom = yy - (CARD_PITCH - CARD_H)
+		_add_cell(ammo[i], Vector2(x, y), 0, best_goal)
+		x += CELL_W + GUTTER
+	# Core path.
+	y += CELL_H + SECTION_GAP
+	x = PAD
+	_labels.append({"key": "HUD_SHOP2_SEC_CORE", "pos": Vector2(x, y - 8.0)})
+	var rows: Array = s["core"]
+	var max_steps := floori((LEFT_W + CHEVRON_W) / (CELL_W + CHEVRON_W))
+	var tiles := 0
+	for r in mini(rows.size(), max_steps):
+		var cards: Array = rows[r]["cards"]
+		if tiles + cards.size() > MAX_CORE_TILES:
+			break
+		if r > 0:
+			_labels.append({"chevron": true, "pos": Vector2(x - CHEVRON_W * 0.5, y + ICON * 0.5 + 4.0)})
+		_add_cell(cards[0], Vector2(x, y), r + 1, best_goal)
+		# Other choices: a mini "or" stack under the step.
+		for c in range(1, cards.size()):
+			var mr := Rect2(x + (c - 1) * (MINI + 8.0), y + CELL_H + 18.0, MINI, MINI + 14.0)
+			_items.append({"rect": mr, "index": int(cards[c]["next"]), "goal": int(cards[c]["goal"]), "card": cards[c],
+				"mini": true, "is_next": int(cards[c]["goal"]) == best_goal})
+		if cards.size() > 1:
+			_labels.append({"or": true, "pos": Vector2(x, y + CELL_H + 12.0)})
+		tiles += cards.size()
+		x += CELL_W + CHEVRON_W
+	# Squad | Situational.
+	y += CELL_H + MINI + 14.0 + 18.0 + SECTION_GAP
+	x = PAD
+	_labels.append({"key": "HUD_ARMORY_SQUAD", "pos": Vector2(x, y - 8.0)})
+	var squad: Array = s["squad"]
+	for i in mini(squad.size(), 4):
+		_add_cell(squad[i], Vector2(x, y), 0, best_goal)
+		x += CELL_W + GUTTER
+	x = PAD + 4.0 * (CELL_W + GUTTER) + GUTTER * 2.0
+	_labels.append({"key": "HUD_SHOP2_SEC_SITUATIONAL", "pos": Vector2(x, y - 8.0)})
+	var sit: Array = s["situational"]
+	if sit.is_empty():
+		_labels.append({"key": "HUD_SHOP2_SEC_NONE", "pos": Vector2(x, y + 30.0), "muted": true})
+	for i in mini(sit.size(), 3):
+		_add_cell(sit[i], Vector2(x, y), 0, best_goal)
+		x += CELL_W + GUTTER
+
+
+func _add_cell(c: Dictionary, at: Vector2, step: int, best_goal: int) -> void:
+	_items.append({"rect": Rect2(at, Vector2(CELL_W, CELL_H)), "index": int(c["next"]), "goal": int(c["goal"]), "card": c,
+		"step": step, "is_next": int(c["goal"]) == best_goal})
 
 
 func _layout_all() -> void:
@@ -940,93 +978,111 @@ func _draw_labels() -> void:
 
 
 func _draw_rec() -> void:
-	_draw_labels()
+	for l in _labels:
+		var pos: Vector2 = l["pos"]
+		if l.has("chevron"):
+			chevron_line(pos * _k, 5.0 * _k, HudPalette.BRASS_DIM)
+		elif l.has("or"):
+			_c(tr("HUD_SHOP2_OR"), pos.x, pos.y, 10.0, HudPalette.DIM, 0.2)
+		else:
+			_c(tr(String(l["key"])), pos.x, pos.y, 12.0, HudPalette.DIM if l.has("muted") else HudPalette.BRASS, 0.2)
 	for i in _items.size():
-		var r := _shown(i)
-		if r.size == Vector2.ZERO:
-			continue
-		_draw_card(r, _items[i]["card"], i == sel and area == Area.MAIN)
+		var foc := i == sel and area == Area.MAIN
+		if bool(_items[i].get("mini", false)):
+			_draw_mini(_items[i], foc or i == _hover)
+		else:
+			_draw_cell(_items[i], foc or i == _hover)
 	if _items.is_empty():
 		_t(tr("HUD_SHOP_NO_BUILD"), PAD, BODY_Y + 60.0, 15.0, HudPalette.MUTED)
-	# More Core steps below the fold: a visible hint (Down / wheel scrolls).
-	if _core_bottom - _scroll > _view.y + 1.0:
-		var hy := _view.y + 8.0
-		chevron_line(Vector2(PAD + 8.0, hy - 4.0) * _k, 5.0 * _k, HudPalette.BRASS)
-		_t(tr("HUD_SHOP2_MORE"), PAD + 22.0, hy, 12.0, HudPalette.BRASS, ctx.font_body)
-	if area == Area.MAIN and sel >= 0 and sel < _items.size() and _shown(sel).size != Vector2.ZERO:
-		_draw_tip(_shown(sel), _items[sel]["card"])
+	draw_line(Vector2(DETAIL_X - 10.0, BODY_Y) * _k, Vector2(DETAIL_X - 10.0, BODY_B) * _k, HudPalette.HAIR_STRONG, 1.0)
+	var i := _hover if _hover >= 0 and _hover < _items.size() else sel
+	if i >= 0 and i < _items.size():
+		_draw_detail(int(_items[i]["goal"]), _items[i]["card"])
 
 
-## Focused card: the full name, price, next part and reason that the card
-## itself cuts with ".." at 720p (§3.9: every card shows its reason).
-func _draw_tip(r: Rect2, c: Dictionary) -> void:
-	var w := maxf(r.size.x, 360.0)
-	var x := clampf(r.position.x, PAD, VW - PAD - w)
-	var h := 74.0
-	var y := r.end.y + 4.0 if r.end.y + 4.0 + h < STRIP_Y - 4.0 else r.position.y - h - 4.0
-	# Prefer the free space under the right column, so the tip never covers cards.
-	if _right_bottom + 8.0 + h <= BODY_B:
-		x = REC_RIGHT_X
-		w = VW - PAD - REC_RIGHT_X
-		y = _right_bottom + 8.0
-	var tr_ := Rect2(x, y, w, h)
-	draw_rect(_r(tr_), Color(0.03, 0.045, 0.06, 0.99))
-	draw_rect(_r(tr_).grow(-0.5), HudPalette.BRASS, false, 1.0)
-	var goal := int(c["goal"])
-	var head := "%s  ·  %s" % [model.name_of(goal), tr("HUD_SHOP2_TOTAL") % HudFormat.thousands(int(c["total"]))]
-	_t(_fit(head, 13.0, w - 20.0), x + 10.0, y + 18.0, 13.0, HudPalette.IVORY, UiKit.body_font(600))
+## Icon box with tier glyph, step badge, owned tick and the NEXT accent.
+func _draw_icon_box(r: Rect2, c: Dictionary, focused: bool, is_next: bool, a: float) -> void:
+	cut_fill(_r(r), 6.0 * _k, Color(0.051, 0.075, 0.094, 0.95))
+	if focused:
+		cut_fill(_r(r), 6.0 * _k, Color(HudPalette.IVORY, 0.06))
+	var rim := HudPalette.BRASS_HI if is_next else (HudPalette.IVORY if focused else HudPalette.HAIR_STRONG)
+	cut_line(_r(r), 6.0 * _k, rim, 2.0 if is_next or focused else 1.0)
+	_icon(int(c["goal"]), r.grow(-6.0), a)
+	if bool(c["done"]):
+		_tick(Vector2(r.end.x - 7.0, r.position.y + 7.0), 4.0, HudPalette.TEAL)
+
+
+func _price_of(c: Dictionary) -> Array:
+	if bool(c["done"]):
+		return [tr("HUD_ARMORY_OWNED"), HudPalette.TEAL]
 	var st := int(c["state"])
-	var reason := tr(String(c["reason"]))
-	if not bool(c["done"]) and st != ItemShopModel.State.AVAILABLE and st != ItemShopModel.State.CANT_AFFORD:
-		reason = _state_text(int(c["next"]), st) + "  ·  " + reason
-	elif st == ItemShopModel.State.CANT_AFFORD and not bool(c["done"]):
-		reason = _state_text(int(c["next"]), st) + "  ·  " + reason
-	draw_multiline_string(ctx.font_body, Vector2(x + 10.0, y + 38.0) * _k, reason, HORIZONTAL_ALIGNMENT_LEFT,
-		(w - 20.0) * _k, ts(_px(12.0)), 3, HudPalette.MUTED)
+	var col := HudPalette.BRASS_HI if st == ItemShopModel.State.AVAILABLE else (HudPalette.MUTED \
+		if st == ItemShopModel.State.CANT_AFFORD else HudPalette.WARN_UI)
+	return [HudFormat.thousands(int(c["cost"])), col]
 
 
-## One Recommended card: icon, name, total price, "Next: part · price", reason.
-func _draw_card(r: Rect2, c: Dictionary, focused: bool) -> void:
-	var goal := int(c["goal"])
-	var nxt := int(c["next"])
+func _draw_cell(e: Dictionary, focused: bool) -> void:
+	var r: Rect2 = e["rect"]
+	var c: Dictionary = e["card"]
 	var st := int(c["state"])
-	var done := bool(c["done"])
-	var ok := st == ItemShopModel.State.AVAILABLE
-	var a := 1.0 if ok or done or st == ItemShopModel.State.CANT_AFFORD else 0.55
-	cut_fill(_r(r), 9.0 * _k, Color(0.051, 0.075, 0.094, 0.92))
-	cut_line(_r(r), 9.0 * _k, HudPalette.BRASS if focused else HudPalette.HAIR_STRONG, 1.5 if focused else 1.0)
-	_icon(goal, Rect2(r.position + Vector2(8.0, 12.0), Vector2(40.0, 40.0)), a)
-	var x := r.position.x + 56.0
-	var w := r.end.x - x - 8.0
-	var total := HudFormat.thousands(int(c["total"]))
-	var tw := text_width(total, _px(13.0), ctx.font_numbers) / _k
-	_t(_fit(model.name_of(goal), 14.0, w - tw - 8.0), x, r.position.y + 19.0, 14.0, Color(HudPalette.IVORY, a),
-		UiKit.body_font(600))
-	_t(total, x, r.position.y + 19.0, 13.0, Color(HudPalette.BRASS_HI, a), ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, w)
-	var line := ""
-	var col := HudPalette.MUTED
-	if done:
-		line = tr("HUD_ARMORY_OWNED")
-		col = HudPalette.TEAL
-		_tick(Vector2(r.end.x - 14.0, r.position.y + 36.0), 5.0, HudPalette.TEAL)
-	elif nxt != goal:
-		line = tr("HUD_SHOP2_NEXT_PART") % [model.name_of(nxt), HudFormat.thousands(int(c["next_cost"]))]
-		col = HudPalette.IVORY if ok else HudPalette.WARN_UI
-	else:
-		line = tr("HUD_SHOP2_BUY_NOW") % HudFormat.thousands(int(c["next_cost"]))
-		col = HudPalette.IVORY if ok else HudPalette.WARN_UI
-	_t(_fit(line, 12.0, w), x, r.position.y + 37.0, 12.0, Color(col, maxf(a, 0.8)), ctx.font_body)
-	var reason := tr(String(c["reason"]))
-	var rcol := HudPalette.BRASS_HI if bool(c["situational"]) else HudPalette.MUTED
-	if not done and not ok and st != ItemShopModel.State.CANT_AFFORD:
-		reason = _state_text(nxt, st)
-		rcol = HudPalette.WARN_UI
-	if bool(c["situational"]) and (done or ok or st == ItemShopModel.State.CANT_AFFORD):
-		# Reason chip (§3.9: counter items carry their reason as a chip).
-		var cw := minf(text_width(reason, _px(11.0), ctx.font_body) / _k + 12.0, w)
-		draw_rect(_r(Rect2(x - 2.0, r.position.y + 44.0, cw, 15.0)), Color(HudPalette.BRASS, 0.18))
-	_t(_fit(reason, 11.0, w - 4.0), x + (3.0 if bool(c["situational"]) else 0.0), r.position.y + 56.0, 11.0, rcol,
-		ctx.font_body)
+	var blocked := not bool(c["done"]) and st != ItemShopModel.State.AVAILABLE and st != ItemShopModel.State.CANT_AFFORD
+	var ib := Rect2(r.position.x + (CELL_W - ICON) * 0.5, r.position.y, ICON, ICON)
+	_draw_icon_box(ib, c, focused, bool(e["is_next"]), 0.45 if blocked else 1.0)
+	var step := int(e.get("step", 0))
+	if step > 0:
+		var bc := (ib.position + Vector2(1.0, 1.0)) * _k
+		draw_circle(bc, 8.0 * _k, HudPalette.INK_DEEP)
+		draw_arc(bc, 8.0 * _k, 0.0, TAU, 16, HudPalette.BRASS_DIM, 1.0, true)
+		_t(str(step), ib.position.x - 7.0, ib.position.y + 5.0, 10.0, HudPalette.BRASS_HI, ctx.font_numbers,
+			HORIZONTAL_ALIGNMENT_CENTER, 16.0)
+	if bool(c["situational"]):
+		diamond((ib.position + Vector2(ICON - 2.0, ICON - 2.0)) * _k, 4.0 * _k, HudPalette.WARN_UI)
+	var lines := _wrap(model.name_of(int(c["goal"])), CELL_W)
+	var ny := ib.end.y + 15.0
+	var fs := float(lines[0])
+	for k in range(1, lines.size()):
+		_t(String(lines[k]), r.position.x, ny, fs, HudPalette.IVORY if focused else Color(HudPalette.IVORY, 0.88),
+			ctx.font_body, HORIZONTAL_ALIGNMENT_CENTER, CELL_W)
+		ny += fs + 2.0
+	var pr := _price_of(c)
+	_t(String(pr[0]), r.position.x, r.position.y + ICON + 15.0 + 2.0 * (NAME_PX + 2.0) + 2.0, 12.0, pr[1],
+		ctx.font_numbers, HORIZONTAL_ALIGNMENT_CENTER, CELL_W)
+
+
+## Mini "or" choice under a Core step: icon and one price (the name is in the pane).
+func _draw_mini(e: Dictionary, focused: bool) -> void:
+	var r: Rect2 = e["rect"]
+	var c: Dictionary = e["card"]
+	var ib := Rect2(r.position, Vector2(MINI, MINI))
+	_draw_icon_box(ib, c, focused, bool(e["is_next"]), 1.0)
+	var pr := _price_of(c)
+	_t(String(pr[0]), r.position.x - 6.0, r.end.y, 10.0, pr[1], ctx.font_numbers, HORIZONTAL_ALIGNMENT_CENTER, MINI + 12.0)
+
+
+## Word-wraps `name` into at most 2 centred lines of `w` canvas units:
+## [font px, line1, line2]. Shrinks the font (13 -> 11) before it would cut.
+func _wrap(name_: String, w: float) -> Array:
+	for fs in [NAME_PX, NAME_PX - 1.0, NAME_PX - 2.0]:
+		var out: Array = [fs]
+		var line := ""
+		var ok := true
+		for word in name_.split(" "):
+			var cand := word if line == "" else line + " " + word
+			if text_width(cand, _px(fs), ctx.font_body) <= w * _k:
+				line = cand
+			else:
+				if line == "":
+					ok = false
+				out.append(line)
+				line = word
+		out.append(line)
+		if ok and out.size() <= 3:
+			for k in range(1, out.size()):
+				if text_width(String(out[k]), _px(fs), ctx.font_body) > w * _k:
+					ok = false
+			if ok:
+				return out
+	return [NAME_PX - 2.0, name_]
 
 
 func _draw_all() -> void:
@@ -1072,13 +1128,25 @@ func _draw_all() -> void:
 
 ## Right pane: name, tier and where it goes, stats with "(capped)", passive,
 ## recipe tree (owned parts ticked, cost to complete), Builds into, buy state.
-func _draw_detail(idx: int) -> void:
+func _draw_detail(idx: int, card: Dictionary = {}) -> void:
 	var it := model.catalog.at(idx)
 	var x := DETAIL_X
 	var w := VW - PAD - x
 	var y := BODY_Y + 20.0
 	_t(_fit(model.name_of(idx), 17.0, w), x, y, 17.0, HudPalette.IVORY, ctx.font_display)
 	y += 20.0
+	if not card.is_empty():
+		# Recommended: why, and the part to buy now (§3.9 card contents, in the pane).
+		var why := tr(String(card["reason"]))
+		var st := int(card["state"])
+		if not bool(card["done"]) and st != ItemShopModel.State.AVAILABLE:
+			why = _state_text(int(card["next"]), st) + ". " + why
+		var used := _para(why, x, y, w, 12.0, HudPalette.BRASS_HI if bool(card["situational"]) else HudPalette.MUTED, 3)
+		y += used + 4.0
+		if not bool(card["done"]) and int(card["next"]) != idx:
+			_t(tr("HUD_SHOP2_NEXT_PART") % [model.name_of(int(card["next"])), HudFormat.thousands(int(card["next_cost"]))],
+				x, y + 12.0, 13.0, HudPalette.IVORY, ctx.font_body)
+			y += 20.0
 	var where := ""
 	if it.uses_open_slot():
 		where = tr("HUD_SHOP2_OPEN_SLOT")
@@ -1105,9 +1173,7 @@ func _draw_detail(idx: int) -> void:
 		y += 17.0
 	if it.passive != &"":
 		var ptxt := tr(String(ItemShopModel.PASSIVE_KEYS.get(it.passive, String(it.passive))))
-		draw_multiline_string(ctx.font_body, Vector2(x, y) * _k, ptxt, HORIZONTAL_ALIGNMENT_LEFT, w * _k, ts(_px(11.0)), 2,
-			HudPalette.BRASS_HI)
-		y += 32.0
+		y += _para(ptxt, x, y - 12.0, w, 11.0, HudPalette.BRASS_HI, 3) + 4.0
 	# Recipe tree.
 	var tree := model.tree(idx)
 	if tree.size() > 1:
@@ -1116,7 +1182,7 @@ func _draw_detail(idx: int) -> void:
 		y += 4.0
 		var lines := 0
 		for e in tree:
-			if lines >= 7:
+			if lines >= 7 or y > BODY_B - 64.0:
 				break
 			var d := int(e["depth"])
 			var ex := x + 8.0 + d * 16.0
@@ -1139,7 +1205,7 @@ func _draw_detail(idx: int) -> void:
 		y += 20.0
 	# Builds into.
 	var into := model.builds_into(idx)
-	if not into.is_empty() and y < BODY_B - 56.0:
+	if not into.is_empty() and y < BODY_B - 64.0 and card.is_empty():
 		y += 4.0
 		_c(tr("HUD_SHOP2_BUILDS_INTO"), x, y + 8.0, 11.0, HudPalette.BRASS, 0.2)
 		y += 14.0
@@ -1156,6 +1222,16 @@ func _draw_detail(idx: int) -> void:
 			HudPalette.BRASS_HI, ctx.font_body)
 	else:
 		_t(_fit(_state_text(idx, st), 13.0, w), x, by, 13.0, HudPalette.WARN_UI, ctx.font_body)
+
+
+## Wrapped paragraph from the line whose baseline is `y` + px; returns its height
+## (canvas units). At most `max_lines` lines (sized so the copy fits).
+func _para(t: String, x: float, y: float, w: float, px: float, col: Color, max_lines: int) -> float:
+	var f := ctx.font_body
+	var fs := ts(_px(px))
+	var lines := mini(max_lines, f.get_multiline_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, w * _k, fs).y / f.get_height(fs))
+	draw_multiline_string(f, Vector2(x, y + px) * _k, t, HORIZONTAL_ALIGNMENT_LEFT, w * _k, fs, max_lines, col)
+	return maxf(1.0, float(lines)) * f.get_height(fs) / _k
 
 
 func _draw_sets() -> void:

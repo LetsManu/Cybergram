@@ -1306,3 +1306,4 @@ HUD_PASSIVE_SIEGEBREAKER,"Siegebreaker: weapon damage vs Ward Generators and an 
 HUD_SHOP2_MORE,More steps below (Down or mouse wheel)
 HUD_SHOP2_TOTAL,total %s
 HUD_SHOP2_TOTAL_COMPLETE,Total %s  ·  to complete %s
+HUD_SHOP2_OR,or

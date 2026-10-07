@@ -686,16 +686,18 @@ func card(goal: int, reason_key: String, situational: bool = false) -> Dictionar
 	if it != null and it.is_recipe_item() and not done:
 		nxt = BuildAdvisor.next_part(st, goal)
 	var ni := int(nxt["index"])
-	return {"goal": goal, "next": ni, "next_cost": cost(ni), "total": total(goal), "reason": reason_key,
+	return {"goal": goal, "next": ni, "next_cost": cost(ni), "total": total(goal), "cost": cost(goal), "reason": reason_key,
 		"state": state(ni) if not done else State.OWNED, "done": done, "situational": situational}
 
 
-## The four Recommended sections (§3.9): {starter: cards, core: [{node, cards}],
-## situational: cards, ammo: cards}. Core holds one row per open guide step
-## (2-3 choices); Situational the counter nodes the advisor offers now, with
-## its reason; Ammo one Ammo Type and one Mod suggestion.
+## The Recommended sections (§3.9): {starter: cards, core: [{node, cards,
+## next, done}], squad: cards, situational: cards, ammo: cards}. Core is the
+## guide's path in step order (done steps stay, ticked; 2-3 choices each;
+## squad upgrades and optional "luxury" nodes are left out); Squad lists the
+## open squad upgrades; Situational the counter nodes the advisor offers now,
+## with its reason; Ammo one Ammo Type and one Mod suggestion.
 func sections() -> Dictionary:
-	var out := {"starter": [], "core": [], "situational": [], "ammo": []}
+	var out := {"starter": [], "core": [], "squad": [], "situational": [], "ammo": []}
 	var b := build()
 	if b == null or catalog == null or progress == null:
 		return out
@@ -745,12 +747,17 @@ func sections() -> Dictionary:
 					seen_starter[c] = true
 					out["starter"].append(card(c, reason))
 			continue
-		if done.has(String(n.id)):
+		if it.kind == ArmoryItemDef.Kind.SQUAD:
+			if not done.has(String(n.id)):
+				out["squad"].append(card(idx, reason))
 			continue
+		if n.optional:
+			continue  # luxury gear after the path's end (§3.9: keep the path short)
 		var cards: Array = []
 		for c in choices.slice(0, 3):
 			cards.append(card(c, reason))
-		out["core"].append({"node": n, "cards": cards, "next": a != null and advice().best() == a})
+		out["core"].append({"node": n, "cards": cards, "next": a != null and advice().best() == a,
+			"done": done.has(String(n.id))})
 	return out
 
 
