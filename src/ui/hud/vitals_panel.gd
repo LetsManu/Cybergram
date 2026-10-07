@@ -202,9 +202,12 @@ func _overshield_bar(r: Rect2, cb: SnapshotData.OwnCombat, unit: float) -> void:
 	if pts <= 0:
 		return
 	var w := minf(pts * unit, r.size.x)
-	var br := Rect2(r.position.x, r.position.y - 8.0, w, 6.0)
-	draw_rect(Rect2(r.position.x, br.position.y, r.size.x, br.size.y), Color(HudPalette.TEAL, 0.16))
-	draw_rect(br, HudPalette.TEAL)
-	draw_rect(br, Color(HudPalette.INK_DEEP, 0.6), false, 1.0)
-	diamond(Vector2(br.end.x, br.get_center().y), 5.0, HudPalette.TEAL)
-	text("+%d" % pts, Vector2(r.end.x + 8.0, br.end.y + 2.0), 13, HudPalette.TEAL, ctx.font_numbers)
+	# A separate 6 px track the HP bar's width, 3 px above it, and the value at
+	# the track's right end: readable at a glance (owner review).
+	var track := Rect2(r.position.x, r.position.y - 9.0, r.size.x, 6.0)
+	draw_rect(track, Color(HudPalette.INK_DEEP, 0.7))
+	draw_rect(track, Color(HudPalette.TEAL, 0.25))
+	draw_rect(Rect2(track.position, Vector2(w, track.size.y)), HudPalette.TEAL)
+	draw_rect(track.grow(0.5), Color(HudPalette.TEAL, 0.6), false, 1.0)
+	diamond(Vector2(track.position.x + w, track.get_center().y), 5.0, HudPalette.TEAL)
+	text("+%d" % pts, Vector2(r.end.x + 10.0, r.position.y + 2.0), 18, HudPalette.TEAL, ctx.font_numbers)

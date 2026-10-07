@@ -41,14 +41,14 @@ const DETAIL_X: float = 846.0
 const REC_RIGHT_X: float = 820.0
 const STEP_W: float = 58.0
 ## Recommended grid (canvas units): cell = icon + 2 name lines + price.
-const CELL_W: float = 92.0
+const CELL_W: float = 104.0
 const CELL_H: float = 90.0
-const ICON: float = 46.0
-const MINI: float = 28.0
+const ICON: float = 50.0
+const MINI: float = 34.0
 const NAME_PX: float = 12.0
-const GUTTER: float = 14.0
-const CHEVRON_W: float = 26.0
-const SECTION_GAP: float = 30.0
+const GUTTER: float = 18.0
+const CHEVRON_W: float = 32.0
+const SECTION_GAP: float = 28.0
 const LEFT_W: float = DETAIL_X - 10.0 - 2.0 * PAD
 const MAX_CORE_TILES: int = 10
 const TOAST_LIFE_S: float = 2.5
@@ -699,7 +699,7 @@ func _layout_rec() -> void:
 	var s := model.sections()
 	var best := model.advice().best()
 	var best_goal := best.goal_index if best != null else -1
-	var y := BODY_Y + 28.0
+	var y := BODY_Y + 26.0
 	var x := PAD
 	_labels.append({"key": "HUD_SHOP2_SEC_STARTER", "pos": Vector2(x, y - 8.0)})
 	var starter: Array = s["starter"]
@@ -741,18 +741,18 @@ func _layout_rec() -> void:
 		var mx: float = float(m[0]) + (CELL_W - gw) * 0.5
 		_labels.append({"or": true, "pos": Vector2(float(m[0]), y + rh + 10.0)})
 		for c in range(1, cards.size()):
-			var mr := Rect2(mx + (c - 1) * (MINI + 8.0), y + rh + 16.0, MINI, MINI + 14.0)
+			var mr := Rect2(mx + (c - 1) * (MINI + 8.0), y + rh + 16.0, MINI, MINI + 16.0)
 			_items.append({"rect": mr, "index": int(cards[c]["next"]), "goal": int(cards[c]["goal"]), "card": cards[c],
 				"mini": true, "is_next": int(cards[c]["goal"]) == best_goal})
 	# Squad | Situational.
-	y += rh + (16.0 + MINI + 14.0 if not minis.is_empty() else 0.0) + SECTION_GAP
+	y += rh + (16.0 + MINI + 16.0 if not minis.is_empty() else 0.0) + SECTION_GAP
 	x = PAD
 	_labels.append({"key": "HUD_ARMORY_SQUAD", "pos": Vector2(x, y - 8.0)})
 	var squad: Array = s["squad"]
-	for i in mini(squad.size(), 4):
+	for i in mini(squad.size(), 3):
 		_add_cell(squad[i], Vector2(x, y), 0, best_goal)
 		x += CELL_W + GUTTER
-	x = PAD + 4.0 * (CELL_W + GUTTER) + GUTTER * 2.0
+	x = PAD + 3.0 * (CELL_W + GUTTER) + GUTTER * 2.0
 	_labels.append({"key": "HUD_SHOP2_SEC_SITUATIONAL", "pos": Vector2(x, y - 8.0)})
 	var sit: Array = s["situational"]
 	if sit.is_empty():
@@ -1087,7 +1087,7 @@ func _draw_mini(e: Dictionary, focused: bool) -> void:
 	var ib := Rect2(r.position, Vector2(MINI, MINI))
 	_draw_icon_box(ib, c, focused, bool(e["is_next"]), 1.0)
 	var pr := _price_of(c)
-	_t(String(pr[0]), r.position.x - 6.0, r.end.y, 10.0, pr[1], ctx.font_numbers, HORIZONTAL_ALIGNMENT_CENTER, MINI + 12.0)
+	_t(String(pr[0]), r.position.x - 8.0, r.end.y, 12.0, pr[1], ctx.font_numbers, HORIZONTAL_ALIGNMENT_CENTER, MINI + 16.0)
 
 
 ## Word-wraps `name` into at most 2 centred lines of `w` canvas units:
@@ -1247,7 +1247,7 @@ func _draw_detail(idx: int, card: Dictionary = {}) -> void:
 		y += 34.0
 	# Buy state (greyed reason) pinned to the pane bottom.
 	var st := model.state(idx)
-	var by := BODY_B - 6.0
+	var by := minf(y + 22.0, BODY_B - 6.0)
 	if st == ItemShopModel.State.AVAILABLE:
 		_t(tr("HUD_SHOP2_BUY_FOR") % HudFormat.thousands(model.cost(idx) - model.swap_credit(idx)), x, by, 14.0,
 			HudPalette.BRASS_HI, ctx.font_body)
