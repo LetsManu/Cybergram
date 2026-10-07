@@ -19,6 +19,8 @@ extends SceneTree
 ##                                      hardpoint, the Armory pad (6 / 15 / 35 m,
 ##                                      plus a first-person walk-up at 25 m)
 ##   hero-ref                           Vesper next to the Center Mid hardpoint (scale)
+##   shadow-spawn                       Vesper + a Wardling in the sun by spawn A's props
+##                                      (cast / contact shadows; --look and --quality apply)
 ##   cradle-close / cradle-mid          a Concord Cell Cradle holding its Cell
 ##   beacon-close / beacon-mid          Concord's Forward Beacon pad at the Center Mid
 ##                                      (--beacon none | attuning:<f> | ready | attack)
@@ -81,6 +83,10 @@ func _initialize() -> void:
 			"--beacon":
 				i += 1
 				_beacon = args[i]
+			"--quality":
+				# graphics tier for the shots: 0 Low .. 3 Ultra (look-dev, docs/lookdev.md)
+				i += 1
+				GameSettings.shared().graphics_quality = clampi(int(args[i]), 0, 3)
 			"--at":
 				# placement close-up: --at x,y,z (low camera 3.5 m away, 0.9 m up)
 				i += 1
@@ -133,7 +139,7 @@ func _initialize() -> void:
 	for s in shots:
 		if not _wanted(s[0]):
 			continue
-		_hero.visible = String(s[0]) == "hero-ref"
+		_hero.visible = String(s[0]) == "hero-ref" or String(s[0]) == "shadow-spawn"
 		if _hero.visible:
 			_hero.global_position = s[3]
 			_hero.look_at(s[1] * Vector3(1, 0, 1) + Vector3(0, _hero.global_position.y, 0), Vector3.UP, true)
@@ -216,6 +222,11 @@ static func presets(md: MapDef) -> Array:
 	hb = hb.normalized() if hb.length() > 0.1 else Vector3.BACK
 	out.append(["hero-ref", hp_mid + hb * 8.0 + hb.cross(Vector3.UP) * 1.5 + Vector3(0, 1.6, 0),
 		hp_mid + hb * 4.0 + Vector3(0, 1.0, 0), hp_mid + hb * 4.0])
+	# Shadow close-up: Vesper in the open 9 m in front of spawn A, low camera, sun-lit props behind.
+	var sfwd := Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(a.spawn_yaw_deg))
+	var sh := sp_a + sfwd * 9.0
+	out.append(["shadow-spawn", sh + sfwd * 4.2 + sfwd.cross(Vector3.UP) * 1.6 + Vector3(0, 1.5, 0),
+		sh + Vector3(0, 0.7, 0), sh])
 	# Forward Beacon pad of Concord at the Center Mid (--beacon sets its state).
 	var bp := hp_mid + hb * 6.0
 	var bs := hb.cross(Vector3.UP)

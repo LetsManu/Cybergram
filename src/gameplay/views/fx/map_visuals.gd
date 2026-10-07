@@ -38,6 +38,8 @@ var _rng := RandomNumberGenerator.new()
 ## W14-P2 post layers (null below High).
 var _rim: DirectionalLight3D
 var _ink: MeshInstance3D
+## Look-dev layer (LookProfile; null / empty without --look).
+var _look_nodes: Array[Node] = []
 
 
 func _ready() -> void:
@@ -80,6 +82,113 @@ func apply_quality() -> void:
 	if GfxQuality.ink_edges_enabled(lvl):
 		_ink = GfxQuality.make_ink_edges(lvl)
 		add_child(_ink)
+	_apply_casters(lvl)
+	_apply_local_shadows(lvl)
+	_apply_look(lvl, we.environment if we != null else null, sun)
+
+
+## Opaque lit map meshes cast sun shadows from Medium (the builders turned it off
+## on decorative, non-colliding pieces). Unshaded / transparent pieces stay off.
+func _apply_casters(lvl: int) -> void:
+	if lvl < GfxQuality.MEDIUM:
+		return
+	var geo := get_parent().get_node_or_null("Geometry")
+	if geo == null:
+		return
+	for n in geo.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF or mi.mesh == null:
+			continue
+		var m := mi.material_override if mi.material_override != null else mi.mesh.surface_get_material(0)
+		if m is ShaderMaterial and (m as ShaderMaterial).shader != null \
+				and (m as ShaderMaterial).shader.resource_path == LookProfile.PANEL_SHADER:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
+## Shadowed practical lights: the map's HQ / plaza lights in priority order, up to
+## the tier's budget (GfxQuality.LOCAL_SHADOWS); the rest stay unshadowed.
+const SHADOW_PRIORITY := ["SanctumAccent", "LookPractical", "HQAccent", "PlazaLight", "StreetGlow", "UplinkLight"]
+
+
+func _apply_local_shadows(lvl: int) -> void:
+	var budget: int = GfxQuality.LOCAL_SHADOWS[clampi(lvl, 0, 3)]
+	var lights: Array[Light3D] = []
+	for n in get_parent().find_children("*", "Light3D", true, false):
+		if n is OmniLight3D or n is SpotLight3D:
+			(n as Light3D).shadow_enabled = false
+			lights.append(n)
+	for key: String in SHADOW_PRIORITY:
+		for l in lights:
+			if budget <= 0:
+				return
+			if String(l.name).begins_with(key) and not l.shadow_enabled:
+				l.shadow_enabled = true
+				l.shadow_bias = 0.08
+				l.shadow_normal_bias = 1.5
+				l.shadow_blur = 1.5
+				budget -= 1
+
+
+## Applies the active LookProfile (no-op without --look): environment, sun, fill,
+## map materials, practical energies, HQ practicals and reflection probes.
+func _apply_look(lvl: int, env: Environment, sun: DirectionalLight3D) -> void:
+	for n in _look_nodes:
+		n.queue_free()
+	_look_nodes.clear()
+	var look := LookProfile.active()
+	if look == null:
+		return
+	look.apply_environment(env, lvl)
+	look.apply_sun(sun)
+	var fill := look.make_fill()
+	if fill != null and lvl >= GfxQuality.MEDIUM:
+		_keep(fill)
+	look.apply_materials(get_parent())
+	look.apply_materials(self)
+	for n in get_parent().find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		if l is DirectionalLight3D:
+			continue
+		if not l.has_meta(&"look_energy"):
+			l.set_meta(&"look_energy", l.light_energy)
+			l.set_meta(&"look_range", l.get("omni_range") if l is OmniLight3D else l.get("spot_range"))
+		l.light_energy = float(l.get_meta(&"look_energy")) * look.practical_energy
+		l.set("omni_range" if l is OmniLight3D else "spot_range", float(l.get_meta(&"look_range")) * look.practical_range)
+	var hq := get_parent().get_node_or_null("HQAnchors")
+	if hq != null and look.hq_practicals and lvl >= GfxQuality.MEDIUM:
+		for key in ["ConcordSanctum", "ConcordArmoryPad", "SyndicateSanctum", "SyndicateArmoryPad"]:
+			var m := hq.get_node_or_null(key) as Node3D
+			if m == null:
+				continue
+			var l := OmniLight3D.new()
+			l.name = "LookPractical_" + key
+			l.light_color = look.hq_practical_color
+			l.light_energy = look.hq_practical_energy
+			l.omni_range = 16.0
+			l.omni_attenuation = 1.4
+			l.position = m.position + Vector3(0.0, 6.5, 0.0)
+			_keep(l)
+	if hq != null and look.reflection_probes and lvl >= GfxQuality.HIGH:
+		for key in ["ConcordSanctum", "ConcordArmoryPad", "SyndicateSanctum", "SyndicateArmoryPad"]:
+			var m := hq.get_node_or_null(key) as Node3D
+			if m == null:
+				continue
+			var p := ReflectionProbe.new()
+			p.name = "LookProbe_" + key
+			p.size = Vector3(36.0, 14.0, 36.0)
+			p.position = m.position + Vector3(0.0, 2.0, 0.0)
+			p.origin_offset = Vector3(0.0, 0.0, 0.0)
+			p.update_mode = ReflectionProbe.UPDATE_ONCE
+			p.intensity = look.probe_intensity
+			p.box_projection = true
+			p.max_distance = 120.0
+			_keep(p)
+	_apply_local_shadows(lvl)
+
+
+func _keep(n: Node) -> void:
+	add_child(n)
+	_look_nodes.append(n)
 
 
 func _strip_for_server() -> void:

@@ -889,6 +889,18 @@ enemy telegraphs > own feedback > ally effects > ambient (city neon, holo signag
 | Upscaling | FSR 2 option on low-end | ⚠ check 4.7 options |
 | Motion blur / chromatic aberration / film grain | None in gameplay (readability); CA and scanlines only inside glitch-vocabulary effects (§8.1), as per-material effects, never as a full-screen pass | |
 
+**As built (look-dev, 2026-10-07, owner pick; `docs/lookdev.md`).** The world look is a data
+resource, `LookProfile` (`assets/data/look/look_default.tres`, "Golden Hour Neon"): a warm low key
+(16 deg, long shadows) with a cool violet sky fill so shadowed walls keep their blue-violet identity
+(warm light / cool shadow, §4.5), a teal-shadow / warm-highlight split grade, a softer peach horizon
+so `ember_core` enemies stay clear against the sky, and Neon Night's stronger glow on **Signal**
+emissives only (glow x1.4). Map neon and trims are brighter but capped at the Accent tier 1.0
+(no bloom in lanes, §4.6); city signs and the skyline (Set-piece) are x1.8 / x1.4. Deviations from
+the table above, as built: SSAO stays on High / Ultra (contact grounding, retuned per look); no SSR
+(the alternative "wet floor" uses a cel spec band + reflection probes). Alternatives kept as data:
+`look_a_neon_night`, `look_b_golden_hour`, `look_c_clean` (`--look a|b|c`; `--look current` = the
+pre-look-dev look). Shadow tiers: `GfxQuality.apply_shadows` (table in `docs/lookdev.md`).
+
 ### 10.4 Holograms, Glitch and Signage Shaders (new)
 
 - `spatial_fx_holo.gdshader`: unshaded, additive or alpha, fresnel edge, world-space scanlines,
