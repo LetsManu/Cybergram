@@ -8,6 +8,11 @@ extends RefCounted
 ## Pure: ArmoryPanel draws it and calls these on input. Every change is saved
 ## at once to `path` ("" = never written, for tests).
 
+## Armory v2 (design/gdd/items-and-armory.md §3.9, "Item Sets"): the view
+## follows the Armory of `catalog` (armory()): a recipe catalog lists and
+## creates v2 sets (CGB2 strings, steps are finished items), the old catalog
+## v1 builds. A CGB1 paste into the v2 shop sets last_error = ERR_OLD_ARMORY.
+##
 ## Entry 0 is always the default guide (id "").
 var store: CustomBuildStore
 var hero_id: StringName = &""
@@ -21,6 +26,8 @@ var confirm_delete: String = ""
 var revision: int = 0
 var _guide: RecommendedBuildDef
 var _guide_key: String = "-"
+## Why the last import_text() failed (CustomBuildStore.ERR_*; "" = ok).
+var last_error: String = ""
 
 
 func _init(store_: CustomBuildStore = null, path_: String = CustomBuildStore.DEFAULT_PATH) -> void:
@@ -50,22 +57,28 @@ func entries() -> Array[Dictionary]:
 	var d := defaults.for_hero(hero_id) if defaults != null else null
 	out.append({"id": "", "name": d.display_name if d != null else "", "steps": d.nodes.size() if d != null else 0,
 		"warnings": PackedStringArray(), "active": active == ""})
-	for b in store.for_hero(hero_id):
+	for b in store.for_hero(hero_id, armory()):
 		out.append({"id": b["id"], "name": b["name"], "steps": (b["steps"] as Array).size(),
 			"warnings": CustomBuildStore.warnings(b, catalog, weapon), "active": active == b["id"]})
 	return out
 
 
 func active_id() -> String:
-	return String(store.selected.get(String(hero_id), ""))
+	return String(store.selected.get(CustomBuildStore.sel_key(hero_id, armory()), ""))
+
+
+## CustomBuildStore.ARMORY_V2 on a recipe catalog, else ARMORY_V1.
+func armory() -> int:
+	return CustomBuildStore.ARMORY_V2 if catalog != null and catalog.is_recipe_catalog() \
+		else CustomBuildStore.ARMORY_V1
 
 
 ## The guide the Recommended tab should follow (null = the default guide).
 func active_guide() -> RecommendedBuildDef:
-	var key := "%s:%s:%d" % [hero_id, active_id(), revision]
+	var key := "%s:%s:%d:%d" % [hero_id, active_id(), revision, armory()]
 	if key != _guide_key:
 		_guide_key = key
-		_guide = store.selected_guide(hero_id)
+		_guide = store.selected_guide(hero_id, armory())
 	return _guide
 
 
@@ -79,14 +92,14 @@ func use(i: int) -> bool:
 	var e := entries()
 	if i < 0 or i >= e.size():
 		return false
-	var ok := store.select(hero_id, String(e[i]["id"]))
+	var ok := store.select(hero_id, String(e[i]["id"]), armory())
 	_save()
 	return ok
 
 
 ## A new build seeded with the default guide's core path; returns its entry.
 func new_from_default() -> int:
-	var id := store.create(hero_id, _next_name())
+	var id := store.create(hero_id, _next_name(), armory())
 	if id == "":
 		return -1
 	store.reset_to_default(id, defaults.for_hero(hero_id) if defaults != null else null)
@@ -133,7 +146,7 @@ func add_item(index: int, target: int) -> int:
 		if e < 0:
 			return -1
 		id = String(entries()[e]["id"])
-		store.select(hero_id, id)
+		store.select(hero_id, id, armory())
 	var section := _section_of(it)
 	if not store.add_step(id, it.id, target, section):
 		return -1
@@ -163,11 +176,13 @@ func export_entry(i: int) -> String:
 
 ## Pastes a build string; only a build for this hero is accepted. Returns its entry or -1.
 func import_text(text: String) -> int:
-	var id := store.import_string(text)
+	var id := store.import_string(text, armory())
+	last_error = store.last_error
 	if id == "":
 		return -1
 	if store.find(id)["hero"] != String(hero_id):
 		store.remove(id)
+		last_error = CustomBuildStore.ERR_BAD
 		return -1
 	_save()
 	return _entry_of(id)
@@ -182,7 +197,7 @@ func _entry_of(id: String) -> int:
 
 
 func _next_name() -> String:
-	return tr("HUD_BUILDS_NEW_NAME").replace("{n}", str(store.for_hero(hero_id).size() + 1))
+	return tr("HUD_BUILDS_NEW_NAME").replace("{n}", str(store.for_hero(hero_id, armory()).size() + 1))
 
 
 static func _section_of(it: ArmoryItemDef) -> int:

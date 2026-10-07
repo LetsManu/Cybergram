@@ -7,18 +7,35 @@ extends RefCounted
 ## the shared BuildAdvisor reads, so custom and default builds recommend the
 ## same way. See docs/armory.md "Custom builds".
 ##
+## Armory v2 Item Sets (design/gdd/items-and-armory.md §3.9): file version 2,
+## each build carries "armory" (1 = old tiered catalog, 2 = recipe catalog;
+## v2 steps name finished items, components optional). Version 1 files are
+## still read: their builds become "armory": 1 and keep working in the v1
+## panel. Exports are "CGB2:" for v2 sets; a "CGB1:" string pasted into the v2
+## shop is refused with ERR_OLD_ARMORY ("Made for the old Armory").
+## Selection is kept per hero and Armory (sel_key()).
+##
 ## File format (versioned JSON):
-##   {"version": 1,
+##   {"version": 2,
 ##    "selected": {"<hero id>": "<build id>"},
-##    "builds": [{"id", "hero", "name", "notes",
+##    "builds": [{"id", "hero", "name", "notes", "armory",
 ##                "steps": [{"item", "target", "section", "alts": [...], "note"}]}]}
 ## Unknown or invalid references are kept and reported by `warnings()`: a
 ## build is never silently changed because an item was renamed or removed.
 
 const DEFAULT_PATH := "user://builds.json"
-const VERSION: int = 1
-## Prefix of an exported build string (import refuses anything else).
-const EXPORT_PREFIX := "CGB1:"
+const VERSION: int = 2
+## Prefix of an exported v2 Item Set string (§3.9).
+const EXPORT_PREFIX := "CGB2:"
+## Prefix of an old (tiered catalog) build string.
+const EXPORT_PREFIX_V1 := "CGB1:"
+## Build "armory" values.
+const ARMORY_V1: int = 1
+const ARMORY_V2: int = 2
+## import_string() failure reasons (last_error).
+const ERR_BAD := "bad"
+const ERR_OLD_ARMORY := "old_armory"
+const ERR_NEW_ARMORY := "new_armory"
 const MAX_BUILDS: int = 64
 const MAX_STEPS: int = 40
 const MAX_TEXT: int = 200
@@ -27,6 +44,8 @@ var builds: Array[Dictionary] = []
 ## hero id (String) -> build id (String); absent = the default guide.
 var selected: Dictionary = {}
 var _next_id: int = 1
+## Why the last import_string() failed ("" = it did not).
+var last_error: String = ""
 
 
 # --- persistence ------------------------------------------------------------------
@@ -54,17 +73,20 @@ func to_json() -> String:
 
 
 ## Replaces the store with `text`. False (and the store unchanged) when the
-## text is not a v1 build file.
+## text is not a version 1 or 2 build file (version 1 builds become ARMORY_V1).
 func from_json(text: String) -> bool:
 	var data = JSON.parse_string(text)
-	if typeof(data) != TYPE_DICTIONARY or int(data.get("version", 0)) != VERSION:
+	if typeof(data) != TYPE_DICTIONARY:
+		return false
+	var version := int(data.get("version", 0))
+	if version != 1 and version != VERSION:
 		return false
 	var list = data.get("builds", [])
 	if typeof(list) != TYPE_ARRAY:
 		return false
 	var out: Array[Dictionary] = []
 	for b in list:
-		var clean := _sanitize(b)
+		var clean := _sanitize(b, ARMORY_V1 if version == 1 else 0)
 		if not clean.is_empty() and out.size() < MAX_BUILDS:
 			out.append(clean)
 	builds = out
@@ -72,8 +94,10 @@ func from_json(text: String) -> bool:
 	var sel = data.get("selected", {})
 	if typeof(sel) == TYPE_DICTIONARY:
 		for k in sel:
-			if not find(String(sel[k])).is_empty():
-				selected[String(k)] = String(sel[k])
+			var b := find(String(sel[k]))
+			if not b.is_empty():
+				var key := String(k) if version == VERSION else sel_key(StringName(b["hero"]), ARMORY_V1)
+				selected[key] = String(sel[k])
 	_next_id = 1
 	for b in builds:
 		var n := String(b["id"]).trim_prefix("b").to_int()
@@ -84,10 +108,11 @@ func from_json(text: String) -> bool:
 # --- editing ------------------------------------------------------------------------
 
 ## A new empty build for `hero`; returns its id ("" when the store is full).
-func create(hero: StringName, name: String) -> String:
+func create(hero: StringName, name: String, armory: int = ARMORY_V2) -> String:
 	if builds.size() >= MAX_BUILDS:
 		return ""
-	var b := {"id": _new_id(), "hero": String(hero), "name": _text(name), "notes": "", "steps": []}
+	var b := {"id": _new_id(), "hero": String(hero), "name": _text(name), "notes": "", "armory": clampi(armory, 1, 2),
+		"steps": []}
 	builds.append(b)
 	return b["id"]
 
@@ -188,15 +213,21 @@ func reset_to_default(id: String, guide: RecommendedBuildDef) -> bool:
 	return true
 
 
-func select(hero: StringName, id: String) -> bool:
+## Follows build `id` for `hero` ("" = back to the default guide of `armory`).
+func select(hero: StringName, id: String, armory: int = ARMORY_V2) -> bool:
 	if id == "":
-		selected.erase(String(hero))
+		selected.erase(sel_key(hero, armory))
 		return true
 	var b := find(id)
 	if b.is_empty() or b["hero"] != String(hero):
 		return false
-	selected[String(hero)] = id
+	selected[sel_key(hero, int(b["armory"]))] = id
 	return true
+
+
+## Key of `selected` for a hero on one Armory (v2: the hero id; v1: "<hero>@v1").
+static func sel_key(hero: StringName, armory: int) -> String:
+	return String(hero) if armory == ARMORY_V2 else String(hero) + "@v1"
 
 
 # --- reading ------------------------------------------------------------------------
@@ -209,17 +240,18 @@ func find(id: String) -> Dictionary:
 	return {}
 
 
-func for_hero(hero: StringName) -> Array[Dictionary]:
+## Builds of `hero` (armory 0 = both Armories, else only that one).
+func for_hero(hero: StringName, armory: int = 0) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for b in builds:
-		if b["hero"] == String(hero):
+		if b["hero"] == String(hero) and (armory == 0 or int(b["armory"]) == armory):
 			out.append(b)
 	return out
 
 
 ## The selected custom build of `hero` as a guide, or null (= use the default).
-func selected_guide(hero: StringName) -> RecommendedBuildDef:
-	var b := find(String(selected.get(String(hero), "")))
+func selected_guide(hero: StringName, armory: int = ARMORY_V2) -> RecommendedBuildDef:
+	var b := find(String(selected.get(sel_key(hero, armory), "")))
 	return to_build_def(b) if not b.is_empty() else null
 
 
@@ -286,23 +318,32 @@ func export_string(id: String) -> String:
 	if b.is_empty():
 		return ""
 	var data := {"hero": b["hero"], "name": b["name"], "notes": b["notes"], "steps": b["steps"]}
-	return EXPORT_PREFIX + Marshalls.utf8_to_base64(JSON.stringify(data))
+	var prefix := EXPORT_PREFIX if int(b["armory"]) == ARMORY_V2 else EXPORT_PREFIX_V1
+	return prefix + Marshalls.utf8_to_base64(JSON.stringify(data))
 
 
-## Imports a string from `export_string` as a new build; returns its id or "".
-func import_string(text: String) -> String:
+## Imports a string from `export_string` as a new build; returns its id or ""
+## (then `last_error` says why). `armory` 0 accepts both prefixes; ARMORY_V2
+## refuses "CGB1:" with ERR_OLD_ARMORY (§3.9), ARMORY_V1 refuses "CGB2:".
+func import_string(text: String, armory: int = 0) -> String:
+	last_error = ERR_BAD
 	var t := text.strip_edges()
-	if not t.begins_with(EXPORT_PREFIX) or builds.size() >= MAX_BUILDS:
+	var kind := ARMORY_V2 if t.begins_with(EXPORT_PREFIX) else (ARMORY_V1 if t.begins_with(EXPORT_PREFIX_V1) else 0)
+	if kind == 0 or builds.size() >= MAX_BUILDS:
 		return ""
-	var raw := Marshalls.base64_to_utf8(t.trim_prefix(EXPORT_PREFIX))
+	if armory != 0 and kind != armory:
+		last_error = ERR_OLD_ARMORY if kind == ARMORY_V1 else ERR_NEW_ARMORY
+		return ""
+	var raw := Marshalls.base64_to_utf8(t.substr(EXPORT_PREFIX.length()))
 	var data = JSON.parse_string(raw)
 	if typeof(data) != TYPE_DICTIONARY:
 		return ""
 	data["id"] = _new_id()
-	var clean := _sanitize(data)
+	var clean := _sanitize(data, kind)
 	if clean.is_empty():
 		return ""
 	builds.append(clean)
+	last_error = ""
 	return clean["id"]
 
 
@@ -319,8 +360,9 @@ static func _text(s: String) -> String:
 
 
 ## A well-formed copy of `b`, or {} when it is not a build at all. Unknown
-## item ids are kept (warnings() reports them).
-static func _sanitize(b) -> Dictionary:
+## item ids are kept (warnings() reports them). `armory` > 0 forces the
+## build's Armory (version 1 files, prefixed strings), else its own field (default 2).
+static func _sanitize(b, armory: int = 0) -> Dictionary:
 	if typeof(b) != TYPE_DICTIONARY or String(b.get("hero", "")) == "" or String(b.get("id", "")) == "":
 		return {}
 	var steps: Array = []
@@ -339,5 +381,6 @@ static func _sanitize(b) -> Dictionary:
 				"alts": alts, "note": _text(String(s.get("note", "")))})
 			if steps.size() >= MAX_STEPS:
 				break
+	var arm := armory if armory > 0 else clampi(int(b.get("armory", ARMORY_V2)), ARMORY_V1, ARMORY_V2)
 	return {"id": String(b["id"]), "hero": String(b["hero"]), "name": _text(String(b.get("name", ""))),
-		"notes": _text(String(b.get("notes", ""))), "steps": steps}
+		"notes": _text(String(b.get("notes", ""))), "armory": arm, "steps": steps}
