@@ -84,6 +84,13 @@ var _beam_id: int = 0
 var _wire_cache: Dictionary = {}
 var _wire_ray := PhysicsRayQueryParameters3D.new()
 var _beam_hold_range: float = 14.0
+## Armory step 6: bots shop through the same ACTION_BUY a player's Armory
+## panel sends, choosing with the same BuildAdvisor and the hero's default
+## guide (docs/armory.md). `builds` is injected by the director, else loaded.
+var builds: RecommendedBuildsDef
+var items_bought: int = 0
+var _shop_arg: int = -1
+var _shop_key: String = ""
 
 
 func _init(s: ServerWorld, p: BotProfile, seed_: int, slot_: int) -> void:
@@ -164,6 +171,7 @@ func decide(tick: int, h: HeroBody) -> void:
 	else:
 		aim.set_target(0, tick)
 	_decide_learn(h)
+	_decide_shop(tick, h)
 	_decide_beam(tick, h)
 	_decide_skill(tick, h)
 	_decide_squad(tick, h)
@@ -799,7 +807,53 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 	_emit_edges(out)
 
 
-## One-tick edge events: a skill point and a squad order.
+## Armory: while on the Armory pad (or in the Sanctum), the guide's best
+## affordable step, sent as ACTION_BUY. Re-evaluated only when the wallet or
+## the advisor signals change, so a refused request is not repeated.
+func _decide_shop(tick: int, h: HeroBody) -> void:
+	var prog = server.get("progression")
+	if prog == null or prog.catalog == null or _shop_arg >= 0:
+		return
+	if not prog.is_at_armory(h):
+		_shop_key = ""
+		return
+	var p: HeroProgress = prog.progress_of(h)
+	var key := "%d:%d:%d:%d" % [p.lumen, p.spent_lumen, p.medpacks, p.signals]
+	if key == _shop_key:
+		return
+	_shop_key = key
+	if builds == null:
+		builds = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
+	var guide: RecommendedBuildDef = builds.for_hero(h.combat.def.id) if builds != null else null
+	if guide == null:
+		return
+	var st := BuildState.from_hero(p, prog.catalog, h.combat.def.weapon, prog.rules)
+	st.time_s = server.match_seconds()
+	for o in _all_heroes():
+		if o == h or o.combat.def == null:
+			continue
+		if o.combat.team == h.combat.team:
+			st.add_ally(o.combat.def)
+		else:
+			st.add_enemy(o.combat.def)
+	var ar: AdviceRulesDef = prog.advice_rules if prog.advice_rules != null else AdviceRulesDef.new()
+	# Only the top step: a bot saves for it rather than spending on lower ones.
+	var a := BuildAdvisor.evaluate(guide, st, ar).best()
+	if a == null or not a.affordable or a.item_index < 0:
+		return
+	var it: ArmoryItemDef = prog.catalog.at(a.item_index)
+	var tier := a.target if it.kind == ArmoryItemDef.Kind.MOUNT else 0
+	_shop_arg = a.item_index | (tier << 8)
+	_log("t%d h%d buy %s x%d (%s)" % [tick, hero_id, it.id, a.target, a.node.id])
+
+
+func _log(line: String) -> void:
+	if log_lines.size() >= LOG_MAX:
+		log_lines.remove_at(0)
+	log_lines.append(line)
+
+
+## One-tick edge events: a skill point, an Armory purchase and a squad order.
 func _emit_edges(out: InputCommand) -> void:
 	# --- skill point (one-tick action) ---
 	if _learn_slot >= 0:
@@ -808,6 +862,12 @@ func _emit_edges(out: InputCommand) -> void:
 		_learn_slot = -1
 		_learn_choice = 0
 		skills_learned += 1
+	# --- Armory purchase (one action per command: waits a tick for a skill point) ---
+	elif _shop_arg >= 0:
+		out.action = InputCommand.ACTION_BUY
+		out.action_arg = _shop_arg
+		_shop_arg = -1
+		items_bought += 1
 	# --- squad order (one-tick edge event) ---
 	if _squad_cmd != InputCommand.SQUAD_NONE:
 		out.squad_cmd = _squad_cmd

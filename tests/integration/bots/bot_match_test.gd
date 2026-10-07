@@ -99,6 +99,36 @@ func test_ten_bots_flip_a_hardpoint_and_score_kills() -> void:
 		assert_bool(learned_any).is_true()
 
 
+## Armory step 6: bots buy their guide's steps through ACTION_BUY (the same
+## command a player's Armory panel sends), on the server's rules.
+func test_bots_shop_their_guides_through_action_buy() -> void:
+	var b := _build(1.0, 21)
+	var server: ServerWorld = b[0]
+	var director: BotDirector = b[1]
+	assert_bool(await WardlingFixtures.await_nav(get_tree(), server)).is_true()
+	assert_int(director.fill(false)).is_equal(10)
+	var buys := [0]
+	for src in director.sources:
+		src.observer = func(_id: int, cmd: InputCommand) -> void:
+			_check(_id, cmd)
+			if cmd.action == InputCommand.ACTION_BUY:
+				buys[0] += 1
+	var cap := 20 * HZ  # the start purse (500) buys the opening steps on spawn
+	while server.tick < cap:
+		server.step()
+	assert_int(buys[0]).is_greater_equal(10)
+	var cat := server.progression.catalog
+	for br in director.brains:
+		var h := server.hero(br.hero_id)
+		var p: HeroProgress = server.progression.progress_of(h)
+		assert_int(br.items_bought).is_greater(0)
+		assert_int(p.lumen).is_greater_equal(0)
+		assert_int(p.medpacks).is_greater(0)  # every guide opens with a Med-Pack
+		assert_int(p.spent_lumen).is_greater_equal(cat.find(&"med_pack").price(1))
+		assert_bool(br.log_lines.size() > 0 and Array(br.log_lines).any(func(l: String) -> bool: return l.contains(" buy "))).is_true()
+	assert_array(_invalid).is_empty()
+
+
 func test_slice_data_fills_three_v_three_with_a_hero_mix() -> void:
 	var slice := load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef
 	assert_int(slice.team_size).is_equal(3)  # M1 owner decision: the 1-lane slice plays 3v3
