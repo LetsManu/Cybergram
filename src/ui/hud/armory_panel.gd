@@ -1073,8 +1073,13 @@ func _draw_detail() -> void:
 	ShopIcons.draw(self, it, Rect2(Vector2(x, y + 16.0), Vector2(84.0, 84.0)), Color.WHITE)
 	var kind := _kind_line(it, idx)
 	var ksz := 15
-	while ksz > 11 and caps_width(kind, ksz, 0.22) > d.end.x - 16.0 - (x + 100.0):
+	var kind_w := d.end.x - 16.0 - (x + 100.0)
+	while ksz > 11 and caps_width(kind, ksz, 0.22) > kind_w:
 		ksz -= 1
+	if caps_width(kind, ksz, 0.22) > kind_w:  # still too wide at the smallest size: cut
+		while kind.length() > 2 and caps_width(kind + "..", ksz, 0.22) > kind_w:
+			kind = kind.left(kind.length() - 1)
+		kind = kind.strip_edges() + ".."
 	caps(kind, Vector2(x + 100.0, y + 30.0), ksz, HudPalette.BRASS, 0.22)
 	# Title shrinks (27 down to 18) and then cuts so it never passes the panel edge.
 	var title_w := d.end.x - 16.0 - (x + 100.0)
@@ -1105,12 +1110,24 @@ func _draw_detail() -> void:
 	draw_multiline_string(ctx.font_body, Vector2(x, y + 146.0), it.effect_label(), HORIZONTAL_ALIGNMENT_LEFT, w, ts(18), 3,
 		HudPalette.MUTED)
 	var ty := y + 232.0
+	# Lines below the tier table stop at the pane's bottom (the buy / sell
+	# buttons sit under it); the sell / undo value is on the button anyway.
+	var limit := d.end.y
 	if it.tiers() > 1 and it.values.size() > 0:
+		var rows := model.tier_rows(idx)
+		# The PRICE column shows only when it clears the longest effect text
+		# (narrow pane at 720p); then Tier I's upgrade cell carries the price.
+		var eff_w := 0.0
+		for row in rows:
+			eff_w = maxf(eff_w, ctx.font_body.get_string_size(_effect_text(it, row), HORIZONTAL_ALIGNMENT_LEFT, -1, ts(15)).x)
+		var price_right := d.end.x - 150.0
+		var show_price := x + 70.0 + eff_w + 16.0 <= price_right - caps_width(tr("HUD_SHOP_COL_PRICE"), 13, 0.22)
 		caps(tr("HUD_SHOP_COL_TIER"), Vector2(x + 4.0, ty), 13, HudPalette.DIM, 0.22)
 		caps(tr("HUD_SHOP_COL_EFFECT"), Vector2(x + 70.0, ty), 13, HudPalette.DIM, 0.22)
-		caps(tr("HUD_SHOP_COL_PRICE"), Vector2(0.0, ty), 13, HudPalette.DIM, 0.22, HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 150.0)
+		if show_price:
+			caps(tr("HUD_SHOP_COL_PRICE"), Vector2(0.0, ty), 13, HudPalette.DIM, 0.22, HORIZONTAL_ALIGNMENT_RIGHT, price_right)
 		caps(tr("HUD_SHOP_COL_UPGRADE"), Vector2(0.0, ty), 13, HudPalette.DIM, 0.22, HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 28.0)
-		for row in model.tier_rows(idx):
+		for row in rows:
 			var t: int = row["tier"]
 			var r := _tier_rect(t - 1)
 			var next_t := t == held + 1 or (held == 0 and t == 1)
@@ -1121,29 +1138,37 @@ func _draw_detail() -> void:
 			var rc := HudPalette.IVORY if next_t else HudPalette.MUTED
 			text(TIER_NAMES[t], Vector2(x + 8.0, by), 17, rc, ctx.font_numbers)
 			text(_effect_text(it, row), Vector2(x + 70.0, by), 15, rc)
-			text(HudFormat.thousands(row["price"]), Vector2(0.0, by), 16, HudPalette.TEAL if bool(row["held"]) else HudPalette.BRASS_HI,
-				ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 150.0)
-			text(("+" + HudFormat.thousands(row["upgrade"])) if t > 1 else "-", Vector2(0.0, by), 15, HudPalette.MUTED,
-				ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 28.0)
+			if show_price:
+				text(HudFormat.thousands(row["price"]), Vector2(0.0, by), 16, HudPalette.TEAL if bool(row["held"]) else HudPalette.BRASS_HI,
+					ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, price_right)
+			var up := ("+" + HudFormat.thousands(row["upgrade"])) if t > 1 else ("-" if show_price else HudFormat.thousands(row["price"]))
+			text(up, Vector2(0.0, by), 15, HudPalette.MUTED, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, d.end.x - 28.0)
 		ty += 130.0
 	elif it.values.size() > 0:
-		text(_effect_text(it, model.tier_rows(idx)[0]), Vector2(x, ty + 10.0), 17, HudPalette.IVORY)
-		text(tr("HUD_SHOP_PRICE") % HudFormat.thousands(it.prices[0]), Vector2(x, ty + 40.0), 17, HudPalette.BRASS_HI,
+		# One tier: the effect line only when the description does not already say it.
+		var eff := _effect_text(it, model.tier_rows(idx)[0])
+		if it.effect_label().strip_edges().trim_suffix(".") != eff.strip_edges().trim_suffix("."):
+			text(eff, Vector2(x, ty + 10.0), 17, HudPalette.IVORY)
+			ty += 30.0
+		text(tr("HUD_SHOP_PRICE") % HudFormat.thousands(it.prices[0]), Vector2(x, ty + 10.0), 17, HudPalette.BRASS_HI,
 			ctx.font_numbers)
-		ty += 80.0
+		ty += 50.0
 	else:
 		text(tr("HUD_SHOP_PRICE") % HudFormat.thousands(it.prices[0]), Vector2(x, ty + 10.0), 17, HudPalette.BRASS_HI,
 			ctx.font_numbers)
 		ty += 50.0
-	if it.stat == &"mod_damage" and it.fits(ctx.client.hero_def.weapon) and st != ShopModel.State.MAXED:
+	if it.stat == &"mod_damage" and it.fits(ctx.client.hero_def.weapon) and st != ShopModel.State.MAXED \
+			and ty + 10.0 <= limit:
 		text(_damage_delta(p, it), Vector2(x, ty + 10.0), 17, HudPalette.TEAL)
 		ty += 30.0
 	var note := _note(idx, st) if st != ShopModel.State.MAXED and st != ShopModel.State.OWNED else ""
-	if note != "":
+	if note != "" and ty + 10.0 <= limit:
 		text(note, Vector2(x, ty + 10.0), 15, HudPalette.WARN_UI if st != ShopModel.State.AVAILABLE else HudPalette.MUTED)
 		ty += 28.0
 	var sock := model.sell_socket(idx)
-	if sock >= 0:
+	if ty + 10.0 > limit:
+		pass
+	elif sock >= 0:
 		var v := model.sell_value(sock)
 		text((tr("HUD_SHOP_UNDO_INFO") if model.is_undo(sock) else tr("HUD_SHOP_SELL_INFO")) % v, Vector2(x, ty + 10.0), 15,
 			HudPalette.BRASS_HI)
