@@ -1135,6 +1135,8 @@ func _send_snapshots() -> void:
 		if h.combat.def != null:
 			e.hero_index = content.index_of(ContentDB.HERO, h.combat.def.id)  # M1 remote hero models
 		e.fork_bits = _fork_bits(h)  # W11-V1 Pillar 4: everyone sees Fork / Mastery
+		if progression != null:
+			e.build = progression.public_build(h)  # Armory v2 §3.8: every client sees every build
 		entities.append(e)
 	# W16-NET: blocks every client gets alike are built once per tick (shared
 	# objects also let the session encode each record once).
@@ -1180,7 +1182,7 @@ func _entities_for(entities: Array[SnapshotData.EntityState], c: ServerSession.C
 	for e in entities:
 		if ids.has(e.net_id) and e.team != own.combat.team:
 			var n := SnapshotData.EntityState.new()
-			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index", "fork_bits"]:
+			for p in ["net_id", "kind", "position", "velocity", "yaw", "pitch", "crouching", "grounded", "dead", "team", "hp", "max_hp", "hero_index", "fork_bits", "build"]:
 				n.set(p, e.get(p))
 			n.status = e.status | SkillStatusBits.REVEALED
 			out.append(n)

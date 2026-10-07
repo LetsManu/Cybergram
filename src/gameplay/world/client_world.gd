@@ -478,7 +478,10 @@ func _apply_progress(p: SnapshotData.ProgressState) -> void:
 	if p.level != old:
 		level_changed.emit(p.level)
 	if rig != null:
-		rig.set_mounts(mount_items(), p.mount_tier)
+		if BuildIcons.has_any(p.inv_items):
+			rig.set_build(p.inv_items)  # Armory v2: gun parts by recipe tier + FP forearm/belt gear
+		else:
+			rig.set_mounts(mount_items(), p.mount_tier)
 	while _mote_views.size() < p.motes.size():
 		var m := MeshInstance3D.new()
 		var sph := SphereMesh.new()
@@ -626,13 +629,17 @@ func _draw_tracer(e: GameEvent) -> void:
 		var muzzle: Variant = rig.muzzle_global() if rig != null else null
 		if muzzle != null:
 			from = muzzle
-		tracers.spawn(from, e.position, TRACER_OWN, true)
+		var ob := progress.inv_items if progress != null else PackedInt32Array()
+		tracers.spawn(from, e.position, TRACER_OWN, true, BuildVisuals.ammo_type(ob, ArmoryVisualsData.catalog()),
+			BuildVisuals.ammo_mod(ob, ArmoryVisualsData.catalog()))
 		return
 	var v: HeroView = _views.get(e.source_net_id)
 	if v == null:
 		return
 	var c := TRACER_ALLY if v.team == own_team() else TRACER_ENEMY
-	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c)
+	var cat := ArmoryVisualsData.catalog()
+	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c, false,
+		BuildVisuals.ammo_type(v.build, cat), BuildVisuals.ammo_mod(v.build, cat))
 
 
 ## W10-W5: HeroDef id of a remote hero (&"" if unknown); lets presentation pick its weapon voice.
