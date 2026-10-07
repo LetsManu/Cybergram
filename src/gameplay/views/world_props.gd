@@ -464,7 +464,7 @@ func build(list: Array, meshes: Dictionary) -> int:
 		gi.visibility_range_end = _def.range_tall_m if tall else _def.range_small_m
 		gi.visibility_range_end_margin = 8.0
 		gi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-		if not tall:
+		if not tall and not GfxQuality.small_prop_shadows(GfxQuality.level()):
 			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(gi)
 	return keys.size()

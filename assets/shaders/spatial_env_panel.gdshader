@@ -31,7 +31,7 @@
 // the shader's default textures at runtime, so every existing material picks them
 // up. Unbound maps (mask alpha = 0, hint_default_transparent) give the v1 look.
 shader_type spatial;
-render_mode diffuse_lambert, specular_disabled;
+render_mode diffuse_lambert;
 #include "res://assets/shaders/toon_common.gdshaderinc"
 
 
@@ -98,8 +98,32 @@ uniform float band_lo = TOON_BAND_LO;
 uniform float band_hi = TOON_BAND_HI;
 uniform float band_softness = TOON_BAND_SOFTNESS;
 
+group_uniforms look;
+// Look-dev params (LookProfile, docs/lookdev.md). Defaults = the pre-look-dev panel.
+// Wall / floor albedo value and wall saturation (pale pastel walls -> deeper blocks).
+uniform float wall_value = 1.0;
+uniform float wall_saturation = 1.0;
+uniform float floor_value = 1.0;
+// Large-scale world-space albedo breakup (value, +-).
+uniform float albedo_noise : hint_range(0.0, 0.3) = 0.0;
+// Light wear line along the mesh's face borders (BoxMesh UV cells), ~2 px wide, near only.
+uniform float edge_wear : hint_range(0.0, 1.0) = 0.0;
+// Painted contact AO at the foot of walls: value at the ground, and grime tint mix.
+uniform float contact_ao_min : hint_range(0.2, 1.0) = 0.72;
+uniform float contact_grime : hint_range(0.0, 1.0) = 0.0;
+// Cel specular band (thresholded Blinn) on walls / floors, threshold and tint.
+uniform float spec_wall : hint_range(0.0, 2.0) = 0.0;
+uniform float spec_floor : hint_range(0.0, 2.0) = 0.0;
+uniform float spec_threshold : hint_range(0.0, 1.0) = 0.9;
+uniform vec3 spec_tint : source_color = vec3(1.0);
+// Environment (sky / reflection probe) specular on floors and their roughness (wet < 0.4).
+uniform float floor_env_specular : hint_range(0.0, 1.0) = 0.0;
+uniform float floor_roughness : hint_range(0.0, 1.0) = 0.8;
+
 varying vec3 v_pos;
 varying vec3 v_nrm;
+// 1 on upward faces (floors), 0 on walls: picks the spec band in light().
+varying float v_floor;
 
 // Sheet layout (floor_kit.py): 4 x 2 slots, 4 px inset against mip bleeding.
 const vec2 SHEET = vec2(4.0, 2.0);
@@ -126,6 +150,16 @@ vec2 atlas_uv(float slot, vec2 q) {
 void vertex() {
 	v_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	v_floor = step(0.7, v_nrm.y);
+}
+
+// Smooth value noise (world-space albedo breakup).
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
+		mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 void fragment() {
@@ -144,8 +178,21 @@ void fragment() {
 	float seam = 1.0 - smoothstep(seam_width, seam_width + 0.03, min(d.x, d.y));
 	float v = (hash21(floor(cell)) - 0.5) * panel_variation;
 	// Painted AO / grime toward the ground on vertical faces.
-	float ao = an.y > 0.7 ? 1.0 : mix(0.72, 1.0, smoothstep(0.0, ao_height, v_pos.y));
-	vec3 col = (base_color + v) * ao;
+	float ao = an.y > 0.7 ? 1.0 : mix(contact_ao_min, 1.0, smoothstep(0.0, ao_height, v_pos.y));
+	vec3 base = base_color;
+	if (an.y > 0.7) {
+		base *= floor_value;
+	} else {
+		float lum = dot(base, vec3(0.299, 0.587, 0.114));
+		base = mix(vec3(lum), base, wall_saturation) * wall_value;
+	}
+	if (albedo_noise > 0.0) {
+		vec2 np = an.y > 0.7 ? v_pos.xz : (an.x > an.z ? v_pos.zy : v_pos.xy);
+		float nz = vnoise(np * 0.11) * 0.65 + vnoise(np * 0.37 + 13.1) * 0.35;
+		base *= 1.0 + (nz - 0.5) * 2.0 * albedo_noise;
+	}
+	vec3 col = (base + v) * ao;
+	col = mix(col, grime_color, (1.0 - ao) / max(1.0 - contact_ao_min, 0.01) * contact_grime * 0.6);
 	float seam_k = 0.85;
 	// Tile space (1 unit = one 2 m tile); derivatives before any branch.
 	vec2 u = v_pos.xz / max(tile_target_m, 0.1);
@@ -248,8 +295,18 @@ void fragment() {
 		}
 	}
 	col = mix(col, seam_color, seam * seam_k);
+	if (edge_wear > 0.0) {
+		// BoxMesh lays its 6 faces out in a 3 x 2 UV grid: distance to the face border.
+		vec2 fu = fract(UV * vec2(3.0, 2.0));
+		vec2 de = min(fu, 1.0 - fu) / max(fwidth(UV * vec2(3.0, 2.0)), vec2(1e-5));
+		float e = 1.0 - smoothstep(1.0, 2.5, min(de.x, de.y));
+		float near = 1.0 - smoothstep(15.0, 40.0, length(VERTEX));
+		float brk = smoothstep(0.35, 0.6, vnoise(v_pos.xz * 1.7 + v_pos.y * 2.3));
+		col += (vec3(1.0) - col) * e * near * edge_wear * mix(0.45, 1.0, brk);
+	}
 	ALBEDO = col;
-	ROUGHNESS = 0.8;
+	ROUGHNESS = mix(0.8, floor_roughness, v_floor);
+	SPECULAR = 0.5 * floor_env_specular * v_floor;
 	if (trim_height > 0.0 && an.y < 0.7) {
 		float t = 1.0 - smoothstep(0.0, 0.08, abs(v_pos.y - trim_height));
 		EMISSION = trim_color * t * trim_energy;
@@ -266,6 +323,14 @@ void light() {
 			band_lo, band_hi, band_softness, highlight_boost);
 		// Godot multiplies DIFFUSE_LIGHT by the albedo itself (docs/shading-audit.md).
 		DIFFUSE_LIGHT += lc * shade * (LIGHT_IS_DIRECTIONAL ? 1.0 : ATTENUATION);
+		// Cel specular band: one hard-edged highlight, no PBR (art bible §10.1).
+		float ks = mix(spec_wall, spec_floor, v_floor);
+		if (ks > 0.0) {
+			vec3 h = normalize(LIGHT + VIEW);
+			float nh = clamp(dot(NORMAL, h), 0.0, 1.0);
+			float band = smoothstep(spec_threshold - 0.015, spec_threshold + 0.015, pow(nh, mix(24.0, 6.0, v_floor)));
+			SPECULAR_LIGHT += LIGHT_COLOR * spec_tint * band * ks * ATTENUATION * step(0.0, ndl);
+		}
 	} else {
 		DIFFUSE_LIGHT += lc * clamp(ndl, 0.0, 1.0) * ATTENUATION;
 	}

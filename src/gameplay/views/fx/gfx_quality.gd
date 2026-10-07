@@ -220,6 +220,53 @@ static func make_sun() -> DirectionalLight3D:
 	return sun
 
 
+## Sun cascade splits as fractions of the max distance, tuned for a first-person
+## view: the first cascade covers ~10 m (boots, cover lips), the second ~30 m.
+const SUN_SPLITS := [0.05, 0.15, 0.4]
+## Directional shadow atlas (px) and soft filter per tier.
+const SUN_ATLAS := [2048, 4096, 4096, 8192]
+const SUN_NORMAL_BIAS := [2.0, 1.6, 1.2, 1.0]
+## Shadowed local (omni / spot) lights per tier, the positional atlas size and its
+## quadrant subdivisions (lights per quadrant: 1, 4, 4, 16).
+const LOCAL_SHADOWS := [0, 2, 4, 8]
+const LOCAL_ATLAS := [0, 2048, 4096, 4096]
+
+
+## Sun / local shadow quality for tier `lvl` (renderer-wide settings plus the sun
+## and the viewport's positional atlas). Any argument may be null.
+static func apply_shadows(lvl: int, sun: DirectionalLight3D, vp: Viewport) -> void:
+	lvl = clampi(lvl, LOW, ULTRA)
+	if sun != null:
+		sun.directional_shadow_split_1 = SUN_SPLITS[0]
+		sun.directional_shadow_split_2 = SUN_SPLITS[1]
+		sun.directional_shadow_split_3 = SUN_SPLITS[2]
+		sun.directional_shadow_blend_splits = lvl >= HIGH
+		sun.directional_shadow_fade_start = 0.85
+		sun.shadow_bias = 0.03
+		sun.shadow_normal_bias = SUN_NORMAL_BIAS[lvl]
+	if is_headless():
+		return
+	RenderingServer.directional_shadow_atlas_set_size(SUN_ATLAS[lvl], true)
+	RenderingServer.directional_soft_shadow_filter_set_quality([
+		RenderingServer.SHADOW_QUALITY_HARD, RenderingServer.SHADOW_QUALITY_SOFT_LOW,
+		RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, RenderingServer.SHADOW_QUALITY_SOFT_HIGH][lvl])
+	RenderingServer.positional_soft_shadow_filter_set_quality([
+		RenderingServer.SHADOW_QUALITY_HARD, RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW,
+		RenderingServer.SHADOW_QUALITY_SOFT_LOW, RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM][lvl])
+	if vp != null:
+		vp.positional_shadow_atlas_size = LOCAL_ATLAS[lvl]
+		vp.positional_shadow_atlas_16_bits = true
+		var sub := Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_4 if lvl < ULTRA else Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_16
+		vp.set_positional_shadow_atlas_quadrant_subdiv(0, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_1)
+		for q in [1, 2, 3]:
+			vp.set_positional_shadow_atlas_quadrant_subdiv(q, sub)
+
+
+## Small world props (below the tall-prop cut) cast sun shadows from this tier.
+static func small_prop_shadows(lvl: int) -> bool:
+	return lvl >= HIGH
+
+
 ## Scales `env`, `sun` and the viewport AA to tier `lvl`. Any argument may be null.
 static func apply(lvl: int, env: Environment, sun: DirectionalLight3D, vp: Viewport) -> void:
 	lvl = clampi(lvl, LOW, ULTRA)
@@ -243,6 +290,7 @@ static func apply(lvl: int, env: Environment, sun: DirectionalLight3D, vp: Viewp
 			DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS, DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS][lvl]
 		sun.directional_shadow_max_distance = [80.0, 120.0, 200.0, 300.0][lvl]
 		sun.shadow_blur = [1.0, 1.0, 1.4, 2.0][lvl]
+	apply_shadows(lvl, sun, vp)
 	if vp != null:
 		vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][lvl]
 		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if lvl == MEDIUM or lvl == ULTRA else Viewport.SCREEN_SPACE_AA_DISABLED
