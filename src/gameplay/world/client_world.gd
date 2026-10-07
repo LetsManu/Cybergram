@@ -196,10 +196,33 @@ func own_team() -> int:
 	return ServerWorld.TEAM_PLAYERS
 
 
-## View-recoil multiplier for the own hero. GAP: the server's WeaponSim.recoil_mult
-## (Ryker Overdrive 0.5) is not replicated to the client (no field in OwnCombat,
-## protocol is off limits for this chunk), so this is 1.0 until it is.
+## Skill recoil multiplier (Ryker Overdrive; WeaponSim.recoil_mult, which also
+## scales the server's spread bloom). Read from OwnCombat.weapon_recoil_mult once
+## the protocol carries it; 1.0 (v1) until then (C2 report: snippet).
 func own_recoil_mult() -> float:
+	return _own_weapon_field("weapon_recoil_mult")
+
+
+## View-kick multiplier: skill recoil × item RECOIL_MULT (items-and-armory.md
+## §3.5; item recoil is view kick only, the server cone uses SPREAD_MULT).
+func own_kick_mult() -> float:
+	return own_recoil_mult() * _own_weapon_field("weapon_kick_mult")
+
+
+## Fire-rate multiplier (skill buffs × item M_rate) for predicted shots.
+func own_rate_mult() -> float:
+	return _own_weapon_field("weapon_rate_mult")
+
+
+## Item spread multiplier (cone base, bloom, max) for the dynamic crosshair.
+func own_spread_mult() -> float:
+	return _own_weapon_field("weapon_spread_mult")
+
+
+func _own_weapon_field(field: String) -> float:
+	if combat != null and field in combat:
+		var v: float = combat.get(field)
+		return v if v > 0.0 else 1.0
 	return 1.0
 
 
@@ -283,7 +306,7 @@ func tick() -> void:
 		player_input.recoil_def = hero_def.weapon
 		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
 		var can := combat != null and combat.ammo > 0.0 and not combat.dead
-		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
+		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_kick_mult(), own_rate_mult())
 		_step_spread(kicked)
 		if kicked and rig != null:
 			rig.play_shot()  # W19-VM: FP fire clip on the same predicted shot as the kick
@@ -331,6 +354,7 @@ func _step_spread(kicked: bool) -> void:
 		spread = SpreadModel.new(hero_def.weapon, net.tick_rate_hz)
 	spread.set_weapon(hero_def.weapon)
 	spread.recoil_mult = own_recoil_mult()
+	spread.spread_mult = own_spread_mult()
 	if is_dead():
 		spread.reset()
 	spread.step(kicked and not is_dead())
@@ -454,7 +478,10 @@ func _apply_progress(p: SnapshotData.ProgressState) -> void:
 	if p.level != old:
 		level_changed.emit(p.level)
 	if rig != null:
-		rig.set_mounts(mount_items(), p.mount_tier)
+		if BuildIcons.has_any(p.inv_items):
+			rig.set_build(p.inv_items)  # Armory v2: gun parts by recipe tier + FP forearm/belt gear
+		else:
+			rig.set_mounts(mount_items(), p.mount_tier)
 	while _mote_views.size() < p.motes.size():
 		var m := MeshInstance3D.new()
 		var sph := SphereMesh.new()
@@ -602,13 +629,17 @@ func _draw_tracer(e: GameEvent) -> void:
 		var muzzle: Variant = rig.muzzle_global() if rig != null else null
 		if muzzle != null:
 			from = muzzle
-		tracers.spawn(from, e.position, TRACER_OWN, true)
+		var ob := progress.inv_items if progress != null else PackedInt32Array()
+		tracers.spawn(from, e.position, TRACER_OWN, true, BuildVisuals.ammo_type(ob, ArmoryVisualsData.catalog()),
+			BuildVisuals.ammo_mod(ob, ArmoryVisualsData.catalog()))
 		return
 	var v: HeroView = _views.get(e.source_net_id)
 	if v == null:
 		return
 	var c := TRACER_ALLY if v.team == own_team() else TRACER_ENEMY
-	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c)
+	var cat := ArmoryVisualsData.catalog()
+	tracers.spawn(v.global_position + Vector3(0.0, REMOTE_MUZZLE_H, 0.0), e.position, c, false,
+		BuildVisuals.ammo_type(v.build, cat), BuildVisuals.ammo_mod(v.build, cat))
 
 
 ## W10-W5: HeroDef id of a remote hero (&"" if unknown); lets presentation pick its weapon voice.

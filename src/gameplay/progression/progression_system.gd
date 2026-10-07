@@ -844,6 +844,20 @@ func refresh_signals(h: HeroBody) -> int:
 # --- Replication --------------------------------------------------------------------
 
 ## Own progress block for `h`'s client; also marks learnable skill slots.
+## Armory v2 public build (items-and-armory.md §3.8 rule 7): catalog index per
+## ProgressState.INV_LOCS place, for SnapshotData.EntityState.build.
+func public_build(h: HeroBody) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(SnapshotData.EntityState.BUILD_SIZE)
+	out.fill(-1)
+	var p := progress_of(h)
+	if not is_v2() or p == null:
+		return out
+	for i in SnapshotData.ProgressState.INV_LOCS.size():
+		out[i] = p.inv.index_at(SnapshotData.ProgressState.INV_LOCS[i])
+	return out
+
+
 func fill_own(s: SnapshotData, h: HeroBody) -> void:
 	var p := progress_of(h)
 	var o := SnapshotData.ProgressState.new()

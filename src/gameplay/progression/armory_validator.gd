@@ -192,6 +192,7 @@ static func _check_v22_item(cat: ArmoryCatalogDef, it: ArmoryItemDef, i: int, w:
 				errors.append("%s: recipe part %s is not a lower tier" % [w, part])
 	if not it.recipe.is_empty() and _recipe_cycle(cat, it, {}):
 		errors.append("%s: recipe cycle" % w)
+		return  # totals of a cyclic recipe mean nothing
 	var total := RecipeMath.total(cat, i)
 	if it.prices.size() != 1 or it.prices[0] != total:
 		errors.append("%s: list price %s is not the recipe total %d" % [w, it.prices, total])

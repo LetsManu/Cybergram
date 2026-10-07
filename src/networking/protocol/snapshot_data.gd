@@ -26,6 +26,26 @@ class EntityState:
 	## W11-V1: Fork / Mastery of the 3 basic skills, 3 bits per slot (slot i at bit 3i):
 	## bits 0-1 Fork (0 none, 1 A, 2 B), bit 2 Mastery. Use fork_of() / mastery_of().
 	var fork_bits: int = 0
+	## v22 public build (items-and-armory.md §3.8 rule 7, weapons-and-mods.md
+	## §3.6.3): catalog index per ProgressState.INV_LOCS place (Core, Barrel,
+	## Frame, Ammo Type, Ammo Mod, open slots 0..5; -1 = empty), for EVERY hero
+	## so remote models, the scoreboard and the death card can show it. A
+	## spare is a later copy of an id already held in an open slot.
+	var build: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+
+	## Places in `build` (same order as ProgressState.INV_LOCS).
+	const BUILD_SIZE: int = 11
+	const B_CORE: int = 0
+	const B_BARREL: int = 1
+	const B_FRAME: int = 2
+	const B_AMMO: int = 3
+	const B_MOD: int = 4
+	const B_OPEN0: int = 5
+
+	## True when open slot `slot` (0..5) holds a spare: an earlier open slot
+	## holds the same item id (items-and-armory.md §3.4 rule 3).
+	func is_spare(slot: int) -> bool:
+		return SnapshotData.spare_at(build, slot)
 
 	func fork_of(slot: int) -> int:
 		return (fork_bits >> (slot * 3)) & 3
@@ -53,6 +73,14 @@ class OwnCombat:
 	var reserve: int = 0
 	## AmmoFeed.FLAG_* bits.
 	var ammo_flags: int = 0
+	## Armory v2 prediction parity (C2): fire-rate (skill × items), spread and recoil multipliers.
+	## Wire: u8 hundredths each (0..2.55), see SnapshotCodec OWN_COMBAT.
+	var weapon_rate_mult: float = 1.0
+	var weapon_spread_mult: float = 1.0
+	var weapon_recoil_mult: float = 1.0   # skill (WeaponSim.recoil_mult): view kick and server bloom
+	var weapon_kick_mult: float = 1.0     # item RECOIL_MULT: view kick only
+	## Armory v2 Lattice overshield points left (items-and-armory.md §3.5.3 SG-G4; HUD).
+	var overshield: int = 0
 	## E10 skill bar, per slot S1/S2/S3/Ult: ticks of cooldown left, cooldown
 	## length (ticks) and AbilityRunner.FLAG_* (locked, active, casting).
 	var skill_cd_left: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
@@ -210,6 +238,18 @@ class ProgressState:
 	const SIG_TEAM_AHEAD: int = 16
 	const SIG_LOW_HEALTH: int = 32
 	const SIG_OBJECTIVE_SOON: int = 64
+
+## True when open slot `slot` of an 11-place build (EntityState.build or
+## ProgressState.inv_items) repeats an id held in an earlier open slot.
+static func spare_at(places: PackedInt32Array, slot: int) -> bool:
+	var i := EntityState.B_OPEN0 + slot
+	if i >= places.size() or places[i] < 0:
+		return false
+	for j in range(EntityState.B_OPEN0, i):
+		if places[j] == places[i]:
+			return true
+	return false
+
 
 var tick: int = 0
 ## W16-NET (client side): the acknowledged snapshot this one was delta-encoded

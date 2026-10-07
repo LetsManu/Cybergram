@@ -23,6 +23,15 @@ var shots_fired: int = 0
 var rate_mult: float = 1.0
 ## Scales the per-shot spread bloom (Ryker Overdrive: 0.5 = -50 % recoil).
 var recoil_mult: float = 1.0
+## Armory v2 item stats (items-and-armory.md §3.5, §4.3), combined with the
+## skill buffs above, never overwriting them: interval / (rate_mult × item_rate_mult);
+## cone (base, bloom, max) × spread_mult. Written by apply_item_stats().
+var item_rate_mult: float = 1.0
+var spread_mult: float = 1.0
+## Signature passives (items-and-armory.md §3.5.3), written each tick by
+## SignaturePassives: Overdrive Loop bloom (-40%) and pellet cone (-10%).
+var passive_bloom_mult: float = 1.0
+var passive_cone_mult: float = 1.0
 ## Tick of the latest shot and its index in the current burst (0 = first).
 var shot_tick: int = 0
 var burst_index: int = 0
@@ -52,12 +61,46 @@ func _init(weapon: WeaponDef, tick_rate_hz: int, rng_seed: int) -> void:
 	_recovery_per_tick = weapon.spread_recovery_deg_s / tick_rate_hz
 
 
+## Reads the hero's item stats: M_rate (capped, §3.7; beams convert it to tick
+## damage so their interval is unchanged) and SPREAD_MULT. Null = v1 defaults.
+func apply_item_stats(stats: StatBlock) -> void:
+	if stats == null:
+		item_rate_mult = 1.0
+		spread_mult = 1.0
+		return
+	item_rate_mult = item_rate_mult_for(def, stats.get_value(StatCatalog.FIRE_RATE_BONUS))
+	spread_mult = stats.get_value(StatCatalog.SPREAD_MULT)
+
+
+## 1 + min(cap, M_rate) for `weapon`, 1.0 for beams (DamageMath.weapon_hit_mult
+## puts their M_rate on the tick damage). Shared with client prediction.
+static func item_rate_mult_for(weapon: WeaponDef, m_rate: float) -> float:
+	var r := DamageMath.rules()
+	if r.is_beam(weapon):
+		return 1.0
+	return 1.0 + clampf(m_rate, 0.0, r.fire_rate_cap)
+
+
+## Effective fire-rate multiplier (skill buff × items).
+func total_rate_mult() -> float:
+	return maxf(rate_mult * item_rate_mult, 0.01)
+
+
+func _spread_base() -> float:
+	return def.spread_base_deg * spread_mult * passive_cone_mult
+
+
+func _spread_max() -> float:
+	return def.spread_max_deg * spread_mult * passive_cone_mult
+
+
 ## One tick with `cmd`. `allowed` is false while sprinting, stunned, etc.
 ## Returns true if a shot was fired this tick.
 func step(cmd: InputCommand, tick: int, allowed: bool) -> bool:
 	feed.step(tick)
 	if tick - _last_shot_tick > _recovery_delay_ticks:
-		spread_deg = maxf(def.spread_base_deg, spread_deg - _recovery_per_tick)
+		spread_deg = maxf(_spread_base(), spread_deg - _recovery_per_tick)
+	spread_deg = clampf(spread_deg, _spread_base(), _spread_max())
 	if cmd.has(InputCommand.BTN_RELOAD):
 		feed.request_reload(tick)
 	var held := cmd.has(InputCommand.BTN_FIRE)
@@ -69,17 +112,17 @@ func step(cmd: InputCommand, tick: int, allowed: bool) -> bool:
 			_burst_left = 0
 		elif tick + 1e-4 >= _next_burst_tick:
 			_burst_left -= 1
-			_next_burst_tick += _burst_interval / rate_mult
+			_next_burst_tick += _burst_interval / total_rate_mult()
 			_shoot(tick, def.burst_size - 1 - _burst_left)
 			fired = true
 	elif held and allowed and (_trigger_released or not def.semi_auto) \
 			and tick + 1e-4 >= _next_fire_tick and feed.can_fire():
 		if tick > _next_fire_tick + 1.0:
 			_next_fire_tick = tick  # idle: no banked shots
-		_next_fire_tick += _interval / rate_mult
+		_next_fire_tick += _interval / total_rate_mult()
 		if def.burst_size > 1:
 			_burst_left = def.burst_size - 1
-			_next_burst_tick = tick + _burst_interval / rate_mult
+			_next_burst_tick = tick + _burst_interval / total_rate_mult()
 		_shoot(tick, 0)
 		_trigger_released = false
 		fired = true
@@ -94,7 +137,7 @@ func _shoot(tick: int, index: int) -> void:
 	shot_tick = tick
 	burst_index = index
 	shot_spread_deg = spread_deg
-	spread_deg = minf(def.spread_max_deg, spread_deg + def.spread_bloom_deg * recoil_mult)
+	spread_deg = minf(_spread_max(), spread_deg + def.spread_bloom_deg * recoil_mult * spread_mult * passive_bloom_mult)
 	shots_fired += 1
 
 
@@ -129,6 +172,6 @@ func pellet_directions(forward: Vector3) -> Array[Vector3]:
 ## Respawn: full feed, base spread, trigger reset.
 func reset() -> void:
 	feed.refill()
-	spread_deg = def.spread_base_deg
+	spread_deg = _spread_base()
 	_trigger_released = true
 	_burst_left = 0

@@ -10,6 +10,11 @@ var mana: float
 var burnout: bool = false
 ## First tick on which regen runs.
 var regen_resume_tick: int = 0
+## Signature passives (items-and-armory.md §3.5.3), written each tick by
+## SignaturePassives: Deep Reserve (emptying the pool never triggers Burnout;
+## the regen delay still applies) and Cold Start (regen multiplier).
+var no_burnout: bool = false
+var regen_scale: float = 1.0
 
 
 func _init(weapon: WeaponDef, tick_rate: int) -> void:
@@ -17,11 +22,19 @@ func _init(weapon: WeaponDef, tick_rate: int) -> void:
 	mana = def.mana_pool
 
 
+## Pool size after capacity items (Wellframe, Reservoir Frame, Anchor Frame).
+func max_pool() -> float:
+	return float(scaled_capacity(def.mana_pool, false))
+
+
 func step(tick: int) -> void:
+	var cap := max_pool()
+	if mana > cap:
+		mana = cap  # weapons-and-mods.md §5: selling capacity clamps
 	if tick < regen_resume_tick:
 		return
 	burnout = false
-	mana = minf(def.mana_pool, mana + regen_rate() / tick_rate_hz)
+	mana = minf(cap, mana + regen_rate() * regen_scale / tick_rate_hz)
 
 
 func can_fire() -> bool:
@@ -29,17 +42,18 @@ func can_fire() -> bool:
 
 
 func consume(tick: int) -> void:
-	mana = maxf(0.0, mana - def.mana_cost)
+	mana = maxf(0.0, mana - def.mana_cost * cost_mult)
 	var delay := regen_delay_s()
 	if mana <= 1e-4:
 		mana = 0.0
-		burnout = true
-		delay *= def.burnout_delay_mult
+		if not no_burnout:
+			burnout = true
+			delay *= def.burnout_delay_mult
 	regen_resume_tick = tick + ticks(delay)
 
 
 func refill() -> void:
-	mana = def.mana_pool
+	mana = max_pool()
 	burnout = false
 	regen_resume_tick = 0
 
@@ -49,7 +63,18 @@ func current() -> float:
 
 
 func capacity() -> int:
-	return def.mana_pool
+	return int(max_pool())
+
+
+## Siphon (weapons-and-mods.md §3.7.1), Kindle and True Line: restores mana up to the pool; returns the gain.
+func add_mana(amount: float) -> float:
+	var add := clampf(amount, 0.0, max_pool() - mana)
+	mana += add
+	return add
+
+
+func disrupt(tick: int, duration_ticks: int, _penalty_ticks: int) -> void:
+	regen_resume_tick = maxi(regen_resume_tick, tick + maxi(duration_ticks, ticks(regen_delay_s())))
 
 
 func flags() -> int:

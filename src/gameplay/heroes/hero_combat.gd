@@ -29,6 +29,9 @@ var ammo_type: int = DamageMath.AMMO_STANDARD
 var ammo_mod: int = 0
 ## Liora's heal beam is held: the weapon does not fire (SkillEntities sets it).
 var beaming: bool = false
+## Armory v2 Signature passives (items-and-armory.md §3.5.3); none are on until
+## the server sets them from the hero's active items.
+var passives: SignaturePassives
 
 
 func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
@@ -48,6 +51,7 @@ func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
 	var rules := AbilityRulesDef.new()
 	status = StatusComponent.new(stats, health, rules, tick_rate_hz, rng_seed)
 	abilities = AbilityRunner.new(self, rules, tick_rate_hz)
+	passives = SignaturePassives.new(self, tick_rate_hz)
 
 
 ## heroes.md §3.3 SkillPower(L): the SKILL_POWER stat (apply_level writes the

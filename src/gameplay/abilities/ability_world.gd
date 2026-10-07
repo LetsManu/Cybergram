@@ -948,7 +948,7 @@ func _knock(ch: Charge, t: HeroBody, rel: Vector3, along: float) -> void:
 	if ticks <= 0:
 		return
 	var side := _side(ch.dir, rel, along)
-	t.state.dash_velocity = side * ch.knock_speed
+	t.state.dash_velocity = side * ch.knock_speed * t.combat.status.knockback_mult  # Planted
 	t.state.dash_ticks = ticks
 	t.state.dash_launch = false
 

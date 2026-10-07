@@ -22,8 +22,11 @@ extends RefCounted
 ##   sorted keys, 1 = not refreshed this tick: deferred by priority/budget).
 ##   A key the baseline lacks must carry every group.
 ## Records (fixed size, groups are byte ranges):
-##   HERO 28 B: pos i16x3 1/32 m | vel i16x3 1/128 m/s | yaw u16, pitch i16 |
-##     u8 flags, u16 hp | u16 status | u8 kind, u8 team, u16 max hp, u16 hero index, u8 fork.
+##   HERO 39 B: pos i16x3 1/32 m | vel i16x3 1/128 m/s | yaw u16, pitch i16 |
+##     u8 flags, u16 hp | u16 status | u8 kind, u8 team, u16 max hp, u16 hero index, u8 fork |
+##     public build 11 x s8 (v22, items-and-armory.md §3.8: catalog index per
+##     INV_LOCS place, -1 empty). Its own group, so it only travels when the
+##     build changes (or the client first sees the hero): 14 B per change.
 ##   WARDLING 13 B: pos i16x3 | u8 yaw | u8 hp (1/255) | u8 state |
 ##     u8 team (bit 7 Vanguard), u16 owner, u8 tier.
 ##   FX 18 B: u8 kind, u8 team | pos i16x3 | pos2 i16x3 | u8 yaw, u8 param | u16 expiry tick.
@@ -32,7 +35,10 @@ extends RefCounted
 ##     u16 carrier, u8 channel, u8 channel done.
 ## Blob payloads: OWN_COMBAT 44 B (u16 hp, u16 max, u8 dead, u32 respawn tick,
 ##   u8 feed, f32 ammo, u16 capacity, u16 reserve, u8 ammo flags, 4 x [u16 cd
-##   left, u16 cd total, u8 flags], u16 shield, u8 level, u16 status);
+##   left, u16 cd total, u8 flags], u16 shield, u8 level, u16 status, then (v22, C2
+##   prediction parity) u8 x 4 weapon rate / spread / recoil / kick multipliers in
+##   hundredths, appended after the v16 bytes so earlier offsets stay put, then
+##   (v22, C3) u16 Lattice overshield: 50 B);
 ##   FRONTS u8 n + n x i8; PROGRESS / MATCH as in v15 without the presence
 ##   byte (the MATCH payload carries clock 0, the clock follows the blob).
 ## Positions are 1/32 m in i16: +-1023 m covers the maps (Front spans 160 x 415 m).
@@ -41,7 +47,11 @@ const HEADER_SIZE: int = 16
 const FLAG_HAS_OWN: int = 1
 const FLAG_DELTA: int = 2
 const OWN_MOTOR_SIZE: int = 44
-const OWN_COMBAT_SIZE: int = 44
+const OWN_COMBAT_SIZE: int = 50
+## v22 C2: first of the 4 weapon multiplier bytes in OWN_COMBAT.
+const OWN_MULT_OFF: int = 44
+## v22 C3: u16 Lattice overshield in OWN_COMBAT.
+const OWN_OVERSHIELD_OFF: int = 48
 
 ## Keyed sections.
 const SEC_HERO: int = 0
@@ -60,12 +70,14 @@ const BLOB_NEW: int = 2
 
 ## [offset, length] byte groups per section record.
 const GROUPS: Array = [
-	[[0, 6], [6, 6], [12, 4], [16, 3], [19, 2], [21, 7]],  # HERO 28
+	[[0, 6], [6, 6], [12, 4], [16, 3], [19, 2], [21, 7], [28, 11]],  # HERO 39
 	[[0, 6], [6, 1], [7, 1], [8, 1], [9, 4]],  # WARDLING 13
 	[[0, 2], [2, 6], [8, 6], [14, 2], [16, 2]],  # FX 18
 	[[0, 5], [5, 5], [10, 6], [16, 4]],  # HARDPOINT 20
 ]
-const RECORD_SIZE: Array[int] = [28, 13, 18, 20]
+const RECORD_SIZE: Array[int] = [39, 13, 18, 20]
+## v22 public build bytes in the HERO record (SnapshotData.EntityState.build).
+const HERO_BUILD_OFF: int = 28
 
 const POS_STEPS: float = 32.0
 const VEL_STEPS: float = 128.0
@@ -176,7 +188,7 @@ static func _get_q3(b: PackedByteArray, off: int) -> Vector3:
 
 static func hero_record(e: SnapshotData.EntityState) -> PackedByteArray:
 	var r := PackedByteArray()
-	r.resize(28)
+	r.resize(39)
 	_put_q3(r, 0, e.position)
 	r.encode_s16(6, q_vel(e.velocity.x))
 	r.encode_s16(8, q_vel(e.velocity.y))
@@ -191,6 +203,8 @@ static func hero_record(e: SnapshotData.EntityState) -> PackedByteArray:
 	r.encode_u16(23, clampi(e.max_hp, 0, 65535))
 	r.encode_u16(25, clampi(e.hero_index, 0, 65535))
 	r.encode_u8(27, pack_fork(e.fork_bits))
+	for i in SnapshotData.EntityState.BUILD_SIZE:
+		r.encode_s8(HERO_BUILD_OFF + i, clampi(e.build[i] if i < e.build.size() else -1, -1, 127))
 	return r
 
 
@@ -212,6 +226,8 @@ static func hero_from(key: int, r: PackedByteArray) -> SnapshotData.EntityState:
 	e.max_hp = r.decode_u16(23)
 	e.hero_index = r.decode_u16(25)
 	e.fork_bits = unpack_fork(mini(r.decode_u8(27), 215))
+	for i in SnapshotData.EntityState.BUILD_SIZE:
+		e.build[i] = r.decode_s8(HERO_BUILD_OFF + i)
 	return e
 
 
@@ -361,7 +377,16 @@ static func own_combat_blob(c: SnapshotData.OwnCombat) -> PackedByteArray:
 	b.encode_u16(39, clampi(c.shield, 0, 65535))
 	b.encode_u8(41, clampi(c.level, 0, 255))
 	b.encode_u16(42, c.status & 0xFFFF)
+	var mults := [c.weapon_rate_mult, c.weapon_spread_mult, c.weapon_recoil_mult, c.weapon_kick_mult]
+	for i in mults.size():
+		b.encode_u8(OWN_MULT_OFF + i, q_mult(mults[i]))
+	b.encode_u16(OWN_OVERSHIELD_OFF, clampi(c.overshield, 0, 65535))
 	return b
+
+
+## v22 C2 weapon multiplier on the wire: hundredths in a u8 (0..2.55).
+static func q_mult(v: float) -> int:
+	return clampi(roundi(v * 100.0), 0, 255)
 
 
 static func own_combat_from(b: PackedByteArray) -> SnapshotData.OwnCombat:
@@ -384,6 +409,11 @@ static func own_combat_from(b: PackedByteArray) -> SnapshotData.OwnCombat:
 	c.shield = b.decode_u16(39)
 	c.level = b.decode_u8(41)
 	c.status = b.decode_u16(42)
+	c.weapon_rate_mult = b.decode_u8(OWN_MULT_OFF) / 100.0
+	c.weapon_spread_mult = b.decode_u8(OWN_MULT_OFF + 1) / 100.0
+	c.weapon_recoil_mult = b.decode_u8(OWN_MULT_OFF + 2) / 100.0
+	c.weapon_kick_mult = b.decode_u8(OWN_MULT_OFF + 3) / 100.0
+	c.overshield = b.decode_u16(OWN_OVERSHIELD_OFF)
 	return c
 
 

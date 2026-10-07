@@ -6,6 +6,9 @@ extends RefCounted
 ## twin-lobe heart, Flux Coil = helix rings...). Tier III adds the floating
 ## holo rune ring / moving module (>= 15 cm of silhouette at 1.3x in 3P).
 ## Meshes are cached per (line, tier, part) and shared by every gun.
+## Armory v2 (items-and-armory.md §3.3, §3.8 rule 1): one item, two forms
+## (crystal on Mana guns, chip on Mechanical guns); v22 recipe tier maps to the
+## visual tier; cut shapes come from armory_visuals.json (item_cuts).
 
 const PB := PartBuilder.Kind
 ## Glow per tier: Crystals may reach Signal tier at II-III (faint bloom),
@@ -38,7 +41,12 @@ static func build(item: ArmoryItemDef, tier: int, mana_gun: bool, scl: float = 1
 	root.scale = Vector3.ONE * scl
 	var spinners: Array = []
 	var crystal := item.family == ArmoryItemDef.Family.CRYSTAL or (item.family == ArmoryItemDef.Family.ANY and mana_gun)
+	# v22 (items-and-armory.md §3.8 rule 1): the recipe tier IS the visual tier
+	# (Component = small, Assembly = medium, Signature = large + idle motion).
+	if item.is_recipe_item():
+		tier = BuildVisuals.visual_tier(item)
 	var t := clampi(tier, 1, 3) - 1
+	var cut := _cut(item.id)
 	var glow: float = CRYSTAL_ENERGY[t] if crystal else CHIP_ENERGY[t]
 	var glow_mat := ModelMaterials.crystal(item.hue, glow, 4.0 if crystal else 1.0, 0.3 + 0.3 * t)
 	var hw_mat := ModelMaterials.toon(ModelPalette.TEAM_NEUTRAL)
@@ -48,8 +56,8 @@ static func build(item: ArmoryItemDef, tier: int, mana_gun: bool, scl: float = 1
 				var spin := Node3D.new()
 				spin.position.y = 0.012 * (1.0 + t)
 				root.add_child(spin)
-				_mi(spin, _mesh("core_c|%s|%d" % [_cut(item.id), t], func(b: PartBuilder) -> void:
-					_crystal_cut(b, _cut(item.id), CRYSTAL_SIZE[t])), glow_mat)
+				_mi(spin, _mesh("core_c|%s|%d" % [cut, t], func(b: PartBuilder) -> void:
+					_crystal_cut(b, cut, CRYSTAL_SIZE[t])), glow_mat)
 				spinners.append([spin, Vector3.UP, 0.6])
 				if t >= 1:
 					var motes := Node3D.new()
@@ -93,11 +101,23 @@ static func build(item: ArmoryItemDef, tier: int, mana_gun: bool, scl: float = 1
 					spinners.append([fly, Vector3.RIGHT, 9.0])
 		ArmoryItemDef.Socket.FRAME:
 			var n := t + 1  # count = tier
+			if t >= 2:  # Signature idle: a gyro ring turns beside the stock
+				var gy := Node3D.new()
+				gy.position = Vector3(-0.012, 0.0, 0.02)
+				root.add_child(gy)
+				_mi(gy, _mesh("frame_gyro", func(b: PartBuilder) -> void:
+					b.torus(0.022, 0.027, PartBuilder.xf(Vector3.ZERO, Vector3(0, 0, 90)), Color.WHITE, PB.FLAT, 0.0, 16, 3)),
+					ModelMaterials.holo(item.hue.lightened(0.25), 0.9))
+				spinners.append([gy, Vector3.RIGHT, 2.0])
 			if crystal:
 				_mi(root, _mesh("frame_c|%s|%d" % [item.id, t], func(b: PartBuilder) -> void:
 					for k in n:
-						if item.id == &"flux_coil":
+						if item.id == &"flux_coil" or cut == "helix":
 							b.torus(0.022, 0.028, PartBuilder.xf(Vector3(0, -0.01, -0.03 + k * 0.03), Vector3(80, 0, 20)), Color.WHITE, PB.FLAT, 0.0, 12, 4)
+						elif cut == "hexblock":
+							b.cyl(0.014, 0.014, 0.02, PartBuilder.xf(Vector3(-0.004, 0.0, -0.035 + k * 0.03), Vector3(0, 0, 90)), Color.WHITE, PB.FLAT, 0.0, 6)
+						elif cut == "tank":
+							b.capsule(0.014 + 0.004 * t, 0.06, PartBuilder.xf(Vector3(-0.006, 0.0, -0.035 + k * 0.03), Vector3(90, 0, 0)), Color.WHITE)
 						else:
 							b.capsule(0.009, 0.05, PartBuilder.xf(Vector3(-0.004, 0.0, -0.035 + k * 0.03), Vector3(90, 0, 0)), Color.WHITE)), glow_mat)
 			else:
@@ -109,10 +129,23 @@ static func build(item: ArmoryItemDef, tier: int, mana_gun: bool, scl: float = 1
 					for k in n:
 						b.box(Vector3(0.004, 0.006, 0.006), PartBuilder.xf(Vector3(-0.009, 0.01, -0.03 + k * 0.03)), Color.WHITE)), glow_mat)
 		ArmoryItemDef.Socket.BARREL:
-			_mi(root, _mesh("barrel|%s|%d" % [crystal, t], func(b: PartBuilder) -> void:
+			var bar := Node3D.new()
+			root.add_child(bar)
+			_mi(bar, _mesh("barrel|%s|%d" % [crystal, t], func(b: PartBuilder) -> void:
 				for k in t + 1:  # lens rings / shroud rings = tier
 					b.torus(0.026 + 0.004 * t, 0.032 + 0.004 * t, PartBuilder.xf(Vector3(0, 0, -0.02 - k * 0.022), Vector3(90, 0, 0)), Color.WHITE, PB.FLAT, 0.0, 16, 4)),
 				glow_mat if crystal else hw_mat)
+			if cut == "bore":  # cutting teeth (Bore Ring / Breaker Bore), count grows with tier
+				_mi(bar, _mesh("bore_teeth|%d" % t, func(b: PartBuilder) -> void:
+					for k in 4 + 2 * t:
+						var a := TAU * k / (4.0 + 2 * t)
+						b.prism(Vector3(0.008, 0.016 + 0.006 * t, 0.008), PartBuilder.xf(Vector3(cos(a) * 0.036, sin(a) * 0.036, -0.03 - 0.022 * t), Vector3(0, 0, rad_to_deg(a) - 90.0)), Color.WHITE)), glow_mat)
+			elif not crystal:
+				_mi(bar, _mesh("barrel_led|%d" % t, func(b: PartBuilder) -> void:
+					for k in t + 1:
+						b.box(Vector3(0.006, 0.004, 0.012), PartBuilder.xf(Vector3(0, 0.034 + 0.004 * t, -0.02 - k * 0.022)), Color.WHITE)), glow_mat)
+			if t >= 2:  # Signature idle: the ring stack turns about the bore
+				spinners.append([bar, Vector3.BACK, 1.2])
 		ArmoryItemDef.Socket.CHAMBER:
 			_mi(root, _mesh("chamber_cap", func(b: PartBuilder) -> void:
 				b.cyl(0.012, 0.014, 0.012, PartBuilder.xf(Vector3(0, 0.006, 0)), Color.WHITE, PB.FLAT, 0.0, 6)), glow_mat)
@@ -121,6 +154,9 @@ static func build(item: ArmoryItemDef, tier: int, mana_gun: bool, scl: float = 1
 
 
 static func _cut(id: StringName) -> String:
+	var d := ArmoryVisualsData.item_cut(id)
+	if d != "":
+		return d
 	var s := String(id)
 	for c in ["ember_heart", "tempest", "prism_eye", "wellspring"]:
 		if s.begins_with(c):
