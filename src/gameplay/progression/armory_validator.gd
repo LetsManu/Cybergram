@@ -80,7 +80,7 @@ static func _check_catalog(cat: ArmoryCatalogDef, errors: PackedStringArray, war
 			ArmoryItemDef.Kind.MOUNT, ArmoryItemDef.Kind.AMMO:
 				if i > MAX_MOUNT_INDEX:
 					errors.append("%s: mount index above %d (ProgressState.mount_item)" % [w, MAX_MOUNT_INDEX])
-				if it.socket == ArmoryItemDef.Socket.NONE:
+				if it.socket == ArmoryItemDef.Socket.NONE and it.tier != ArmoryItemDef.Tier.COMPONENT:
 					errors.append("%s: mount without a socket" % w)
 				for t in range(1, it.prices.size()):
 					if it.prices[t] <= it.prices[t - 1]:
@@ -101,6 +101,8 @@ static func _check_catalog(cat: ArmoryCatalogDef, errors: PackedStringArray, war
 					errors.append("%s: consumable needs carry_limit > 0" % w)
 				if it.socket != ArmoryItemDef.Socket.NONE:
 					errors.append("%s: consumable with a socket" % w)
+		if it.tier != ArmoryItemDef.Tier.NONE or it.kind == ArmoryItemDef.Kind.AMMO_MOD or it.kind == ArmoryItemDef.Kind.GEAR:
+			_check_v22_item(cat, it, i, w, errors, warnings)
 		if it.kind != ArmoryItemDef.Kind.MOUNT and it.family != ArmoryItemDef.Family.ANY:
 			errors.append("%s: only mount lines have a family" % w)
 		if it.stat != &"" and StatCatalog.hero_index(it.stat) < 0:
@@ -143,6 +145,97 @@ static func _check_catalog(cat: ArmoryCatalogDef, errors: PackedStringArray, war
 		for m in members:
 			if m.socket != socket or m.kind == ArmoryItemDef.Kind.CONSUMABLE:
 				errors.append("unique group %s: %s cannot share it (different socket or consumable)" % [g, m.id])
+
+
+## Armory v2 item checks (items-and-armory.md §3.2, §3.5, §3.7, §3.11): wire
+## index, recipe parts known and one tier lower, no recipe cycle, list price
+## = recipe total, tier price bands, gear-Signature combine ceiling, slot by
+## kind, stats known and no single item over a cap by more than 2 points,
+## Signature passive, Ammo Mod compatibility list.
+static func _check_v22_item(cat: ArmoryCatalogDef, it: ArmoryItemDef, i: int, w: String,
+		errors: PackedStringArray, warnings: PackedStringArray) -> void:
+	if i > MAX_MOUNT_INDEX:
+		errors.append("%s: index above %d (ProgressState.inv_items is s8)" % [w, MAX_MOUNT_INDEX])
+	if it.kind == ArmoryItemDef.Kind.AMMO_MOD:
+		if it.ammo_mod <= 0:
+			errors.append("%s: Ammo Mod without a mod id" % w)
+		for t in it.fits_ammo:
+			if t <= 0:
+				errors.append("%s: fits_ammo lists a non-ammo id %d" % [w, t])
+		return
+	if it.tier == ArmoryItemDef.Tier.NONE:
+		errors.append("%s: gear needs a recipe tier" % w)
+		return
+	var gear := it.kind == ArmoryItemDef.Kind.GEAR
+	if it.kind != ArmoryItemDef.Kind.MOUNT and not gear:
+		errors.append("%s: recipe tier on a %s item" % [w, ArmoryItemDef.Kind.keys()[it.kind]])
+	if it.tier == ArmoryItemDef.Tier.COMPONENT or gear:
+		if it.socket != ArmoryItemDef.Socket.NONE:
+			errors.append("%s: open-slot item with a socket" % w)
+	elif not [ArmoryItemDef.Socket.CORE, ArmoryItemDef.Socket.BARREL, ArmoryItemDef.Socket.FRAME].has(it.socket):
+		errors.append("%s: weapon part needs the Core, Barrel or Frame socket" % w)
+	if gear and it.body_anchor == &"":
+		errors.append("%s: open-slot gear without a body_anchor (Pillar 4)" % w)
+	if it.tier == ArmoryItemDef.Tier.COMPONENT:
+		if not it.recipe.is_empty():
+			errors.append("%s: a component has no recipe" % w)
+	else:
+		if it.recipe.size() < 2 or it.recipe.size() > 3:
+			errors.append("%s: recipe needs 2-3 parts" % w)
+		if it.combine_cost <= 0:
+			errors.append("%s: combine cost must be positive" % w)
+		for part in it.recipe:
+			var pit := cat.find(StringName(part))
+			if pit == null:
+				errors.append("%s: recipe part %s unknown" % [w, part])
+			elif pit.tier == ArmoryItemDef.Tier.NONE or pit.tier >= it.tier:
+				errors.append("%s: recipe part %s is not a lower tier" % [w, part])
+	if not it.recipe.is_empty() and _recipe_cycle(cat, it, {}):
+		errors.append("%s: recipe cycle" % w)
+	var total := RecipeMath.total(cat, i)
+	if it.prices.size() != 1 or it.prices[0] != total:
+		errors.append("%s: list price %s is not the recipe total %d" % [w, it.prices, total])
+	var bands := {ArmoryItemDef.Tier.COMPONENT: [250, 450], ArmoryItemDef.Tier.ASSEMBLY: [800, 1100],
+		ArmoryItemDef.Tier.SIGNATURE: [2400, 3200]}
+	var band: Array = bands[it.tier]
+	if total < band[0] or total > band[1]:
+		errors.append("%s: total %d outside the %s band %d-%d" % [w, total,
+			ArmoryItemDef.Tier.keys()[it.tier], band[0], band[1]])
+	if gear and it.tier == ArmoryItemDef.Tier.SIGNATURE and it.combine_cost > 900:
+		errors.append("%s: gear Signature combine %d above 900" % [w, it.combine_cost])
+	if it.tier == ArmoryItemDef.Tier.SIGNATURE and it.passive == &"":
+		errors.append("%s: a Signature needs a passive" % w)
+	if it.tier != ArmoryItemDef.Tier.SIGNATURE and it.passive != &"":
+		errors.append("%s: only Signatures have a passive" % w)
+	for block in [[it.stat_ids, it.stat_ops, it.stat_values], [it.mech_stat_ids, it.mech_stat_ops, it.mech_stat_values]]:
+		var sids: PackedStringArray = block[0]
+		if sids.size() != (block[1] as PackedInt32Array).size() or sids.size() != (block[2] as PackedFloat32Array).size():
+			errors.append("%s: stat_ids / ops / values sizes differ" % w)
+			continue
+		for k in sids.size():
+			var si := StatCatalog.hero_index(StringName(sids[k]))
+			if si < 0:
+				errors.append("%s: unknown stat %s" % [w, sids[k]])
+				continue
+			# One item may exceed a cap by at most 2 points (Null Veil, §3.7).
+			var v: float = StatCatalog.HERO_BASE[si] + (block[2] as PackedFloat32Array)[k]
+			var over := maxf(v - StatCatalog.HERO_MAX[si], StatCatalog.HERO_MIN[si] - v)
+			var unit := 0.01 if absf(StatCatalog.HERO_MAX[si]) <= 10.0 else 1.0
+			if over > 2.0 * unit + 1e-4:
+				errors.append("%s: %s %.3f is over its cap by more than 2 points" % [w, sids[k], v])
+	if it.stat_ids.is_empty():
+		warnings.append("%s: recipe item with no stats" % w)
+
+
+static func _recipe_cycle(cat: ArmoryCatalogDef, it: ArmoryItemDef, seen: Dictionary) -> bool:
+	if seen.has(it.id):
+		return true
+	seen[it.id] = true
+	for part in it.recipe:
+		var pit := cat.find(StringName(part))
+		if pit != null and _recipe_cycle(cat, pit, seen.duplicate()):
+			return true
+	return false
 
 
 static func _requires_cycle(cat: ArmoryCatalogDef, start: ArmoryItemDef) -> bool:

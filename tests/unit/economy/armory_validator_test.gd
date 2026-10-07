@@ -213,3 +213,39 @@ func test_hero_roles_and_tags_from_data() -> void:
 	var b := _hero(&"hero_brannoc")
 	assert_array(Array(b.roles)).contains(["tank"])
 	assert_array(Array(b.tags)).contains(["cc"])
+
+
+# --- Armory v2 (v22 catalog) -------------------------------------------------------
+
+func _v22() -> ArmoryCatalogDef:
+	return (load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef).duplicate(true) as ArmoryCatalogDef
+
+
+func _errors_of(cat: ArmoryCatalogDef) -> String:
+	return "\n".join(ArmoryValidator.check(cat)["errors"])
+
+
+func test_v22_catalog_is_clean() -> void:
+	var r := ArmoryValidator.check(load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef)
+	assert_array(Array(r["errors"])).is_empty()
+
+
+func test_v22_recipe_mistakes_are_reported() -> void:
+	var c := _v22()
+	c.find(&"ember_heart").prices = PackedInt32Array([2500])  # not the recipe total 2,550
+	c.find(&"pulse_facet").recipe = PackedStringArray(["tempo_part", "ghost_part"])
+	c.find(&"vital_core").recipe = PackedStringArray(["vital_core", "vital_cell"])  # itself / not lower
+	c.find(&"bastion_plate").passive = &""
+	c.find(&"null_thread").stat_values = PackedFloat32Array([0.23])  # 3 points over the 0.20 cap
+	c.find(&"plate_scale").body_anchor = &""
+	c.find(&"bore_ring").socket = ArmoryItemDef.Socket.NONE
+	var e := _errors_of(c)
+	assert_str(e).contains("ember_heart").contains("recipe total 2550")
+	assert_str(e).contains("recipe part ghost_part unknown")
+	assert_str(e).contains("vital_core").contains("not a lower tier")
+	assert_str(e).contains("bastion_plate").contains("needs a passive")
+	assert_str(e).contains("null_thread").contains("over its cap")
+	assert_str(e).contains("plate_scale").contains("body_anchor")
+	assert_str(e).contains("bore_ring").contains("Core, Barrel or Frame")
+	# Null Veil's +22% resist (2 points over) stays allowed.
+	assert_str(e).not_contains("null_veil")
