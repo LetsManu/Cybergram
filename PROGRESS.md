@@ -163,6 +163,8 @@ as it is, new tests run inside the existing test job.
 - Objective B (world at hero fidelity), see the section below.
 
 ## Next (prioritised)
+0. Map foundation, jungle, Conduit and dynamic routes (owner brief 2026-10-07): Phase 0 report and
+   the phased plan are in `docs/plans/map-foundation.md`; run its chunks in order (§5, status in §6).
 1. Human checks in docs/manual-checklist.md (P1-P4 and v17).
 2. Release v0.17.0 (game 0.17.0, launcher 1.7.0, protocol 20) when the owner
    says so.
