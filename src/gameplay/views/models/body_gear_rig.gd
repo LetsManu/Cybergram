@@ -45,6 +45,10 @@ func setup(model: Node3D, hero_key_: StringName, skeleton: Skeleton3D = null) ->
 	var table := ArmoryVisualsData.anchors()
 	for a in ANCHORS:
 		var spec: Dictionary = table.get(String(a), {})
+		if first_person and not bool(spec.get("fp", false)):
+			continue  # first-person arms show only the forearm and belt (§3.8 rule 2)
+		if first_person and _skeleton != null and not _has_bones(spec):
+			continue  # the arms rig has no such bone (belt): nothing to hang it on
 		var n := ArmoryVisualsData.vec(nudge.get(String(a), []))
 		var subs: Array[Marker3D] = []
 		var i := 0
@@ -55,7 +59,8 @@ func setup(model: Node3D, hero_key_: StringName, skeleton: Skeleton3D = null) ->
 		var ov: Variant = spec.get("overflow")
 		if ov is Dictionary:
 			_markers[StringName(String(a) + "_overflow")] = _marker(ov, String(a) + "_overflow", spread, n)
-	_badge_root = _marker(ArmoryVisualsData.badge(), "body_badges", spread, Vector3.ZERO)
+	if not first_person:
+		_badge_root = _marker(ArmoryVisualsData.badge(), "body_badges", spread, Vector3.ZERO)
 
 
 ## Anchor sub-position markers (tests / tools).
@@ -92,6 +97,8 @@ func set_build(build: PackedInt32Array, cat: ArmoryCatalogDef = null) -> int:
 		has_ov[a] = overflow_marker(a) != null
 	var step := ArmoryVisualsData.vec(ArmoryVisualsData.badge().get("step", [0.045, 0, 0]))
 	for p in BuildVisuals.plan_body(build, c, subs, has_ov, first_person):
+		if first_person and not _markers.has(p.anchor):
+			continue
 		var parent: Marker3D = null
 		var node: Node3D
 		match p.place:
@@ -103,6 +110,8 @@ func set_build(build: PackedInt32Array, cat: ArmoryCatalogDef = null) -> int:
 			node = GearVisuals.build(p.item, p.tier, mana_gun, p.spare, _gear_scale)
 			if String(parent.name).ends_with("_0") and p.anchor in [&"body_shoulders", &"body_legs", &"body_forearm"]:
 				node.scale.x = -node.scale.x  # mirror the left-side piece
+		elif first_person:
+			continue  # no badge row on first-person arms
 		else:
 			parent = _badge_root
 			node = GearVisuals.badge(p.item, p.tier, p.spare)
@@ -171,6 +180,13 @@ func _marker(spec: Dictionary, mname: String, spread: float, nudge: Vector3) -> 
 		m.position = p + off
 		add_child(m)
 	return m
+
+
+func _has_bones(spec: Dictionary) -> bool:
+	for sub in spec.get("subs", []):
+		if _skeleton.find_bone(String((sub as Dictionary).get("bone", ""))) < 0:
+			return false
+	return true
 
 
 func _attachment(bone: String) -> Node3D:

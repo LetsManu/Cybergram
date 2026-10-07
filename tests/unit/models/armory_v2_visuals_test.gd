@@ -116,3 +116,17 @@ func test_every_ammo_type_has_a_distinct_tell() -> void:
 		seen["%s|%s|%s" % [d.get("color"), d.get("shape"), d.get("impact")]] = true
 	assert_int(seen.size()).is_equal(6)
 	assert_str(String(ArmoryVisualsData.ammo_tell(0).get("name"))).is_equal("standard")
+
+
+func test_first_person_rig_builds_only_belt_and_forearm_anchors() -> void:
+	var m := HeroModelLoader.build(&"ryker", ModelPalette.TEAM_CONCORD)
+	add_child(auto_free(m))
+	var rig := BodyGearRig.new()
+	rig.first_person = true
+	rig.setup(m, &"ryker", m.get("skeleton") as Skeleton3D)
+	assert_int(rig.anchor_markers(&"body_belt").size()).is_equal(6)
+	assert_int(rig.anchor_markers(&"body_forearm").size()).is_equal(2)
+	assert_int(rig.anchor_markers(&"body_chest").size()).is_equal(0)
+	assert_object(rig.badge_root()).is_null()
+	var b := _build([&"", &"", &"", &"", &""], [&"ember_part", &"vital_cell", &"breaker_sigil"])
+	assert_int(rig.set_build(b)).is_equal(2)

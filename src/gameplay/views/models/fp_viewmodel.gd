@@ -30,6 +30,8 @@ static var _materials: Dictionary = {}
 var key: StringName = &""
 var team: int = 0
 var mana: bool = true
+var _last_build := PackedInt32Array()
+var _gear: BodyGearRig
 ## Grip position in eye space (the rig's viewmodel pivot at FOV 90).
 var fp_pos: Vector3 = Vector3(0.155, -0.205, -0.34)
 ## Draw scale about the grip (sidecar `fp_scale`): rifles are authored at real size
@@ -327,6 +329,27 @@ static func material(model_key: StringName, team_: int) -> ShaderMaterial:
 	m.next_pass = o
 	_materials[k] = m
 	return m
+
+
+## Armory v2 (items-and-armory.md §3.8 rules 1-2): gun parts from the own
+## build (inv_items) at the socket markers, plus forearm / belt gear on the
+## arms rig (first person shows only those two anchors). Returns the gear count.
+func set_build(build: PackedInt32Array, cat: ArmoryCatalogDef = null) -> int:
+	if build == _last_build:
+		return _mount_nodes.size()
+	_last_build = build.duplicate()
+	var c := cat if cat != null else ArmoryVisualsData.catalog()
+	var items := BuildVisuals.gun_items(build, c)
+	var tiers := PackedInt32Array()
+	for it in items:
+		tiers.append(BuildVisuals.visual_tier(it as ArmoryItemDef))
+	set_mounts(items, tiers)
+	if _gear == null and skeleton != null:
+		_gear = BodyGearRig.new()
+		_gear.first_person = true
+		_gear.mana_gun = mana
+		_gear.setup(self, &"default", skeleton)
+	return _gear.set_build(build, c) if _gear != null else 0
 
 
 ## E13 mount visuals at the weapon's socket markers (same rules as WeaponModel).
