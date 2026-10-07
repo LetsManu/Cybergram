@@ -24,6 +24,8 @@ static func buy(p: HeroProgress, c: HeroCombat, cat: ArmoryCatalogDef, index: in
 	var item := cat.at(index)
 	if item == null:
 		return HeroProgress.Result.UNKNOWN_ITEM
+	if item.disabled:
+		return HeroProgress.Result.DISABLED
 	match item.kind:
 		ArmoryItemDef.Kind.CONSUMABLE:
 			if p.medpacks >= item.carry_limit:

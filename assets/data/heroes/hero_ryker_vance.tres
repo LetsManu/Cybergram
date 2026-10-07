@@ -14,6 +14,8 @@
 script = ExtResource("s9")
 id = &"hero_ryker_vance"
 display_name = "Ryker Vance"
+roles = PackedStringArray("soldier")
+tags = PackedStringArray("weapon_dps", "burst")
 max_hp = 250
 armor = 0.0
 move_speed = 6.2

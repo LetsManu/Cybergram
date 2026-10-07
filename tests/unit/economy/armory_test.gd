@@ -183,3 +183,13 @@ func test_level_scaling_goes_through_the_stat_block() -> void:
 	assert_float(c.skill_power()).is_equal_approx(1.28, 1e-5)
 	c.reset_for_respawn()
 	assert_float(c.health.hp).is_equal_approx(390.0, 1e-3)
+
+
+func test_disabled_item_is_refused_and_changes_nothing() -> void:
+	_cat = _cat.duplicate(true) as ArmoryCatalogDef
+	_cat.find(&"ember_heart").disabled = true
+	var h := _hero(CombatFixtures.vesper())
+	var p := _wallet(5000)
+	assert_int(_buy(p, h, &"ember_heart", 1)).is_equal(HeroProgress.Result.DISABLED)
+	assert_int(p.lumen).is_equal(5000)
+	assert_int(p.mounts.size()).is_equal(0)

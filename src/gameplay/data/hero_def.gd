@@ -13,6 +13,14 @@ extends Resource
 @export_range(0.0, 20.0, 0.1) var move_speed: float = 6.0
 @export var weapon: WeaponDef
 
+@export_group("Roles")
+## Role ids for build guides and team-function rules (heroes.md §2):
+## commander, infiltrator, trapper, soldier, tank, healer, hacker.
+@export var roles: PackedStringArray = PackedStringArray()
+## What this hero threatens enemies with (BuildAdvisor counter rules):
+## cc, burst, sustain, weapon_dps, skill_dps, mobility, zone, squad, frontline.
+@export var tags: PackedStringArray = PackedStringArray()
+
 @export_group("Art")
 ## Procedural model key (ModelCatalog), e.g. &"vesper". Empty = derived from `id`.
 @export var model_id: StringName = &""

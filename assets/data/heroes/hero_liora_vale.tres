@@ -15,6 +15,8 @@
 script = ExtResource("s10")
 id = &"hero_liora_vale"
 display_name = "Liora Vale"
+roles = PackedStringArray("healer")
+tags = PackedStringArray("sustain")
 max_hp = 225
 armor = 0.0
 move_speed = 6.0
