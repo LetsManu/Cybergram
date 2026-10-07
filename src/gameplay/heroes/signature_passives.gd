@@ -269,6 +269,7 @@ func on_death() -> void:
 	_cold_armed_once = false
 	rend = 0.0
 	rend_until_tick = NEVER
+	combat.health.rend = 0.0
 	_last_pos = Vector3.INF
 	_crouching = false
 	for id in active:
