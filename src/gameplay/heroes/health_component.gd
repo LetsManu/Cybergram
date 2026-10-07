@@ -47,6 +47,7 @@ func is_alive() -> bool:
 ## Applies `info` and returns the HP actually removed (0 if filtered).
 ## TRUE damage ignores armor. Same-team damage is dropped (no friendly fire).
 func apply_damage(info: DamageInfo) -> float:
+	last_absorbed = 0.0
 	if not is_alive() or info.amount <= 0.0:
 		return 0.0
 	if info.instigator_team == team:
