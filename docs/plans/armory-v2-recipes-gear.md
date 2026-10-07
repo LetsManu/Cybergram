@@ -1,6 +1,6 @@
 # Armory v2: LoL-style shop, item recipes, body gear (DRAFT for owner review)
 
-Status: proposal, not approved. Nothing here is canon until the owner signs off
+Status: direction approved 2026-10-07 (answers below); GDD rewrite next. Nothing here is canon until the owner signs off
 and the GDDs (`weapons-and-mods.md`, `wardlings-and-economy.md`,
 `game-concept.md` C14) and `design/registry/entities.yaml` are updated first.
 
@@ -15,6 +15,20 @@ and the GDDs (`weapons-and-mods.md`, `wardlings-and-economy.md`,
 3. **Body gear:** new hero slots for Health, Armor (vs weapons) and Resist
    (vs skills). Visible on the hero model (Pillar 4 "Power You Can See").
 4. **Counter items:** per-trait thresholds. Done (commit a69e5af).
+
+### Answers to the open questions (owner, 2026-10-07)
+
+- **Q1:** (a), kit-style free slots, and **more item slots** than drafted, for
+  more builds and playstyles.
+- **Q2:** **open slots**, as other MOBAs do (no typed Plating / Shell / Ward).
+- **Q3:** suggested content size accepted.
+- **Q4:** one complete release (protocol 22), not protocol 21 first.
+
+Resulting slot model (to confirm in the GDD review): the gun keeps its
+sockets (Core, Barrel, Frame, Chamber) for weapon parts; the hero gets
+**6 open item slots** (LoL inventory) that hold components, assemblies and
+finished gear (health, armor, resist, utility). Everything in an open slot is
+visible on the hero (belt, back, shoulders, visor).
 
 ## What stays
 
@@ -50,8 +64,7 @@ and the GDDs (`weapons-and-mods.md`, `wardlings-and-economy.md`,
 |---|---|---|
 | Gun | Core, Barrel, Frame | one finished part each (Assembly or Signature) |
 | Gun | Chamber | Ammo Type + Ammo Mod (all 6 types, 5 mods from the GDD) |
-| Body (new) | Plating, Shell, Ward (see Q2) | Health / weapon armor / skill resist items |
-| Kit rail (new, see Q1) | 3 | Components and Assemblies still being built |
+| Open item slots (new) | 6 | Components, Assemblies, finished gear (health / armor / resist / utility) |
 
 Squad upgrades and Med-Packs stay as they are.
 
