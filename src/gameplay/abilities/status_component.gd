@@ -28,6 +28,11 @@ const BIT_CASTING: int = 64
 const BIT_DASHING: int = 128
 const BIT_KNOCKBACK: int = 256
 
+## Armory v2 ammo statuses (weapons-and-mods.md §3.7.1): fixed entry sources for
+## the Cryo Chill slow (a SLOW inside the shared slow cap) and Scorched (HEAL_CUT).
+const SOURCE_CHILL: int = -101
+const SOURCE_SCORCHED: int = -102
+
 const _HARD_CC: Array[int] = [Kind.ROOT, Kind.STUN, Kind.KNOCKBACK]
 
 
@@ -49,6 +54,9 @@ var tick_hz: int
 var entries: Array[Entry] = []
 ## Source tag of the folded modifiers on `stats`.
 var source_id: int
+## Armory v2: Burn pools, Shock Charge, Chill meter and Brittle on this hero
+## (AmmoEffects writes it; cleared with the statuses on respawn).
+var ammo := AmmoTargetState.new()
 
 var _cc_first_tick: Dictionary = {}  # kind -> tick of the first CC in the window
 var _cc_count: Dictionary = {}       # kind -> applications in the window
@@ -168,7 +176,36 @@ func remove_kinds(kinds: Array) -> void:
 		_fold()
 
 
+## Cryo Chill slow (fraction) refreshed every server tick by the ammo step: a
+## SLOW entry with SOURCE_CHILL, so it shares the 40% cap; 0 removes it.
+func set_chill_slow(magnitude: float, tick: int) -> void:
+	_set_ammo_entry(Kind.SLOW, SOURCE_CHILL, magnitude, tick)
+
+
+## Scorched (Incendiary Burn): -`cut` healing received while burning; 0 removes it.
+func set_scorched(cut: float, tick: int) -> void:
+	_set_ammo_entry(Kind.HEAL_CUT, SOURCE_SCORCHED, cut, tick)
+
+
+func _set_ammo_entry(kind: int, source: int, magnitude: float, tick: int) -> void:
+	for i in entries.size():
+		var e := entries[i]
+		if e.kind == kind and e.source_id == source:
+			if magnitude <= 0.0:
+				entries.remove_at(i)
+				_fold()
+				return
+			e.expires_tick = tick + 2
+			if not is_equal_approx(e.magnitude, magnitude):
+				e.magnitude = magnitude
+				_fold()
+			return
+	if magnitude > 0.0:
+		apply(kind, 2, magnitude, source, tick)
+
+
 func clear() -> void:
+	ammo.clear()
 	entries.clear()
 	_cc_first_tick.clear()
 	_cc_count.clear()

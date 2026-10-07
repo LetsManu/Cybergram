@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="AmmoRulesDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/weapons/ammo_rules_def.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+mod_damage_cap = 0.25
+fire_rate_cap = 0.15
+throughput_cap = 1.333
+total_mult_cap = 2.25
+pen_cap = 0.6
+gear_armor_cap = 0.2
+gear_resist_cap = 0.2
+reduction_cap = 0.7
+piercing_pen = 0.4
+sunder_construct_bonus = 0.35
+sunder_structure_bonus = 0.2
+sunder_hero_mult = 0.9
+burn_share = 0.12
+burn_duration_s = 3.0
+burn_max_dps = 35.0
+scorched_heal_cut = 0.3
+shock_k = 0.6
+shock_arc_damage = 30.0
+shock_icd_s = 3.0
+siphon_hero = 0.08
+siphon_wardling = 0.04
+siphon_mana = 0.06
+cryo_k = 0.5
+chill_max_slow = 0.25
+brittle_mult = 1.08
+saturated_potency = 1.3
+overcharged_potency = 1.5
+lingering_duration_mult = 1.5
+tracer_mark_s = 1.5
+out_of_combat_s = 4.0
