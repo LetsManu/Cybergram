@@ -441,7 +441,7 @@ static func result_key(r: int) -> String:
 			return "HUD_SHOP2_INCOMPATIBLE"
 		HeroProgress.Result.UNKNOWN_ITEM:
 			return "HUD_SHOP_R_INVALID"
-	return ShopModel.result_key(r)
+	return _base_result_key(r)
 
 
 # --- All Items ---------------------------------------------------------------------
@@ -859,3 +859,28 @@ static func why_key(reason_key: String) -> String:
 	if not reason_key.begins_with(BuildAdvisor.RULE_REASON_PREFIX):
 		return ""
 	return String(WHY_KEYS.get(reason_key.trim_prefix(BuildAdvisor.RULE_REASON_PREFIX).to_lower(), ""))
+
+
+static func _base_result_key(r: int) -> String:
+	match r:
+		HeroProgress.Result.OK:
+			return ""
+		HeroProgress.Result.NOT_AT_ARMORY:
+			return "HUD_SHOP_R_NOT_AT_ARMORY"
+		HeroProgress.Result.DEAD:
+			return "HUD_SHOP_R_DEAD"
+		HeroProgress.Result.NO_FUNDS:
+			return "HUD_SHOP_R_NO_FUNDS"
+		HeroProgress.Result.WRONG_FAMILY:
+			return "HUD_SHOP_R_WRONG_FAMILY"
+		HeroProgress.Result.REQUIRES:
+			return "HUD_SHOP_R_REQUIRES"
+		HeroProgress.Result.LIMIT:
+			return "HUD_SHOP_R_LIMIT"
+		HeroProgress.Result.NOT_OWNED:
+			return "HUD_SHOP_R_NOT_OWNED"
+		HeroProgress.Result.MAXED:
+			return "HUD_SHOP_R_MAXED"
+		HeroProgress.Result.DISABLED:
+			return "HUD_SHOP_R_DISABLED"
+	return "HUD_SHOP_R_INVALID"

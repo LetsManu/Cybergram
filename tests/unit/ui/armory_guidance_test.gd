@@ -88,7 +88,7 @@ func test_hint_names_distance_and_direction() -> void:
 
 func test_affordability_follows_lumen() -> void:
 	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
-	var m := ShopModel.new(cat, load(GameSession.ECONOMY_RULES) as EconomyRulesDef, null, &"hero_vesper_loom",
+	var m := ItemShopModel.new(cat, load(GameSession.ECONOMY_RULES) as EconomyRulesDef, null, &"hero_vesper_loom",
 		(load("res://assets/data/heroes/hero_vesper_loom.tres") as HeroDef).weapon)
 	var p := SnapshotData.ProgressState.new()
 	m.update(p)

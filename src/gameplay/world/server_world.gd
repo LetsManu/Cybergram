@@ -225,11 +225,6 @@ func buy(h: HeroBody, item_id: StringName, tier: int = 0) -> int:
 	return progression.buy(h, item_id, tier) if progression != null else HeroProgress.Result.DISABLED
 
 
-## Sells the mount in `socket` (ArmoryItemDef.Socket): 100% this visit, else 60%.
-func sell_mount(h: HeroBody, socket: int) -> int:
-	return progression.sell(h, socket) if progression != null else HeroProgress.Result.DISABLED
-
-
 func use_medpack(h: HeroBody) -> int:
 	return progression.use_medpack(h) if progression != null else HeroProgress.Result.DISABLED
 

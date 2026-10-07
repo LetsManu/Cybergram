@@ -257,13 +257,13 @@ func buy(h: HeroBody, item_id: StringName, tier: int = 0) -> int:
 	return buy_index(h, catalog.index_of(item_id), tier)
 
 
+## `tier` is ignored (v1 mount tiers are gone; kept for the wire format).
 func buy_index(h: HeroBody, index: int, tier: int = 0) -> int:
 	var p := progress_of(h)
 	if debug_shop_anywhere and not h.combat.dead:
 		p.at_armory = true
 	var before := p.lumen
-	var r := ItemShop.buy(p, h.combat, catalog, index, rules) if is_v2() else \
-		Armory.buy(p, h.combat, catalog, index, tier, rules)
+	var r := ItemShop.buy(p, h.combat, catalog, index, rules)
 	_log_armory(h, "buy", index, tier, r, before, p.lumen)
 	return r
 
@@ -309,32 +309,6 @@ func undo(h: HeroBody, loc: int, row_index: int = -1) -> int:
 	else:
 		r = ItemShop.undo_last(p, h.combat, catalog, rules)
 	_log_armory(h, "undo", index, loc, r, before, p.lumen)
-	return r
-
-
-## Sells the mount in `socket` (ArmoryItemDef.Socket); a full refund while the
-## line was bought this visit (undo).
-func sell(h: HeroBody, socket: int) -> int:
-	var p := progress_of(h)
-	if debug_shop_anywhere and not h.combat.dead:
-		p.at_armory = true
-	var held := p.mount(socket)
-	var index := held.index if held != null else -1
-	var undo := held != null and held.paid_visit >= held.paid
-	var before := p.lumen
-	var r := Armory.sell(p, h.combat, socket, rules)
-	_log_armory(h, "undo" if undo else "sell", index, socket, r, before, p.lumen)
-	return r
-
-
-## Undoes a squad upgrade / Med-Pack (catalog `index`) bought this visit.
-func undo_item(h: HeroBody, index: int) -> int:
-	var p := progress_of(h)
-	if debug_shop_anywhere and not h.combat.dead:
-		p.at_armory = true
-	var before := p.lumen
-	var r := Armory.undo_item(p, h.combat, catalog, index)
-	_log_armory(h, "undo", index, 0, r, before, p.lumen)
 	return r
 
 
@@ -560,13 +534,7 @@ func handle_action(h: HeroBody, cmd: InputCommand) -> int:
 		InputCommand.ACTION_BUY:
 			return _shop_result(h, buy_index(h, cmd.action_arg & 0xFF, cmd.action_arg >> 8))
 		InputCommand.ACTION_SELL:
-			if is_v2():
-				return _shop_result(h, _sell_v2(h, cmd.action_arg))
-			if cmd.action_arg & InputCommand.UNDO_ITEM_FLAG:
-				return _shop_result(h, undo_item(h, cmd.action_arg & 0xFF))
-			if not SnapshotData.ProgressState.MOUNT_SOCKETS.has(cmd.action_arg & 0xFF):
-				return _shop_result(h, HeroProgress.Result.INVALID)
-			return _shop_result(h, sell(h, cmd.action_arg & 0xFF))
+			return _shop_result(h, _sell_v2(h, cmd.action_arg))
 		InputCommand.ACTION_USE_MEDPACK:
 			return use_medpack(h)
 		InputCommand.ACTION_SPAWN_CHOICE:
