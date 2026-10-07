@@ -37,7 +37,7 @@ Signatures only, so Barrel and Frame Signatures and half of the gear Signatures 
 2. **Squad lists per hero**, 1,850-2,150 Lumen for balanced guides (cores I, Amplifier, Expansion I and so on),
    1,050 / 900 for gun-first. The luxury squad items (Expansion II, Bulwark, Cores II, Tether, Mint) sit in
    optional tails, so every squad upgrade is named by some guide.
-3. **Med-Pack restock step** in every guide (`restock`, 3 Med-Packs, after the opening pack).
+3. **Med-Pack restock step** in every guide (`restock`, 3 Med-Packs, after the first mount step so the 500 Lumen purse still buys the opening pack plus a Component; a bot test caught the first version, which spent the purse on three packs).
 4. **Second Signature varies** by hero (Barrel, Frame and gear Signatures as first choices), so 11 of the
    14 Signatures are bought whole by some simulated run.
 5. **Simulator:**
@@ -62,7 +62,7 @@ Signatures only, so Barrel and Frame Signatures and half of the gear Signatures 
 
 - Strong curve, no squad spend: full build complete at **30:44-32:04** (AC 16: 28-33 min).
 - Dead zones over 240 s: **none**, on the weak, average and strong curves, pad and 180 s visits.
-- Weak curve first Signature 25:21-26:30 (balanced) and 15:47-16:44 (gun-first); strong curve 12:49-13:28 and 7:54-8:26.
+- Weak curve first Signature 23:30-26:30 (balanced) and 15:47-16:44 (gun-first); strong curve 12:01-13:28 and 7:54-8:26.
 - Items no guide names: **none** (was 13 never bought). Named but not bought whole by any run: Anchor Frame,
   Vigil Core, Cadence Crown: a closer choice always wins or the two-Signature limit is reached (they are the
   third choice of Liora / Ryker / Vesper lists).

@@ -103,9 +103,7 @@ func test_every_hero_has_a_guide_that_opens_with_a_med_pack_then_the_first_mount
 		assert_str(String(_best_node(BuildAdvisor.evaluate(g, st, _ar)))).is_equal("open")
 		assert_str(String(_best_item(BuildAdvisor.evaluate(g, st, _ar)))).is_equal("med_pack")
 		st.holdings[_cat.index_of(&"med_pack")] = 1
-		# One Med-Pack opens the build; the restock step tops the bag up to three.
-		assert_str(String(_best_node(BuildAdvisor.evaluate(g, st, _ar)))).override_failure_message(h).is_equal("restock")
-		st.holdings[_cat.index_of(&"med_pack")] = 3
+		# One Med-Pack opens the build; the first mount step comes before the restock step.
 		assert_str(String(_best_node(BuildAdvisor.evaluate(g, st, _ar)))).override_failure_message(h).is_equal("start")
 
 

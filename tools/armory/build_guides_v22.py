@@ -115,8 +115,9 @@ def guide(style, start, core, barrel, ammo, sig2, mod, gear, squad, tail=(), pre
     balanced = style == "balanced"
     n = [
         ("open", "med_pack", 1, "OPENING", 1000, [], dict(reason="HUD_ADVICE_N_OPEN")),
-        # Keeps up to 3 Med-Packs in the bag: one is bought back after each use.
-        ("restock", "med_pack", 3, "CONSUMABLE", 990, ["open"], dict(core=False, optional=True,
+        # Keeps up to 3 Med-Packs in the bag: one is bought back after each use. It waits for the
+        # first mount step so the 500 Lumen purse still buys the opening Med-Pack plus a Component.
+        ("restock", "med_pack", 3, "CONSUMABLE", 945, ["start"], dict(core=False, optional=True,
             reason="HUD_ADVICE_N_RESTOCK")),
         ("start", start[0], 1, "EARLY", 950, ["open"], dict(alts=start[1:], reason="HUD_ADVICE_N_FIRST_MOUNT")),
         ("core1", core[0], 1, "SPIKE", 880 if balanced else 900, ["start"], dict(alts=core[1:], reason="HUD_ADVICE_N_SPIKE")),
