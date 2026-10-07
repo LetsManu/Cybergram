@@ -2,7 +2,7 @@
 """Look-dev contact sheets (docs/lookdev.md).
 
 Reads <dir>/<view>_<variant>.png for every view and variant, writes
-<dir>/sheet_<view>.png (variants side by side, labelled) and <dir>/overview.png
+<dir>/sheet_<view>.jpg (variants side by side, labelled) and <dir>/overview.jpg
 (views as rows, variants as columns).
 
     python3 tools/art/lookdev_sheet.py production/qa/evidence/lookdev
@@ -43,14 +43,14 @@ def main(root):
         sheet = Image.new("RGB", (w * len(VARIANTS), h))
         for i, (key, name) in enumerate(VARIANTS):
             sheet.paste(tile(os.path.join(root, "%s_%s.png" % (v, key)), w, h, "%s  |  %s" % (name, v), f), (i * w, 0))
-        sheet.save(os.path.join(root, "sheet_%s.png" % v))
+        sheet.save(os.path.join(root, "sheet_%s.jpg" % v), quality=85)
     ow, oh = 480, 270
     fs = font(16)
     over = Image.new("RGB", (ow * len(VARIANTS), oh * len(VIEWS)))
     for r, v in enumerate(VIEWS):
         for c, (key, name) in enumerate(VARIANTS):
             over.paste(tile(os.path.join(root, "%s_%s.png" % (v, key)), ow, oh, "%s | %s" % (name, v), fs), (c * ow, r * oh))
-    over.save(os.path.join(root, "overview.png"))
+    over.save(os.path.join(root, "overview.jpg"), quality=88)
     print("sheets ->", root)
 
 
