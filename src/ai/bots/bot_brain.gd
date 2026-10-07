@@ -89,8 +89,15 @@ var _beam_hold_range: float = 14.0
 ## guide (docs/armory.md). `builds` is injected by the director, else loaded.
 var builds: RecommendedBuildsDef
 var items_bought: int = 0
+## Armory v2: items sold to make room in the open slots (items-and-armory.md §3.10 rule 6).
+var items_sold: int = 0
 var _shop_arg: int = -1
+var _sell_arg: int = -1
 var _shop_key: String = ""
+## Armory v2: catalog indices the bot's guide may use (steps, choices and
+## every recipe part below them); a loose item outside it may be sold.
+var _plan: Dictionary = {}
+var _plan_guide: RecommendedBuildDef
 
 
 func _init(s: ServerWorld, p: BotProfile, seed_: int, slot_: int) -> void:
@@ -812,7 +819,7 @@ func _act(tick: int, h: HeroBody, out: InputCommand) -> void:
 ## the advisor signals change, so a refused request is not repeated.
 func _decide_shop(tick: int, h: HeroBody) -> void:
 	var prog = server.get("progression")
-	if prog == null or prog.catalog == null or _shop_arg >= 0:
+	if prog == null or prog.catalog == null or _shop_arg >= 0 or _sell_arg >= 0:
 		return
 	if not prog.is_at_armory(h):
 		_shop_key = ""
@@ -823,7 +830,8 @@ func _decide_shop(tick: int, h: HeroBody) -> void:
 		return
 	_shop_key = key
 	if builds == null:
-		builds = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
+		builds = load(RecommendedBuildsDef.V22_PATH if prog.is_v2() else RecommendedBuildsDef.DEFAULT_PATH) \
+			as RecommendedBuildsDef
 	var guide: RecommendedBuildDef = builds.for_hero(h.combat.def.id) if builds != null else null
 	if guide == null:
 		return
@@ -839,12 +847,55 @@ func _decide_shop(tick: int, h: HeroBody) -> void:
 	var ar: AdviceRulesDef = prog.advice_rules if prog.advice_rules != null else AdviceRulesDef.new()
 	# Only the top step: a bot saves for it rather than spending on lower ones.
 	var a := BuildAdvisor.evaluate(guide, st, ar).best()
+	if st.v2 and a != null and not a.affordable and a.cost >= (1 << 30) and st.slots_used >= st.open_slots:
+		_sell_for_room(p, prog.catalog, guide, tick)
+		return
 	if a == null or not a.affordable or a.item_index < 0:
+		return
+	if st.v2:
+		_shop_arg = a.item_index
+		_log("t%d h%d buy %s for %s (%s)" % [tick, hero_id, prog.catalog.at(a.item_index).id,
+			prog.catalog.at(a.goal_index).id if a.goal_index >= 0 else "-", a.node.id])
 		return
 	var it: ArmoryItemDef = prog.catalog.at(a.item_index)
 	var tier := a.target if it.kind == ArmoryItemDef.Kind.MOUNT else 0
 	_shop_arg = a.item_index | (tier << 8)
 	_log("t%d h%d buy %s x%d (%s)" % [tick, hero_id, it.id, a.target, a.node.id])
+
+
+## Armory v2 (§3.10 rule 6): with every open slot full and the next step
+## needing one, sell the loose item of lowest value that the plan never uses.
+func _sell_for_room(p: HeroProgress, cat: ArmoryCatalogDef, guide: RecommendedBuildDef, tick: int) -> void:
+	if guide != _plan_guide:
+		_plan_guide = guide
+		_plan.clear()
+		for n in guide.nodes:
+			if n == null:
+				continue
+			for id in [n.item_id] + Array(n.alternatives):
+				_add_plan(cat, cat.index_of(StringName(id)))
+	var best_loc := -1
+	var best_value := 1 << 30
+	for i in p.inv.slots.size():
+		var idx: int = p.inv.slots[i].index
+		if _plan.has(idx):
+			continue
+		var v := RecipeMath.total(cat, idx)
+		if v < best_value:
+			best_value = v
+			best_loc = ItemInventory.LOC_SLOT + i
+	if best_loc >= 0:
+		_sell_arg = best_loc
+		_log("t%d h%d sell %s for room" % [tick, hero_id, cat.at(p.inv.index_at(best_loc)).id])
+
+
+func _add_plan(cat: ArmoryCatalogDef, index: int) -> void:
+	var it := cat.at(index)
+	if it == null or _plan.has(index):
+		return
+	_plan[index] = true
+	for part in it.recipe:
+		_add_plan(cat, cat.index_of(StringName(part)))
 
 
 func _log(line: String) -> void:
@@ -868,6 +919,11 @@ func _emit_edges(out: InputCommand) -> void:
 		out.action_arg = _shop_arg
 		_shop_arg = -1
 		items_bought += 1
+	elif _sell_arg >= 0:
+		out.action = InputCommand.ACTION_SELL
+		out.action_arg = _sell_arg
+		_sell_arg = -1
+		items_sold += 1
 	# --- squad order (one-tick edge event) ---
 	if _squad_cmd != InputCommand.SQUAD_NONE:
 		out.squad_cmd = _squad_cmd
