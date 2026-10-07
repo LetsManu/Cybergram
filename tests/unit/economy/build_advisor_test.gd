@@ -135,7 +135,7 @@ func test_situational_node_waits_for_its_condition_and_explains_itself() -> void
 	assert_bool(heal.situational).is_true()
 
 
-func test_enemy_threat_tags_open_counter_branches_at_the_mode_threshold() -> void:
+func test_enemy_threat_tags_open_counter_branches_at_the_trait_threshold() -> void:
 	var g := _guide(&"hero_ryker_vance")
 	var st := _state(_mech(), 5000, {&"med_pack": 1, &"overclock": 1})
 	st.enemy_tags = {"frontline": 1}
@@ -144,10 +144,16 @@ func test_enemy_threat_tags_open_counter_branches_at_the_mode_threshold() -> voi
 		for a in res.advice:
 			out.append(String(a.node.id))
 		return out
-	assert_array(ids.call(BuildAdvisor.evaluate(g, st, _ar))).not_contains(["vs_armor"])  # 5v5 needs 2
+	# "frontline" is a rare trait (one hero carries it): one enemy is enough even in 5v5.
+	assert_array(ids.call(BuildAdvisor.evaluate(g, st, _ar))).contains(["vs_armor"])
+	# "cc" is common (three heroes): 5v5 still needs two, 3v3 one.
+	st.enemy_tags = {"cc": 1}
+	assert_array(ids.call(BuildAdvisor.evaluate(g, st, _ar))).not_contains(["vs_skills"])
 	st.team_size = 3
-	assert_array(ids.call(BuildAdvisor.evaluate(g, st, _ar))).contains(["vs_armor"])  # 3v3 needs 1
+	assert_array(ids.call(BuildAdvisor.evaluate(g, st, _ar))).contains(["vs_skills"])
 	st.team_size = 5
+	st.enemy_tags = {"cc": 2}
+	assert_array(ids.call(BuildAdvisor.evaluate(g, st, _ar))).contains(["vs_skills"])
 	st.enemy_tags = {"frontline": 2}
 	var r := BuildAdvisor.evaluate(g, st, _ar)
 	assert_array(ids.call(r)).contains(["vs_armor"])

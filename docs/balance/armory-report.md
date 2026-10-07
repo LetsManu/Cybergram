@@ -334,65 +334,65 @@ First spike 6:00, core path done 27:00, 1023 Lumen unspent at 30:00, spent 7950.
 |---|---|---|---|---|---|---|
 | Brannoc | slice / pad / neutral | 2:20 | 20:27 | 1423 | 13 | 2 |
 | Brannoc | slice / visit 180s / neutral | 3:00 | 21:00 | 1423 | 13 | 0 |
-| Brannoc | slice / pad / all | 2:20 | 20:35 | 1383 | 14 | 2 |
-| Brannoc | slice / visit 180s / all | 3:00 | 21:00 | 1383 | 14 | 0 |
+| Brannoc | slice / pad / all | 2:20 | 22:40 | 733 | 15 | 1 |
+| Brannoc | slice / visit 180s / all | 3:00 | 24:00 | 733 | 15 | 0 |
 | Brannoc | gdd / pad / neutral | 2:21 | 20:30 | 1432 | 13 | 2 |
 | Brannoc | gdd / visit 180s / neutral | 3:00 | 21:00 | 1432 | 13 | 0 |
-| Brannoc | gdd / pad / all | 2:21 | 20:38 | 1392 | 14 | 2 |
-| Brannoc | gdd / visit 180s / all | 3:00 | 21:00 | 1392 | 14 | 0 |
+| Brannoc | gdd / pad / all | 2:21 | 22:41 | 742 | 15 | 1 |
+| Brannoc | gdd / visit 180s / all | 3:00 | 24:00 | 742 | 15 | 0 |
 | Hex | slice / pad / neutral | 2:20 | 9:15 | 923 | 14 | 1 |
 | Hex | slice / visit 180s / neutral | 3:00 | 12:00 | 923 | 14 | 2 |
-| Hex | slice / pad / all | 2:20 | 9:24 | 883 | 15 | 1 |
-| Hex | slice / visit 180s / all | 3:00 | 12:00 | 883 | 16 | 1 |
+| Hex | slice / pad / all | 2:20 | 11:17 | 373 | 17 | 1 |
+| Hex | slice / visit 180s / all | 3:00 | 9:00 | 373 | 17 | 1 |
 | Hex | gdd / pad / neutral | 2:21 | 9:19 | 932 | 14 | 1 |
 | Hex | gdd / visit 180s / neutral | 3:00 | 12:00 | 932 | 14 | 2 |
-| Hex | gdd / pad / all | 2:21 | 9:28 | 892 | 15 | 1 |
-| Hex | gdd / visit 180s / all | 3:00 | 12:00 | 892 | 16 | 1 |
+| Hex | gdd / pad / all | 2:21 | 11:22 | 382 | 17 | 1 |
+| Hex | gdd / visit 180s / all | 3:00 | 9:00 | 382 | 17 | 1 |
 | Juniper Quill | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
 | Juniper Quill | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
-| Juniper Quill | slice / pad / all | 2:20 | 13:16 | 1033 | 16 | 0 |
-| Juniper Quill | slice / visit 180s / all | 3:00 | 12:00 | 1033 | 16 | 0 |
+| Juniper Quill | slice / pad / all | 2:20 | 14:18 | 403 | 19 | 0 |
+| Juniper Quill | slice / visit 180s / all | 3:00 | 15:00 | 243 | 20 | 0 |
 | Juniper Quill | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
 | Juniper Quill | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
-| Juniper Quill | gdd / pad / all | 2:21 | 13:22 | 1042 | 16 | 0 |
-| Juniper Quill | gdd / visit 180s / all | 3:00 | 15:00 | 1042 | 16 | 0 |
+| Juniper Quill | gdd / pad / all | 2:21 | 14:24 | 412 | 19 | 0 |
+| Juniper Quill | gdd / visit 180s / all | 3:00 | 15:00 | 252 | 20 | 0 |
 | Liora Vale | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
 | Liora Vale | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
-| Liora Vale | slice / pad / all | 2:20 | 12:45 | 1173 | 16 | 0 |
-| Liora Vale | slice / visit 180s / all | 3:00 | 12:00 | 1173 | 16 | 0 |
+| Liora Vale | slice / pad / all | 2:20 | 13:51 | 523 | 18 | 0 |
+| Liora Vale | slice / visit 180s / all | 3:00 | 12:00 | 523 | 18 | 0 |
 | Liora Vale | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
 | Liora Vale | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
-| Liora Vale | gdd / pad / all | 2:21 | 12:51 | 1182 | 16 | 0 |
-| Liora Vale | gdd / visit 180s / all | 3:00 | 12:00 | 1182 | 16 | 0 |
+| Liora Vale | gdd / pad / all | 2:21 | 13:57 | 532 | 18 | 0 |
+| Liora Vale | gdd / visit 180s / all | 3:00 | 12:00 | 532 | 18 | 0 |
 | Ryker Vance | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
 | Ryker Vance | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
-| Ryker Vance | slice / pad / all | 2:20 | 12:45 | 1173 | 16 | 0 |
-| Ryker Vance | slice / visit 180s / all | 3:00 | 12:00 | 1173 | 16 | 0 |
+| Ryker Vance | slice / pad / all | 2:20 | 14:18 | 403 | 19 | 0 |
+| Ryker Vance | slice / visit 180s / all | 3:00 | 15:00 | 243 | 20 | 0 |
 | Ryker Vance | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
 | Ryker Vance | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
-| Ryker Vance | gdd / pad / all | 2:21 | 12:51 | 1182 | 16 | 0 |
-| Ryker Vance | gdd / visit 180s / all | 3:00 | 12:00 | 1182 | 16 | 0 |
+| Ryker Vance | gdd / pad / all | 2:21 | 14:24 | 412 | 19 | 0 |
+| Ryker Vance | gdd / visit 180s / all | 3:00 | 15:00 | 252 | 20 | 0 |
 | Sable | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
 | Sable | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
-| Sable | slice / pad / all | 2:20 | 13:16 | 1033 | 16 | 0 |
-| Sable | slice / visit 180s / all | 3:00 | 12:00 | 1033 | 17 | 0 |
+| Sable | slice / pad / all | 2:20 | 15:35 | 383 | 18 | 0 |
+| Sable | slice / visit 180s / all | 3:00 | 15:00 | 383 | 19 | 0 |
 | Sable | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
 | Sable | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
-| Sable | gdd / pad / all | 2:21 | 13:22 | 1042 | 16 | 0 |
-| Sable | gdd / visit 180s / all | 3:00 | 15:00 | 1042 | 17 | 0 |
+| Sable | gdd / pad / all | 2:21 | 15:40 | 392 | 18 | 0 |
+| Sable | gdd / visit 180s / all | 3:00 | 15:00 | 392 | 19 | 0 |
 | Vesper Loom | slice / pad / neutral | 3:39 | 26:48 | 1023 | 15 | 1 |
 | Vesper Loom | slice / visit 180s / neutral | 6:00 | 27:00 | 1023 | 15 | 0 |
-| Vesper Loom | slice / pad / all | 3:39 | 26:56 | 983 | 16 | 1 |
-| Vesper Loom | slice / visit 180s / all | 6:00 | 27:00 | 983 | 16 | 0 |
+| Vesper Loom | slice / pad / all | 3:39 | 29:51 | 53 | 18 | 1 |
+| Vesper Loom | slice / visit 180s / all | 6:00 | 30:00 | 233 | 17 | 0 |
 | Vesper Loom | gdd / pad / neutral | 3:40 | 26:48 | 1032 | 15 | 1 |
 | Vesper Loom | gdd / visit 180s / neutral | 6:00 | 27:00 | 1032 | 15 | 0 |
-| Vesper Loom | gdd / pad / all | 3:40 | 26:56 | 992 | 16 | 1 |
-| Vesper Loom | gdd / visit 180s / all | 6:00 | 27:00 | 992 | 16 | 0 |
+| Vesper Loom | gdd / pad / all | 3:40 | 29:49 | 62 | 18 | 1 |
+| Vesper Loom | gdd / visit 180s / all | 6:00 | 30:00 | 242 | 17 | 0 |
 
 ## Coverage
 
 Items no guide names (node or alternative): none.
-Items no simulated run buys: squad_expansion_2, ammo_piercing, ammo_sunder, penetrator.
+Items no simulated run buys: squad_expansion_2.
 
 ## Build diversity (slice, visit 180s, neutral)
 

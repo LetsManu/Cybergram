@@ -318,7 +318,8 @@ static func _rule_matches(rule: String, n: BuildNodeDef, st: BuildState, ar: Adv
 	if SIGNAL_RULES.has(rule):
 		return (st.signals & int(SIGNAL_RULES[rule])) != 0
 	if rule.begins_with("enemy_"):
-		return int(st.enemy_tags.get(rule.trim_prefix("enemy_"), 0)) >= ar.tag_threshold(st.team_size)
+		var tag := rule.trim_prefix("enemy_")
+		return int(st.enemy_tags.get(tag, 0)) >= ar.tag_threshold(st.team_size, tag)
 	match rule:
 		"core_tier_ready":
 			var i := _buy_index(n, st)
@@ -333,7 +334,7 @@ static func _rule_matches(rule: String, n: BuildNodeDef, st: BuildState, ar: Adv
 			if it == null:
 				return false
 			for t in it.counter_tags:
-				if int(st.enemy_tags.get(t, 0)) >= ar.tag_threshold(st.team_size):
+				if int(st.enemy_tags.get(t, 0)) >= ar.tag_threshold(st.team_size, t):
 					return true
 			return false
 		"team_lacks_sustain":

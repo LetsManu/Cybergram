@@ -218,7 +218,7 @@ the item's `explain_key`, then the section text.
 | `low_health` | HP below `low_health_frac` |
 | `team_behind` / `team_ahead` | Resonance deficit ≥ `behind_deficit`, or average level lead ≥ `ahead_levels` |
 | `objective_soon` | The next Surge is within `objective_soon_s` |
-| `enemy_<tag>` | At least `enemy_tag_threshold` enemy heroes carry the tag (3v3 uses 1, 5v5 uses 2) |
+| `enemy_<tag>` | At least `enemy_tag_threshold` enemy heroes carry the tag (3v3 uses 1, 5v5 uses 2); a rare trait carried by one hero of the roster (`tag_threshold_by_tag`: frontline, squad, sustain, mobility, weapon_dps) needs only 1 |
 | `team_lacks_sustain` / `team_lacks_frontline` | No allied healer / tank |
 | `core_tier_ready`, `affordable_now`, `counters_enemy` | Automatic (see above) |
 

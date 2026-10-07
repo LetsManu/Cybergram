@@ -28,6 +28,13 @@ const DEFAULT_PATH := "res://assets/data/economy/advice_rules.tres"
 ## Enemy heroes carrying a threat tag needed for an enemy_<tag> rule (per mode
 ## team size: 3v3 uses the first value, 5v5 the second).
 @export var enemy_tag_threshold: PackedInt32Array = PackedInt32Array([1, 2])
+## Per-trait cap on that threshold (owner decision 2026-10-07): a rare trait,
+## carried by one hero of the roster, needs only this many enemies in any
+## mode; common traits (cc, burst, zone, skill_dps) keep the mode value.
+## Review when heroes are added (docs/armory.md "Recommendation rules").
+@export var tag_threshold_by_tag: Dictionary = {
+	"frontline": 1, "squad": 1, "sustain": 1, "mobility": 1, "weapon_dps": 1,
+}
 ## Score bonus per matched rule id (BuildAdvisor.RULES). Missing ids score 0.
 @export var bonus: Dictionary = {
 	"core_tier_ready": 40, "affordable_now": 15, "counters_enemy": 35,
@@ -48,8 +55,12 @@ func bonus_of(rule_id: String) -> int:
 	return int(bonus.get(rule_id, 0))
 
 
-## Enemy-tag count threshold for a team of `team_size`.
-func tag_threshold(team_size: int) -> int:
-	if enemy_tag_threshold.is_empty():
-		return 2
-	return enemy_tag_threshold[0] if team_size <= 3 or enemy_tag_threshold.size() < 2 else enemy_tag_threshold[1]
+## Enemy-tag count threshold for a team of `team_size`; `tag` applies the
+## per-trait cap (tag_threshold_by_tag).
+func tag_threshold(team_size: int, tag: String = "") -> int:
+	var t := 2
+	if not enemy_tag_threshold.is_empty():
+		t = enemy_tag_threshold[0] if team_size <= 3 or enemy_tag_threshold.size() < 2 else enemy_tag_threshold[1]
+	if tag != "" and tag_threshold_by_tag.has(tag):
+		t = mini(t, int(tag_threshold_by_tag[tag]))
+	return t

@@ -132,5 +132,8 @@ was re-run.
 | Juniper, Liora, Ryker, Sable | 3,623 | 1,073 | 1 (18:32-30:00) | 0 |
 | Hex | 5,123 | 923 | 1 (13:29-30:00) | 1 |
 
-Proposals 3, 4 and 5 are still open and wait for the owner's answers to the questions above.
-Squad Expansion II, Piercing, Sunder and Penetrator are still never bought.
+Proposal 5 is applied as the owner chose (2026-10-07): per-trait thresholds
+(`AdviceRulesDef.tag_threshold_by_tag`), so a rare trait carried by one hero triggers its counter with
+one enemy. In the "all" runs Piercing, Sunder and Penetrator are now bought; only Squad Expansion II
+is never bought. Proposals 3 and 4 (Brannoc Sunder, Vesper Expansion II) are superseded by the owner's
+direction toward LoL-style recipes, body gear and item sets (`docs/plans/armory-v2-recipes-gear.md`).
