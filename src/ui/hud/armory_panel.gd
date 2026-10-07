@@ -39,7 +39,10 @@ const STAT_KEYS := {&"mod_damage": "HUD_STAT_DAMAGE", &"mana_regen": "HUD_STAT_R
 	&"wardling_damage_mult": "HUD_STAT_WARDLING_DMG"}
 
 var open: bool = false
-var tab: int = ShopModel.Tab.ALL
+var tab: int = ShopModel.Tab.RECOMMENDED
+## Expert detail in the item pane (matched rules, tags, counters).
+var expert: bool = false
+var _advice_rules: AdviceRulesDef
 var query: String = ""
 var searching: bool = false
 ## Position in the visible row list.
@@ -66,16 +69,18 @@ var _was_open: bool = false
 var _auto_open: bool = false
 
 const _KEYS: Array[int] = [KEY_F, KEY_B, KEY_ESCAPE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_KP_ENTER,
-	KEY_1, KEY_2, KEY_3, KEY_BACKSPACE, KEY_Q, KEY_E, KEY_PAGEUP, KEY_PAGEDOWN, KEY_SLASH, KEY_R, KEY_Z]
+	KEY_1, KEY_2, KEY_3, KEY_BACKSPACE, KEY_Q, KEY_E, KEY_PAGEUP, KEY_PAGEDOWN, KEY_SLASH, KEY_R, KEY_Z, KEY_O, KEY_TAB,
+	KEY_I]
 const _JOY: Array[int] = [JOY_BUTTON_Y, JOY_BUTTON_B, JOY_BUTTON_A, JOY_BUTTON_X, JOY_BUTTON_DPAD_UP, JOY_BUTTON_DPAD_DOWN,
 	JOY_BUTTON_DPAD_LEFT, JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER,
-	JOY_BUTTON_RIGHT_STICK]
+	JOY_BUTTON_RIGHT_STICK, JOY_BUTTON_LEFT_STICK, JOY_BUTTON_BACK]
 
 
 func bind(c: HudContext) -> void:
 	super(c)
 	_econ = load(GameSession.ECONOMY_RULES) as EconomyRulesDef
 	_builds = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
+	_advice_rules = load(AdviceRulesDef.DEFAULT_PATH) as AdviceRulesDef
 	var lc = c.session.get("launch_config") if c.session != null else null
 	_auto_open = lc != null and lc.get("debug_armory") == true
 
@@ -105,7 +110,10 @@ func poll() -> void:
 	model.builds = _builds
 	model.hero_id = client.hero_def.id
 	model.weapon = client.hero_def.weapon
+	model.advice_rules = _advice_rules
 	model.update(client.progress)
+	if open:
+		_update_context(client)
 	_scan()
 	var at := (client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) != 0
 	if not at or client.is_dead():
@@ -114,7 +122,8 @@ func poll() -> void:
 		_auto_open = false
 		open = true
 	if not searching:
-		var toggle := _toggle_edge()
+		# Ctrl+F searches inside the open panel; it must not toggle it shut.
+		var toggle := _toggle_edge() and not (open and Input.is_key_pressed(KEY_CTRL))
 		var shop := _open_edge()
 		if toggle or shop:
 			if at and not client.is_dead():
@@ -138,7 +147,7 @@ func _sync_open() -> void:
 		return
 	_was_open = open
 	if open:
-		tab = ShopModel.Tab.ALL
+		tab = ShopModel.Tab.RECOMMENDED
 		query = ""
 		searching = false
 		_scroll = 0
@@ -151,6 +160,17 @@ func _sync_open() -> void:
 		if _mouse_before == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		_mouse_before = -1
+
+
+## Recommendation context: match clock, team size / mode and both teams' heroes.
+func _update_context(client: ClientWorld) -> void:
+	var team := client.own_team()
+	var allies: Array = client.team_hero_defs(team)
+	allies.append(client.hero_def)
+	var enemies: Array = client.team_hero_defs(1 - team) if team == 0 or team == 1 else []
+	var size_ := maxi(allies.size(), enemies.size())
+	var t := client.match_state.time_s if client.match_state != null else 0.0
+	model.set_context(t, &"3v3" if size_ <= 3 else &"5v5", size_, enemies, allies)
 
 
 func _refresh_rows() -> void:
@@ -199,9 +219,17 @@ func _panel_keys() -> void:
 		open = false
 		return
 	if _e(KEY_Q) or _e(KEY_PAGEUP) or _je(JOY_BUTTON_LEFT_SHOULDER):
-		_set_tab(tab - 1)
+		_step_tab(-1)
 	if _e(KEY_E) or _e(KEY_PAGEDOWN) or _je(JOY_BUTTON_RIGHT_SHOULDER):
-		_set_tab(tab + 1)
+		_step_tab(1)
+	if _e(KEY_O):
+		model.sort_mode = (model.sort_mode + 1) % ShopModel.Sort.size()
+		_refresh_rows()
+	if _e(KEY_TAB) or _je(JOY_BUTTON_BACK):
+		model.affordable_only = not model.affordable_only
+		_refresh_rows()
+	if _e(KEY_I):
+		expert = not expert
 	if _e(KEY_SLASH) or (_e(KEY_F) and Input.is_key_pressed(KEY_CTRL)):
 		searching = true
 	if _e(KEY_DOWN) or _je(JOY_BUTTON_DPAD_DOWN):
@@ -212,7 +240,7 @@ func _panel_keys() -> void:
 		_move(1)
 	if _e(KEY_LEFT) or _je(JOY_BUTTON_DPAD_LEFT):
 		_move(-1)
-	if _e(KEY_R):
+	if _e(KEY_R) or _je(JOY_BUTTON_LEFT_STICK):
 		_jump_recommended()
 	if _e(KEY_Z) and Input.is_key_pressed(KEY_CTRL) or _je(JOY_BUTTON_RIGHT_STICK):
 		_undo()
@@ -228,8 +256,14 @@ func _panel_keys() -> void:
 		_sell(idx)
 
 
+## Moves `delta` tabs left / right through the visible tabs (wraps).
+func _step_tab(delta: int) -> void:
+	var tabs := model.tabs()
+	_set_tab(tabs[posmod(tabs.find(tab) + delta, tabs.size())])
+
+
 func _set_tab(t: int) -> void:
-	tab = posmod(t, ShopModel.TAB_KEYS.size())
+	tab = t
 	selected = 0
 	_scroll = 0
 	_refresh_rows()
@@ -252,7 +286,7 @@ func _jump_recommended() -> void:
 	if idx < 0:
 		return
 	if not _rows.has(idx):
-		tab = ShopModel.Tab.ALL
+		tab = ShopModel.Tab.RECOMMENDED if model.rows(ShopModel.Tab.RECOMMENDED).has(idx) else ShopModel.Tab.ALL
 		query = ""
 		_rows = model.rows(tab, query)
 	selected = maxi(0, _rows.find(idx))
@@ -371,6 +405,8 @@ func _reason(index: int, st: int) -> String:
 			return tr("HUD_ARMORY_MANA_ONLY") if it.family == ArmoryItemDef.Family.CRYSTAL else tr("HUD_ARMORY_MECH_ONLY")
 		ShopModel.State.CARRY_FULL:
 			return tr("HUD_SHOP_CARRY_FULL")
+		ShopModel.State.DISABLED:
+			return tr("HUD_SHOP_DISABLED")
 	return ""
 
 
@@ -414,9 +450,10 @@ func _click(pos: Vector2, double: bool) -> void:
 	if _close_rect().has_point(pos):
 		open = false
 		return
-	for t in ShopModel.TAB_KEYS.size():
-		if _tab_rect(t).has_point(pos):
-			_set_tab(t)
+	var tabs := model.tabs()
+	for i in tabs.size():
+		if _tab_rect(i).has_point(pos):
+			_set_tab(tabs[i])
 			return
 	var c := _card_at(pos)
 	if c >= 0:
@@ -435,10 +472,10 @@ func _click(pos: Vector2, double: bool) -> void:
 	for t in 3:
 		if _tier_rect(t).has_point(pos) and idx >= 0 and model.catalog.at(idx).tiers() > t:
 			_buy(idx, t + 1)
-	var steps := model.build().steps() if model.build() != null else 0
-	for s in steps:
+	var path := model.path()
+	for s in path.size():
 		if _chip_rect(s).has_point(pos):
-			var ci := model.catalog.index_of(model.build().item_at(s))
+			var ci: int = path[s]["item"]
 			if ci >= 0:
 				if not _rows.has(ci):
 					tab = ShopModel.Tab.ALL
@@ -492,11 +529,13 @@ func _card_at(p: Vector2) -> int:
 	return -1
 
 
-func _tab_rect(t: int) -> Rect2:
+## Rect of the tab at visible position `pos` (model.tabs() order).
+func _tab_rect(pos: int) -> Rect2:
+	var tabs := model.tabs()
 	var x := PAD
-	for i in t:
-		x += _tab_w(i) + 6.0
-	return Rect2(x, TAB_Y, _tab_w(t), TAB_H)
+	for i in pos:
+		x += _tab_w(tabs[i]) + 6.0
+	return Rect2(x, TAB_Y, _tab_w(tabs[pos]), TAB_H)
 
 
 func _tab_w(t: int) -> float:
@@ -526,7 +565,7 @@ func _tier_rect(t: int) -> Rect2:
 
 
 func _chip_rect(step: int) -> Rect2:
-	var n := maxi(1, model.build().steps() if model != null and model.build() != null else 1)
+	var n := maxi(1, model.path().size() if model != null else 1)
 	var w := minf(84.0, (_left_w() + GAP) / n)
 	return Rect2(PAD + step * w, size.y - FOOTER_H - BUILD_H + 38.0, w - 6.0, 52.0)
 
@@ -575,7 +614,11 @@ func _draw_header(p: SnapshotData.ProgressState) -> void:
 	caps(tr("HUD_ARMORY"), Vector2(PAD, 44.0), 30, HudPalette.IVORY, 0.3)
 	var b := model.build()
 	if b != null:
-		text(tr("HUD_SHOP_BUILD_FOR") % b.display_name, Vector2(PAD, 62.0), 14, HudPalette.MUTED, ctx.font_body)
+		var pc := model.progress_counts()
+		var sub := tr("HUD_SHOP_BUILD_FOR") % b.display_name
+		if pc.y > 0:
+			sub += "  ·  " + tr("HUD_SHOP_PROGRESS") % [pc.x, pc.y]
+		text(sub, Vector2(PAD, 62.0), 14, HudPalette.MUTED, ctx.font_body)
 	var lumen := HudFormat.thousands(p.lumen)
 	text(lumen, Vector2(0.0, 50.0), 30, HudPalette.BRASS_HI, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, size.x - PAD - 80.0)
 	caps(tr("HUD_LUMEN"), Vector2(0.0, 18.0), 13, HudPalette.MUTED, 0.22, HORIZONTAL_ALIGNMENT_RIGHT, size.x - PAD - 80.0)
@@ -591,8 +634,10 @@ func _draw_header(p: SnapshotData.ProgressState) -> void:
 
 
 func _draw_tabs() -> void:
-	for t in ShopModel.TAB_KEYS.size():
-		var r := _tab_rect(t)
+	var tabs := model.tabs()
+	for i in tabs.size():
+		var t := tabs[i]
+		var r := _tab_rect(i)
 		var on := t == tab
 		if on:  # v0.12: no tab boxes; a 2 px brass underline on the selected tab
 			draw_rect(Rect2(r.position.x + 12.0, r.end.y - 2.0, r.size.x - 24.0, 2.0), HudPalette.BRASS)
@@ -605,12 +650,22 @@ func _draw_tabs() -> void:
 		text(tr("HUD_SHOP_SEARCH"), s.position + Vector2(12.0, 26.0), 15, HudPalette.DIM)
 	else:
 		text(shown, s.position + Vector2(12.0, 26.0), 16, HudPalette.IVORY)
+	# View options (catalog tabs): sort and the affordable-only filter.
+	if tab != ShopModel.Tab.RECOMMENDED:
+		var opt := tr(ShopModel.SORT_KEYS[model.sort_mode])
+		if model.affordable_only:
+			opt += "  ·  " + tr("HUD_SHOP_FILTER_AFFORDABLE")
+		text(opt, Vector2(s.end.x + 16.0, s.position.y + 26.0), 14,
+			HudPalette.BRASS if model.affordable_only or model.sort_mode != ShopModel.Sort.DEFAULT else HudPalette.DIM,
+			ctx.font_body)
 
 
 func _draw_cards() -> void:
 	var p := ctx.client.progress
 	if _rows.is_empty():
-		text(tr("HUD_SHOP_EMPTY"), Vector2(PAD + 8.0, GRID_Y + 40.0), 18, HudPalette.MUTED)
+		var empty := tr("HUD_SHOP_BUILD_DONE") if tab == ShopModel.Tab.RECOMMENDED and model.build() != null \
+			else tr("HUD_SHOP_EMPTY")
+		text(empty, Vector2(PAD + 8.0, GRID_Y + 40.0), 18, HudPalette.MUTED)
 		return
 	var next := model.recommended_next()
 	for i in _rows.size():
@@ -621,7 +676,8 @@ func _draw_cards() -> void:
 		var it := ctx.client.catalog.at(idx)
 		var r := _card_rect(i)
 		var st := model.state(idx)
-		var dim := st == ShopModel.State.CANT_AFFORD or st == ShopModel.State.WRONG_FAMILY or st == ShopModel.State.LOCKED
+		var dim := st == ShopModel.State.CANT_AFFORD or st == ShopModel.State.WRONG_FAMILY or st == ShopModel.State.LOCKED \
+			or st == ShopModel.State.DISABLED
 		var a := 0.45 if dim else 1.0
 		var held := model.held_tier(idx)
 		# v0.12: cut-corner card, hairline; brass rim when selected; 45% when dim.
@@ -633,7 +689,7 @@ func _draw_cards() -> void:
 			cut_line(r.grow(-4.0), 9.0, Color(HudPalette.BRASS_DIM, a), 1.0)
 		ShopIcons.draw(self, it, Rect2(r.position + Vector2(14.0, 14.0), Vector2(64.0, 64.0)), Color(1, 1, 1, a))
 		var tx := r.position.x + 102.0
-		text(_fit(it.display_name, 18, r.size.x - 112.0), Vector2(tx, r.position.y + 30.0), 18,
+		text(_fit(it.label(), 18, r.size.x - 112.0), Vector2(tx, r.position.y + 30.0), 18,
 			Color(HudPalette.IVORY, a), UiKit.body_font(600))
 		var label := ""
 		var col := HudPalette.BRASS_HI
@@ -650,6 +706,9 @@ func _draw_cards() -> void:
 			ShopModel.State.CARRY_FULL:
 				label = tr("HUD_SHOP_CARRY_FULL")
 				col = HudPalette.TEAL
+			ShopModel.State.DISABLED:
+				label = tr("HUD_SHOP_DISABLED")
+				col = HudPalette.DIM
 			_:
 				label = HudFormat.thousands(model.purchase_cost(idx))
 				col = HudPalette.BRASS_HI if st == ShopModel.State.AVAILABLE else HudPalette.WARN_UI
@@ -660,11 +719,21 @@ func _draw_cards() -> void:
 		text(_fit(label, 17, r.end.x - lx - 8.0, ctx.font_numbers), Vector2(lx, r.position.y + 62.0), 17, Color(col, a),
 			ctx.font_numbers)
 		_draw_pips(it, held, Vector2(tx, r.position.y + 84.0), a)
-		if it.kind == ArmoryItemDef.Kind.CONSUMABLE:
+		var adv := model.advice_for(idx) if tab == ShopModel.Tab.RECOMMENDED else null
+		if adv != null:  # Recommended tab: the one-line reason under the price
+			text(_fit(tr(adv.reason_key), 13, r.end.x - tx - 8.0), Vector2(tx, r.position.y + 96.0), 13,
+				Color(HudPalette.BRASS_HI if adv.situational else HudPalette.MUTED, a), ctx.font_body)
+		elif it.kind == ArmoryItemDef.Kind.CONSUMABLE:
 			text(tr("HUD_ARMORY_CARRY") % [p.medpacks, it.carry_limit], Vector2(tx, r.position.y + 94.0), 13,
 				Color(HudPalette.MUTED, a))
 		var tag_x := r.end.x - 12.0
-		if model.is_recommended(idx):
+		if st == ShopModel.State.CANT_AFFORD and model.affordable_soon(idx):
+			var soon := tr("HUD_SHOP_SOON")
+			caps(soon, Vector2(r.end.x - 12.0 - caps_width(soon, 12, 0.18), r.position.y + 22.0), 12, HudPalette.TEAL, 0.18)
+		if adv != null and adv.situational:
+			var sit := tr("HUD_SHOP_SITUATIONAL")
+			caps(sit, Vector2(r.end.x - 12.0 - caps_width(sit, 12, 0.18), r.position.y + 40.0), 12, HudPalette.WARN_UI, 0.18)
+		if model.is_recommended(idx) and tab != ShopModel.Tab.RECOMMENDED:
 			var rec := tr("HUD_SHOP_REC")
 			tag_x -= caps_width(rec, 13, 0.18)
 			caps(rec, Vector2(tag_x, r.end.y - 12.0), 13, HudPalette.BRASS, 0.18)
@@ -697,19 +766,21 @@ func _draw_build_strip() -> void:
 	caps(tr("HUD_SHOP_RECOMMENDED") % b.display_name, Vector2(PAD, y + 28.0), 15, HudPalette.MUTED, 0.22)
 	text(tr("HUD_SHOP_JUMP_KEY"), Vector2(0.0, y + 28.0), 13, HudPalette.MUTED, ctx.font_body,
 		HORIZONTAL_ALIGNMENT_RIGHT, PAD + _left_w())
-	var next := model.next_step()
-	for s in b.steps():
+	var path := model.path()
+	for s in path.size():
+		var e: Dictionary = path[s]
 		var r := _chip_rect(s)
-		var index := ctx.client.catalog.index_of(b.item_at(s))
-		var it := ctx.client.catalog.at(index)
+		var it := ctx.client.catalog.at(int(e["item"]))
 		if it == null:
 			continue
-		var done := model.step_done(s)
+		var done: bool = e["done"]
+		var nxt: bool = e["next"]
 		var a := 0.4 if done else 1.0
 		cut_fill(r, 8.0, Color(0.051, 0.075, 0.094, 0.9))
-		cut_line(r, 8.0, HudPalette.BRASS if s == next else HudPalette.HAIR_STRONG, 1.5 if s == next else 1.0)
+		cut_line(r, 8.0, HudPalette.BRASS if nxt else HudPalette.HAIR_STRONG, 1.5 if nxt else 1.0)
 		ShopIcons.draw(self, it, Rect2(r.position + Vector2(6.0, 8.0), Vector2(36.0, 36.0)), Color(1, 1, 1, a))
-		var lab: String = TIER_NAMES[b.target_at(s)] if it.tiers() > 1 else ("x%d" % b.target_at(s) if it.kind == ArmoryItemDef.Kind.CONSUMABLE else "")
+		var tgt: int = e["target"]
+		var lab: String = TIER_NAMES[mini(tgt, 3)] if it.tiers() > 1 else ("x%d" % tgt if it.kind == ArmoryItemDef.Kind.CONSUMABLE else "")
 		text(lab, r.position + Vector2(48.0, 32.0), 16, Color(HudPalette.IVORY, a), ctx.font_numbers)
 		if done:
 			ShopIcons.check(self, r.position + Vector2(r.size.x - 12.0, 12.0), 6.0, HudPalette.TEAL)
@@ -727,7 +798,7 @@ func _draw_detail() -> void:
 	var y := d.position.y
 	ShopIcons.draw(self, it, Rect2(Vector2(x, y + 16.0), Vector2(84.0, 84.0)), Color.WHITE)
 	caps(_kind_line(it), Vector2(x + 100.0, y + 30.0), 15, HudPalette.BRASS, 0.22)
-	caps(it.display_name, Vector2(x + 100.0, y + 64.0), 27, HudPalette.IVORY, 0.12)
+	caps(it.label(), Vector2(x + 100.0, y + 64.0), 27, HudPalette.IVORY, 0.12)
 	var bx := x + 100.0
 	if model.is_recommended(idx):
 		caps(tr("HUD_SHOP_RECOMMENDED_TAG"), Vector2(bx, y + 96.0), 14, HudPalette.BRASS, 0.18)
@@ -739,7 +810,7 @@ func _draw_detail() -> void:
 		caps(s, Vector2(bx, y + 96.0), 14, HudPalette.TEAL, 0.18)
 	draw_line(Vector2(x, y + 116.0), Vector2(d.end.x - 16.0, y + 116.0), HudPalette.HAIR_STRONG, 1.0)
 	var w := d.size.x - 32.0
-	draw_multiline_string(ctx.font_body, Vector2(x, y + 146.0), it.effect_text, HORIZONTAL_ALIGNMENT_LEFT, w, ts(18), 3,
+	draw_multiline_string(ctx.font_body, Vector2(x, y + 146.0), it.effect_label(), HORIZONTAL_ALIGNMENT_LEFT, w, ts(18), 3,
 		HudPalette.MUTED)
 	var ty := y + 232.0
 	if it.tiers() > 1 and it.values.size() > 0:
@@ -784,8 +855,43 @@ func _draw_detail() -> void:
 		var v := model.sell_value(sock)
 		text((tr("HUD_SHOP_UNDO_INFO") if model.is_undo(sock) else tr("HUD_SHOP_SELL_INFO")) % v, Vector2(x, ty + 10.0), 15,
 			HudPalette.BRASS_HI)
+		ty += 28.0
 	elif model.undo_arg(idx) >= 0:
 		text(tr("HUD_SHOP_UNDO_INFO") % model.undo_value(idx), Vector2(x, ty + 10.0), 15, HudPalette.BRASS_HI)
+		ty += 28.0
+	_draw_advice(idx, it, x, ty, d)
+
+
+## Why the item is recommended, its valid alternatives, and (expert view)
+## the matched rules, guide tags and counters.
+func _draw_advice(idx: int, it: ArmoryItemDef, x: float, ty: float, d: Rect2) -> void:
+	var w := d.end.x - 16.0 - x
+	caps(tr(model.kind_key(idx)), Vector2(x, ty + 10.0), 12, HudPalette.DIM, 0.18)
+	ty += 26.0
+	var a := model.advice_for(idx)
+	if a != null:
+		draw_multiline_string(ctx.font_body, Vector2(x, ty + 10.0), tr("HUD_SHOP_WHY") % tr(a.reason_key),
+			HORIZONTAL_ALIGNMENT_LEFT, w, ts(15), 2, HudPalette.BRASS_HI)
+		ty += 44.0
+		if not a.alternatives.is_empty():
+			var names := PackedStringArray()
+			for ai in a.alternatives:
+				names.append(ctx.client.catalog.at(ai).label())
+			text(_fit(tr("HUD_SHOP_ALTS") % ", ".join(names), 14, w), Vector2(x, ty + 10.0), 14, HudPalette.MUTED)
+			ty += 24.0
+	if not expert:
+		return
+	if a != null and not a.rules.is_empty():
+		text(_fit(tr("HUD_SHOP_EXPERT_RULES") % ", ".join(a.rules), 13, w), Vector2(x, ty + 10.0), 13, HudPalette.DIM,
+			ctx.font_mono)
+		ty += 20.0
+	if not it.tags.is_empty():
+		text(_fit(tr("HUD_SHOP_EXPERT_TAGS") % ", ".join(it.tags), 13, w), Vector2(x, ty + 10.0), 13, HudPalette.DIM,
+			ctx.font_mono)
+		ty += 20.0
+	if not it.counter_tags.is_empty():
+		text(_fit(tr("HUD_SHOP_EXPERT_COUNTERS") % ", ".join(it.counter_tags), 13, w), Vector2(x, ty + 10.0), 13,
+			HudPalette.DIM, ctx.font_mono)
 
 
 ## Why the item is unavailable, or what a buy would swap out.
@@ -847,8 +953,9 @@ func _damage_delta(p: SnapshotData.ProgressState, it: ArmoryItemDef) -> String:
 func _draw_footer() -> void:
 	var y := size.y - FOOTER_H
 	draw_line(Vector2(PAD, y), Vector2(size.x - PAD, y), HudPalette.HAIR_STRONG, 1.0)
-	text(_fit(tr("HUD_SHOP_KEYS"), 14, _buy_rect().position.x - PAD - 12.0), Vector2(PAD, y + 40.0), 14, HudPalette.MUTED,
-		ctx.font_body)
+	var keys := tr("HUD_SHOP_PAD_KEYS") if not Input.get_connected_joypads().is_empty() else tr("HUD_SHOP_KEYS")
+	draw_multiline_string(ctx.font_body, Vector2(PAD, y + 30.0), keys, HORIZONTAL_ALIGNMENT_LEFT,
+		_buy_rect().position.x - PAD - 12.0, ts(13), 2, HudPalette.MUTED)
 	var idx := _sel_index()
 	if idx < 0:
 		return

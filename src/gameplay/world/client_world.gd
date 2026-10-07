@@ -618,6 +618,24 @@ func hero_id_of(net_id: int) -> StringName:
 	return content.id_at(ContentDB.HERO, _hero_index[net_id])
 
 
+## HeroDefs of the heroes seen on `team` (remote views; the own hero is not
+## included). Armory recommendations read their roles and threat tags.
+func team_hero_defs(team: int) -> Array:
+	var out: Array = []
+	for id in _views:
+		var v: HeroView = _views[id]
+		if v == null or v.team != team:
+			continue
+		var hid := hero_id_of(id)
+		if hid == &"":
+			continue
+		var d = load("res://assets/data/heroes/%s.tres" % hid) if ResourceLoader.exists(
+			"res://assets/data/heroes/%s.tres" % hid) else null
+		if d is HeroDef:
+			out.append(d)
+	return out
+
+
 ## World position (chest height) of a remote hero's view, or null if unknown.
 func hero_view_position(net_id: int) -> Variant:
 	var v: HeroView = _views.get(net_id)

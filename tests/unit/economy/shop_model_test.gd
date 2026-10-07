@@ -214,3 +214,90 @@ func test_recommended_builds_reference_real_catalog_items() -> void:
 			var it := _cat.find(b.item_at(s))
 			assert_object(it).is_not_null()
 			assert_int(b.target_at(s)).is_less_equal(maxi(it.tiers(), it.carry_limit))
+
+
+func test_tabs_start_with_recommended_and_hide_an_empty_barrel_socket() -> void:
+	_setup()
+	var m := _model(_hero(CombatFixtures.vesper()), VESPER)
+	var tabs := m.tabs()
+	assert_int(tabs[0]).is_equal(ShopModel.Tab.RECOMMENDED)
+	assert_bool(tabs.has(ShopModel.Tab.BARREL)).is_false()
+	assert_int(tabs.size()).is_equal(7)
+
+
+func test_recommended_tab_lists_open_advice_with_reasons() -> void:
+	_setup()
+	var h := _hero(CombatFixtures.vesper())
+	_pr.progress_of(h).lumen = 9000
+	_act(h, InputCommand.ACTION_BUY, ShopModel.buy_arg(_cat.index_of(&"med_pack")))
+	var m := _model(h, VESPER)
+	var rows := m.rows(ShopModel.Tab.RECOMMENDED)
+	assert_int(rows[0]).is_equal(_cat.index_of(&"ember_heart"))
+	assert_str(m.reason_key(rows[0])).is_equal("HUD_ADVICE_N_FIRST_MOUNT")
+	assert_str(m.reason_key(_cat.index_of(&"quickload"))).is_equal("")  # never recommended to a Mana gun
+	var pc := m.progress_counts()
+	assert_int(pc.x).is_equal(1)
+	assert_bool(pc.y >= 6).is_true()
+	# The strip shows the core path with the next step marked.
+	var path := m.path()
+	assert_bool(path[0]["done"]).is_true()
+	var nexts := path.filter(func(e: Dictionary) -> bool: return bool(e["next"]))
+	assert_int(nexts.size()).is_equal(1)
+	assert_int(int(nexts[0]["item"])).is_equal(_cat.index_of(&"ember_heart"))
+
+
+func test_enemy_context_opens_a_counter_recommendation() -> void:
+	_setup()
+	var h := _hero(CombatFixtures.brannoc())
+	_pr.progress_of(h).lumen = 9000
+	_act(h, InputCommand.ACTION_BUY, ShopModel.buy_arg(_cat.index_of(&"med_pack")))
+	_act(h, InputCommand.ACTION_BUY, ShopModel.buy_arg(_cat.index_of(&"overclock")))
+	var m := _model(h, BRANNOC)
+	var piercing := _cat.index_of(&"ammo_piercing")
+	assert_bool(m.is_recommended(piercing)).is_false()
+	var tank := CombatFixtures.brannoc()
+	m.set_context(300.0, &"5v5", 5, [tank, tank], [tank])
+	assert_bool(m.is_recommended(piercing)).is_true()
+	assert_str(m.reason_key(piercing)).is_equal("HUD_ADVICE_R_ENEMY_FRONTLINE")
+
+
+func test_sort_affordable_filter_and_keyword_search() -> void:
+	_setup()
+	var h := _hero(CombatFixtures.vesper())
+	_pr.progress_of(h).lumen = 400
+	var m := _model(h, VESPER)
+	m.sort_mode = ShopModel.Sort.PRICE
+	var squad := m.rows(ShopModel.Tab.SQUAD)
+	for i in range(1, squad.size()):
+		assert_bool(m.purchase_cost(squad[i - 1]) <= m.purchase_cost(squad[i])).is_true()
+	m.sort_mode = ShopModel.Sort.NAME
+	assert_str(String(_cat.at(m.rows(ShopModel.Tab.SQUAD)[0]).id)).is_equal("amplifier_emitters")
+	m.sort_mode = ShopModel.Sort.DEFAULT
+	m.affordable_only = true
+	for i in m.rows(ShopModel.Tab.ALL):
+		assert_int(m.state(i)).is_equal(ShopModel.State.AVAILABLE)
+	m.affordable_only = false
+	var cat2 := _cat.duplicate(true) as ArmoryCatalogDef
+	cat2.find(&"flux_coil").keywords = PackedStringArray(["sustain"])
+	m.catalog = cat2
+	assert_array(_names(m, m.rows(ShopModel.Tab.ALL, "sustain"))).contains_exactly(["flux_coil"])
+
+
+func test_affordable_soon_kind_badges_and_disabled_state() -> void:
+	_setup()
+	var h := _hero(CombatFixtures.vesper())
+	_pr.progress_of(h).lumen = 200
+	var m := _model(h, VESPER)
+	var ember := _cat.index_of(&"ember_heart")
+	assert_bool(m.affordable_soon(ember)).is_true()  # 200 short
+	assert_bool(m.affordable_soon(_cat.index_of(&"squad_expansion_2"))).is_false()  # locked
+	assert_str(m.kind_key(ember)).is_equal("HUD_SHOP_KIND_NEW_MOUNT")
+	assert_str(m.kind_key(_cat.index_of(&"med_pack"))).is_equal("HUD_SHOP_KIND_CONSUMABLE")
+	_pr.progress_of(h).lumen = 5000
+	_act(h, InputCommand.ACTION_BUY, ShopModel.buy_arg(ember, 1))
+	m = _model(h, VESPER)
+	assert_str(m.kind_key(ember)).is_equal("HUD_SHOP_KIND_TIER_UP")
+	var cat2 := _cat.duplicate(true) as ArmoryCatalogDef
+	cat2.find(&"flux_coil").disabled = true
+	m.catalog = cat2
+	assert_int(m.state(_cat.index_of(&"flux_coil"))).is_equal(ShopModel.State.DISABLED)

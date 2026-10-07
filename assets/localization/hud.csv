@@ -248,6 +248,27 @@ HUD_SET_DMG_NUMBERS,Damage numbers
 HUD_SET_COLORBLIND,Colour-blind preset
 HUD_SET_UI_SCALE,UI scale
 HUD_SHOP_TAB_ALL,ALL
+HUD_SHOP_TAB_REC,RECOMMENDED
+HUD_SHOP_SORT_DEFAULT,Sort: default
+HUD_SHOP_SORT_PRICE,Sort: price
+HUD_SHOP_SORT_NAME,Sort: name
+HUD_SHOP_FILTER_AFFORDABLE,Affordable only
+HUD_SHOP_WHY,Why: %s
+HUD_SHOP_ALTS,Also fine: %s
+HUD_SHOP_PROGRESS,Core %d / %d
+HUD_SHOP_SITUATIONAL,SITUATIONAL
+HUD_SHOP_SOON,SOON
+HUD_SHOP_EXPERT_RULES,Rules matched: %s
+HUD_SHOP_EXPERT_TAGS,Tags: %s
+HUD_SHOP_EXPERT_COUNTERS,Counters: %s
+HUD_SHOP_KIND_TIER_UP,Tier upgrade
+HUD_SHOP_KIND_NEW_MOUNT,New mount
+HUD_SHOP_KIND_SQUAD,Squad upgrade
+HUD_SHOP_KIND_CONSUMABLE,Consumable
+HUD_SHOP_KIND_DONE,Complete
+HUD_SHOP_DISABLED,Not available in this match
+HUD_SHOP_BUILD_DONE,Build complete: buy what you like
+HUD_SHOP_PAD_KEYS,[D-pad] move  [LB/RB] tabs  [A] buy  [X] sell  [R3] undo  [L3] next  [Back] affordable  [B] close
 HUD_SHOP_SEARCH,Search items (/)
 HUD_SHOP_EMPTY,No items match your search.
 HUD_SHOP_OFF_PAD,Return to your Armory pad to buy
@@ -289,7 +310,7 @@ HUD_SHOP_BTN_UPGRADE,"UPGRADE to %s: %s"
 HUD_SHOP_BTN_UNDO,UNDO +%d
 HUD_SHOP_BTN_SELL,SELL +%d
 HUD_SHOP_BTN_SELL_NA,Nothing to sell
-HUD_SHOP_KEYS,[Arrows] move  [Q/E] tabs  [Enter / double-click] buy  [1-3] tier  [Bksp] sell  [Ctrl+Z] undo  [/] search  [Esc] close
+HUD_SHOP_KEYS,[Arrows] move  [Q/E] tabs  [Enter] buy  [1-3] tier  [Bksp] sell  [Ctrl+Z] undo  [R] next  [O] sort  [Tab] affordable  [I] details  [/] search  [Esc] close
 HUD_STAT_DAMAGE,Damage
 HUD_STAT_REGEN,Mana regen
 HUD_STAT_REGEN_DELAY,Regen delay
