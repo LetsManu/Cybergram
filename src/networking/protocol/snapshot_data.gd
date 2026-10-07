@@ -165,10 +165,22 @@ class ProgressState:
 	var owned_bits: int = 0
 	## Per socket (MOUNT_SOCKETS order): catalog index (-1 = empty), tier, Lumen
 	## paid for the line, part paid this Armory visit.
-	var mount_item: PackedInt32Array = PackedInt32Array([-1, -1, -1])
-	var mount_tier: PackedInt32Array = PackedInt32Array([0, 0, 0])
-	var mount_paid: PackedInt32Array = PackedInt32Array([0, 0, 0])
-	var mount_paid_visit: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var mount_item: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1])
+	var mount_tier: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	var mount_paid: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	var mount_paid_visit: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	## v21 (Armory build system): Armory requests (ACTION_BUY / ACTION_SELL)
+	## the server has handled, mod 256, and the HeroProgress.Result of the
+	## last one. The client compares shop_seq with the value it saw when it
+	## sent a request to show the exact outcome instead of guessing.
+	var shop_seq: int = 0
+	var shop_result: int = 0
+	## Squad upgrades bought during the current Armory visit (bit i = catalog
+	## index i) and Med-Packs bought this visit: these can still be undone.
+	var visit_owned_bits: int = 0
+	var visit_medpacks: int = 0
+	## BuildAdvisor signal bits (SIG_*), server-computed from recent combat.
+	var signals: int = 0
 	## Lumen Motes on the ground (everyone's; positions only).
 	var motes: PackedVector3Array = PackedVector3Array()
 
@@ -176,8 +188,17 @@ class ProgressState:
 	const FLAG_BEACON_READY: int = 2
 	const FLAG_SPAWN_BEACON: int = 4
 	const FLAG_HEALING: int = 8
-	## Slice sockets (weapons-and-mods.md §3.10: no Barrel): ArmoryItemDef.Socket.
-	const MOUNT_SOCKETS: Array[int] = [1, 3, 4]
+	## Replicated sockets (ArmoryItemDef.Socket): Core, Frame, Chamber, then
+	## Barrel (v21, appended so the first three slots keep their meaning).
+	const MOUNT_SOCKETS: Array[int] = [1, 3, 4, 2]
+	## BuildAdvisor signals (v21): what hurt this hero lately (rolling window).
+	const SIG_WEAPON_DAMAGE: int = 1
+	const SIG_SKILL_DAMAGE: int = 2
+	const SIG_DIED_OFTEN: int = 4
+	const SIG_TEAM_BEHIND: int = 8
+	const SIG_TEAM_AHEAD: int = 16
+	const SIG_LOW_HEALTH: int = 32
+	const SIG_OBJECTIVE_SOON: int = 64
 
 var tick: int = 0
 ## W16-NET (client side): the acknowledged snapshot this one was delta-encoded

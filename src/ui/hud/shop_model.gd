@@ -12,9 +12,11 @@ extends RefCounted
 ## during the current Armory visit (an undo), 60% of the rest rounded down to 5.
 ## "Undo last purchase" is therefore the same server action as sell
 ## (ACTION_SELL by socket), offered as "Undo" only while the whole line was
-## bought this visit (paid_visit >= paid). Squad upgrades and Med-Packs have no
-## sell rule in the GDD, so they can be neither sold nor undone. The server
-## closes the visit (and the undo) when the hero leaves the pad.
+## bought this visit (paid_visit >= paid). Squad upgrades and Med-Packs cannot
+## be sold, but since v21 they can be undone for a full refund during the visit
+## they were bought in (ACTION_SELL with InputCommand.UNDO_ITEM_FLAG | index;
+## ProgressState.visit_owned_bits / visit_medpacks say what is undoable). The
+## server closes the visit (and every undo) when the hero leaves the pad.
 ##
 ## Example:
 ##   var m := ShopModel.new(catalog, rules, builds, &"hero_vesper_loom", weapon)
@@ -204,6 +206,61 @@ func is_undo(socket: int) -> bool:
 ## `last_socket` (socket of the last purchase) if it can still be fully undone, else -1.
 func undo_socket(last_socket: int) -> int:
 	return last_socket if last_socket >= 0 and is_undo(last_socket) else -1
+
+
+## ACTION_SELL argument that undoes the purchase of `index` this visit (full
+## refund), or -1 when it cannot be undone (bought before this visit, not owned).
+func undo_arg(index: int) -> int:
+	var it := catalog.at(index) if catalog != null else null
+	if it == null or progress == null:
+		return -1
+	match it.kind:
+		ArmoryItemDef.Kind.MOUNT, ArmoryItemDef.Kind.AMMO:
+			var sock := sell_socket(index)
+			return sock if sock >= 0 and is_undo(sock) else -1
+		ArmoryItemDef.Kind.SQUAD:
+			if index < 32 and (progress.visit_owned_bits & (1 << index)) != 0:
+				return InputCommand.UNDO_ITEM_FLAG | index
+		ArmoryItemDef.Kind.CONSUMABLE:
+			if progress.visit_medpacks > 0 and progress.medpacks > 0:
+				return InputCommand.UNDO_ITEM_FLAG | index
+	return -1
+
+
+## Lumen an undo of `index` gives back (0 = cannot undo).
+func undo_value(index: int) -> int:
+	var arg := undo_arg(index)
+	if arg < 0:
+		return 0
+	if arg & InputCommand.UNDO_ITEM_FLAG:
+		return catalog.at(index).price(1)
+	return sell_value(arg)
+
+
+## Localization key of the plain-language text for a server Result.
+static func result_key(r: int) -> String:
+	match r:
+		HeroProgress.Result.OK:
+			return ""
+		HeroProgress.Result.NOT_AT_ARMORY:
+			return "HUD_SHOP_R_NOT_AT_ARMORY"
+		HeroProgress.Result.DEAD:
+			return "HUD_SHOP_R_DEAD"
+		HeroProgress.Result.NO_FUNDS:
+			return "HUD_SHOP_R_NO_FUNDS"
+		HeroProgress.Result.WRONG_FAMILY:
+			return "HUD_SHOP_R_WRONG_FAMILY"
+		HeroProgress.Result.REQUIRES:
+			return "HUD_SHOP_R_REQUIRES"
+		HeroProgress.Result.LIMIT:
+			return "HUD_SHOP_R_LIMIT"
+		HeroProgress.Result.NOT_OWNED:
+			return "HUD_SHOP_R_NOT_OWNED"
+		HeroProgress.Result.MAXED:
+			return "HUD_SHOP_R_MAXED"
+		HeroProgress.Result.DISABLED:
+			return "HUD_SHOP_R_DISABLED"
+	return "HUD_SHOP_R_INVALID"
 
 
 # --- Recommended build ----------------------------------------------------------------

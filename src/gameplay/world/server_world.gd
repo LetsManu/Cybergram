@@ -11,6 +11,8 @@ signal hero_died(victim_net_id: int, killer_net_id: int)
 signal hero_respawned(net_id: int)
 ## E8: a hero lost HP (retaliation trigger for its squad).
 signal hero_damaged(victim_net_id: int, attacker_net_id: int, amount: float)
+## Armory advice: damage a hero took by DamageInfo.Type (WEAPON for gunfire).
+signal hero_damage_taken(victim_net_id: int, amount: float, damage_type: int)
 ## E7: a capture or defence outcome (Lumen / EXP hook; no economy yet).
 signal objective_event(event: ObjectiveEvent)
 ## Online slots: a joining human took over this scripted (bot) hero; whoever
@@ -601,6 +603,7 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 		var applied := target.combat.health.apply_damage(info)
 		if applied > 0.0:
 			hero_damaged.emit(id, h.net_id, applied)
+			hero_damage_taken.emit(id, applied, DamageInfo.Type.WEAPON)
 		var ev_flags: int = rec[1]
 		if not target.combat.health.is_alive():
 			ev_flags |= GameEvent.FLAG_KILL
@@ -672,6 +675,7 @@ func damage_hero(target: HeroBody, info: DamageInfo) -> float:
 	var applied := target.combat.health.apply_damage(info)
 	if applied > 0.0:
 		hero_damaged.emit(target.net_id, info.source_net_id, applied)
+		hero_damage_taken.emit(target.net_id, applied, info.type)
 	if not target.combat.health.is_alive():
 		_kill(target, info.source_net_id)
 	return applied

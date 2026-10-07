@@ -58,7 +58,8 @@ var _toast_t: float = 0.0
 var _toast_col: Color = HudPalette.TEAL
 var _hint_t: float = 0.0
 var _pending: Dictionary = {}
-var _last_socket: int = -1
+## Catalog index of the last purchase this visit (Ctrl+Z / R3 undo target).
+var _last_index: int = -1
 var _mouse_before: int = -1
 var _was_open: bool = false
 ## --debug-armory: open once when the hero first stands on the pad.
@@ -285,59 +286,65 @@ func _buy(index: int, tier: int) -> void:
 	if st != ShopModel.State.AVAILABLE:
 		_show_toast(_reason(index, st), HudPalette.WARN)
 		return
-	_pending = {"kind": "buy", "index": index, "tier": model.held_tier(index), "med": ctx.client.progress.medpacks,
-		"cost": model.purchase_cost(index, tier), "t": 0.0}
-	_request(InputCommand.ACTION_BUY, ShopModel.buy_arg(index, tier))
+	_send("buy", index, InputCommand.ACTION_BUY, ShopModel.buy_arg(index, tier), model.purchase_cost(index, tier))
 
 
+## Sells the selected mount line, or undoes a squad upgrade / Med-Pack bought this visit.
 func _sell(index: int) -> void:
 	var socket := model.sell_socket(index)
-	if socket < 0:
+	if socket >= 0:
+		_send("undo" if model.is_undo(socket) else "sell", index, InputCommand.ACTION_SELL, socket,
+			model.sell_value(socket))
+		return
+	var arg := model.undo_arg(index)
+	if arg < 0:
 		_show_toast(tr("HUD_SHOP_NO_SELL"), HudPalette.WARN)
 		return
-	_send_sell(socket, model.sell_value(socket))
+	_send("undo", index, InputCommand.ACTION_SELL, arg, model.undo_value(index))
 
 
 func _undo() -> void:
-	var socket := model.undo_socket(_last_socket)
-	if socket < 0:
+	var arg := model.undo_arg(_last_index)
+	if arg < 0:
 		_show_toast(tr("HUD_SHOP_NO_UNDO"), HudPalette.WARN)
 		return
-	_send_sell(socket, model.sell_value(socket))
+	_send("undo", _last_index, InputCommand.ACTION_SELL, arg, model.undo_value(_last_index))
 
 
-func _send_sell(socket: int, value: int) -> void:
-	var slot := SnapshotData.ProgressState.MOUNT_SOCKETS.find(socket)
-	_pending = {"kind": "sell", "slot": slot, "item": ctx.client.progress.mount_item[slot], "value": value, "t": 0.0}
-	_request(InputCommand.ACTION_SELL, socket)
+## Sends one Armory request and remembers the server's shop_seq to match its result.
+func _send(kind: String, index: int, action: int, arg: int, value: int) -> void:
+	_pending = {"kind": kind, "index": index, "value": value, "seq": ctx.client.progress.shop_seq, "t": 0.0}
+	_request(action, arg)
 
 
-## Watches the replicated progress for the outcome of the last request.
+## Watches the replicated progress for the outcome of the last request: the
+## server bumps shop_seq and reports the HeroProgress.Result (v21).
 func _check_pending(dt: float) -> void:
 	if _pending.is_empty():
 		return
 	_pending["t"] = float(_pending["t"]) + dt
 	var p := ctx.client.progress
-	if _pending["kind"] == "buy":
+	if p.shop_seq != int(_pending["seq"]):
 		var idx: int = _pending["index"]
-		if model.held_tier(idx) > int(_pending["tier"]) or p.medpacks > int(_pending["med"]):
-			var it := ctx.client.catalog.at(idx)
-			_show_toast(tr("HUD_SHOP_TOAST_BOUGHT") % [it.display_name, _pending["cost"]], HudPalette.TEAL)
-			if model.sell_socket(idx) >= 0:
-				_last_socket = int(it.socket)
-			_pending.clear()
-			return
-	else:
-		var slot: int = _pending["slot"]
-		if p.mount_item[slot] != int(_pending["item"]):
-			var it := ctx.client.catalog.at(int(_pending["item"]))
-			_show_toast(tr("HUD_SHOP_TOAST_SOLD") % [it.display_name if it != null else "", _pending["value"]],
-				HudPalette.BRASS)
-			_last_socket = -1
-			_pending.clear()
-			return
+		var it := ctx.client.catalog.at(idx)
+		var name := it.label() if it != null else ""
+		if p.shop_result == HeroProgress.Result.OK:
+			match String(_pending["kind"]):
+				"buy":
+					_show_toast(tr("HUD_SHOP_TOAST_BOUGHT") % [name, _pending["value"]], HudPalette.TEAL)
+					_last_index = idx
+				"undo":
+					_show_toast(tr("HUD_SHOP_TOAST_UNDONE") % [name, _pending["value"]], HudPalette.BRASS)
+					_last_index = -1
+				_:
+					_show_toast(tr("HUD_SHOP_TOAST_SOLD") % [name, _pending["value"]], HudPalette.BRASS)
+					_last_index = -1
+		else:
+			_show_toast(tr(ShopModel.result_key(p.shop_result)), HudPalette.DANGER)
+		_pending.clear()
+		return
 	if float(_pending["t"]) > PENDING_TIMEOUT_S:
-		_show_toast(tr("HUD_SHOP_TOAST_REFUSED"), HudPalette.DANGER)
+		_show_toast(tr("HUD_SHOP_TOAST_NO_ANSWER"), HudPalette.DANGER)
 		_pending.clear()
 
 
@@ -421,7 +428,7 @@ func _click(pos: Vector2, double: bool) -> void:
 	if _buy_rect().has_point(pos) and idx >= 0:
 		_buy(idx, 0)
 	elif _sell_rect().has_point(pos) and idx >= 0:
-		if model.undo_socket(_last_socket) >= 0 and model.sell_socket(idx) < 0:
+		if model.sell_socket(idx) < 0 and model.undo_arg(idx) < 0 and model.undo_arg(_last_index) >= 0:
 			_undo()
 		else:
 			_sell(idx)
@@ -777,6 +784,8 @@ func _draw_detail() -> void:
 		var v := model.sell_value(sock)
 		text((tr("HUD_SHOP_UNDO_INFO") if model.is_undo(sock) else tr("HUD_SHOP_SELL_INFO")) % v, Vector2(x, ty + 10.0), 15,
 			HudPalette.BRASS_HI)
+	elif model.undo_arg(idx) >= 0:
+		text(tr("HUD_SHOP_UNDO_INFO") % model.undo_value(idx), Vector2(x, ty + 10.0), 15, HudPalette.BRASS_HI)
 
 
 ## Why the item is unavailable, or what a buy would swap out.
@@ -864,14 +873,16 @@ func _draw_footer() -> void:
 		caps_c(bl, b.get_center(), 17, HudPalette.DIM, 0.16)
 	var s := _sell_rect()
 	var sock := model.sell_socket(idx)
-	var undo_sock := model.undo_socket(_last_socket)
 	var label := ""
 	var can := false
 	if sock >= 0:
 		label = (tr("HUD_SHOP_BTN_UNDO") if model.is_undo(sock) else tr("HUD_SHOP_BTN_SELL")) % model.sell_value(sock)
 		can = true
-	elif undo_sock >= 0:
-		label = tr("HUD_SHOP_BTN_UNDO") % model.sell_value(undo_sock)
+	elif model.undo_arg(idx) >= 0:
+		label = tr("HUD_SHOP_BTN_UNDO") % model.undo_value(idx)
+		can = true
+	elif model.undo_arg(_last_index) >= 0:
+		label = tr("HUD_SHOP_BTN_UNDO") % model.undo_value(_last_index)
 		can = true
 	else:
 		label = tr("HUD_SHOP_BTN_SELL_NA")

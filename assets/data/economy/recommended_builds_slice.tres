@@ -1,22 +1,1050 @@
-[gd_resource type="Resource" script_class="RecommendedBuildsDef" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="RecommendedBuildsDef" format=3]
 
 [ext_resource type="Script" path="res://src/gameplay/data/recommended_build_def.gd" id="1"]
 [ext_resource type="Script" path="res://src/gameplay/data/recommended_builds_def.gd" id="2"]
+[ext_resource type="Script" path="res://src/gameplay/data/build_node_def.gd" id="3"]
 
-[sub_resource type="Resource" id="build_vesper"]
+[sub_resource type="Resource" id="n_0_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_0_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"ember_heart"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_0_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"flux_coil"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_0_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"ember_heart"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_0_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"flux_coil"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_0_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"ember_heart"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_0_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"flux_coil"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_0_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 850
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_0_8"]
+script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 4
+priority = 750
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_0_9"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 4
+priority = 690
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+
+[sub_resource type="Resource" id="n_0_10"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 4
+priority = 560
+requires = PackedStringArray("sq_hp", "c2")
+
+[sub_resource type="Resource" id="n_0_11"]
+script = ExtResource("3")
+id = &"sq_size2"
+item_id = &"squad_expansion_2"
+target = 1
+section = 10
+priority = 520
+requires = PackedStringArray("sq_size", "c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_0_12"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_0_13"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_0_14"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_0_15"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_0"]
 script = ExtResource("1")
 hero_id = &"hero_vesper_loom"
 display_name = "Loom Weaver"
-item_ids = PackedStringArray("med_pack", "ember_heart", "reinforced_cores_1", "flux_coil", "amplifier_emitters", "ember_heart", "squad_expansion_1", "flux_coil", "ember_heart")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 2, 1, 2, 3)
+item_ids = PackedStringArray("med_pack", "ember_heart", "reinforced_cores_1", "flux_coil", "amplifier_emitters", "ember_heart", "squad_expansion_1", "flux_coil", "ember_heart", "reinforced_cores_2")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 2, 1, 2, 3, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_0_0"), SubResource("n_0_1"), SubResource("n_0_2"), SubResource("n_0_3"), SubResource("n_0_4"), SubResource("n_0_5"), SubResource("n_0_6"), SubResource("n_0_7"), SubResource("n_0_8"), SubResource("n_0_9"), SubResource("n_0_10"), SubResource("n_0_11"), SubResource("n_0_12"), SubResource("n_0_13"), SubResource("n_0_14"), SubResource("n_0_15")])
+roles = PackedStringArray("commander")
+summary_key = "HUD_ADVICE_B_VESPER"
 
-[sub_resource type="Resource" id="build_brannoc"]
+[sub_resource type="Resource" id="n_1_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_1_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"ember_heart"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_1_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"flux_coil"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_1_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"ember_heart"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_1_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"flux_coil"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_1_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"ember_heart"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_1_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"flux_coil"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 560
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_8"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_1_9"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_1_10"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_1_11"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_1"]
+script = ExtResource("1")
+hero_id = &"hero_sable"
+display_name = "Shadow Edge"
+item_ids = PackedStringArray("med_pack", "ember_heart", "flux_coil", "ember_heart", "flux_coil", "ember_heart")
+targets = PackedInt32Array(1, 1, 1, 2, 2, 3)
+nodes = Array[ExtResource("3")]([SubResource("n_1_0"), SubResource("n_1_1"), SubResource("n_1_2"), SubResource("n_1_3"), SubResource("n_1_4"), SubResource("n_1_5"), SubResource("n_1_6"), SubResource("n_1_7"), SubResource("n_1_8"), SubResource("n_1_9"), SubResource("n_1_10"), SubResource("n_1_11")])
+roles = PackedStringArray("infiltrator")
+summary_key = "HUD_ADVICE_B_SABLE"
+
+[sub_resource type="Resource" id="n_2_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_2_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"ember_heart"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_2_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"flux_coil"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_2_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"ember_heart"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_2_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"flux_coil"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_2_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"ember_heart"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_2_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"flux_coil"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 560
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_8"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_2_9"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_2_10"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_2_11"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_2"]
+script = ExtResource("1")
+hero_id = &"hero_hex"
+display_name = "Static Overload"
+item_ids = PackedStringArray("med_pack", "ember_heart", "flux_coil", "ember_heart", "flux_coil", "ember_heart")
+targets = PackedInt32Array(1, 1, 1, 2, 2, 3)
+nodes = Array[ExtResource("3")]([SubResource("n_2_0"), SubResource("n_2_1"), SubResource("n_2_2"), SubResource("n_2_3"), SubResource("n_2_4"), SubResource("n_2_5"), SubResource("n_2_6"), SubResource("n_2_7"), SubResource("n_2_8"), SubResource("n_2_9"), SubResource("n_2_10"), SubResource("n_2_11")])
+roles = PackedStringArray("hacker")
+summary_key = "HUD_ADVICE_B_HEX"
+
+[sub_resource type="Resource" id="n_3_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_3_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"ember_heart"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_3_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"flux_coil"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_3_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"ember_heart"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_3_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"flux_coil"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_3_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"ember_heart"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_3_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"flux_coil"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 560
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_8"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_3_9"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_3_10"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_3_11"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_3"]
+script = ExtResource("1")
+hero_id = &"hero_liora_vale"
+display_name = "Steady Light"
+item_ids = PackedStringArray("med_pack", "ember_heart", "flux_coil", "ember_heart", "flux_coil", "ember_heart")
+targets = PackedInt32Array(1, 1, 1, 2, 2, 3)
+nodes = Array[ExtResource("3")]([SubResource("n_3_0"), SubResource("n_3_1"), SubResource("n_3_2"), SubResource("n_3_3"), SubResource("n_3_4"), SubResource("n_3_5"), SubResource("n_3_6"), SubResource("n_3_7"), SubResource("n_3_8"), SubResource("n_3_9"), SubResource("n_3_10"), SubResource("n_3_11")])
+roles = PackedStringArray("healer")
+summary_key = "HUD_ADVICE_B_LIORA"
+
+[sub_resource type="Resource" id="n_4_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_4_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"overclock"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_4_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"quickload"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_4_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"overclock"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_4_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"quickload"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_4_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"overclock"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_4_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"quickload"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_4_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 760
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_4_8"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 4
+priority = 620
+requires = PackedStringArray("c2")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+
+[sub_resource type="Resource" id="n_4_9"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_4_10"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_4_11"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_4_12"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_4"]
 script = ExtResource("1")
 hero_id = &"hero_brannoc"
 display_name = "Bulwark Gunner"
-item_ids = PackedStringArray("med_pack", "overclock", "quickload", "ammo_piercing", "overclock", "reinforced_cores_1", "quickload", "overclock")
-targets = PackedInt32Array(1, 1, 1, 1, 2, 1, 2, 3)
+item_ids = PackedStringArray("med_pack", "overclock", "quickload", "reinforced_cores_1", "overclock", "quickload", "squad_expansion_1", "overclock")
+targets = PackedInt32Array(1, 1, 1, 1, 2, 2, 1, 3)
+nodes = Array[ExtResource("3")]([SubResource("n_4_0"), SubResource("n_4_1"), SubResource("n_4_2"), SubResource("n_4_3"), SubResource("n_4_4"), SubResource("n_4_5"), SubResource("n_4_6"), SubResource("n_4_7"), SubResource("n_4_8"), SubResource("n_4_9"), SubResource("n_4_10"), SubResource("n_4_11"), SubResource("n_4_12")])
+roles = PackedStringArray("tank")
+summary_key = "HUD_ADVICE_B_BRANNOC"
+
+[sub_resource type="Resource" id="n_5_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_5_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"overclock"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_5_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"quickload"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_5_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"overclock"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_5_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"quickload"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_5_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"overclock"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_5_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"quickload"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 560
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_8"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_5_9"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_5_10"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_5_11"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_5"]
+script = ExtResource("1")
+hero_id = &"hero_ryker_vance"
+display_name = "Line Breaker"
+item_ids = PackedStringArray("med_pack", "overclock", "quickload", "overclock", "quickload", "overclock")
+targets = PackedInt32Array(1, 1, 1, 2, 2, 3)
+nodes = Array[ExtResource("3")]([SubResource("n_5_0"), SubResource("n_5_1"), SubResource("n_5_2"), SubResource("n_5_3"), SubResource("n_5_4"), SubResource("n_5_5"), SubResource("n_5_6"), SubResource("n_5_7"), SubResource("n_5_8"), SubResource("n_5_9"), SubResource("n_5_10"), SubResource("n_5_11")])
+roles = PackedStringArray("soldier")
+summary_key = "HUD_ADVICE_B_RYKER"
+
+[sub_resource type="Resource" id="n_6_0"]
+script = ExtResource("3")
+id = &"open"
+item_id = &"med_pack"
+target = 1
+section = 0
+priority = 1000
+reason_key = "HUD_ADVICE_N_OPEN"
+
+[sub_resource type="Resource" id="n_6_1"]
+script = ExtResource("3")
+id = &"c1"
+item_id = &"overclock"
+target = 1
+section = 1
+priority = 900
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
+
+[sub_resource type="Resource" id="n_6_2"]
+script = ExtResource("3")
+id = &"f1"
+item_id = &"quickload"
+target = 1
+section = 2
+priority = 800
+requires = PackedStringArray("c1")
+reason_key = "HUD_ADVICE_N_SPIKE"
+
+[sub_resource type="Resource" id="n_6_3"]
+script = ExtResource("3")
+id = &"c2"
+item_id = &"overclock"
+target = 2
+section = 3
+priority = 700
+requires = PackedStringArray("f1")
+
+[sub_resource type="Resource" id="n_6_4"]
+script = ExtResource("3")
+id = &"f2"
+item_id = &"quickload"
+target = 2
+section = 3
+priority = 640
+requires = PackedStringArray("c2")
+
+[sub_resource type="Resource" id="n_6_5"]
+script = ExtResource("3")
+id = &"c3"
+item_id = &"overclock"
+target = 3
+section = 10
+priority = 600
+requires = PackedStringArray("f2")
+
+[sub_resource type="Resource" id="n_6_6"]
+script = ExtResource("3")
+id = &"f3"
+item_id = &"quickload"
+target = 3
+section = 10
+priority = 400
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_7"]
+script = ExtResource("3")
+id = &"sq_hp"
+item_id = &"reinforced_cores_1"
+target = 1
+section = 4
+priority = 560
+requires = PackedStringArray("f1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_8"]
+script = ExtResource("3")
+id = &"heal_pack"
+item_id = &"med_pack"
+target = 2
+section = 6
+priority = 520
+conditions = PackedStringArray("low_health", "died_often", "taking_weapon_damage", "taking_skill_damage")
+reason_key = "HUD_ADVICE_N_HEAL_PACK"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_6_9"]
+script = ExtResource("3")
+id = &"behind_pack"
+item_id = &"med_pack"
+target = 3
+section = 6
+priority = 480
+requires = PackedStringArray("heal_pack")
+conditions = PackedStringArray("team_behind", "died_often")
+core = false
+optional = true
+skippable = true
+
+[sub_resource type="Resource" id="n_6_10"]
+script = ExtResource("3")
+id = &"vs_armor"
+item_id = &"ammo_piercing"
+target = 1
+section = 9
+priority = 560
+requires = PackedStringArray("c1")
+alternatives = PackedStringArray("ammo_sunder")
+conditions = PackedStringArray("enemy_frontline", "counters_enemy")
+reason_key = "HUD_ADVICE_N_VS_ARMOR"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="n_6_11"]
+script = ExtResource("3")
+id = &"vs_squads"
+item_id = &"ammo_sunder"
+target = 1
+section = 9
+priority = 540
+requires = PackedStringArray("c1")
+conditions = PackedStringArray("enemy_squad")
+reason_key = "HUD_ADVICE_N_VS_SQUADS"
+core = false
+skippable = true
+
+[sub_resource type="Resource" id="build_6"]
+script = ExtResource("1")
+hero_id = &"hero_juniper_quill"
+display_name = "Snare Field"
+item_ids = PackedStringArray("med_pack", "overclock", "quickload", "overclock", "quickload", "overclock")
+targets = PackedInt32Array(1, 1, 1, 2, 2, 3)
+nodes = Array[ExtResource("3")]([SubResource("n_6_0"), SubResource("n_6_1"), SubResource("n_6_2"), SubResource("n_6_3"), SubResource("n_6_4"), SubResource("n_6_5"), SubResource("n_6_6"), SubResource("n_6_7"), SubResource("n_6_8"), SubResource("n_6_9"), SubResource("n_6_10"), SubResource("n_6_11")])
+roles = PackedStringArray("trapper")
+summary_key = "HUD_ADVICE_B_JUNIPER"
 
 [resource]
 script = ExtResource("2")
-builds = Array[ExtResource("1")]([SubResource("build_vesper"), SubResource("build_brannoc")])
+builds = Array[ExtResource("1")]([SubResource("build_0"), SubResource("build_1"), SubResource("build_2"), SubResource("build_3"), SubResource("build_4"), SubResource("build_5"), SubResource("build_6")])

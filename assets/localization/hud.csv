@@ -262,6 +262,18 @@ HUD_SHOP_NO_UNDO,Nothing to undo
 HUD_SHOP_TOAST_BOUGHT,Purchased %s (-%d)
 HUD_SHOP_TOAST_SOLD,Sold %s (+%d)
 HUD_SHOP_TOAST_REFUSED,The server refused that request
+HUD_SHOP_TOAST_UNDONE,Undone: %s (+%d)
+HUD_SHOP_TOAST_NO_ANSWER,No answer from the server. Try again.
+HUD_SHOP_R_NOT_AT_ARMORY,Go back to the Armory to shop
+HUD_SHOP_R_DEAD,You cannot shop while down
+HUD_SHOP_R_NO_FUNDS,Not enough Lumen
+HUD_SHOP_R_WRONG_FAMILY,That mount does not fit your gun
+HUD_SHOP_R_REQUIRES,Needs another upgrade first (or undo the one built on it)
+HUD_SHOP_R_LIMIT,You already have that
+HUD_SHOP_R_NOT_OWNED,Nothing to sell or undo there
+HUD_SHOP_R_MAXED,Already at the top tier
+HUD_SHOP_R_DISABLED,Not available in this match
+HUD_SHOP_R_INVALID,The Armory did not understand that request
 HUD_SHOP_NEED_LUMEN,Need %d more Lumen
 HUD_SHOP_CARRY_FULL,Carrying the maximum
 HUD_SHOP_COL_TIER,TIER
@@ -1073,3 +1085,51 @@ HUD_MM_SEAT_OPEN,Open slot
 HUD_MM_LOADING_MAP,Loading the map…
 HUD_MM_TEAM_CHAT,Team chat
 HUD_MM_ULTIMATE,Ultimate
+HUD_ADVICE_R_CORE_TIER_READY,Your main mount line is ready for its next tier.
+HUD_ADVICE_R_AFFORDABLE_NOW,You can afford this now.
+HUD_ADVICE_R_COUNTERS_ENEMY,This answers what the enemy team does best.
+HUD_ADVICE_R_TAKING_WEAPON_DAMAGE,You keep taking gunfire damage.
+HUD_ADVICE_R_TAKING_SKILL_DAMAGE,You keep taking ability damage.
+HUD_ADVICE_R_DIED_OFTEN,You have gone down several times recently.
+HUD_ADVICE_R_LOW_HEALTH,You are low on health.
+HUD_ADVICE_R_TEAM_BEHIND,Your team is behind: stabilize first.
+HUD_ADVICE_R_TEAM_AHEAD,Your team is ahead: press the power spike.
+HUD_ADVICE_R_OBJECTIVE_SOON,A Surge is close: be ready for the fight.
+HUD_ADVICE_R_ENEMY_CC,The enemy team has a lot of crowd control.
+HUD_ADVICE_R_ENEMY_BURST,The enemy team deals heavy burst damage.
+HUD_ADVICE_R_ENEMY_SUSTAIN,The enemy team heals a lot.
+HUD_ADVICE_R_ENEMY_WEAPON_DPS,The enemy team relies on gunfire.
+HUD_ADVICE_R_ENEMY_SKILL_DPS,The enemy team relies on abilities.
+HUD_ADVICE_R_ENEMY_MOBILITY,The enemy team is very mobile.
+HUD_ADVICE_R_ENEMY_ZONE,The enemy team controls zones.
+HUD_ADVICE_R_ENEMY_SQUAD,The enemy team fields big Wardling squads.
+HUD_ADVICE_R_ENEMY_FRONTLINE,The enemy team has armored frontliners.
+HUD_ADVICE_R_TEAM_LACKS_SUSTAIN,Your team has no healer.
+HUD_ADVICE_R_TEAM_LACKS_FRONTLINE,Your team has no frontliner.
+HUD_ADVICE_S_OPENING,Your opening purchase.
+HUD_ADVICE_S_EARLY,An early purchase that pays off fast.
+HUD_ADVICE_S_SPIKE,This completes your first power spike.
+HUD_ADVICE_S_CORE,The next step of your core build.
+HUD_ADVICE_S_SQUAD,Makes your Wardling squad stronger.
+HUD_ADVICE_S_CONSUMABLE,Carry this for emergencies.
+HUD_ADVICE_S_DEFENSIVE,Helps you survive longer.
+HUD_ADVICE_S_OFFENSIVE,Raises your damage.
+HUD_ADVICE_S_UTILITY,Adds utility for you and your team.
+HUD_ADVICE_S_COUNTER,Counters the enemy team.
+HUD_ADVICE_S_LATE,A late-game upgrade once your core is done.
+HUD_ADVICE_N_OPEN,A Med-Pack keeps your first fights safe.
+HUD_ADVICE_N_FIRST_MOUNT,Your first Core mount: more damage on every shot.
+HUD_ADVICE_N_SPIKE,This completes your first power spike.
+HUD_ADVICE_N_LUXURY,Luxury upgrade once everything else is done.
+HUD_ADVICE_N_SQUAD,Tougher Wardlings hold your front longer.
+HUD_ADVICE_N_SQUAD_SIZE,One more Wardling in your squad.
+HUD_ADVICE_N_HEAL_PACK,Carry a second Med-Pack while fights go badly.
+HUD_ADVICE_N_VS_ARMOR,Piercing rounds cut through armored enemies.
+HUD_ADVICE_N_VS_SQUADS,Sunder rounds shred big Wardling squads.
+HUD_ADVICE_B_VESPER,Commander: grow and harden your squad around a damage core.
+HUD_ADVICE_B_SABLE,Infiltrator: fast damage core with mana sustain.
+HUD_ADVICE_B_HEX,Hacker: damage core and regen for ability uptime.
+HUD_ADVICE_B_LIORA,Healer: steady mana regen with a safe damage core.
+HUD_ADVICE_B_BRANNOC,Tank: damage and reload core plus tougher Wardlings.
+HUD_ADVICE_B_RYKER,Soldier: damage and reload for constant gunfire.
+HUD_ADVICE_B_JUNIPER,Trapper: damage and reload core around your traps.

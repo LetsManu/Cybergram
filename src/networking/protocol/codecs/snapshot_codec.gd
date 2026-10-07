@@ -82,7 +82,8 @@ const _HF_LOCKED0: int = 8
 const _HF_LOCKED1: int = 16
 const _MATCH: int = 1 + 4 + 4 + 1 + 1 + 1
 const _UPLINK: int = 10
-const _PROGRESS: int = 1 + 4 + 1 + 4 + 1 + 1 + 4 + 3 * 6 + 1
+## v21: + shop seq/result, visit squad bits (u32), visit Med-Packs, signals; 4 mount slots.
+const _PROGRESS: int = 1 + 4 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + 4 * 6 + 1
 const _MOTE: int = 6
 
 
@@ -942,8 +943,13 @@ static func _encode_progress(b: PackedByteArray, off: int, s: SnapshotData) -> i
 	b.encode_u8(off + 10, clampi(p.medpacks, 0, 255))
 	b.encode_u8(off + 11, p.flags & 0xFF)
 	b.encode_u32(off + 12, p.owned_bits & 0xFFFFFFFF)
-	off += 16
-	for i in 3:
+	b.encode_u8(off + 16, p.shop_seq & 0xFF)
+	b.encode_u8(off + 17, clampi(p.shop_result, 0, 255))
+	b.encode_u32(off + 18, p.visit_owned_bits & 0xFFFFFFFF)
+	b.encode_u8(off + 22, clampi(p.visit_medpacks, 0, 255))
+	b.encode_u8(off + 23, p.signals & 0xFF)
+	off += 24
+	for i in SnapshotData.ProgressState.MOUNT_SOCKETS.size():
 		b.encode_s8(off, clampi(p.mount_item[i], -1, 127))
 		b.encode_u8(off + 1, clampi(p.mount_tier[i], 0, 255))
 		b.encode_u16(off + 2, clampi(p.mount_paid[i], 0, 65535))
@@ -975,8 +981,13 @@ static func _decode_progress(b: PackedByteArray, off: int, s: SnapshotData) -> i
 	p.medpacks = b.decode_u8(off + 10)
 	p.flags = b.decode_u8(off + 11)
 	p.owned_bits = b.decode_u32(off + 12)
-	off += 16
-	for i in 3:
+	p.shop_seq = b.decode_u8(off + 16)
+	p.shop_result = b.decode_u8(off + 17)
+	p.visit_owned_bits = b.decode_u32(off + 18)
+	p.visit_medpacks = b.decode_u8(off + 22)
+	p.signals = b.decode_u8(off + 23)
+	off += 24
+	for i in SnapshotData.ProgressState.MOUNT_SOCKETS.size():
 		p.mount_item[i] = b.decode_s8(off)
 		p.mount_tier[i] = b.decode_u8(off + 1)
 		p.mount_paid[i] = b.decode_u16(off + 2)

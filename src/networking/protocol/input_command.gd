@@ -50,8 +50,11 @@ const ACTION_NONE: int = 0
 const ACTION_LEARN: int = 1
 ## arg = catalog index | tier << 8 (tier 0 = next tier).
 const ACTION_BUY: int = 2
-## arg = ArmoryItemDef.Socket to sell.
+## arg = ArmoryItemDef.Socket to sell (a mount; undo when bought this visit),
+## or UNDO_ITEM_FLAG | catalog index to undo a squad upgrade / Med-Pack bought
+## this Armory visit (v21).
 const ACTION_SELL: int = 3
+const UNDO_ITEM_FLAG: int = 0x100
 const ACTION_USE_MEDPACK: int = 4
 ## arg = HeroProgress.SPAWN_*.
 const ACTION_SPAWN_CHOICE: int = 5

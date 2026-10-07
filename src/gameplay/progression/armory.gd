@@ -33,7 +33,9 @@ static func buy(p: HeroProgress, c: HeroCombat, cat: ArmoryCatalogDef, index: in
 			if p.lumen < item.price(1):
 				return HeroProgress.Result.NO_FUNDS
 			p.lumen -= item.price(1)
+			p.spent_lumen += item.price(1)
 			p.medpacks += 1
+			p._visit_add(item.id, 1)
 			return HeroProgress.Result.OK
 		ArmoryItemDef.Kind.SQUAD:
 			if p.owned.has(item.id):
@@ -43,7 +45,9 @@ static func buy(p: HeroProgress, c: HeroCombat, cat: ArmoryCatalogDef, index: in
 			if p.lumen < item.price(1):
 				return HeroProgress.Result.NO_FUNDS
 			p.lumen -= item.price(1)
+			p.spent_lumen += item.price(1)
 			p.owned[item.id] = true
+			p._visit_add(item.id, 1)
 			for m in item.modifiers(1, source_for(index)):
 				c.stats.add_modifier(m)
 			return HeroProgress.Result.OK
@@ -53,6 +57,8 @@ static func buy(p: HeroProgress, c: HeroCombat, cat: ArmoryCatalogDef, index: in
 	var same := held != null and held.item == item
 	if tier <= 0:
 		tier = held.tier + 1 if same else 1
+	elif tier > item.tiers() and not same:
+		return HeroProgress.Result.INVALID  # a tier the line does not have
 	if tier > item.tiers():
 		return HeroProgress.Result.MAXED
 	var cost := item.price(tier)
@@ -75,6 +81,7 @@ static func buy(p: HeroProgress, c: HeroCombat, cat: ArmoryCatalogDef, index: in
 		held.index = index
 		p.mounts[item.socket] = held
 	p.lumen -= cost
+	p.spent_lumen += cost - credit
 	held.tier = tier
 	held.paid += cost
 	held.paid_visit += cost
@@ -91,8 +98,45 @@ static func sell(p: HeroProgress, c: HeroCombat, socket: int, r: EconomyRulesDef
 	var held := p.mount(socket)
 	if held == null:
 		return HeroProgress.Result.NOT_OWNED
-	p.lumen += EconomyMath.sell_value(r, held.paid, held.paid_visit)
+	var refund := EconomyMath.sell_value(r, held.paid, held.paid_visit)
+	p.lumen += refund
+	p.spent_lumen -= refund
 	_remove(p, c, socket)
+	return HeroProgress.Result.OK
+
+
+## Undoes a squad upgrade or Med-Pack (item `index` of `cat`) bought during the
+## current Armory visit: full refund, effects removed (v21 owner decision; the
+## GDD rule 4 "100% in the same visit" now covers every Armory purchase).
+## Mounts are undone through sell() by socket.
+static func undo_item(p: HeroProgress, c: HeroCombat, cat: ArmoryCatalogDef, index: int) -> int:
+	if c.dead:
+		return HeroProgress.Result.DEAD
+	if not p.at_armory:
+		return HeroProgress.Result.NOT_AT_ARMORY
+	var item := cat.at(index)
+	if item == null:
+		return HeroProgress.Result.UNKNOWN_ITEM
+	if p.visit_count(item.id) <= 0:
+		return HeroProgress.Result.NOT_OWNED
+	match item.kind:
+		ArmoryItemDef.Kind.SQUAD:
+			if not p.owned.has(item.id):
+				return HeroProgress.Result.NOT_OWNED
+			for other in cat.items:
+				if other != null and other.requires == item.id and p.owned.has(other.id):
+					return HeroProgress.Result.REQUIRES  # undo the upgrade built on it first
+			p.owned.erase(item.id)
+			c.stats.remove_by_source(source_for(index))
+		ArmoryItemDef.Kind.CONSUMABLE:
+			if p.medpacks <= 0:
+				return HeroProgress.Result.NOT_OWNED
+			p.medpacks -= 1
+		_:
+			return HeroProgress.Result.INVALID
+	p.lumen += item.price(1)
+	p.spent_lumen -= item.price(1)
+	p._visit_add(item.id, -1)
 	return HeroProgress.Result.OK
 
 

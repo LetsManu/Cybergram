@@ -75,9 +75,17 @@ func _mounts(client: ClientWorld, at: Vector2) -> void:
 	var items := client.mount_items()
 	var p := client.progress
 	var a := idle_a(0.42)
-	var bw := (W - 2.0 * 9.0) / 3.0
+	# Only sockets the catalog sells for (the Barrel slot stays hidden until
+	# Barrel lines exist).
+	var slots: Array[int] = []
 	for i in SnapshotData.ProgressState.MOUNT_SOCKETS.size():
-		var r := Rect2(at + Vector2(i * (bw + 9.0), 0.0), Vector2(bw, 39.0))
+		if _socket_sold(client.catalog, SnapshotData.ProgressState.MOUNT_SOCKETS[i]):
+			slots.append(i)
+	var n := maxi(1, slots.size())
+	var bw := (W - (n - 1) * 9.0) / n
+	for col in slots.size():
+		var i := slots[col]
+		var r := Rect2(at + Vector2(col * (bw + 9.0), 0.0), Vector2(bw, 39.0))
 		var item: ArmoryItemDef = items[i] if i < items.size() else null
 		var socket: int = SnapshotData.ProgressState.MOUNT_SOCKETS[i]
 		var label := tr(SOCKET_KEYS.get(socket, "HUD_SOCKET_CORE"))
@@ -107,3 +115,13 @@ func _dashed(r: Rect2, col: Color) -> void:
 	draw_dashed_line(Vector2(p.end.x, p.position.y), p.end, col, 1.0, 4.0)
 	draw_dashed_line(p.end, Vector2(p.position.x, p.end.y), col, 1.0, 4.0)
 	draw_dashed_line(Vector2(p.position.x, p.end.y), p.position, col, 1.0, 4.0)
+
+
+## True if `cat` has any item for `socket`.
+static func _socket_sold(cat: ArmoryCatalogDef, socket: int) -> bool:
+	if cat == null:
+		return socket != ArmoryItemDef.Socket.BARREL
+	for it in cat.items:
+		if it != null and int(it.socket) == socket:
+			return true
+	return false
