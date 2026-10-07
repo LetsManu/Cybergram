@@ -294,3 +294,42 @@ static func apply(lvl: int, env: Environment, sun: DirectionalLight3D, vp: Viewp
 	if vp != null:
 		vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][lvl]
 		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if lvl == MEDIUM or lvl == ULTRA else Viewport.SCREEN_SPACE_AA_DISABLED
+
+
+static var _blob_mat: StandardMaterial3D
+
+
+## Blob contact shadows under heroes and Wardlings on this tier only (Low: no
+## sun shadows, so characters would float).
+static func blob_shadows_enabled(lvl: int) -> bool:
+	return lvl <= LOW
+
+
+## Soft dark disc on the floor under a character (unshaded, alpha, one shared
+## material and gradient texture). Parent it to the model root (at the feet).
+static func make_blob_shadow(radius: float) -> MeshInstance3D:
+	if _blob_mat == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(0.05, 0.04, 0.12, 0.55))
+		g.set_color(1, Color(0.05, 0.04, 0.12, 0.0))
+		var tex := GradientTexture2D.new()
+		tex.gradient = g
+		tex.fill = GradientTexture2D.FILL_RADIAL
+		tex.fill_from = Vector2(0.5, 0.5)
+		tex.fill_to = Vector2(1.0, 0.5)
+		tex.width = 64
+		tex.height = 64
+		_blob_mat = StandardMaterial3D.new()
+		_blob_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_blob_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_blob_mat.albedo_texture = tex
+		_blob_mat.render_priority = -1
+	var q := PlaneMesh.new()
+	q.size = Vector2(radius * 2.0, radius * 2.0)
+	var mi := MeshInstance3D.new()
+	mi.name = "BlobShadow"
+	mi.mesh = q
+	mi.material_override = _blob_mat
+	mi.position.y = 0.03
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi

@@ -105,6 +105,8 @@ func _attach_model(def: WardlingDef) -> void:
 		if c is MeshInstance3D and c != _hp_fill:
 			(c as MeshInstance3D).visible = false
 	_pennant.visible = false
+	if GfxQuality.blob_shadows_enabled(GfxQuality.level()):
+		model.add_child(GfxQuality.make_blob_shadow(0.55))
 	_sync_model()
 
 

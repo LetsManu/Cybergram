@@ -201,6 +201,8 @@ func _attach_model(k: StringName) -> void:
 	model_key = k
 	model = HeroModelLoader.build(k, team)  # W13: rigged glb if present, else the box model
 	add_child(model)
+	if GfxQuality.blob_shadows_enabled(GfxQuality.level()):
+		model.add_child(GfxQuality.make_blob_shadow(0.7))
 	_body.visible = false
 	scale = Vector3.ONE
 
