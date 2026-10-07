@@ -7,13 +7,11 @@ extends GdUnitTestSuite
 const VESPER := &"hero_vesper_loom"
 
 var _v22: ArmoryCatalogDef
-var _v1: ArmoryCatalogDef
 var _guides: RecommendedBuildsDef
 
 
 func before_test() -> void:
 	_v22 = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
-	_v1 = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	_guides = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
 
 
@@ -65,12 +63,12 @@ func test_version_1_files_are_read_as_old_armory_builds() -> void:
 	var store := CustomBuildStore.new()
 	assert_bool(store.from_json(v1)).is_true()
 	assert_int(int(store.builds[0]["armory"])).is_equal(CustomBuildStore.ARMORY_V1)
-	# The v2 shop does not list or follow it; the v1 panel still does.
+	# The v2 shop does not list or follow it ...
 	var vm := _vm(store)
 	assert_int(vm.entries().size()).is_equal(1)
 	assert_object(vm.active_guide()).is_null()
-	var vm1 := BuildsViewModel.new(store, "")
-	vm1.setup(VESPER, _v1, CombatFixtures.vesper().weapon, load(RecommendedBuildsDef.DEFAULT_PATH))
-	assert_int(vm1.entries().size()).is_equal(2)
-	assert_str(vm1.active_id()).is_equal("b1")
-	assert_object(vm1.active_guide()).is_not_null()
+	# ... but the file keeps it (as an old-Armory build) when the store is saved again.
+	var again := CustomBuildStore.new()
+	assert_bool(again.from_json(store.to_json())).is_true()
+	assert_int(again.builds.size()).is_equal(1)
+	assert_int(int(again.builds[0]["armory"])).is_equal(CustomBuildStore.ARMORY_V1)
