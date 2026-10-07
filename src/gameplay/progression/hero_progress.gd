@@ -48,7 +48,9 @@ var lumen: int = 0
 ## Lumen / Resonance earned this match by source (telemetry, economy sanity check).
 var earned: Dictionary = {}
 var exp_by: Dictionary = {}
-## ArmoryItemDef.Socket -> Mount.
+## Deprecated (v1 tiered mounts, retired at the Armory v2 switch-over): always
+## empty in matches. Equipment lives in `inv` (ItemInventory). Kept because the
+## wire format still carries the mount fields and BuildState reads it.
 var mounts: Dictionary = {}
 ## Squad upgrade ids owned (last for the match).
 var owned: Dictionary = {}

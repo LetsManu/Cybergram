@@ -20,8 +20,8 @@ func before_test() -> void:
 func _sample(store: CustomBuildStore) -> String:
 	var id := store.create(VESPER, "  Range poke  ")
 	store.add_step(id, &"med_pack", 1, BuildNodeDef.Section.OPENING)
-	store.add_step(id, &"focus_lens", 1, BuildNodeDef.Section.EARLY)
-	store.add_step(id, &"ember_heart", 2, BuildNodeDef.Section.CORE, PackedStringArray(["flux_coil"]), "spike")
+	store.add_step(id, &"ember_facet", 1, BuildNodeDef.Section.EARLY)
+	store.add_step(id, &"ember_heart", 1, BuildNodeDef.Section.CORE, PackedStringArray(["tempest_heart"]), "spike")
 	return id
 
 
@@ -74,15 +74,17 @@ func test_damaged_or_foreign_files_are_refused_and_change_nothing() -> void:
 
 func test_warnings_report_bad_references_without_editing() -> void:
 	var store := CustomBuildStore.new()
+	var cat := _cat.duplicate(true) as ArmoryCatalogDef
+	cat.find(&"prism_eye").disabled = true
 	var id := store.create(VESPER, "odd")
 	store.add_step(id, &"removed_item", 1)
-	store.add_step(id, &"rifling", 1)  # a Chip on a Mana gun
-	store.add_step(id, &"ember_heart", 4)  # three tiers only
+	store.add_step(id, &"prism_eye", 1)  # switched off
+	store.add_step(id, &"ember_heart", 4)  # a Signature is bought once
 	store.add_step(id, &"med_pack", 1, BuildNodeDef.Section.CORE, PackedStringArray(["ghost"]))
-	var w := CustomBuildStore.warnings(store.find(id), _cat, CombatFixtures.vesper().weapon)
+	var w := CustomBuildStore.warnings(store.find(id), cat, CombatFixtures.vesper().weapon)
 	assert_int(w.size()).is_equal(4)
 	assert_str(w[0]).contains("unknown item removed_item")
-	assert_str(w[1]).contains("does not fit")
+	assert_str(w[1]).contains("is not sold")
 	assert_str(w[2]).contains("no tier")
 	assert_str(w[3]).contains("unknown alternative ghost")
 	assert_int((store.find(id)["steps"] as Array).size()).is_equal(4)  # nothing deleted
@@ -109,9 +111,9 @@ func test_reset_to_default_copies_the_guide_core_path() -> void:
 	assert_bool(store.reset_to_default(id, _builds.for_hero(VESPER))).is_true()
 	var steps: Array = store.find(id)["steps"]
 	assert_str(String(steps[0]["item"])).is_equal("med_pack")
-	assert_str(String(steps[1]["item"])).is_equal("ember_heart")
+	assert_str(String(steps[1]["item"])).is_equal("ember_part")  # the guide's first mount step
 	for st in steps:
-		assert_bool(String(st["item"]) in ["bastion_weave", "null_weave", "ammo_piercing"]).is_false()  # situational only
+		assert_bool(String(st["item"]) in ["bastion_plate", "null_veil", "ammo_incendiary", "breaker_sigil"]).is_false()  # situational only
 
 
 func test_selected_build_drives_the_advisor_in_order() -> void:
@@ -125,13 +127,13 @@ func test_selected_build_drives_the_advisor_in_order() -> void:
 	var best := func() -> StringName: return _cat.at(BuildAdvisor.evaluate(g, st, _ar).best().item_index).id
 	assert_str(String(best.call())).is_equal("med_pack")
 	st.holdings[_cat.index_of(&"med_pack")] = 1
-	assert_str(String(best.call())).is_equal("focus_lens")
-	st.holdings[_cat.index_of(&"focus_lens")] = 1
+	assert_str(String(best.call())).is_equal("ember_facet")
+	st.holdings[_cat.index_of(&"ember_facet")] = 1
 	assert_str(String(best.call())).is_equal("ember_heart")
-	st.holdings[_cat.index_of(&"flux_coil")] = 2  # the alternative satisfies the last step
+	st.holdings[_cat.index_of(&"tempest_heart")] = 1  # the alternative satisfies the last step
 	assert_bool(BuildAdvisor.evaluate(g, st, _ar).advice.is_empty()).is_true()
-	# ShopModel uses it in place of the default guide.
-	var m := ShopModel.new(_cat, null, _builds, VESPER, st.weapon)
+	# ItemShopModel uses it in place of the default guide.
+	var m := ItemShopModel.new(_cat, null, _builds, VESPER, st.weapon)
 	m.set_custom_guide(g)
 	assert_object(m.build()).is_same(g)
 	m.set_custom_guide(null)

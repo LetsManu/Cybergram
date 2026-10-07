@@ -13,9 +13,9 @@ var _guides: RecommendedBuildsDef
 
 
 func before_test() -> void:
-	_cat = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+	_cat = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	_rules = load(GameSession.ECONOMY_RULES) as EconomyRulesDef
-	_guides = load(RecommendedBuildsDef.V22_PATH) as RecommendedBuildsDef
+	_guides = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
 
 
 ## A model over a progress block holding `places` ({place: item id}) and `lumen`.

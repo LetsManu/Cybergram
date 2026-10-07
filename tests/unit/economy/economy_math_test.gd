@@ -76,22 +76,18 @@ func test_sell_value_and_upgrade_cost() -> void:
 	assert_int(EconomyMath.sell_value(_r, 650, 0)).is_equal(390)
 	assert_int(EconomyMath.sell_value(_r, 330, 0)).is_equal(195)  # rounded down to 5
 	assert_int(EconomyMath.sell_value(_r, 900, 500)).is_equal(500 + 240)  # tier II bought this visit
-	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
-	var oc := cat.find(&"overclock")
+	var oc := ArmoryItemDef.new()  # a three-tier line (v1 shape; v22 items have one price)
+	oc.prices = PackedInt32Array([400, 900, 1800])
 	assert_int(EconomyMath.upgrade_cost(oc, 2, 1)).is_equal(500)
 	assert_int(EconomyMath.upgrade_cost(oc, 3, 2)).is_equal(900)
 	assert_int(EconomyMath.upgrade_cost(oc, 3, 0)).is_equal(1800)
 
 
-func test_slice_catalog_prices_are_inside_their_bands() -> void:
+func test_v22_catalog_prices_are_positive_and_consumables_stay_cheap() -> void:
 	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
-	var bands := [[250, 400], [600, 900], [1400, 1800]]
 	for it in cat.items:
-		if it.kind == ArmoryItemDef.Kind.MOUNT:
-			assert_int(it.tiers()).is_equal(3)
-			for t in 3:
-				assert_int(it.prices[t]).is_between(bands[t][0], bands[t][1])
-		elif it.kind == ArmoryItemDef.Kind.CONSUMABLE:
+		assert_int(it.price(1)).override_failure_message("%s has no price" % it.id).is_greater(0)
+		if it.kind == ArmoryItemDef.Kind.CONSUMABLE:
 			assert_int(it.prices[0]).is_less_equal(200)
 	var slice_rules := load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef
 	assert_float(slice_rules.trickle_per_min).is_equal(60.0)  # §26 slice re-tune

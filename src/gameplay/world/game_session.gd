@@ -85,8 +85,6 @@ var _tick_us_n: int = 0
 func _ready() -> void:
 	if launch_config != null:
 		dedicated = launch_config.mode == LaunchConfig.Mode.DEDICATED
-		# Armory v2 preview: server and client both read ArmoryCatalogDef.active_path().
-		ArmoryCatalogDef.use_v22 = launch_config.catalog_v22
 		_quit_after_ticks = launch_config.quit_after_ticks
 		if launch_config.net_sim_name != "":
 			net_sim = load(NET_SIM_PATH % launch_config.net_sim_name) as NetSimProfile

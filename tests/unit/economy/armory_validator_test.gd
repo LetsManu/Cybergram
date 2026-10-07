@@ -127,11 +127,14 @@ func test_wire_index_limits_for_squad_and_mounts() -> void:
 func test_disabled_and_wrong_family_items_in_a_guide_are_errors() -> void:
 	var cat := load(ArmoryCatalogDef.DEFAULT_PATH).duplicate(true) as ArmoryCatalogDef
 	cat.find(&"flux_coil").disabled = true
+	# The v22 catalog sells every item to every gun; the validator's family rule
+	# still guards a family-locked item, so lock one here.
+	cat.find(&"ember_heart").family = ArmoryItemDef.Family.CRYSTAL
 	var b := RecommendedBuildDef.new()
 	b.hero_id = &"hero_brannoc"
 	b.display_name = "G"
 	b.nodes.append(_node(&"n1", &"ember_heart"))  # Crystal on a Mech gun
-	b.nodes.append(_node(&"n2", &"overclock", 1, ["n1"]))
+	b.nodes.append(_node(&"n2", &"ammo_sunder", 1, ["n1"]))
 	var bs := RecommendedBuildsDef.new()
 	bs.builds.append(b)
 	var b2 := RecommendedBuildDef.new()
@@ -145,7 +148,8 @@ func test_disabled_and_wrong_family_items_in_a_guide_are_errors() -> void:
 
 
 func test_fallback_node_may_name_another_family_without_error() -> void:
-	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
+	var cat := load(ArmoryCatalogDef.DEFAULT_PATH).duplicate(true) as ArmoryCatalogDef
+	cat.find(&"ember_heart").family = ArmoryItemDef.Family.CRYSTAL
 	var b := RecommendedBuildDef.new()
 	b.hero_id = &"hero_brannoc"
 	b.display_name = "F"
@@ -218,7 +222,7 @@ func test_hero_roles_and_tags_from_data() -> void:
 # --- Armory v2 (v22 catalog) -------------------------------------------------------
 
 func _v22() -> ArmoryCatalogDef:
-	return (load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef).duplicate(true) as ArmoryCatalogDef
+	return (load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef).duplicate(true) as ArmoryCatalogDef
 
 
 func _errors_of(cat: ArmoryCatalogDef) -> String:
@@ -226,7 +230,7 @@ func _errors_of(cat: ArmoryCatalogDef) -> String:
 
 
 func test_v22_catalog_is_clean() -> void:
-	var r := ArmoryValidator.check(load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef)
+	var r := ArmoryValidator.check(load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef)
 	assert_array(Array(r["errors"])).is_empty()
 
 

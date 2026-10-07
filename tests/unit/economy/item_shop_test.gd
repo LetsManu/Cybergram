@@ -13,7 +13,7 @@ var _bodies: Array[HeroBody] = []
 
 
 func before_test() -> void:
-	_cat = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+	_cat = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 
 
 func after_test() -> void:

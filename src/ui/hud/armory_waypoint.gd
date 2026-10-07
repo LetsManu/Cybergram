@@ -14,8 +14,8 @@ const ARROWS: Array[String] = ["↑", "→", "↓", "←"]
 
 ## Tuning (ArmoryMarkerDef .tres).
 var def: ArmoryMarkerDef
-## Own ShopModel for the affordability test (can_buy over the catalog).
-var model: ShopModel
+## Own ItemShopModel for the affordability test (state() over the catalog).
+var model: ItemShopModel
 ## Seconds of "first spawn" guidance left (-1 = not started yet).
 var spawn_left: float = -1.0
 ## Result of the last evaluation (tests, HudRoot).
@@ -102,11 +102,11 @@ static func hint_suffix(dist: float, rel: float) -> String:
 
 
 ## Any catalog line the hero can buy right now (replicated Lumen, family, tier).
-static func can_afford_any(m: ShopModel) -> bool:
+static func can_afford_any(m: ItemShopModel) -> bool:
 	if m == null or m.catalog == null or m.progress == null:
 		return false
 	for i in m.catalog.items.size():
-		if m.can_buy(i):
+		if m.state(i) == ItemShopModel.State.AVAILABLE:
 			return true
 	return false
 
@@ -129,7 +129,7 @@ func evaluate(delta: float) -> bool:
 	elif spawn_left > 0.0 and not dead:
 		spawn_left = maxf(0.0, spawn_left - delta)
 	if model == null:
-		model = ShopModel.new()
+		model = ItemShopModel.new()
 	model.catalog = c.catalog
 	model.rules = _econ
 	model.builds = _builds
@@ -174,11 +174,11 @@ static func hint_for(c: ClientWorld, team: int) -> String:
 
 
 ## Cheap fingerprint of everything in the replicated progress that changes what
-## can be bought (Lumen, owned lines, Med-Packs): re-check affordability on change.
+## can be bought (Lumen, inventory, owned lines, Med-Packs): re-check affordability on change.
 static func progress_signature(p: SnapshotData.ProgressState) -> int:
 	var h := p.lumen * 31 + p.owned_bits * 17 + p.medpacks * 7 + p.level
-	for i in p.mount_item.size():
-		h = h * 31 + p.mount_item[i] * 5 + p.mount_tier[i]
+	for i in p.inv_items.size():
+		h = h * 31 + p.inv_items[i] * 5
 	return h
 
 

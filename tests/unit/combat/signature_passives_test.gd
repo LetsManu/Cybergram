@@ -53,7 +53,7 @@ func test_rules_file_holds_the_gdd_numbers() -> void:
 
 
 func test_v22_catalog_names_the_14_passives() -> void:
-	var cat := load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	var ids := {}
 	for it in cat.items:
 		if it != null and it.passive != &"":

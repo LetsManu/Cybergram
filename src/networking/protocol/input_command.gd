@@ -48,11 +48,10 @@ const _POINT_STEPS: float = 8.0
 const ACTION_NONE: int = 0
 ## arg = skill slot (0..3): learn that slot's next node (Alt + skill key).
 const ACTION_LEARN: int = 1
-## arg = catalog index | tier << 8 (tier 0 = next tier).
+## arg = catalog index (the server buys the next part of a recipe item).
+## The old `tier << 8` byte (v1 mount tiers) is ignored.
 const ACTION_BUY: int = 2
-## arg = ArmoryItemDef.Socket to sell (a mount; undo when bought this visit),
-## or UNDO_ITEM_FLAG | catalog index to undo a squad upgrade / Med-Pack bought
-## this Armory visit (v21).
+## v22: see UNDO_ITEM_FLAG / UNDO_ROW_FLAG / UNDO_LAST below.
 const ACTION_SELL: int = 3
 const UNDO_ITEM_FLAG: int = 0x100
 ## v22 Armory v2 ACTION_SELL args: the low byte is an inventory place

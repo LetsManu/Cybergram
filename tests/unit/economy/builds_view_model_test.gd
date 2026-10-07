@@ -71,9 +71,12 @@ func test_paste_accepts_only_this_heros_builds() -> void:
 
 
 func test_warnings_show_on_entries() -> void:
+	var cat := _cat.duplicate(true) as ArmoryCatalogDef
+	cat.find(&"prism_eye").disabled = true  # switched off by the server
+	_vm.setup(VESPER, cat, CombatFixtures.vesper().weapon, load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef)
 	var i := _vm.new_from_default()
 	_vm.use(i)
-	_vm.add_item(_cat.index_of(&"rifling"), 1)  # a Chip on a Mana gun
+	_vm.add_item(cat.index_of(&"prism_eye"), 1)
 	var w: PackedStringArray = _vm.entries()[i]["warnings"]
 	assert_int(w.size()).is_equal(1)
-	assert_str(w[0]).contains("does not fit")
+	assert_str(w[0]).contains("is not sold")

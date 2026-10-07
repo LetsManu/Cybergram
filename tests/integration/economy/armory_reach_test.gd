@@ -81,9 +81,9 @@ func test_a_fresh_spawn_can_shop_in_the_sanctum() -> void:
 	assert_object(h).is_not_null()
 	_input.hero_id = h.net_id
 	assert_int(_client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY).is_not_equal(0)
-	_input.queued.append([InputCommand.ACTION_BUY, _server.progression.catalog.index_of(&"ember_heart") | (1 << 8)])
+	_input.queued.append([InputCommand.ACTION_BUY, _server.progression.catalog.index_of(&"ember_part")])
 	_tick(4)
-	assert_int(_client.progress.mount_item[0]).is_not_equal(-1)
+	assert_bool(_client.progress.inv_items.has(_server.progression.catalog.index_of(&"ember_part"))).is_true()
 
 
 func test_walking_from_spawn_reaches_the_pad_and_the_flag_replicates() -> void:
@@ -105,6 +105,6 @@ func test_walking_from_spawn_reaches_the_pad_and_the_flag_replicates() -> void:
 	var d := Vector2(h.state.position.x - pad.x, h.state.position.z - pad.z).length()
 	print("armory reach: %d ticks, %.2f m from the pad centre at %s" % [ticks, d, h.state.position])
 	assert_int(_client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY).is_not_equal(0)
-	_input.queued.append([InputCommand.ACTION_BUY, _server.progression.catalog.index_of(&"ember_heart") | (1 << 8)])
+	_input.queued.append([InputCommand.ACTION_BUY, _server.progression.catalog.index_of(&"ember_part")])
 	_tick(4)
-	assert_int(_client.progress.mount_item[0]).is_not_equal(-1)
+	assert_bool(_client.progress.inv_items.has(_server.progression.catalog.index_of(&"ember_part"))).is_true()

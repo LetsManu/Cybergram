@@ -1,17 +1,18 @@
 extends GdUnitTestSuite
-## v21 Armory transactions on a real ServerWorld: same-visit undo of squad
-## upgrades and Med-Packs (full refund, effects removed, dependants block it,
-## gone after the visit), the shop result channel (shop_seq / shop_result
+## Armory transactions on a real ServerWorld (v22 catalog): same-visit undo of
+## squad upgrades and Med-Packs (full refund, effects removed, dependants block
+## it, gone after the visit), the shop result channel (shop_seq / shop_result
 ## through handle_action -> fill_own -> codec), forged and repeated requests,
 ## failed requests change nothing, price_of honours ownership, the wire format
-## round-trips and catalog wire indices stay pinned.
+## round-trips and the catalog's squad / consumable wire indices stay pinned
+## (the full v22 order: item_shop_wire_test.gd).
 
 const HZ: int = 30
 ## Wire contract: catalog order is the network item id (ACTION_BUY,
 ## ProgressState). Existing entries may never move; new items are appended.
 const PINNED_ORDER: Array[StringName] = [&"med_pack", &"squad_expansion_1", &"squad_expansion_2",
-	&"reinforced_cores_1", &"reinforced_cores_2", &"amplifier_emitters", &"ember_heart", &"flux_coil",
-	&"overclock", &"quickload", &"ammo_piercing", &"ammo_sunder"]
+	&"reinforced_cores_1", &"reinforced_cores_2", &"amplifier_emitters", &"harmonic_tether", &"quick_mint",
+	&"bulwark_protocol", &"ember_part", &"tempo_part", &"lens_part"]
 
 var _server: ServerWorld
 var _link: LoopbackLink
@@ -59,6 +60,16 @@ func _idx(id: StringName) -> int:
 	return _cat.index_of(id)
 
 
+## The v22 request undoing a squad upgrade / Med-Pack bought this visit.
+func _undo_row(h: HeroBody, id: StringName) -> int:
+	return _pr.handle_action(h, _cmd(InputCommand.ACTION_SELL,
+		InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG | _idx(id)))
+
+
+func _cost(id: StringName) -> int:
+	return RecipeMath.total(_cat, _idx(id))
+
+
 func test_catalog_wire_indices_are_pinned() -> void:
 	for i in PINNED_ORDER.size():
 		assert_str(String(_cat.at(i).id)).override_failure_message(
@@ -73,14 +84,14 @@ func test_squad_upgrade_undo_refunds_and_removes_the_effect_this_visit_only() ->
 	assert_int(_pr.buy(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.OK)
 	assert_float(h.combat.stats.get_value(StatCatalog.hero_index(&"squad_capacity_bonus"))).is_equal(cap0 + 1.0)
 	assert_int(_own(h).visit_owned_bits & (1 << _idx(&"squad_expansion_1"))).is_not_equal(0)
-	assert_int(_pr.undo_item(h, _idx(&"squad_expansion_1"))).is_equal(HeroProgress.Result.OK)
+	assert_int(_undo_row(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.OK)
 	assert_int(p.lumen).is_equal(2000)
 	assert_bool(p.owned.has(&"squad_expansion_1")).is_false()
 	assert_float(h.combat.stats.get_value(StatCatalog.hero_index(&"squad_capacity_bonus"))).is_equal(cap0)
 	# Bought again, then the visit ends: no more undo.
 	assert_int(_pr.buy(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.OK)
 	p.end_visit()
-	assert_int(_pr.undo_item(h, _idx(&"squad_expansion_1"))).is_equal(HeroProgress.Result.NOT_OWNED)
+	assert_int(_undo_row(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.NOT_OWNED)
 	assert_int(_own(h).visit_owned_bits).is_equal(0)
 
 
@@ -89,9 +100,9 @@ func test_squad_undo_is_blocked_while_an_upgrade_built_on_it_is_held() -> void:
 	_pr.progress_of(h).lumen = 5000
 	assert_int(_pr.buy(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.OK)
 	assert_int(_pr.buy(h, &"squad_expansion_2")).is_equal(HeroProgress.Result.OK)
-	assert_int(_pr.undo_item(h, _idx(&"squad_expansion_1"))).is_equal(HeroProgress.Result.REQUIRES)
-	assert_int(_pr.undo_item(h, _idx(&"squad_expansion_2"))).is_equal(HeroProgress.Result.OK)
-	assert_int(_pr.undo_item(h, _idx(&"squad_expansion_1"))).is_equal(HeroProgress.Result.OK)
+	assert_int(_undo_row(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.REQUIRES)
+	assert_int(_undo_row(h, &"squad_expansion_2")).is_equal(HeroProgress.Result.OK)
+	assert_int(_undo_row(h, &"squad_expansion_1")).is_equal(HeroProgress.Result.OK)
 	assert_int(_pr.progress_of(h).lumen).is_equal(5000)
 
 
@@ -102,13 +113,13 @@ func test_med_pack_undo_this_visit_and_not_after_use() -> void:
 	assert_int(_pr.buy(h, &"med_pack")).is_equal(HeroProgress.Result.OK)
 	assert_int(_pr.buy(h, &"med_pack")).is_equal(HeroProgress.Result.OK)
 	assert_int(_own(h).visit_medpacks).is_equal(2)
-	assert_int(_pr.undo_item(h, _idx(&"med_pack"))).is_equal(HeroProgress.Result.OK)
+	assert_int(_undo_row(h, &"med_pack")).is_equal(HeroProgress.Result.OK)
 	assert_int(p.medpacks).is_equal(1)
 	assert_int(p.lumen).is_equal(900)
 	h.combat.health.hp = 100.0
 	assert_int(_server.use_medpack(h)).is_equal(HeroProgress.Result.OK)
 	assert_int(_server.use_medpack(h)).is_equal(HeroProgress.Result.NOT_OWNED)
-	assert_int(_pr.undo_item(h, _idx(&"med_pack"))).is_equal(HeroProgress.Result.NOT_OWNED)
+	assert_int(_undo_row(h, &"med_pack")).is_equal(HeroProgress.Result.NOT_OWNED)
 	assert_int(p.lumen).is_equal(900)
 
 
@@ -124,22 +135,23 @@ func test_second_med_pack_while_healing_reports_healing() -> void:
 func test_requests_report_their_result_through_the_snapshot() -> void:
 	var h := _hero()
 	var p := _pr.progress_of(h)
+	var cost := _cost(&"ember_heart")
 	p.lumen = 100
 	var seq0 := _own(h).shop_seq
-	_pr.handle_action(h, _cmd(InputCommand.ACTION_BUY, ShopModel.buy_arg(_idx(&"ember_heart"), 1)))
+	_pr.handle_action(h, _cmd(InputCommand.ACTION_BUY, _idx(&"ember_heart")))
 	var o := _own(h)
 	assert_int(o.shop_seq).is_equal((seq0 + 1) & 0xFF)
 	assert_int(o.shop_result).is_equal(HeroProgress.Result.NO_FUNDS)
 	assert_int(o.lumen).is_equal(100)
-	p.lumen = 1000
-	_pr.handle_action(h, _cmd(InputCommand.ACTION_BUY, ShopModel.buy_arg(_idx(&"ember_heart"), 1)))
+	p.lumen = cost + 1000
+	_pr.handle_action(h, _cmd(InputCommand.ACTION_BUY, _idx(&"ember_heart")))
 	o = _own(h)
 	assert_int(o.shop_seq).is_equal((seq0 + 2) & 0xFF)
 	assert_int(o.shop_result).is_equal(HeroProgress.Result.OK)
-	_pr.handle_action(h, _cmd(InputCommand.ACTION_SELL, ArmoryItemDef.Socket.CORE))
+	_pr.handle_action(h, _cmd(InputCommand.ACTION_SELL, InputCommand.UNDO_LAST))
 	o = _own(h)
 	assert_int(o.shop_result).is_equal(HeroProgress.Result.OK)
-	assert_int(o.lumen).is_equal(1000)  # undo: full refund
+	assert_int(o.lumen).is_equal(cost + 1000)  # undo: full refund
 	# Non-shop actions do not move the shop sequence.
 	_pr.handle_action(h, _cmd(InputCommand.ACTION_SPAWN_CHOICE, 0))
 	assert_int(_own(h).shop_seq).is_equal((seq0 + 3) & 0xFF)
@@ -151,19 +163,16 @@ func test_forged_requests_are_refused_and_change_nothing() -> void:
 	p.lumen = 5000
 	var cases := [
 		[InputCommand.ACTION_BUY, 0xFF, HeroProgress.Result.UNKNOWN_ITEM],  # index past the catalog
-		[InputCommand.ACTION_BUY, ShopModel.buy_arg(_idx(&"ember_heart"), 9), HeroProgress.Result.INVALID],
-		[InputCommand.ACTION_BUY, ShopModel.buy_arg(_idx(&"overclock"), 1), HeroProgress.Result.WRONG_FAMILY],
-		[InputCommand.ACTION_SELL, 0, HeroProgress.Result.INVALID],  # socket NONE
+		[InputCommand.ACTION_SELL, 0, HeroProgress.Result.INVALID],  # no such place
 		[InputCommand.ACTION_SELL, 77, HeroProgress.Result.INVALID],
-		[InputCommand.ACTION_SELL, ArmoryItemDef.Socket.CORE, HeroProgress.Result.NOT_OWNED],
-		[InputCommand.ACTION_SELL, InputCommand.UNDO_ITEM_FLAG | _idx(&"ember_heart"), HeroProgress.Result.NOT_OWNED],
-		[InputCommand.ACTION_SELL, InputCommand.UNDO_ITEM_FLAG | 0xFF, HeroProgress.Result.UNKNOWN_ITEM],
+		[InputCommand.ACTION_SELL, InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG | _idx(&"med_pack"),
+			HeroProgress.Result.NOT_OWNED],
 	]
 	for c in cases:
 		var r := _pr.handle_action(h, _cmd(c[0], c[1]))
 		assert_int(r).override_failure_message("arg %d -> %d" % [c[1], r]).is_equal(c[2])
 		assert_int(p.lumen).is_equal(5000)
-		assert_int(p.mounts.size()).is_equal(0)
+		assert_int(p.inv.pool().size()).is_equal(0)
 		assert_int(p.owned.size()).is_equal(0)
 		assert_int(p.medpacks).is_equal(0)
 
@@ -172,23 +181,24 @@ func test_repeated_buy_of_a_squad_upgrade_charges_once() -> void:
 	var h := _hero()
 	var p := _pr.progress_of(h)
 	p.lumen = 2000
-	var arg := ShopModel.buy_arg(_idx(&"reinforced_cores_1"))
+	var arg := _idx(&"reinforced_cores_1")
 	assert_int(_pr.handle_action(h, _cmd(InputCommand.ACTION_BUY, arg))).is_equal(HeroProgress.Result.OK)
 	assert_int(_pr.handle_action(h, _cmd(InputCommand.ACTION_BUY, arg))).is_equal(HeroProgress.Result.LIMIT)
 	assert_int(p.lumen).is_equal(2000 - 350)
 
 
-func test_repeated_tier_buy_upgrades_in_place_without_stacking_modifiers() -> void:
+func test_repeated_buy_of_a_signature_is_refused_without_stacking_modifiers() -> void:
 	var h := _hero()
 	var p := _pr.progress_of(h)
-	p.lumen = 5000
+	p.lumen = 9000
 	var i := StatCatalog.hero_index(&"mod_damage")
 	var base: float = h.combat.stats.get_value(i)
-	assert_int(_pr.buy(h, &"ember_heart", 1)).is_equal(HeroProgress.Result.OK)
-	assert_int(_pr.buy(h, &"ember_heart", 1)).is_equal(HeroProgress.Result.LIMIT)
-	assert_int(_pr.buy(h, &"ember_heart", 2)).is_equal(HeroProgress.Result.OK)
-	assert_float(h.combat.stats.get_value(i)).is_equal_approx(base + 0.11, 1e-5)
-	assert_int(p.lumen).is_equal(5000 - 900)
+	assert_int(_pr.buy(h, &"ember_heart")).is_equal(HeroProgress.Result.OK)
+	var once: float = h.combat.stats.get_value(i)
+	assert_float(once).is_greater(base)
+	assert_int(_pr.buy(h, &"ember_heart")).is_equal(HeroProgress.Result.ALREADY_OWNED)
+	assert_float(h.combat.stats.get_value(i)).is_equal_approx(once, 1e-6)
+	assert_int(p.lumen).is_equal(9000 - _cost(&"ember_heart"))
 
 
 func test_price_of_respects_ownership_requirements_and_carry() -> void:
@@ -207,12 +217,12 @@ func test_price_of_respects_ownership_requirements_and_carry() -> void:
 func test_spent_lumen_is_tracked_net_of_refunds() -> void:
 	var h := _hero()
 	var p := _pr.progress_of(h)
-	p.lumen = 3000
-	_pr.buy(h, &"ember_heart", 1)
+	p.lumen = 9000
+	_pr.buy(h, &"ember_heart")
 	_pr.buy(h, &"med_pack")
-	assert_int(p.spent_lumen).is_equal(500)
-	_pr.sell(h, ArmoryItemDef.Socket.CORE)
-	assert_int(p.spent_lumen).is_equal(100)
+	assert_int(p.spent_lumen).is_equal(_cost(&"ember_heart") + 100)
+	_pr.undo(h, -1)  # the last change of the visit: the Med-Pack
+	assert_int(p.spent_lumen).is_equal(_cost(&"ember_heart"))
 
 
 func test_progress_wire_round_trip_keeps_the_v21_fields() -> void:
@@ -245,16 +255,17 @@ func test_shop_model_offers_undo_for_squad_and_med_pack_bought_this_visit() -> v
 	p.lumen = 3000
 	_pr.buy(h, &"reinforced_cores_1")
 	_pr.buy(h, &"med_pack")
-	var m := ShopModel.new(_cat, load("res://assets/data/economy/economy_rules_slice.tres"), null,
+	var m := ItemShopModel.new(_cat, load("res://assets/data/economy/economy_rules_slice.tres"), null,
 		&"hero_vesper_loom", h.combat.def.weapon)
 	m.update(_own(h))
 	var cores := _idx(&"reinforced_cores_1")
-	assert_int(m.undo_arg(cores)).is_equal(InputCommand.UNDO_ITEM_FLAG | cores)
-	assert_int(m.undo_value(cores)).is_equal(350)
-	assert_int(m.undo_arg(_idx(&"med_pack"))).is_equal(InputCommand.UNDO_ITEM_FLAG | _idx(&"med_pack"))
-	assert_int(m.undo_arg(_idx(&"amplifier_emitters"))).is_equal(-1)
-	_pr.handle_action(h, _cmd(InputCommand.ACTION_SELL, m.undo_arg(cores)))
+	assert_int(m.row_undo_arg(cores)).is_equal(InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG | cores)
+	var row := InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG
+	assert_int(m.row_undo_arg(_idx(&"med_pack"))).is_equal(row | _idx(&"med_pack"))
+	assert_int(m.row_undo_arg(_idx(&"amplifier_emitters"))).is_equal(-1)
+	var before := p.lumen
+	_pr.handle_action(h, _cmd(InputCommand.ACTION_SELL, m.row_undo_arg(cores)))
+	assert_int(p.lumen).is_equal(before + _cost(&"reinforced_cores_1"))  # full refund
 	m.update(_own(h))
-	assert_int(m.undo_arg(cores)).is_equal(-1)
-	assert_int(m.held_tier(cores)).is_equal(0)
-	assert_str(ShopModel.result_key(HeroProgress.Result.NO_FUNDS)).is_equal("HUD_SHOP_R_NO_FUNDS")
+	assert_int(m.row_undo_arg(cores)).is_equal(-1)
+	assert_str(ItemShopModel.result_key(HeroProgress.Result.NO_FUNDS)).is_equal("HUD_SHOP_R_NO_FUNDS")

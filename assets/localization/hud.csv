@@ -1139,6 +1139,7 @@ HUD_ADVICE_S_UTILITY,Adds utility for you and your team.
 HUD_ADVICE_S_COUNTER,Counters the enemy team.
 HUD_ADVICE_S_LATE,A late-game upgrade once your core is done.
 HUD_ADVICE_N_OPEN,A Med-Pack keeps your first fights safe.
+HUD_ADVICE_N_RESTOCK,Top the bag back up to three Med-Packs.
 HUD_ADVICE_N_FIRST_MOUNT,Your first Core mount: more damage on every shot.
 HUD_ADVICE_N_SPIKE,This completes your first power spike.
 HUD_ADVICE_N_LUXURY,Luxury upgrade once everything else is done.

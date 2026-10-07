@@ -1,7 +1,7 @@
 # Items & Armory v2 (Recipes, Gun Sockets, Open Item Slots)
 
 *Created: 2026-10-07*
-*Status: **Approved 2026-10-07 (owner).** Canon. The owner's answers are in "Owner decisions" at the end; the economy review is `docs/balance/armory-v2-review.md`. Canon text in `game-concept.md`, `weapons-and-mods.md`, `wardlings-and-economy.md`, `heroes.md` and `design/registry/entities.yaml` was updated the same day (§9). Code, `.tres` data and `docs/armory.md` still describe the shipped v1 (protocol 21) Armory and change with the implementation.*
+*Status: **Approved 2026-10-07 (owner).** Canon. The owner's answers are in "Owner decisions" at the end; the economy review is `docs/balance/armory-v2-review.md`. Canon text in `game-concept.md`, `weapons-and-mods.md`, `wardlings-and-economy.md`, `heroes.md` and `design/registry/entities.yaml` was updated the same day (§9). Implemented in protocol 22 (C1-C7); `docs/armory.md` describes the code and `docs/balance/armory-v2-review.md` Part A the balance pass.*
 *Brief: `docs/plans/armory-v2-recipes-gear.md`.*
 *Binding sources: `game-concept.md` Canon C6, C10, C14, C16 and Pillar 4; `weapons-and-mods.md` §3.3–§3.7 and §4 (damage, TTK targets, ammo); `wardlings-and-economy.md` §7 (squad upgrades) and §17–§18 (Lumen curve); `heroes.md` §3.1, §3.4, §5.1–§5.3 (HP, armor, CDR cap, EHP, skill-bonus clamp).*
 *Release: one complete release, **protocol 22** (server and clients together).*
@@ -546,6 +546,8 @@ All knobs live in `assets/data/economy/` (catalog, advice rules), never in code.
 15. Average curve: first Signature at 10–14 min for gun-first guides and 15–19 min for balanced guides; no dead zone over 240 s before 30:00; unspent Lumen at 30:00 ≤ 15% for every hero.
 16. Full build: the strong curve with no squad spend reaches it at 28–33 min. **At the balanced split, the average player owns 45–55% of the full build at 30:00** (gun-first guides: 65–80%).
 17. Spend split on **balanced** guides, average curve, at 30:00: items 65–70%, squad 20–25%, consumables 5–15%. Gun-first guides are exempt (items ≤ 80%).
+> **Implementation note (C7 balance pass, `docs/balance/armory-v2-review.md` Part A):** AC 15, 16 (balanced guides, strong full build at 30:44-32:04) and 17 hold in the simulator. Gun-first guides own 57% of the full build at 30:00, not 65-80%: with items capped at 80% and about 12% of spend on restocked Med-Packs the two bounds cannot both hold. For the game designer to decide.
+
 18. Brannoc: with P 0.60, Brannoc's L1 EHP is ≥ 2.35× a 250 HP hero's (`weapons-and-mods.md` §3.4 rule c).
 
 **Visual / experiential (screenshots in `production/qa/evidence/`, playtest):**
@@ -593,8 +595,8 @@ All knobs live in `assets/data/economy/` (catalog, advice rules), never in code.
 
 ### 9.2 Waiting for the implementation (not changed now)
 
-- `docs/armory.md`: describes the shipped v1 code ("There is no generic six-slot inventory", protocol 21 wire contract, v1 item list). Rewrite with the protocol 22 code.
-- Code and data: `ArmoryItemDef` fields, `armory_catalog_*.tres`, `HeroProgress` / `ProgressState` slot state, `Armory` purchase rules, `BuildAdvisor`, `CustomBuildStore` v2, guides in `tools/armory/build_guides.py`, `ArmoryPanel` / `ShopModel`, the `G_hit` clamp and the armor split in the damage path, the balance report columns (§3.10 rule 7).
+- `docs/armory.md`: rewritten for protocol 22 (done, C7).
+- Code and data (done, C1-C7; v1 shop code removed): `ArmoryItemDef` fields, `armory_catalog_*.tres`, `HeroProgress` / `ProgressState` slot state, `Armory` purchase rules, `BuildAdvisor`, `CustomBuildStore` v2, guides in `tools/armory/build_guides_v22.py`, `ArmoryPanel` / `ShopModel`, the `G_hit` clamp and the armor split in the damage path, the balance report columns (§3.10 rule 7).
 - `docs/plans/armory-v2-recipes-gear.md`: mark delivery step 1 done.
 - `design/gdd/systems-index.md`: does not exist yet; add this GDD when it is created.
 

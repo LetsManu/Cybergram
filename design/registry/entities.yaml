@@ -462,7 +462,7 @@ items:
     added: 2026-10-07
     revised: ""
   - name: bastion_weave
-    status: deprecated       # Armory v2: replaced by plate_scale -> plate_harness -> bastion_plate (open slot); still in shipped v1 code
+    status: deprecated       # Armory v2: replaced by plate_scale -> plate_harness -> bastion_plate (open slot); v1 code removed at the protocol 22 switch-over
     source: design/gdd/weapons-and-mods.md
     referenced_by: [docs/armory.md]
     value_lumen: [300, 700, 1500]
@@ -471,7 +471,7 @@ items:
     added: 2026-10-07
     revised: 2026-10-07
   - name: null_weave
-    status: deprecated       # Armory v2: replaced by null_thread -> null_cowl -> null_veil (open slot); still in shipped v1 code
+    status: deprecated       # Armory v2: replaced by null_thread -> null_cowl -> null_veil (open slot); v1 code removed at the protocol 22 switch-over
     source: design/gdd/weapons-and-mods.md
     referenced_by: [docs/armory.md]
     value_lumen: [300, 700, 1500]

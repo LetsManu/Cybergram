@@ -26,7 +26,7 @@ static func data() -> Dictionary:
 ## tools may inject another one with set_catalog().
 static func catalog() -> ArmoryCatalogDef:
 	if _catalog == null:
-		_catalog = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+		_catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	return _catalog
 
 

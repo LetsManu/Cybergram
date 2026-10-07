@@ -8,7 +8,7 @@ var _link: LoopbackLink
 var _net: NetConfig
 
 
-func _world(catalog_path: String = ArmoryCatalogDef.V22_PATH) -> void:
+func _world(catalog_path: String = ArmoryCatalogDef.DEFAULT_PATH) -> void:
 	_net = NetFixtures.net_config()
 	_link = LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
 	var vp := SubViewport.new()
@@ -147,13 +147,13 @@ func test_death_ends_the_victims_passive_state() -> void:
 	assert_int(t.combat.passives.last_damaged_tick).is_equal(SignaturePassives.NEVER)
 
 
-func test_v1_catalog_turns_no_passive_on() -> void:
-	_world(ArmoryCatalogDef.DEFAULT_PATH)
+func test_a_loadout_without_a_signature_turns_no_passive_on() -> void:
+	_world()
 	var id := _server.add_scripted_hero(ScriptedInputSource.new(CombatFixtures.idle_input()),
 		_server.spawn_point("PlayerSpawn"), _vesper(), ServerWorld.TEAM_PLAYERS)
 	var h := _server.hero(id)
 	await get_tree().physics_frame
 	_server.progression.progress_of(h).lumen = 20000.0
-	_server.buy(h, &"ember_heart")
+	_server.buy(h, &"ember_part")  # a Component, not a Signature
 	_tick(5)
 	assert_bool(h.combat.passives.active.is_empty()).is_true()

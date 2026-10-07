@@ -89,5 +89,6 @@ static func sell_value(r: EconomyRulesDef, paid_total: int, paid_visit: int) -> 
 
 
 ## §4.7 UpgradeCost = list(new) − list(held) for the same line (held tier 0 = empty).
+## Deprecated: v1 tiered mounts are gone; v22 items have one price (RecipeMath prices recipes).
 static func upgrade_cost(item: ArmoryItemDef, new_tier: int, held_tier: int) -> int:
 	return item.price(new_tier) - (item.price(held_tier) if held_tier >= 1 else 0)

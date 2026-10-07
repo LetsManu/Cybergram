@@ -96,6 +96,8 @@ never receive item data.
 | C6 Visuals + replication | public per-hero build replication (sent on change, not per snapshot); gun parts for Component / Assembly / Signature; body anchors on the 7 hero rigs + gear meshes; ammo-coloured tracers and impacts; HUD strip, scoreboard and death-card builds | tech-art + network agents | C1 |
 | C7 Release | balance pass with the v2 report, docs (`docs/armory.md`), full suite, CI, version + launcher, release notes | lead | all |
 
+C7 status: switch-over, balance pass, docs and release notes done; version tag and launcher are the lead's.
+
 Known scope note: "Ammo Sparks" (Deep Reserve refill) do not exist in code; C3 applies Deep
 Reserve to Supply Cache refills and records Sparks as a gap.
 

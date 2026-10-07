@@ -3,9 +3,9 @@ extends GdUnitTestSuite
 ## hero kills enemy Vanguard Wardlings beside it -> instant Lumen (75%) and the
 ## Mote it stands on (25%) plus Resonance -> level 2 -> learns a skill with an
 ## ACTION_LEARN input -> a buy at the Sanctum is refused -> walks to the HQ
-## Armory pad -> buys Ember Heart with ACTION_BUY -> the server's weapon damage
-## rises 6% and the client's replicated progress shows Lumen, level, points and
-## the mounted Crystal (and the first-person gun grows a mount mesh).
+## Armory pad -> buys an Ember Shard with ACTION_BUY -> the server's weapon damage
+## rises 5% and the client's replicated progress shows Lumen, level, points and
+## the item in its inventory (v22 recipe Armory).
 
 const MAP_PATH := "res://assets/data/match/map_slice_lane.tres"
 const C := MapDef.TEAM_CONCORD
@@ -120,11 +120,11 @@ func test_kill_wardlings_level_learn_walk_to_armory_buy_crystal() -> void:
 	assert_int(_client.progress.skill_points).is_equal(1)
 	# A buy at the Sanctum is refused with the Sanctum shop off (pad only).
 	var cat := pr.catalog
-	var ember := cat.index_of(&"ember_heart")
+	var ember := cat.index_of(&"ember_part")
 	var dmg_before := _server.weapon_hit_damage(h, 10.0)
-	_input.queued.append([InputCommand.ACTION_BUY, ember | (1 << 8)])
+	_input.queued.append([InputCommand.ACTION_BUY, ember])
 	_tick(4)
-	assert_int(_client.progress.mount_item[0]).is_equal(-1)
+	assert_bool(_client.progress.inv_items.has(ember)).is_false()
 	assert_int(p.lumen).is_equal(850)
 	# Walk to the Armory pad.
 	_input.go(def.hq(C).armory)
@@ -133,33 +133,30 @@ func test_kill_wardlings_level_learn_walk_to_armory_buy_crystal() -> void:
 		if (_client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) != 0:
 			break
 	assert_int(_client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY).is_not_equal(0)
-	_input.queued.append([InputCommand.ACTION_BUY, ember | (1 << 8)])
+	_input.queued.append([InputCommand.ACTION_BUY, ember])
 	_tick(4)
 	assert_int(p.lumen).is_equal(450)
-	assert_float(_server.weapon_hit_damage(h, 10.0)).is_equal_approx(dmg_before * 1.06, 1e-3)
+	assert_float(_server.weapon_hit_damage(h, 10.0)).is_equal_approx(dmg_before * 1.05, 1e-3)
 	assert_float(dmg_before).is_equal_approx(29.0 * 1.025, 1e-3)  # L2 weapon multiplier
-	assert_int(_client.progress.mount_item[0]).is_equal(ember)
-	assert_int(_client.progress.mount_tier[0]).is_equal(1)
-	assert_int(_client.progress.mount_paid_visit[0]).is_equal(400)
+	assert_bool(_client.progress.inv_items.has(ember)).is_true()
+	assert_int(_client.progress.inv_undo_bits).is_not_equal(0)  # bought this visit: undoable
 	assert_int(_client.progress.lumen).is_equal(450)
-	assert_int(_client.rig.mount_mesh_count()).is_greater(0)
-	# Leaving the pad ends the visit: the undo amount is gone (60% from now on).
+	# Leaving the pad ends the visit: the undo is gone (60% from now on).
 	_input.go(def.hq(C).sanctum)
 	for i in 600:
 		_tick()
 		if (_client.progress.flags & SnapshotData.ProgressState.FLAG_AT_ARMORY) == 0:
 			break
 	_tick(2)
-	assert_int(_client.progress.mount_paid_visit[0]).is_equal(0)
-	assert_int(_client.progress.mount_paid[0]).is_equal(400)
-	# Mounts persist through death and respawn.
+	assert_int(_client.progress.inv_undo_bits).is_equal(0)
+	# The inventory persists through death and respawn.
 	_server.damage_hero(h, DamageInfo.make(99999.0, 0, MapDef.TEAM_SYNDICATE))
 	assert_bool(h.combat.dead).is_true()
 	_server.tick = h.combat.respawn_tick
 	_tick(3)
 	assert_bool(h.combat.dead).is_false()
-	assert_float(_server.weapon_hit_damage(h, 10.0)).is_equal_approx(dmg_before * 1.06, 1e-3)
-	assert_int(_client.progress.mount_item[0]).is_equal(ember)
+	assert_float(_server.weapon_hit_damage(h, 10.0)).is_equal_approx(dmg_before * 1.05, 1e-3)
+	assert_bool(_client.progress.inv_items.has(ember)).is_true()
 
 
 ## match-flow-and-map.md §3.5 / hud.md §9: a held, attuned Mid is a spawn
