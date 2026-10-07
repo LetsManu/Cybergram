@@ -23,13 +23,13 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
   `$GODOT --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests/unit/matchmaking --ignoreHeadlessMode -c`
   (leave out `-d` locally: with it a script error stops in the debugger and the run hangs).
 - Layer check: `tools/ci/check_deps.sh`. Launcher copies of shared scripts: `launcher/tools/sync_shared.sh`.
-- Armory (items, build guides, recommendations): `docs/armory.md`. Regenerate the hero guides with
-  `python3 tools/armory/build_guides.py`; data checks + advisor tests: `-a res://tests/unit/economy`.
-  Private builds live in `user://builds.json` (`CustomBuildStore`); bots buy through `ACTION_BUY`
-  with the same `BuildAdvisor`. Screenshot presets: `--map slice --debug-armory[-builds|-catalog]`
-  (`RESOLUTION=1920x1080` for 1080p). Balance report: `-s res://tools/balance/armory_report.gd`
-  (writes `docs/balance/armory-report.md`; review in `docs/balance/armory-review.md`).
-  Catalog order is the wire id: append items only.
+- Armory v2 (recipes, gear, guides, shop, Item Sets, bots): `docs/armory.md`. Regenerate the catalog and hero guides with
+  `python3 tools/armory/build_catalog.py` and `python3 tools/armory/build_guides_v22.py` (never hand-edit the `.tres`);
+  data checks + advisor tests: `-a res://tests/unit/economy`. Private Item Sets live in `user://builds.json`
+  (`CustomBuildStore`); bots buy through `ACTION_BUY` with the same `BuildAdvisor`. Screenshot presets:
+  `--map slice --debug-armory[-builds|-catalog]` (`RESOLUTION=1920x1080` for 1080p). Balance report:
+  `-s res://tools/balance/armory_report.gd` (about 3 min, writes `docs/balance/armory-v2-report.md`; `-- --quick` is a 30 s
+  average-curve check; review in `docs/balance/armory-v2-review.md`). Catalog order is the wire id: append items only.
 - Screenshot under a virtual display: `GODOT=... tools/ci/capture_scene.sh res://src/ui/menu/matchmaking/mm_preview.tscn out.png 90 --mm queued`
 - Server (front + match processes): `tools/server/docker-compose.yml`; monitoring: `docs/monitoring.md`.
 

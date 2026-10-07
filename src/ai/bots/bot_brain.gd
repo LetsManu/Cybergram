@@ -846,20 +846,14 @@ func _decide_shop(tick: int, h: HeroBody) -> void:
 	var ar: AdviceRulesDef = prog.advice_rules if prog.advice_rules != null else AdviceRulesDef.new()
 	# Only the top step: a bot saves for it rather than spending on lower ones.
 	var a := BuildAdvisor.evaluate(guide, st, ar).best()
-	if st.v2 and a != null and not a.affordable and a.cost >= (1 << 30) and st.slots_used >= st.open_slots:
+	if a != null and not a.affordable and a.cost >= (1 << 30) and st.slots_used >= st.open_slots:
 		_sell_for_room(p, prog.catalog, guide, tick)
 		return
 	if a == null or not a.affordable or a.item_index < 0:
 		return
-	if st.v2:
-		_shop_arg = a.item_index
-		_log("t%d h%d buy %s for %s (%s)" % [tick, hero_id, prog.catalog.at(a.item_index).id,
-			prog.catalog.at(a.goal_index).id if a.goal_index >= 0 else "-", a.node.id])
-		return
-	var it: ArmoryItemDef = prog.catalog.at(a.item_index)
-	var tier := a.target if it.kind == ArmoryItemDef.Kind.MOUNT else 0
-	_shop_arg = a.item_index | (tier << 8)
-	_log("t%d h%d buy %s x%d (%s)" % [tick, hero_id, it.id, a.target, a.node.id])
+	_shop_arg = a.item_index
+	_log("t%d h%d buy %s for %s (%s)" % [tick, hero_id, prog.catalog.at(a.item_index).id,
+		prog.catalog.at(a.goal_index).id if a.goal_index >= 0 else "-", a.node.id])
 
 
 ## Armory v2 (§3.10 rule 6): with every open slot full and the next step

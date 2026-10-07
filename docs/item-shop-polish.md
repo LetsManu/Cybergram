@@ -1,3 +1,6 @@
+> **Historical.** This pass polished the retired v1 `ArmoryPanel` (v21). The Armory v2 shop is `ItemShopPanel`;
+> its screenshots are in `production/qa/evidence/armory-v2-shop/` and its description is in `docs/armory.md` "Shop UI".
+
 # Armory panel: visual polish pass
 
 Screenshots of the Armory panel at 1280x720 and 1920x1080, what each one
