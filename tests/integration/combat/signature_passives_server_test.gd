@@ -139,6 +139,7 @@ func test_death_ends_the_victims_passive_state() -> void:
 	_buy(pair[1], &"barrier_lattice")
 	_tick(2)
 	var t := pair[1]
+	assert_bool(t.combat.passives.has(SignaturePassives.LATTICE)).is_true()
 	t.combat.health.overshield = 0.0
 	_server.damage_hero(t, DamageInfo.make(10000.0, 0, -1, 0, DamageInfo.Type.TRUE))
 	assert_bool(t.combat.dead).is_true()

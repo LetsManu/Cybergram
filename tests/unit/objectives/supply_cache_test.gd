@@ -86,6 +86,18 @@ func test_mechanical_refill_is_a_quarter_of_max_reserve_per_second() -> void:
 	assert_int(feed.reserve_count()).is_equal(150)
 
 
+## Deep Reserve (Reservoir Frame, items-and-armory.md §3.5.3): Mech refills +50%.
+func test_deep_reserve_refills_half_again_as_fast() -> void:
+	_obj.debug_set_owner(_hp.def.id, C)
+	_run(11.0, [])
+	var h := _hero(C, CombatFixtures.rifle_mag(), _cache_at() + Vector3(2.0, 0, 0))
+	h.combat.passives.set_active([SignaturePassives.DEEP_RESERVE], _tick)
+	var feed := h.combat.weapon.feed as MagazineFeed
+	feed.reserve = 0
+	_run(1.0, [h])
+	assert_int(feed.reserve_count()).is_between(55, 57)  # 37.5 %/s of 150
+
+
 func test_no_refill_outside_the_radius_for_enemies_or_the_dead() -> void:
 	_obj.debug_set_owner(_hp.def.id, C)
 	_run(11.0, [])
