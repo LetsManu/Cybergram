@@ -62,7 +62,7 @@ func test_damaged_or_foreign_files_are_refused_and_change_nothing() -> void:
 	var store := CustomBuildStore.new()
 	var id := _sample(store)
 	var before := store.to_json()
-	for bad in ["", "{", "[]", '{"version": 2, "builds": []}', '{"version": 1, "builds": 7}']:
+	for bad in ["", "{", "[]", '{"version": 3, "builds": []}', '{"version": 1, "builds": 7}']:
 		assert_bool(store.from_json(bad)).is_false()
 	assert_str(store.to_json()).is_equal(before)
 	# Malformed entries are dropped, steps without an item are skipped.

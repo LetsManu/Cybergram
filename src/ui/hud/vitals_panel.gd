@@ -182,7 +182,32 @@ func _hp_bar(r: Rect2, cb: SnapshotData.OwnCombat, frac: float, critical: bool, 
 	if cb.shield > 0:
 		var sr := Rect2(r.position.x + cb.max_hp * unit, r.position.y, cb.shield * unit - 1.0, r.size.y)
 		draw_rect(sr.grow(-0.75), HudPalette.SHIELD, false, 1.5)
+	_overshield_bar(r, cb, unit)
 	if critical:
 		draw_rect(Rect2(r.position, Vector2(cb.max_hp * unit, r.size.y)).grow(4.0), dmg, false, 1.5)
 	elif frac <= ctx.tuning.caution_frac:
 		draw_rect(Rect2(r.position, Vector2(cb.max_hp * unit, r.size.y)).grow(3.0), Color(HudPalette.WARN_UI, 0.7), false, 1.0)
+
+
+## Armory v2 Lattice overshield (design/gdd/items-and-armory.md §3.5 SG-G4):
+## a teal bar right over the HP bar (never the ivory HP colour), one HP-bar
+## unit per point, with a diamond cap and a "+80" count so it is not told
+## apart by colour alone. Shown only while OwnCombat.overshield > 0.
+func _overshield_bar(r: Rect2, cb: SnapshotData.OwnCombat, unit: float) -> void:
+	var pts := cb.overshield
+	var ev := OS.get_environment("CYBERGRAM_HUD_EVIDENCE")
+	if pts <= 0 and ev.begins_with("overshield"):
+		# Evidence capture only (no Lattice in the debug build): "overshield" = 80, "overshield40" = 40.
+		pts = ev.trim_prefix("overshield").to_int() if ev != "overshield" else 80
+	if pts <= 0:
+		return
+	var w := minf(pts * unit, r.size.x)
+	# A separate 6 px track the HP bar's width, 3 px above it, and the value at
+	# the track's right end: readable at a glance (owner review).
+	var track := Rect2(r.position.x, r.position.y - 9.0, r.size.x, 6.0)
+	draw_rect(track, Color(HudPalette.INK_DEEP, 0.7))
+	draw_rect(track, Color(HudPalette.TEAL, 0.25))
+	draw_rect(Rect2(track.position, Vector2(w, track.size.y)), HudPalette.TEAL)
+	draw_rect(track.grow(0.5), Color(HudPalette.TEAL, 0.6), false, 1.0)
+	diamond(Vector2(track.position.x + w, track.get_center().y), 5.0, HudPalette.TEAL)
+	text("+%d" % pts, Vector2(r.end.x + 10.0, r.position.y + 2.0), 18, HudPalette.TEAL, ctx.font_numbers)

@@ -149,3 +149,73 @@ static func star(ci: CanvasItem, c: Vector2, s: float, col: Color) -> void:
 static func check(ci: CanvasItem, c: Vector2, s: float, col: Color) -> void:
 	ci.draw_polyline(PackedVector2Array([c + Vector2(-s, 0.0), c + Vector2(-s * 0.3, s * 0.7), c + Vector2(s, -s * 0.7)]),
 		col, 3.0, true)
+
+
+## Armory v2 glyph (design/gdd/items-and-armory.md §3.2, §3.9): the line's
+## silhouette from its main stat or socket, plus a colour-free tier mark in the
+## top-left corner: 1 / 2 / 3 diamond pips for Component / Assembly /
+## Signature, and a crown over Signatures. Ammo = round, Ammo Mod = round in a
+## ring, squad and Med-Pack keep their v1 glyphs.
+static func draw_v2(ci: CanvasItem, it: ArmoryItemDef, r: Rect2, col: Color) -> void:
+	if not it.is_recipe_item() and it.kind != ArmoryItemDef.Kind.AMMO_MOD:
+		draw(ci, it, r, col)
+		return
+	var c := r.get_center()
+	var s := minf(r.size.x, r.size.y) * 0.5
+	var lc := Color(HudPalette.BRASS_HI, col.a)
+	var w := clampf(s * 0.08, 1.2, 2.4)
+	if it.kind == ArmoryItemDef.Kind.AMMO_MOD:
+		_bullet(ci, c, s * 0.5, lc, w)
+		ci.draw_arc(c, s * 0.9, 0.0, TAU, 20, lc, w * 0.8, true)
+		return
+	var gs := s * (0.55 if it.tier == ArmoryItemDef.Tier.COMPONENT else 0.66)
+	var gc := c + Vector2(0.0, s * 0.08)
+	var main := String(it.stat_ids[0]) if not it.stat_ids.is_empty() else ""
+	if it.socket == ArmoryItemDef.Socket.BARREL:
+		_lens(ci, gc, gs, lc, w, false)
+	elif it.socket == ArmoryItemDef.Socket.FRAME:
+		_bracket(ci, gc, gs, lc, w, false)
+	else:
+		match main:
+			"fire_rate_bonus":
+				_bolt(ci, gc, gs, lc, w)
+			"falloff_range":
+				_lens(ci, gc, gs, lc, w, false)
+			"spread_mult", "recoil_mult":
+				ci.draw_arc(gc, gs * 0.7, 0.0, TAU, 18, lc, w, true)
+				ci.draw_line(gc + Vector2(-gs, 0.0), gc + Vector2(gs, 0.0), lc, w, true)
+				ci.draw_line(gc + Vector2(0.0, -gs), gc + Vector2(0.0, gs), lc, w, true)
+			"mana_regen", "capacity_mult", "reload_time":
+				_bracket(ci, gc, gs, lc, w, true)
+			"item_max_hp":
+				_cross(ci, gc, gs * 0.85, lc, w)
+			"gear_armor":
+				_shield(ci, gc, gs, lc, w)
+				ci.draw_line(gc + Vector2(-gs * 0.4, -gs * 0.1), gc + Vector2(gs * 0.4, -gs * 0.1), lc, w, true)
+			"gear_resist":
+				_shield(ci, gc, gs, lc, w)
+				ci.draw_arc(gc + Vector2(0.0, -gs * 0.1), gs * 0.25, 0.0, TAU, 14, lc, w, true)
+			"cooldown_reduction":
+				ci.draw_arc(gc, gs * 0.8, -PI * 0.5, PI * 1.2, 18, lc, w, true)
+				ci.draw_line(gc, gc + Vector2(0.0, -gs * 0.5), lc, w, true)
+				ci.draw_line(gc, gc + Vector2(gs * 0.35, 0.0), lc, w, true)
+			"item_move_speed":
+				ci.draw_polyline(PackedVector2Array([gc + Vector2(-gs * 0.6, -gs * 0.7), gc + Vector2(gs * 0.1, 0.0),
+					gc + Vector2(-gs * 0.6, gs * 0.7)]), lc, w, true)
+				ci.draw_polyline(PackedVector2Array([gc + Vector2(0.0, -gs * 0.7), gc + Vector2(gs * 0.7, 0.0),
+					gc + Vector2(0.0, gs * 0.7)]), lc, w, true)
+			_:
+				_gem(ci, gc, gs, lc, w)
+	# Tier mark (shape, never colour alone).
+	var pips := int(it.tier)
+	var ps := maxf(1.6, s * 0.11)
+	for i in pips:
+		var pc := r.position + Vector2(ps * 1.6 + i * ps * 2.6, ps * 1.6)
+		ci.draw_colored_polygon(PackedVector2Array([pc + Vector2(0, -ps), pc + Vector2(ps, 0), pc + Vector2(0, ps),
+			pc + Vector2(-ps, 0)]), lc)
+	if it.tier == ArmoryItemDef.Tier.SIGNATURE:
+		var top := c + Vector2(0.0, -s * 0.78)
+		var cw := s * 0.36
+		ci.draw_polyline(PackedVector2Array([top + Vector2(-cw, s * 0.16), top + Vector2(-cw, -s * 0.04),
+			top + Vector2(-cw * 0.5, s * 0.06), top + Vector2(0.0, -s * 0.12), top + Vector2(cw * 0.5, s * 0.06),
+			top + Vector2(cw, -s * 0.04), top + Vector2(cw, s * 0.16), top + Vector2(-cw, s * 0.16)]), lc, w * 0.8, true)
