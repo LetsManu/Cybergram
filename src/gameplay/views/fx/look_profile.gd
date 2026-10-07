@@ -5,14 +5,17 @@ extends Resource
 ## lights and the map panel material params. Client presentation only.
 ##
 ## Selection: `--look <id>` on the command line (ids in PROFILES); no flag =
-## no profile, the map keeps its baked look (GfxQuality + AmbientMood).
+## DEFAULT_ID (the owner's pick, 2026-10-07: Golden Hour base + Neon Night's
+## neon); `--look current` = no profile, the old baked look (GfxQuality + AmbientMood).
 ## Applied by MapVisuals (environment, sun, fill, panels, practicals) and
 ## AmbientWorld (which then skips its per-mood sky / sun override and scales its
 ## neon / shafts by the profile's gains).
 ## Values are technical look-dev proposals; final colour is art-director's call.
 
 ## Launch ids -> profile files.
+const DEFAULT_ID := "default"
 const PROFILES := {
+	"default": "res://assets/data/look/look_default.tres",
 	"a": "res://assets/data/look/look_a_neon_night.tres",
 	"b": "res://assets/data/look/look_b_golden_hour.tres",
 	"c": "res://assets/data/look/look_c_clean.tres",
@@ -153,7 +156,7 @@ static var _cache: Dictionary = {}
 ## The profile selected for this process (null = none: the baked look).
 static func active() -> LookProfile:
 	var key := override_id if override_id != "" else id_from_args(OS.get_cmdline_user_args())
-	return load_id(key)
+	return load_id(key if key != "" else DEFAULT_ID)
 
 
 ## The `--look <id>` value in `args` ("" when absent; also --look=<id>).

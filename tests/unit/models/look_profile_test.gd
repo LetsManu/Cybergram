@@ -41,6 +41,7 @@ func test_look_flag_parsing() -> void:
 	assert_str(LookProfile.id_from_args(PackedStringArray(["--look=c"]))).is_equal("c")
 	assert_str(LookProfile.id_from_args(PackedStringArray(["--map", "slice"]))).is_equal("")
 	assert_object(LookProfile.load_id("")).is_null()
+	assert_object(LookProfile.load_id("off")).is_null()
 	assert_object(LookProfile.load_id("current")).is_null()
 
 
@@ -62,3 +63,18 @@ func test_panel_look_uniform_defaults_keep_the_old_panel() -> void:
 			"spec_wall : hint_range(0.0, 2.0) = 0.0", "spec_floor : hint_range(0.0, 2.0) = 0.0",
 			"floor_env_specular : hint_range(0.0, 1.0) = 0.0"]:
 		assert_str(src).override_failure_message("panel default changed: %s" % d).contains(d)
+
+
+func test_no_flag_selects_the_default_look() -> void:
+	LookProfile.override_id = ""
+	var p := LookProfile.active()  # the test runner passes no --look
+	assert_object(p).is_not_null()
+	assert_str(p.id).is_equal(LookProfile.DEFAULT_ID)
+
+
+func test_default_look_keeps_map_neon_below_bloom() -> void:
+	# Owner pick: Neon Night's glow on Signal emissives only; map neon / trims stay
+	# Accent tier (<= 1.0, art bible §4.6), so they never cross the 1.1 threshold.
+	var p := LookProfile.load_id(LookProfile.DEFAULT_ID)
+	assert_float(p.emissive_cap).is_less_equal(1.0)
+	assert_float(0.9 * p.trim_gain).is_less(p.glow_threshold)

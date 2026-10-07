@@ -225,7 +225,10 @@ static func make_sun() -> DirectionalLight3D:
 const SUN_SPLITS := [0.05, 0.15, 0.4]
 ## Directional shadow atlas (px) and soft filter per tier.
 const SUN_ATLAS := [2048, 4096, 4096, 8192]
-const SUN_NORMAL_BIAS := [2.0, 1.6, 1.2, 1.0]
+## Raised after look-dev: lower values self-shadowed the curved lane floors
+## (soft "cloud" blotches under PCF, docs/lookdev.md).
+const SUN_NORMAL_BIAS := [2.0, 2.0, 1.8, 1.6]
+const SUN_BIAS: float = 0.05
 ## Shadowed local (omni / spot) lights per tier, the positional atlas size and its
 ## quadrant subdivisions (lights per quadrant: 1, 4, 4, 16).
 const LOCAL_SHADOWS := [0, 2, 4, 8]
@@ -242,7 +245,7 @@ static func apply_shadows(lvl: int, sun: DirectionalLight3D, vp: Viewport) -> vo
 		sun.directional_shadow_split_3 = SUN_SPLITS[2]
 		sun.directional_shadow_blend_splits = lvl >= HIGH
 		sun.directional_shadow_fade_start = 0.85
-		sun.shadow_bias = 0.03
+		sun.shadow_bias = SUN_BIAS
 		sun.shadow_normal_bias = SUN_NORMAL_BIAS[lvl]
 	if is_headless():
 		return
