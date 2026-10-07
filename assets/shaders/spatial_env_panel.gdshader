@@ -328,7 +328,7 @@ void light() {
 		if (ks > 0.0) {
 			vec3 h = normalize(LIGHT + VIEW);
 			float nh = clamp(dot(NORMAL, h), 0.0, 1.0);
-			float band = smoothstep(spec_threshold - 0.015, spec_threshold + 0.015, pow(nh, mix(24.0, 6.0, v_floor)));
+			float band = smoothstep(spec_threshold - 0.015, spec_threshold + 0.015, pow(nh, mix(24.0, 64.0, v_floor)));
 			SPECULAR_LIGHT += LIGHT_COLOR * spec_tint * band * ks * ATTENUATION * step(0.0, ndl);
 		}
 	} else {
