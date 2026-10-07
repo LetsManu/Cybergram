@@ -30,3 +30,24 @@ func test_own_shot_plays_the_gunshot_once_per_shot() -> void:
 		if p is AudioStreamPlayer and shots.has((p as AudioStreamPlayer).stream):
 			plays[0] += 1
 	assert_int(plays[0]).is_equal(1)
+
+
+## Owner 2026-10-07: Lumen income plays no sound (it played on every gain).
+func test_lumen_income_plays_no_sound() -> void:
+	var client := ClientWorld.new()
+	add_child(auto_free(client))
+	var net := NetFixtures.net_config()
+	var link := LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
+	client.setup(net, MovementDef.new(), LookSettings.new(), CombatFixtures.range_scene(false),
+		link.create_endpoint(2), ScriptedInputSource.new(CombatFixtures.idle_input()), CombatFixtures.vesper())
+	var lumen := client.sfx.events.bank.streams_for(&"ui_lumen")
+	for gain in [100, 140, 400]:
+		var s := SnapshotData.new()
+		s.progress = SnapshotData.ProgressState.new()
+		s.progress.lumen = gain
+		client.sfx._on_snapshot(s)
+	var plays := 0
+	for p in client.sfx.events.get_children():
+		if p is AudioStreamPlayer and (p as AudioStreamPlayer).playing and lumen.has((p as AudioStreamPlayer).stream):
+			plays += 1
+	assert_int(plays).is_equal(0)
