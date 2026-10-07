@@ -222,6 +222,8 @@ func is_blinded(h: HeroBody) -> bool:
 
 
 func silence(h: HeroBody, ticks: int) -> void:
+	if h.combat != null and h.combat.status.cc_duration_mult < 1.0:  # Grounding (items-and-armory.md §3.5.3)
+		ticks = maxi(1, roundi(ticks * h.combat.status.cc_duration_mult))
 	silenced[h] = maxi(int(silenced.get(h, 0)), server.tick + ticks)
 
 
@@ -354,7 +356,7 @@ func bloom(ctx: EffectContext, def: BloomEffectDef) -> void:
 		var applied := h.combat.status.apply(StatusComponent.Kind.KNOCKBACK, n, 0.0,
 			Modifier.source(Modifier.SRC_STATUS, (ctx.caster.net_id << 3) | 5), server.tick)
 		if applied > 0:
-			h.state.dash_velocity = away * (knock / (n * dt))
+			h.state.dash_velocity = away * (knock / (n * dt)) * h.combat.status.knockback_mult  # Planted
 			h.state.dash_ticks = n
 			h.state.dash_launch = false
 

@@ -551,7 +551,7 @@ func _knock_away(ctx: EffectContext, h: HeroBody, from: Vector3, dist: float) ->
 	var applied := h.combat.status.apply(StatusComponent.Kind.KNOCKBACK, n, 0.0,
 		Modifier.source(Modifier.SRC_STATUS, (ctx.caster.net_id << 3) | 6), world.tick())
 	if applied > 0:
-		h.state.dash_velocity = away * (dist / (n * world.dt))
+		h.state.dash_velocity = away * (dist / (n * world.dt)) * h.combat.status.knockback_mult  # Planted
 		h.state.dash_ticks = n
 		h.state.dash_launch = false
 
@@ -568,7 +568,7 @@ func _gravity(rec: Data, radius: float) -> void:
 		var applied := h.combat.status.apply(StatusComponent.Kind.KNOCKBACK, n, 0.0,
 			Modifier.source(Modifier.SRC_STATUS, (ctx.caster.net_id << 3) | 6), world.tick())
 		if applied > 0:
-			h.state.dash_velocity = to / (n * world.dt)
+			h.state.dash_velocity = to / (n * world.dt) * h.combat.status.knockback_mult  # Planted: pull
 			h.state.dash_ticks = n
 			h.state.dash_launch = false
 	world.extras.schedule(ctx.with_target(null, d.pos), ctx.ticks(&"secondary_duration"), rec.def.gravity_effects)

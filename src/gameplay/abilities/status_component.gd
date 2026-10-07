@@ -32,6 +32,12 @@ const BIT_KNOCKBACK: int = 256
 ## the Cryo Chill slow (a SLOW inside the shared slow cap) and Scorched (HEAL_CUT).
 const SOURCE_CHILL: int = -101
 const SOURCE_SCORCHED: int = -102
+## Signature Long Reach slow (items-and-armory.md §3.5.3): one fixed source, so
+## hits from any Longsight Lens refresh one entry and never stack.
+const SOURCE_LONG_REACH: int = -103
+## Kinds whose duration Grounding scales (Silence lives in SkillEntities and
+## reads cc_duration_mult there).
+const _GROUNDED: Array[int] = [Kind.SLOW, Kind.ROOT, Kind.STUN]
 
 const _HARD_CC: Array[int] = [Kind.ROOT, Kind.STUN, Kind.KNOCKBACK]
 
@@ -57,6 +63,13 @@ var source_id: int
 ## Armory v2: Burn pools, Shock Charge, Chill meter and Brittle on this hero
 ## (AmmoEffects writes it; cleared with the statuses on respawn).
 var ammo := AmmoTargetState.new()
+## Signature passives on this hero (items-and-armory.md §3.5.3), written each
+## tick by SignaturePassives. Grounding: Root, Stun, Silence and Slow durations
+## multiplier (ammo Chill / Scorched entries are meter-driven and excluded).
+## Planted: Knockback / Pull distance multiplier, read by the code that sets the
+## forced-motion velocity.
+var cc_duration_mult: float = 1.0
+var knockback_mult: float = 1.0
 
 var _cc_first_tick: Dictionary = {}  # kind -> tick of the first CC in the window
 var _cc_count: Dictionary = {}       # kind -> applications in the window
@@ -89,6 +102,8 @@ func apply(kind: int, duration_ticks: int, magnitude: float, source: int, tick: 
 		ticks = roundi(ticks * _dr_factor(kind, tick))
 		if ticks <= 0:
 			return 0
+	if cc_duration_mult < 1.0 and _GROUNDED.has(kind) and source != SOURCE_CHILL:
+		ticks = maxi(1, roundi(ticks * cc_duration_mult))
 	for e in entries:
 		if e.kind == kind and e.source_id == source:
 			e.expires_tick = maxi(e.expires_tick, tick + ticks)
