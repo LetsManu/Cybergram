@@ -1012,7 +1012,7 @@ func _draw_detail(idx: int) -> void:
 		where = tr("HUD_SHOP2_OPEN_SLOT")
 	elif it.socket != ArmoryItemDef.Socket.NONE:
 		where = tr("HUD_SHOP2_SOCKET") % tr(model.shows_on_key(idx))
-	var tier_key := ["", "HUD_SHOP2_TIER_COMPONENT", "HUD_SHOP2_TIER_ASSEMBLY", "HUD_SHOP2_TIER_SIGNATURE"][int(it.tier)]
+	var tier_key: String = ["", "HUD_SHOP2_TIER_COMPONENT", "HUD_SHOP2_TIER_ASSEMBLY", "HUD_SHOP2_TIER_SIGNATURE"][int(it.tier)]
 	var head := tr(tier_key) if tier_key != "" else ""
 	if where != "":
 		head = where if head == "" else head + "  ·  " + where
