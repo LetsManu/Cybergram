@@ -61,8 +61,11 @@ as it is, new tests run inside the existing test job.
     Sunder node, Vesper Expansion II vs Bulwark, the 5v5 threat-tag
     threshold (counter items never fire), registering 12 catalog items.
     Screenshot presets `--debug-armory-catalog`, `RESOLUTION=1920x1080`.
-  - Next: 1080p screenshots + `docs/item-shop-polish.md`; release (protocol
-    21 needs launcher 1.9.0 and a server + client update).
+  - Polish: 720p / 1080p screenshots of Recommended, catalog + expert
+    detail and My builds (`production/qa/evidence/armory-builds/`), fixes and
+    open items in `docs/item-shop-polish.md`. Full suite 1586 / 1586.
+  - Next: owner answers on the review questions; release (protocol 21 needs
+    launcher 1.9.0 and a server + client update together).
 
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +
