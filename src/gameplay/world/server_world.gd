@@ -321,6 +321,7 @@ func step() -> void:
 	var t0 := Time.get_ticks_usec()
 	bolts.launched.clear()
 	session.poll()
+	_step_passives()  # Armory v2 Signature passives: on before this tick's shots
 	for peer in session.clients:
 		var h: HeroBody = _humans.get(peer)
 		if h == null:
@@ -335,7 +336,6 @@ func step() -> void:
 		_step_hero(d[0], _cmd)
 	_step_bolts()
 	_step_ammo()  # Armory v2: Burn ticks, Chill / Scorched, meter decay
-	_step_passives()  # Armory v2 Signature passives
 	if wardlings != null:
 		wardlings.step()
 	abilities.step()
