@@ -1366,3 +1366,14 @@ HUD_SHOP2_K_JUMP,Jump to recommended
 HUD_SHOP2_K_UNDO,Undo
 HUD_SHOP2_K_TABS,Tabs
 HUD_SHOP2_K_SEARCH,Search
+HUD_SHOP2_R_STARTER,A cheap first part that gives its stat at once and builds into your core.
+HUD_SHOP2_R_CORE,Your Core socket's Assembly: the base of your first Signature.
+HUD_SHOP2_R_CORE_SIG,Your first Signature on the Core socket: your main power spike.
+HUD_SHOP2_R_BARREL,Fills your Barrel socket: more range and steadier shots.
+HUD_SHOP2_R_FRAME,Fills your Frame socket: a bigger feed and less recoil.
+HUD_SHOP2_R_AMMO,Loads your Chamber: an Ammo Type adds an effect to every hit.
+HUD_SHOP2_R_MOD,An Ammo Mod that works with your loaded Ammo Type.
+HUD_SHOP2_R_GEAR,Body gear in an open slot: more health and armor to stay in fights.
+HUD_SHOP2_R_SIGNATURE,A Signature: the full stat line plus a named passive.
+HUD_SHOP2_R_SIG2,Your second and last Signature: completes the build.
+HUD_SHOP2_R_LUXURY,Fills a free open slot once your two Signatures are done.

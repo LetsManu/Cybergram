@@ -98,6 +98,14 @@ const NODE_KEYS := {
 	&"barrel": "HUD_SHOP2_NODE_BARREL", &"frame": "HUD_SHOP2_NODE_FRAME", &"ammo": "HUD_SHOP2_NODE_AMMO",
 	&"gear": "HUD_SHOP2_NODE_GEAR", &"signature": "HUD_SHOP2_NODE_SIGNATURE", &"sig2": "HUD_SHOP2_NODE_SIG2",
 }
+## Armory v2 reason copy per guide step type (replaces the v1 tier-line copy
+## on non-situational recommendations; situational ones keep the advisor's rule).
+const STEP_REASON_KEYS := {
+	&"starter": "HUD_SHOP2_R_STARTER", &"core": "HUD_SHOP2_R_CORE", &"core_sig": "HUD_SHOP2_R_CORE_SIG",
+	&"barrel": "HUD_SHOP2_R_BARREL", &"frame": "HUD_SHOP2_R_FRAME", &"ammo": "HUD_SHOP2_R_AMMO",
+	&"mod": "HUD_SHOP2_R_MOD", &"gear": "HUD_SHOP2_R_GEAR", &"signature": "HUD_SHOP2_R_SIGNATURE",
+	&"sig2": "HUD_SHOP2_R_SIG2", &"luxury": "HUD_SHOP2_R_LUXURY",
+}
 ## Stats shown as flat numbers (the rest are fractions shown as %).
 const FLAT_STATS := ["item_max_hp"]
 
@@ -722,7 +730,7 @@ func card(goal: int, reason_key: String, situational: bool = false) -> Dictionar
 ## open squad upgrades; Situational the counter nodes the advisor offers now,
 ## with its reason; Ammo one Ammo Type and one Mod suggestion.
 func sections() -> Dictionary:
-	var out := {"starter": [], "core": [], "squad": [], "situational": [], "ammo": [], "path": []}
+	var out := {"starter": [], "core": [], "squad": [], "situational": [], "ammo": [], "path": [], "node_reason": {}}
 	var sig_seen := false
 	var b := build()
 	if b == null or catalog == null or progress == null:
@@ -747,6 +755,9 @@ func sections() -> Dictionary:
 			continue
 		var a: BuildAdvisor.Advice = offered.get(n)
 		var reason := a.reason_key if a != null else _node_reason(n)
+		if n.conditions.is_empty() and it.kind != ArmoryItemDef.Kind.SQUAD:
+			reason = STEP_REASON_KEYS[_step_kind(n, it, sig_seen)]
+			out["node_reason"][n.id] = reason
 		if not n.conditions.is_empty():
 			if a != null:
 				out["situational"].append(card(a.goal_index if a.goal_index >= 0 else idx, reason, true))
@@ -797,18 +808,44 @@ func sections() -> Dictionary:
 			cards.append(card(c, reason))
 		out["core"].append({"node": n, "cards": cards, "next": a != null and advice().best() == a,
 			"done": done.has(String(n.id))})
-		var lk := &"gear"
+		var lk := _step_kind(n, it, sig_seen)
 		if it.tier == ArmoryItemDef.Tier.SIGNATURE:
-			lk = &"sig2" if sig_seen else (&"core_sig" if it.socket == ArmoryItemDef.Socket.CORE else &"signature")
 			sig_seen = true
-		elif it.socket == ArmoryItemDef.Socket.CORE:
-			lk = &"core"
-		elif it.socket == ArmoryItemDef.Socket.BARREL:
-			lk = &"barrel"
-		elif it.socket == ArmoryItemDef.Socket.FRAME:
-			lk = &"frame"
-		out["path"].append({"label": NODE_KEYS[lk], "cards": cards, "done": done.has(String(n.id))})
+		out["path"].append({"label": NODE_KEYS[lk], "cards": cards, "done": done.has(String(n.id)), "node": n})
 	return out
+
+
+## Step type of guide node `n` (its item `it`): starter, ammo / mod, luxury
+## (optional late gear), core / core_sig, barrel, frame, gear, signature / sig2.
+func _step_kind(n: BuildNodeDef, it: ArmoryItemDef, sig_seen: bool) -> StringName:
+	if n.section == BuildNodeDef.Section.OPENING or n.section == BuildNodeDef.Section.EARLY:
+		return &"starter"
+	if it.kind == ArmoryItemDef.Kind.AMMO:
+		return &"ammo"
+	if it.kind == ArmoryItemDef.Kind.AMMO_MOD:
+		return &"mod"
+	if n.optional:
+		return &"luxury"
+	if it.tier == ArmoryItemDef.Tier.SIGNATURE:
+		return &"sig2" if sig_seen else (&"core_sig" if it.socket == ArmoryItemDef.Socket.CORE else &"signature")
+	match it.socket:
+		ArmoryItemDef.Socket.CORE:
+			return &"core"
+		ArmoryItemDef.Socket.BARREL:
+			return &"barrel"
+		ArmoryItemDef.Socket.FRAME:
+			return &"frame"
+	return &"gear"
+
+
+## The reason to show for advice `a`: the advisor's rule for situational
+## nodes, else the v2 copy of its guide step type (§3.9 card contents).
+func reason_for(a: BuildAdvisor.Advice) -> String:
+	if a == null:
+		return ""
+	if a.situational or a.node == null:
+		return a.reason_key
+	return String(sections()["node_reason"].get(a.node.id, a.reason_key))
 
 
 func _node_reason(n: BuildNodeDef) -> String:

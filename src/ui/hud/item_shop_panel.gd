@@ -689,7 +689,7 @@ func _layout() -> void:
 func _layout_rec() -> void:
 	var best := model.advice().best()
 	if best != null:
-		var c := model.card(best.goal_index if best.goal_index >= 0 else best.item_index, best.reason_key, best.situational)
+		var c := model.card(best.goal_index if best.goal_index >= 0 else best.item_index, model.reason_for(best), best.situational)
 		_items.append({"rect": _hero_rect(), "index": int(c["next"]), "goal": int(c["goal"]), "card": c, "kind": "hero"})
 	var s := model.sections()
 	var path: Array = s["path"]
@@ -701,7 +701,13 @@ func _layout_rec() -> void:
 	var x1 := (LR - 420.0) if not branch.is_empty() else (LR - 64.0)
 	var step := (x1 - x0) / maxf(1.0, n - 1)
 	var cy := _path_y()
+	# The current node is the step of the NEXT PURCHASE (else the first open step).
 	var current := -1
+	var best_goal := best.goal_index if best != null else -1
+	for i in n:
+		for cc in path[i]["cards"]:
+			if int(cc["goal"]) == best_goal and not bool(path[i]["done"]):
+				current = i
 	for i in n:
 		var node: Dictionary = path[i]
 		if current < 0 and not bool(node["done"]):
@@ -718,7 +724,7 @@ func _layout_rec() -> void:
 		var center := Vector2(x0 + step * i, cy)
 		_items.append({"rect": Rect2(center - Vector2(38.0, 38.0), Vector2(76.0, 76.0)), "index": int(c["next"]),
 			"goal": int(c["goal"]), "card": c, "kind": "node", "label": String(node["label"]), "done": bool(node["done"]),
-			"current": i == current, "center": center})
+			"current": i == current, "center": center, "label_w": minf(step - 14.0, 132.0)})
 	var split := Vector2(x0 + step * (n - 1) + 100.0, cy)
 	for j in mini(branch.size(), 3):
 		var c: Dictionary = branch[j]
@@ -726,7 +732,8 @@ func _layout_rec() -> void:
 		_items.append({"rect": Rect2(oc - Vector2(22.0, 22.0), Vector2(LR - oc.x + 22.0, 44.0)), "index": int(c["next"]),
 			"goal": int(c["goal"]), "card": c, "kind": "branch", "center": oc, "split": split})
 	var sit: Array = s["situational"]
-	var cw := (LR - L - 2.0 * 24.0) / 3.0
+	var ns := clampi(sit.size(), 2, 3)
+	var cw := (LR - L - (ns - 1) * 24.0) / ns
 	for j in mini(sit.size(), 3):
 		var c: Dictionary = sit[j]
 		_items.append({"rect": Rect2(L + j * (cw + 24.0), _sit_y(), cw, 130.0), "index": int(c["next"]),
@@ -1120,14 +1127,18 @@ func _draw_node(e: Dictionary, focused: bool) -> void:
 		ShopIcons.check(self, tc, 5.5 * _k, HudPalette.NAVY)
 	var label := tr(String(e["label"]))
 	var col := HudPalette.GOLD if cur else (HudPalette.TEAL if done else HudPalette.DIM)
-	var w := 132.0
-	var lpx := _fit_px(label, w, [15.0, 14.0, 13.0], 0.12)
-	if _cw(label, lpx, 0.12) <= w or not label.contains(" "):
-		_c(label, c.x - w * 0.5, c.y + 64.0, lpx, col, 0.12, HORIZONTAL_ALIGNMENT_CENTER, w)
+	# Fixed label width (the node spacing): one line when it fits at 15 px,
+	# else two lines at 14 px ("CORE" / "SIGNATURE"); never wider than its slot.
+	var w := float(e.get("label_w", 120.0))
+	if _cw(label, 15.0, 0.12) <= w or not label.contains(" "):
+		_c(label, c.x - w * 0.5, c.y + 64.0, _fit_px(label, w, [15.0, 14.0, 13.0, 12.0], 0.12), col, 0.12,
+			HORIZONTAL_ALIGNMENT_CENTER, w)
 	else:
 		var parts := label.split(" ", false, 1)
-		_c(parts[0], c.x - w * 0.5, c.y + 60.0, 13.0, col, 0.12, HORIZONTAL_ALIGNMENT_CENTER, w)
-		_c(parts[1], c.x - w * 0.5, c.y + 78.0, 13.0, col, 0.12, HORIZONTAL_ALIGNMENT_CENTER, w)
+		_c(parts[0], c.x - w * 0.5, c.y + 60.0, _fit_px(parts[0], w, [14.0, 13.0, 12.0], 0.12), col, 0.12,
+			HORIZONTAL_ALIGNMENT_CENTER, w)
+		_c(parts[1], c.x - w * 0.5, c.y + 78.0, _fit_px(parts[1], w, [14.0, 13.0, 12.0], 0.12), col, 0.12,
+			HORIZONTAL_ALIGNMENT_CENTER, w)
 
 
 func _draw_branch(e: Dictionary, focused: bool) -> void:
@@ -1397,7 +1408,7 @@ func _draw_pane() -> void:
 		var a := model.advice().best()
 		if a != null:
 			idx = a.goal_index if a.goal_index >= 0 else a.item_index
-			card = model.card(idx, a.reason_key, a.situational)
+			card = model.card(idx, model.reason_for(a), a.situational)
 	if idx < 0:
 		return
 	if card.is_empty():
