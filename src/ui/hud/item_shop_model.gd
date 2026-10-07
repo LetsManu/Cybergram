@@ -78,6 +78,26 @@ const STAT_KEYS := {
 	"gear_resist": "HUD_STAT2_RESIST", "item_max_hp": "HUD_STAT2_MAX_HP", "item_move_speed": "HUD_STAT2_MOVE",
 	"ooc_move_speed": "HUD_STAT2_MOVE_OOC", "cell_carry_speed": "HUD_STAT2_CARRY", "cooldown_reduction": "HUD_STAT2_CDR",
 }
+## Short situational reason per advisor rule (owner mockup: "ENEMY: HEAVY
+## CROWD CONTROL" footers). The full reason stays in the detail pane.
+const WHY_KEYS := {
+	"enemy_cc": "HUD_SHOP2_WHY_ENEMY_CC", "enemy_burst": "HUD_SHOP2_WHY_ENEMY_BURST",
+	"enemy_sustain": "HUD_SHOP2_WHY_ENEMY_SUSTAIN", "enemy_weapon_dps": "HUD_SHOP2_WHY_ENEMY_GUNS",
+	"enemy_skill_dps": "HUD_SHOP2_WHY_ENEMY_SKILLS", "enemy_mobility": "HUD_SHOP2_WHY_ENEMY_MOBILITY",
+	"enemy_zone": "HUD_SHOP2_WHY_ENEMY_ZONE", "enemy_squad": "HUD_SHOP2_WHY_ENEMY_SQUAD",
+	"enemy_frontline": "HUD_SHOP2_WHY_ENEMY_FRONTLINE", "counters_enemy": "HUD_SHOP2_WHY_COUNTER",
+	"taking_weapon_damage": "HUD_SHOP2_WHY_YOU_GUNS", "taking_skill_damage": "HUD_SHOP2_WHY_YOU_SKILLS",
+	"died_often": "HUD_SHOP2_WHY_YOU_DYING", "low_health": "HUD_SHOP2_WHY_YOU_LOW",
+	"team_behind": "HUD_SHOP2_WHY_TEAM_BEHIND", "team_ahead": "HUD_SHOP2_WHY_TEAM_AHEAD",
+	"objective_soon": "HUD_SHOP2_WHY_TEAM_OBJECTIVE", "team_lacks_sustain": "HUD_SHOP2_WHY_TEAM_SUSTAIN",
+	"team_lacks_frontline": "HUD_SHOP2_WHY_TEAM_FRONTLINE",
+}
+## Build path node labels (owner mockup: Starter -> Core Signature -> ...).
+const NODE_KEYS := {
+	&"starter": "HUD_SHOP2_NODE_STARTER", &"core": "HUD_SHOP2_NODE_CORE", &"core_sig": "HUD_SHOP2_NODE_CORE_SIG",
+	&"barrel": "HUD_SHOP2_NODE_BARREL", &"frame": "HUD_SHOP2_NODE_FRAME", &"ammo": "HUD_SHOP2_NODE_AMMO",
+	&"gear": "HUD_SHOP2_NODE_GEAR", &"signature": "HUD_SHOP2_NODE_SIGNATURE", &"sig2": "HUD_SHOP2_NODE_SIG2",
+}
 ## Stats shown as flat numbers (the rest are fractions shown as %).
 const FLAT_STATS := ["item_max_hp"]
 
@@ -617,7 +637,12 @@ func stat_lines(index: int) -> Array[Dictionary]:
 			var after := now if owned else now + vals[i]
 			capped = after > cap + 0.0001 if cap > 0.0 else after < cap - 0.0001
 			capped = capped or (not owned and absf(now) >= absf(cap) - 0.0001)
-		out.append({"id": id, "key": STAT_KEYS.get(id, ""), "value": vals[i], "capped": capped})
+		var gain := 0.0 if owned else vals[i]
+		if CAPS.has(id) and not owned:
+			var cp: float = CAPS[id]
+			var nw := current_stat(id)
+			gain = (minf(nw + vals[i], cp) - minf(nw, cp)) if cp > 0.0 else (maxf(nw + vals[i], cp) - maxf(nw, cp))
+		out.append({"id": id, "key": STAT_KEYS.get(id, ""), "value": vals[i], "capped": capped, "gain": gain})
 	return out
 
 
@@ -697,7 +722,8 @@ func card(goal: int, reason_key: String, situational: bool = false) -> Dictionar
 ## open squad upgrades; Situational the counter nodes the advisor offers now,
 ## with its reason; Ammo one Ammo Type and one Mod suggestion.
 func sections() -> Dictionary:
-	var out := {"starter": [], "core": [], "squad": [], "situational": [], "ammo": []}
+	var out := {"starter": [], "core": [], "squad": [], "situational": [], "ammo": [], "path": []}
+	var sig_seen := false
 	var b := build()
 	if b == null or catalog == null or progress == null:
 		return out
@@ -731,6 +757,9 @@ func sections() -> Dictionary:
 				continue
 			var goal := a.goal_index if a != null and a.goal_index >= 0 else idx
 			out["ammo"].append(card(goal, reason))
+			if not is_mod:
+				var ac: Dictionary = out["ammo"][out["ammo"].size() - 1]
+				out["path"].append({"label": NODE_KEYS[&"ammo"], "cards": [ac], "done": bool(ac["done"])})
 			if is_mod:
 				have_mod = true
 			else:
@@ -746,6 +775,16 @@ func sections() -> Dictionary:
 				if not seen_starter.has(c):
 					seen_starter[c] = true
 					out["starter"].append(card(c, reason))
+			if it.kind != ArmoryItemDef.Kind.CONSUMABLE:
+				var sc: Array = []
+				for c in out["starter"]:
+					if catalog.at(int(c["goal"])).kind != ArmoryItemDef.Kind.CONSUMABLE:
+						sc.append(c)
+				var any_done := sc.any(func(c: Dictionary) -> bool: return bool(c["done"]))
+				if out["path"].is_empty():
+					out["path"].append({"label": NODE_KEYS[&"starter"], "cards": sc, "done": any_done})
+				else:
+					out["path"][0] = {"label": NODE_KEYS[&"starter"], "cards": sc, "done": any_done}
 			continue
 		if it.kind == ArmoryItemDef.Kind.SQUAD:
 			if not done.has(String(n.id)):
@@ -758,6 +797,17 @@ func sections() -> Dictionary:
 			cards.append(card(c, reason))
 		out["core"].append({"node": n, "cards": cards, "next": a != null and advice().best() == a,
 			"done": done.has(String(n.id))})
+		var lk := &"gear"
+		if it.tier == ArmoryItemDef.Tier.SIGNATURE:
+			lk = &"sig2" if sig_seen else (&"core_sig" if it.socket == ArmoryItemDef.Socket.CORE else &"signature")
+			sig_seen = true
+		elif it.socket == ArmoryItemDef.Socket.CORE:
+			lk = &"core"
+		elif it.socket == ArmoryItemDef.Socket.BARREL:
+			lk = &"barrel"
+		elif it.socket == ArmoryItemDef.Socket.FRAME:
+			lk = &"frame"
+		out["path"].append({"label": NODE_KEYS[lk], "cards": cards, "done": done.has(String(n.id))})
 	return out
 
 
@@ -765,3 +815,10 @@ func _node_reason(n: BuildNodeDef) -> String:
 	if n.reason_key != "":
 		return n.reason_key
 	return BuildAdvisor.SECTION_REASONS[clampi(n.section, 0, BuildAdvisor.SECTION_REASONS.size() - 1)]
+
+
+## Short "ENEMY: / YOU: / TEAM:" reason key of an advisor reason key ("" = none).
+static func why_key(reason_key: String) -> String:
+	if not reason_key.begins_with(BuildAdvisor.RULE_REASON_PREFIX):
+		return ""
+	return String(WHY_KEYS.get(reason_key.trim_prefix(BuildAdvisor.RULE_REASON_PREFIX).to_lower(), ""))
