@@ -51,7 +51,7 @@ into the sky instead of reading as flat cut-outs.
 | Splits (fraction of max) | - | 0.05 / 0.15 / 0.40 (10 m / 30 m / 80 m at 200 m): FP-tuned | same | same |
 | Directional atlas | 2048 | 4096 | 4096 | 8192 |
 | Soft filter (dir / local) | hard / hard | soft low / very low | soft medium / low | soft high / medium |
-| Normal bias / bias | 2.0 / 0.03 | 1.6 / 0.03 | 1.2 / 0.03 | 1.0 / 0.03 |
+| Normal bias / bias | 2.0 / 0.05 | 2.0 / 0.05 | 1.8 / 0.05 | 1.6 / 0.05 |
 | Shadowed local lights | 0 | 2 | 4 | 8 |
 | Positional atlas | 0 | 2048 | 4096 | 4096 (quadrants 1 / 16 / 16 / 16) |
 | Map panels cast (decor pieces were off) | - | yes | yes | yes |
@@ -152,10 +152,34 @@ Reading:
   no neon lights": shadowed lights here are HQ / plaza / market lights the map
   already had; no new lane lights were added.
 
-## Not done yet (Phase 2 after the pick)
+## Phase 2: the owner's pick (2026-10-07)
 
-- Make the chosen profile the default (no flag) and retire AmbientMood's
-  per-mood override or fold the moods into profiles.
-- Tune tiers for the pick (shadowed practical count, probes, volumetric).
-- Reflection probes are placed but only matter for A's floors.
-- A's floors could go darker still; C's sunlit floors sit close to white.
+**B "Golden Hour Cyber" as the base plus A's stronger neon** ->
+`assets/data/look/look_default.tres` ("Golden Hour Neon"), active with no flag
+(`LookProfile.DEFAULT_ID`; `--look current` gives the old baked look,
+`--look a|b|c` the variants). Changes over B, from the owner review:
+
+| Review item | Change |
+|---|---|
+| 1. cloud-like blotches on the lane floor | Not shadows: the exact-triangle probe (`tools/lookdev_shadow_probe.gd`) found no caster over those points. They were the panel's 9 m albedo value noise; it now applies to walls only (0.04). Sun bias also raised to 0.05 / normal bias 2.0-1.6 (safer on the curved lane floors). Real cast shadows (lamp posts, cover) stay. |
+| 2. floor detail flat | cel highlight band 0.2, floor value 0.9, SSAO 2.6 / 1.5 m for contact darkening where floors meet walls; painted grime gradient stays on wall feet only |
+| 3. walls dark brown-grey in shadow | sky ambient (0.42, 0.47, 0.74) x0.58, violet fill (0.48, 0.52, 0.9) x0.35, shadow tint (0.38, 0.42, 0.74), wall value 0.86: warm light / cool shadow |
+| 4. A's neon, signal tiers | glow x1.4, bloom 0.1 (Signal emissives: Uplink core, hardpoint holo, crystals, team telegraphs already sit above 1.1); map neon / trims x1.5 but capped at Accent 1.0 (no lane bloom); city signs x1.8, skyline windows x1.4 (Set-piece); horizon softened to (0.98, 0.72, 0.6) so `ember_core` enemies separate from the sky |
+| 5. default + tiers | see the shadow table above; Low: blob shadows, no glow; Medium: PSSM 2, 2 shadowed practicals, glow 0.63; High: PSSM 4 blended, 4 shadowed, grade LUT, SSAO; Ultra: 8192 atlas, 8 shadowed, volumetric off for this look |
+
+Final evidence: `production/qa/evidence/lookdev/fp-lane-center_final.png`,
+`base-a_final.png` (owner asked for two views only).
+
+Perf: the default look uses B's light rig (no extra lights, no probes,
+no volumetric), so its draw calls equal B's (Medium 2.6-3.9 k, same as
+current); the extra cost is material ALU and the glow intensity, inside the
+software-render noise. The N5 CI gate (server tick) is unaffected.
+
+## Still open
+
+- AmbientWorld's per-match moods (dusk / night / overcast) are bypassed while a
+  profile is active; folding them into profiles (or per-phase LUTs, §10.3) is
+  the next step.
+- §4.6 bloom coverage (<= 6 % of pixels above threshold) still needs an HDR
+  readback measurement.
+- Draw calls above the §10.6 2,000 budget are pre-existing (technical-director).
