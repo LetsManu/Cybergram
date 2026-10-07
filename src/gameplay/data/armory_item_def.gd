@@ -5,8 +5,15 @@ extends Resource
 ## values per tier); AMMO is a Chamber Ammo Type; SQUAD upgrades last for the
 ## match; CONSUMABLE is carried (Med-Pack). Effects are hero-scope Modifiers
 ## (StatCatalog HERO_NAMES), never code paths.
+##
+## Armory v2 (items-and-armory.md, protocol 22) adds recipe items: weapon parts
+## (MOUNT) and body GEAR at three tiers (Component -> Assembly -> Signature),
+## AMMO_MOD for the Chamber, any number of stats ("Recipe (v22)" group) and a
+## named Signature passive. v1 tier lines keep using prices / values.
 
-enum Kind { CONSUMABLE, SQUAD, MOUNT, AMMO }
+enum Kind { CONSUMABLE, SQUAD, MOUNT, AMMO, AMMO_MOD, GEAR }
+## v22 recipe tier (NONE = v1 tiered line or a non-recipe item).
+enum Tier { NONE, COMPONENT, ASSEMBLY, SIGNATURE }
 enum Socket { NONE, CORE, BARREL, FRAME, CHAMBER }
 ## Crystals fit Mana guns, Chips Mechanical guns (§3.6.4 rule 2).
 enum Family { ANY, CRYSTAL, CHIP }
@@ -36,6 +43,29 @@ enum Family { ANY, CRYSTAL, CHIP }
 @export_range(0, 99) var carry_limit: int = 0
 ## Family hue (art: kept out of the team blue / red ranges).
 @export var hue: Color = Color(1.0, 0.7, 0.2)
+
+@export_group("Recipe (v22)")
+@export var tier: Tier = Tier.NONE
+## Part ids, in order (an id may repeat: Vital Core = two Vital Cells).
+@export var recipe: PackedStringArray = PackedStringArray()
+## Extra Lumen to combine the parts (Assemblies and Signatures).
+@export_range(0, 5000) var combine_cost: int = 0
+## Stats, one value each (StatCatalog hero names, Modifier.Op, value).
+@export var stat_ids: PackedStringArray = PackedStringArray()
+@export var stat_ops: PackedInt32Array = PackedInt32Array()
+@export var stat_values: PackedFloat32Array = PackedFloat32Array()
+## Mechanical-gun stats when they differ (Feed items); empty = the ones above.
+@export var mech_stat_ids: PackedStringArray = PackedStringArray()
+@export var mech_stat_ops: PackedInt32Array = PackedInt32Array()
+@export var mech_stat_values: PackedFloat32Array = PackedFloat32Array()
+## Signature passive id (C3 hooks; &"" = none).
+@export var passive: StringName = &""
+## AMMO_MOD: DamageMath.MOD_* (0 = none).
+@export var ammo_mod: int = 0
+## Where an open-slot item shows on the hero (§3.8): &"body_belt", &"body_chest"...
+@export var body_anchor: StringName = &""
+## Name on Mechanical guns (Chip form); display_name is the Crystal form.
+@export var chip_name: String = ""
 
 @export_group("Guide")
 ## Build-guide metadata (docs/armory.md). None of it changes what the item
@@ -94,6 +124,39 @@ func modifiers(tier: int, source: int) -> Array[Modifier]:
 	return out
 
 
+## v22: true for recipe items (Component / Assembly / Signature).
+func is_recipe_item() -> bool:
+	return tier != Tier.NONE
+
+
+## v22: true when the item goes in an open slot (components and gear), false
+## when it mounts on a gun socket (weapon Assemblies / Signatures).
+func uses_open_slot() -> bool:
+	return tier == Tier.COMPONENT or kind == Kind.GEAR
+
+
+## v22 modifiers tagged `source` for a gun of `mana_gun` family.
+func v2_modifiers(mana_gun: bool, source: int) -> Array[Modifier]:
+	var ids := stat_ids
+	var ops := stat_ops
+	var vals := stat_values
+	if not mana_gun and not mech_stat_ids.is_empty():
+		ids = mech_stat_ids
+		ops = mech_stat_ops
+		vals = mech_stat_values
+	var out: Array[Modifier] = []
+	for i in mini(ids.size(), mini(ops.size(), vals.size())):
+		var si := StatCatalog.hero_index(StringName(ids[i]))
+		if si >= 0:
+			out.append(Modifier.make(si, ops[i] as Modifier.Op, vals[i], source))
+	return out
+
+
+## Name for a gun family (Chip form on Mechanical guns).
+func label_for(mana_gun: bool) -> String:
+	return chip_name if not mana_gun and chip_name != "" else label()
+
+
 ## True if `tag` is one of this item's guide tags.
 func has_tag(tag: String) -> bool:
 	return tags.has(tag)
@@ -112,10 +175,12 @@ func effect_label() -> String:
 ## Slot this item occupies, as a short id for UI badges and validators:
 ## &"mount" (tiered socket line), &"ammo", &"squad" or &"consumable".
 func slot_kind() -> StringName:
+	if tier != Tier.NONE:
+		return &"open" if uses_open_slot() else &"socket"
 	match kind:
 		Kind.MOUNT:
 			return &"mount"
-		Kind.AMMO:
+		Kind.AMMO, Kind.AMMO_MOD:
 			return &"ammo"
 		Kind.SQUAD:
 			return &"squad"
