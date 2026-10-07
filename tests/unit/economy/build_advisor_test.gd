@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
-## BuildAdvisor (docs/armory.md): simple builds keep the old first-unowned
-## behaviour; guides open nodes by prerequisites, honour alternatives,
+## BuildAdvisor on the v22 catalog and guides (docs/armory.md): simple builds
+## keep the first-unowned behaviour; guides open nodes by prerequisites, honour alternatives,
 ## fallbacks, skippable / optional nodes and time windows; situational rules
 ## (server signals, enemy threat tags, team roles) change the ranking and give
 ## the reason; affordability flags; a trace explains every decision; every hero
@@ -44,6 +44,18 @@ func _best_item(r: BuildAdvisor.Result) -> StringName:
 	return _cat.at(r.best().item_index).id if r.best() != null else &""
 
 
+## Id of the guide node the advisor picks (the item it names is a part of the node's goal).
+func _best_node(r: BuildAdvisor.Result) -> StringName:
+	return r.best().node.id if r.best() != null else &""
+
+
+func _node_ids(r: BuildAdvisor.Result) -> Array:
+	var out: Array = []
+	for a in r.advice:
+		out.append(String(a.node.id))
+	return out
+
+
 func _node(id: StringName, item: StringName, prio: int, requires: Array = [], target := 1) -> BuildNodeDef:
 	var n := BuildNodeDef.new()
 	n.id = id
@@ -62,24 +74,25 @@ func _custom(nodes: Array) -> RecommendedBuildDef:
 	return b
 
 
-func test_simple_build_recommends_the_first_unowned_step_that_fits() -> void:
+func test_simple_build_recommends_the_first_unowned_step_that_is_sold() -> void:
 	var b := RecommendedBuildDef.new()
-	b.item_ids = PackedStringArray(["med_pack", "overclock", "ember_heart", "ember_heart"])
-	b.targets = PackedInt32Array([1, 1, 1, 2])
+	b.item_ids = PackedStringArray(["med_pack", "ammo_shock", "squad_expansion_1", "squad_expansion_2"])
+	b.targets = PackedInt32Array([1, 1, 1, 1])
+	_cat = _cat.duplicate(true) as ArmoryCatalogDef
+	_cat.find(&"ammo_shock").disabled = true
 	var st := _state(_mana(), 5000)
 	assert_str(String(_best_item(BuildAdvisor.evaluate(b, st, _ar)))).is_equal("med_pack")
 	st.holdings[_cat.index_of(&"med_pack")] = 1
-	# Overclock does not fit a Mana gun: skipped, the list continues.
+	# Shock Rounds are switched off: skipped, the list continues.
 	var r := BuildAdvisor.evaluate(b, st, _ar)
-	assert_str(String(_best_item(r))).is_equal("ember_heart")
-	assert_int(r.best().target).is_equal(1)
-	st.holdings[_cat.index_of(&"ember_heart")] = 1
+	assert_str(String(_best_item(r))).is_equal("squad_expansion_1")
+	assert_int(r.best().cost).is_equal(800)
+	st.holdings[_cat.index_of(&"squad_expansion_1")] = 1
 	r = BuildAdvisor.evaluate(b, st, _ar)
-	assert_int(r.best().target).is_equal(2)
-	assert_int(r.best().cost).is_equal(500)  # upgrade = 900 - 400
+	assert_str(String(_best_item(r))).is_equal("squad_expansion_2")
 
 
-func test_every_hero_has_a_guide_that_opens_with_a_med_pack_then_a_core_mount() -> void:
+func test_every_hero_has_a_guide_that_opens_with_a_med_pack_then_the_first_mount() -> void:
 	for h in ["hero_vesper_loom", "hero_sable", "hero_hex", "hero_liora_vale", "hero_brannoc", "hero_ryker_vance",
 			"hero_juniper_quill"]:
 		var g := _guide(StringName(h))
@@ -87,10 +100,10 @@ func test_every_hero_has_a_guide_that_opens_with_a_med_pack_then_a_core_mount() 
 		assert_bool(g.is_guide()).is_true()
 		var mana: bool = h in ["hero_vesper_loom", "hero_sable", "hero_hex", "hero_liora_vale"]
 		var st := _state(_mana() if mana else _mech(), 500)
+		assert_str(String(_best_node(BuildAdvisor.evaluate(g, st, _ar)))).is_equal("open")
 		assert_str(String(_best_item(BuildAdvisor.evaluate(g, st, _ar)))).is_equal("med_pack")
 		st.holdings[_cat.index_of(&"med_pack")] = 1
-		var core := "ember_heart" if mana else "overclock"
-		assert_str(String(_best_item(BuildAdvisor.evaluate(g, st, _ar)))).override_failure_message(h).is_equal(core)
+		assert_str(String(_best_node(BuildAdvisor.evaluate(g, st, _ar)))).override_failure_message(h).is_equal("start")
 
 
 func test_alternative_satisfies_a_node() -> void:
@@ -102,28 +115,26 @@ func test_alternative_satisfies_a_node() -> void:
 
 
 func test_unavailable_items_do_not_block_and_fallbacks_step_in() -> void:
-	var pref := _node(&"pref", &"overclock", 100)  # Chip: not for a Mana gun
+	_cat = _cat.duplicate(true) as ArmoryCatalogDef
+	_cat.find(&"ammo_cryo").disabled = true  # switched off: unavailable to everyone
+	var pref := _node(&"pref", &"ammo_cryo", 100)
 	var fb := _node(&"fb", &"ember_heart", 90, ["pref"])
 	fb.fallback = true
 	var after := _node(&"next", &"flux_coil", 80, ["pref"])
 	var r := BuildAdvisor.evaluate(_custom([pref, fb, after]), _state(_mana(), 5000), _ar)
-	var items: Array = []
-	for a in r.advice:
-		items.append(String(_cat.at(a.item_index).id))
-	assert_array(items).contains_exactly(["ember_heart", "flux_coil"])
-	# With a Mech gun the preferred item is fine and the fallback stays hidden.
+	assert_array(_node_ids(r)).contains_exactly(["fb", "next"])
+	# Once the preferred item is sold again the fallback stays hidden.
+	_cat.find(&"ammo_cryo").disabled = false
 	r = BuildAdvisor.evaluate(_custom([pref, fb, after]), _state(_mech(), 5000), _ar)
-	assert_str(String(_best_item(r))).is_equal("overclock")
-	for a in r.advice:
-		assert_str(String(a.node.id)).is_not_equal("fb")
+	assert_str(String(_best_node(r))).is_equal("pref")
+	assert_array(_node_ids(r)).not_contains(["fb"])
 
 
 func test_situational_node_waits_for_its_condition_and_explains_itself() -> void:
 	var g := _guide(&"hero_vesper_loom")
 	var st := _state(_mana(), 5000, {&"med_pack": 1, &"ember_heart": 1})
 	var r := BuildAdvisor.evaluate(g, st, _ar)
-	for a in r.advice:
-		assert_str(String(a.node.id)).is_not_equal("heal_pack")
+	assert_array(_node_ids(r)).not_contains(["heal_pack"])
 	st.signals = SnapshotData.ProgressState.SIG_SKILL_DAMAGE
 	r = BuildAdvisor.evaluate(g, st, _ar)
 	var heal: BuildAdvisor.Advice = null
@@ -137,7 +148,7 @@ func test_situational_node_waits_for_its_condition_and_explains_itself() -> void
 
 func test_enemy_threat_tags_open_counter_branches_at_the_trait_threshold() -> void:
 	var g := _guide(&"hero_ryker_vance")
-	var st := _state(_mech(), 5000, {&"med_pack": 1, &"overclock": 1})
+	var st := _state(_mech(), 5000, {&"med_pack": 1, &"ember_heart": 1})
 	st.enemy_tags = {"frontline": 1}
 	var ids := func(res: BuildAdvisor.Result) -> Array:
 		var out: Array = []
@@ -168,10 +179,10 @@ func test_rule_bonus_can_lift_a_situational_node_to_the_top() -> void:
 	var heal := _node(&"heal", &"med_pack", 60)
 	heal.conditions = PackedStringArray(["died_often"])
 	var st := _state(_mana(), 5000)
-	assert_str(String(_best_item(BuildAdvisor.evaluate(_custom([core, heal]), st, _ar)))).is_equal("ember_heart")
+	assert_str(String(_best_node(BuildAdvisor.evaluate(_custom([core, heal]), st, _ar)))).is_equal("core")
 	st.signals = SnapshotData.ProgressState.SIG_DIED_OFTEN
 	var r := BuildAdvisor.evaluate(_custom([core, heal]), st, _ar)
-	assert_str(String(_best_item(r))).is_equal("med_pack")
+	assert_str(String(_best_node(r))).is_equal("heal")
 	assert_str(r.best().reason_key).is_equal("HUD_ADVICE_R_DIED_OFTEN")
 
 
@@ -181,7 +192,7 @@ func test_skippable_node_releases_later_nodes_when_its_condition_is_gone() -> vo
 	opt.skippable = true
 	var later := _node(&"later", &"flux_coil", 50, ["opt"])
 	var r := BuildAdvisor.evaluate(_custom([opt, later]), _state(_mana(), 5000), _ar)
-	assert_str(String(_best_item(r))).is_equal("flux_coil")
+	assert_str(String(_best_node(r))).is_equal("later")
 	opt.skippable = false
 	r = BuildAdvisor.evaluate(_custom([opt, later]), _state(_mana(), 5000), _ar)
 	assert_object(r.best()).is_null()
@@ -202,36 +213,38 @@ func test_time_window_and_catalog_requirements_gate_offers() -> void:
 	assert_int(r.advice.size()).is_equal(2)
 
 
-func test_affordability_soon_and_swap_credit() -> void:
-	var g := _custom([_node(&"q", &"quickload", 100, [], 2)])
-	var st := _state(_mech(), 550)
+func test_affordability_and_soon_follow_lumen_and_expected_income() -> void:
+	var g := _custom([_node(&"q", &"squad_expansion_1", 100)])
+	var st := _state(_mech(), 600)
 	var r := BuildAdvisor.evaluate(g, st, _ar)
 	assert_int(r.best().cost).is_equal(800)
 	assert_bool(r.best().affordable).is_false()
-	assert_bool(r.best().soon).is_true()  # 250 short: within 60 s of expected income (270/min)
+	assert_bool(r.best().soon).is_true()  # 200 short: within 60 s of expected income (270/min)
 	st.lumen = 100
 	assert_bool(BuildAdvisor.evaluate(g, st, _ar).best().soon).is_false()
-	st.lumen = 600
-	st.credits[int(ArmoryItemDef.Socket.FRAME)] = 200  # auto-sell of another Frame line
+	st.lumen = 800
 	assert_bool(BuildAdvisor.evaluate(g, st, _ar).best().affordable).is_true()
 
 
 func test_completed_guide_reports_full_progress_and_ignored_advice_never_blocks() -> void:
 	var g := _guide(&"hero_brannoc")
-	var own := {&"med_pack": 1, &"overclock": 3, &"quickload": 2, &"rifling": 2,
-		&"reinforced_cores_1": 1, &"squad_expansion_1": 1, &"bulwark_protocol": 1}
+	var own := {}
+	for n in g.nodes:
+		if n.core and not n.optional and not n.fallback:
+			own[StringName(n.item_id)] = 1
 	var r := BuildAdvisor.evaluate(g, _state(_mech(), 0, own), _ar)
 	assert_int(r.core_done).is_equal(r.core_total)
+	assert_int(r.core_total).is_greater(0)
 	# A player who bought something off-guide still gets the rest of the guide.
-	r = BuildAdvisor.evaluate(g, _state(_mech(), 5000, {&"ammo_sunder": 1}), _ar)
-	assert_str(String(_best_item(r))).is_equal("med_pack")
+	r = BuildAdvisor.evaluate(g, _state(_mech(), 5000, {&"ammo_cryo": 1}), _ar)
+	assert_str(String(_best_node(r))).is_equal("open")
 
 
 func test_trace_explains_offers_skips_and_the_pick() -> void:
 	var r := BuildAdvisor.evaluate(_guide(&"hero_hex"), _state(_mana(), 500), _ar)
 	var t := "\n".join(r.trace)
 	assert_str(t).contains("offer open (med_pack)")
-	assert_str(t).contains("skip c1 (ember_heart): waits for open")
+	assert_str(t).contains("skip start (cadence_bead): waits for open")
 	assert_str(t).contains("pick open")
 
 

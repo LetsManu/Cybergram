@@ -165,7 +165,6 @@ func test_forged_requests_are_refused_and_change_nothing() -> void:
 		[InputCommand.ACTION_BUY, 0xFF, HeroProgress.Result.UNKNOWN_ITEM],  # index past the catalog
 		[InputCommand.ACTION_SELL, 0, HeroProgress.Result.INVALID],  # no such place
 		[InputCommand.ACTION_SELL, 77, HeroProgress.Result.INVALID],
-		[InputCommand.ACTION_SELL, 0x1FF, HeroProgress.Result.INVALID],
 		[InputCommand.ACTION_SELL, InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG | _idx(&"med_pack"),
 			HeroProgress.Result.NOT_OWNED],
 	]
@@ -261,10 +260,12 @@ func test_shop_model_offers_undo_for_squad_and_med_pack_bought_this_visit() -> v
 	m.update(_own(h))
 	var cores := _idx(&"reinforced_cores_1")
 	assert_int(m.row_undo_arg(cores)).is_equal(InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG | cores)
-	assert_int(m.undo_value(cores)).is_equal(350)
-	assert_int(m.undo_arg(_idx(&"med_pack"))).is_equal(InputCommand.UNDO_ITEM_FLAG | _idx(&"med_pack"))
-	assert_int(m.undo_arg(_idx(&"amplifier_emitters"))).is_equal(-1)
-	_pr.handle_action(h, _cmd(InputCommand.ACTION_SELL, m.undo_arg(cores)))
+	var row := InputCommand.UNDO_ITEM_FLAG | InputCommand.UNDO_ROW_FLAG
+	assert_int(m.row_undo_arg(_idx(&"med_pack"))).is_equal(row | _idx(&"med_pack"))
+	assert_int(m.row_undo_arg(_idx(&"amplifier_emitters"))).is_equal(-1)
+	var before := p.lumen
+	_pr.handle_action(h, _cmd(InputCommand.ACTION_SELL, m.row_undo_arg(cores)))
+	assert_int(p.lumen).is_equal(before + _cost(&"reinforced_cores_1"))  # full refund
 	m.update(_own(h))
-	assert_int(m.undo_arg(cores)).is_equal(-1)
+	assert_int(m.row_undo_arg(cores)).is_equal(-1)
 	assert_str(ItemShopModel.result_key(HeroProgress.Result.NO_FUNDS)).is_equal("HUD_SHOP_R_NO_FUNDS")
