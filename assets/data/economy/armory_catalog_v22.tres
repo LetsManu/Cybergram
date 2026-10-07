@@ -999,6 +999,7 @@ ammo_mod = 2
 hue = Color(0.85, 0.75, 1.0, 1)
 category = &"offense"
 tags = PackedStringArray("luxury")
+fits_ammo = PackedInt32Array(3, 4, 6)
 
 [sub_resource type="Resource" id="item_51"]
 script = ExtResource("1")
@@ -1013,6 +1014,7 @@ ammo_mod = 3
 hue = Color(0.85, 0.75, 1.0, 1)
 category = &"offense"
 tags = PackedStringArray("luxury")
+fits_ammo = PackedInt32Array(3, 4, 5, 6, 2)
 
 [sub_resource type="Resource" id="item_52"]
 script = ExtResource("1")

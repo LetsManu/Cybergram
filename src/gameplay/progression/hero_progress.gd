@@ -15,6 +15,10 @@ enum Result {
 	# v21 Armory: a Med-Pack heal is already running (was LIMIT); the request
 	# was malformed (bad tier / socket / index beyond the catalog).
 	HEALING, INVALID,
+	# Armory v2 (items-and-armory.md §3.6): no free open slot; Signature limit
+	# reached; one copy per item id; an undo blocked by a later purchase; an
+	# Ammo Mod that does not work with the loaded Ammo Type.
+	INVENTORY_FULL, SIGNATURE_LIMIT, ALREADY_OWNED, UNDO_BLOCKED, INCOMPATIBLE,
 }
 
 ## Spawn choice on the death screen (match-flow-and-map.md §3.5, hud.md §9).
@@ -49,6 +53,10 @@ var mounts: Dictionary = {}
 ## Squad upgrade ids owned (last for the match).
 var owned: Dictionary = {}
 var medpacks: int = 0
+## Armory v2 equipment (sockets, Chamber, open slots, undo log).
+var inv: ItemInventory = ItemInventory.new()
+## Catalog indices whose v2 item modifiers are on the hero (ItemShop.apply_stats).
+var inv_applied: Array[int] = []
 ## Squad upgrades / Med-Packs bought during the current Armory visit (item id
 ## -> count): these can be undone for a full refund until the visit ends.
 var visit_items: Dictionary = {}
@@ -114,6 +122,7 @@ func end_visit() -> void:
 	for s in mounts:
 		(mounts[s] as Mount).paid_visit = 0
 	visit_items.clear()
+	inv.end_visit()
 
 
 ## Number of `item_id` bought this visit (undoable).

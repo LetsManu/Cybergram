@@ -87,6 +87,10 @@ extends Resource
 ## §3.6.4 rule 4: later sells pay 60%, rounded down to a multiple of 5.
 @export_range(0.0, 1.0, 0.05) var sell_late_frac: float = 0.6
 @export var sell_round: int = 5
+## Armory v2 (items-and-armory.md §3.1, §3.2): open item slots per hero and
+## the most Signatures one hero may hold.
+@export_range(1, 12) var open_slots: int = 6
+@export_range(0, 6) var signature_limit: int = 2
 ## §19 Med-Pack: heal 40% of max HP over 3 s, cancelled by firing.
 @export_range(0.0, 1.0, 0.05) var medpack_heal_frac: float = 0.4
 @export_range(0.1, 10.0, 0.1) var medpack_duration_s: float = 3.0

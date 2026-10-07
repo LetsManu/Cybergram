@@ -60,8 +60,10 @@ enum Family { ANY, CRYSTAL, CHIP }
 @export var mech_stat_values: PackedFloat32Array = PackedFloat32Array()
 ## Signature passive id (C3 hooks; &"" = none).
 @export var passive: StringName = &""
-## AMMO_MOD: DamageMath.MOD_* (0 = none).
+## AMMO_MOD: DamageMath.MOD_* (0 = none) and the Ammo Types it works with
+## (DamageMath.AMMO_*; empty = every type; weapons-and-mods.md §3.7.2).
 @export var ammo_mod: int = 0
+@export var fits_ammo: PackedInt32Array = PackedInt32Array()
 ## Where an open-slot item shows on the hero (§3.8): &"body_belt", &"body_chest"...
 @export var body_anchor: StringName = &""
 ## Name on Mechanical guns (Chip form); display_name is the Crystal form.

@@ -183,12 +183,14 @@ AMMO_ITEMS = [
     ("ammo_cryo", "Cryo", 750, "cryo", ["mobility"], "Chill slows up to 25%; full meter = Brittle."),
     ("ammo_sunder", "Sunder", 650, "sunder", ["squad"], "+35% vs constructs, +20% vs structures, -10% vs heroes."),
 ]
+# Last field: Ammo Types the mod works with (weapons-and-mods.md §3.7.2 table; [] = all).
 MOD_ITEMS = [
-    ("mod_saturated", "Saturated", 350, "saturated", "Ammo effect potency x1.3."),
-    ("mod_lingering", "Lingering", 300, "lingering", "Ammo effect duration x1.5."),
-    ("mod_volatile", "Volatile", 400, "volatile", "On kill, the ammo effect bursts to enemies within 4 m."),
-    ("mod_tracer", "Tracer", 300, "tracer", "Affected targets are marked for your team for 1.5 s."),
-    ("mod_overcharged", "Overcharged", 350, "overcharged", "Potency x1.5; mana cost +20% / reload +15%."),
+    ("mod_saturated", "Saturated", 350, "saturated", "Ammo effect potency x1.3.", []),
+    ("mod_lingering", "Lingering", 300, "lingering", "Ammo effect duration x1.5.", ["incendiary", "shock", "cryo"]),
+    ("mod_volatile", "Volatile", 400, "volatile", "On kill, the ammo effect bursts to enemies within 4 m.",
+     ["incendiary", "shock", "siphon", "cryo", "sunder"]),
+    ("mod_tracer", "Tracer", 300, "tracer", "Affected targets are marked for your team for 1.5 s.", []),
+    ("mod_overcharged", "Overcharged", 350, "overcharged", "Potency x1.5; mana cost +20% / reload +15%.", []),
 ]
 
 
@@ -289,12 +291,15 @@ def main():
             L.append("counter_tags = " + psa(counters))
         lines += L + [""]
         idx += 1
-    for mid, name, price, mod_name, eff in MOD_ITEMS:
-        lines += ['[sub_resource type="Resource" id="item_%d"]' % idx, 'script = ExtResource("1")', 'id = &"%s"' % mid,
-                  "display_name = " + gd_str(name), "effect_text = " + gd_str(eff), "kind = %d" % AMMO_MOD,
-                  "socket = %d" % CHAMBER, "family = 0", "prices = " + pia([price]),
-                  "ammo_mod = %d" % MOD_IDS[mod_name], "hue = " + color((0.85, 0.75, 1.0)), 'category = &"offense"',
-                  'tags = PackedStringArray("luxury")', ""]
+    for mid, name, price, mod_name, eff, fits in MOD_ITEMS:
+        L = ['[sub_resource type="Resource" id="item_%d"]' % idx, 'script = ExtResource("1")', 'id = &"%s"' % mid,
+             "display_name = " + gd_str(name), "effect_text = " + gd_str(eff), "kind = %d" % AMMO_MOD,
+             "socket = %d" % CHAMBER, "family = 0", "prices = " + pia([price]),
+             "ammo_mod = %d" % MOD_IDS[mod_name], "hue = " + color((0.85, 0.75, 1.0)), 'category = &"offense"',
+             'tags = PackedStringArray("luxury")']
+        if fits:
+            L.append("fits_ammo = " + pia([AMMO_IDS[f] for f in fits]))
+        lines += L + [""]
         idx += 1
     lines += ["[resource]", 'script = ExtResource("2")',
               "items = Array[ExtResource(\"1\")]([" + ", ".join('SubResource("item_%d")' % i for i in range(idx)) + "])",
