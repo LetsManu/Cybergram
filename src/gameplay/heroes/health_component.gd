@@ -52,22 +52,22 @@ func apply_damage(info: DamageInfo) -> float:
 	if info.instigator_team == team:
 		return 0.0
 	var amount := info.amount
-	if info.type != DamageInfo.Type.TRUE:
+	if info.type != DamageInfo.Type.TRUE and (info.flags & DamageInfo.FLAG_PREMITIGATED) == 0:
 		var dr := damage_reduction
 		if stats != null:
 			dr += stats.get_value(StatCatalog.DAMAGE_REDUCTION)
-		var arm := armor * (1.0 - minf(0.60, maxf(info.armor_pen, 0.0)))
+		var arm := armor_value(info)
 		var after := DamageMath.armor_mult(arm, dr)
 		if stats != null:
 			mitigated += amount * (DamageMath.armor_mult(arm, damage_reduction) - after)
 		amount *= after
-		if stats != null:
-			amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
-			# Armory defensive Frame lines (Bastion / Null Weave).
-			if info.type == DamageInfo.Type.WEAPON:
-				amount *= stats.get_value(StatCatalog.WEAPON_DAMAGE_TAKEN)
-			elif info.type == DamageInfo.Type.SKILL:
-				amount *= stats.get_value(StatCatalog.SKILL_DAMAGE_TAKEN)
+	if info.type != DamageInfo.Type.TRUE and stats != null:
+		amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
+		# Armory v1 defensive Frame lines (Bastion / Null Weave); kept until C7.
+		if info.type == DamageInfo.Type.WEAPON:
+			amount *= stats.get_value(StatCatalog.WEAPON_DAMAGE_TAKEN)
+		elif info.type == DamageInfo.Type.SKILL:
+			amount *= stats.get_value(StatCatalog.SKILL_DAMAGE_TAKEN)
 	last_absorbed = 0.0
 	if shield > 0.0:
 		last_absorbed = minf(shield, amount)
@@ -83,6 +83,17 @@ func apply_damage(info: DamageInfo) -> float:
 		hp = 0.0
 		died.emit(info.source_net_id)
 	return applied
+
+
+## Armor term of `info` before DR (items-and-armory.md §4.3): weapon hits use
+## A_w = (A_base + max(0, min(0.20, A_gear) − Rend)) × (1 − min(0.60, P)); skill hits
+## A_s = A_base + min(0.20, R_gear). Without a StatBlock gear is 0 (Wardlings).
+func armor_value(info: DamageInfo) -> float:
+	var gear_armor := stats.get_value(StatCatalog.GEAR_ARMOR) if stats != null else 0.0
+	var gear_resist := stats.get_value(StatCatalog.GEAR_RESIST) if stats != null else 0.0
+	if info.type == DamageInfo.Type.SKILL:
+		return DamageMath.skill_armor(armor, gear_resist)
+	return DamageMath.weapon_armor(armor, gear_armor, info.rend, info.armor_pen)
 
 
 func heal(amount: float, source_net_id: int = 0) -> float:
