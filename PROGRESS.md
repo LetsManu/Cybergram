@@ -53,9 +53,16 @@ as it is, new tests run inside the existing test job.
   - Gaps: Bulwark's body-block radius; per-hero item restrictions (Hex /
     Focus Lens kept by the guide only); build rename / notes have no text
     field yet.
-  - Next: step 7
-    (balance report, 1080p / 720p screenshots, `docs/item-shop-polish.md`,
-    release: protocol 21 needs launcher 1.9.0 and a server + client update).
+  - Step 7: balance report `tools/balance/armory_report.gd` ->
+    `docs/balance/armory-report.md` (guides spent along the §18 curve through
+    the bot buy path); economy review `docs/balance/armory-review.md`.
+    Applied its proposals 1–2 (late squad tail in five guides: unspent at
+    30:00 3,623 -> 1,073, Hex 5,123 -> 923). Open for the owner: Brannoc
+    Sunder node, Vesper Expansion II vs Bulwark, the 5v5 threat-tag
+    threshold (counter items never fire), registering 12 catalog items.
+    Screenshot presets `--debug-armory-catalog`, `RESOLUTION=1920x1080`.
+  - Next: 1080p screenshots + `docs/item-shop-polish.md`; release (protocol
+    21 needs launcher 1.9.0 and a server + client update).
 
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +
