@@ -26,6 +26,8 @@ const RULES: Array[String] = [
 ]
 ## Reason key per rule ("Recommended because ...").
 const RULE_REASON_PREFIX := "HUD_ADVICE_R_"
+## Automatic rules that reorder but rarely make the best headline.
+const GENERIC_RULES := ["affordable_now", "core_tier_ready", "counters_enemy"]
 const SIGNAL_RULES := {
 	"taking_weapon_damage": SnapshotData.ProgressState.SIG_WEAPON_DAMAGE,
 	"taking_skill_damage": SnapshotData.ProgressState.SIG_SKILL_DAMAGE,
@@ -250,8 +252,14 @@ static func _offer_check(n: BuildNodeDef, st: BuildState, ar: AdviceRulesDef, by
 	return ""
 
 
-## The item actually recommended for `n`: its own item, or the first buyable alternative.
+## The item actually recommended for `n`: a line the hero already holds
+## (its own item first, then an alternative: never suggest swapping a held
+## line out), else its own item, else the first buyable alternative.
 static func _buy_index(n: BuildNodeDef, st: BuildState) -> int:
+	for id in [n.item_id] + Array(n.alternatives):
+		var hi := st.catalog.index_of(StringName(id))
+		if hi >= 0 and st.held(hi) > 0 and not _item_unavailable(st, StringName(id)):
+			return hi
 	if not _item_unavailable(st, n.item_id):
 		return st.catalog.index_of(n.item_id)
 	for a in n.alternatives:
@@ -284,9 +292,12 @@ static func _advise(n: BuildNodeDef, st: BuildState, ar: AdviceRulesDef) -> Advi
 	for r in rules:
 		a.score += ar.bonus_of(r)
 		# Headline reason: the strongest situational rule (never the generic
-		# "affordable" / "next tier" bonuses, which only reorder).
-		if r != "affordable_now" and r != "core_tier_ready" and (best == "" or ar.bonus_of(r) > ar.bonus_of(best)):
+		# "affordable" / "next tier" bonuses, which only reorder). A named
+		# enemy_<tag> rule beats the generic "counters the enemy" line.
+		if r not in GENERIC_RULES and (best == "" or ar.bonus_of(r) > ar.bonus_of(best)):
 			best = r
+	if best == "" and rules.has("counters_enemy"):
+		best = "counters_enemy"
 	var it := st.catalog.at(a.item_index)
 	if best != "":
 		a.reason_key = RULE_REASON_PREFIX + best.to_upper()

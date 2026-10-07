@@ -429,6 +429,54 @@ items:
     category: squad_upgrade
     added: 2026-10-02
     revised: 2026-10-02      # renamed from "Overclock Emitters" (clashed with the Overclock Chip)
+  - name: harmonic_tether
+    status: active
+    source: design/gdd/wardlings-and-economy.md
+    referenced_by: [docs/armory.md]
+    value_lumen: 300
+    wardling_speed_bonus: 0.12
+    follow_leash_m: 40
+    category: squad_upgrade
+    added: 2026-10-07
+    revised: ""
+  - name: quick_mint
+    status: active
+    source: design/gdd/wardlings-and-economy.md
+    referenced_by: [docs/armory.md]
+    value_lumen: 250
+    mint_s_per_wardling: 0.1
+    post_mint_resist: 0.25
+    post_mint_resist_s: 5
+    category: squad_upgrade
+    added: 2026-10-07
+    revised: ""
+  - name: bulwark_protocol
+    status: active
+    source: design/gdd/wardlings-and-economy.md
+    referenced_by: [docs/armory.md]
+    value_lumen: 1400
+    hold_capture_damage_taken: -0.30
+    category: squad_upgrade
+    added: 2026-10-07
+    revised: ""
+  - name: bastion_weave
+    status: active
+    source: design/gdd/weapons-and-mods.md
+    referenced_by: [docs/armory.md]
+    value_lumen: [300, 700, 1500]
+    weapon_damage_taken: [-0.06, -0.10, -0.14]
+    category: mount_frame
+    added: 2026-10-07
+    revised: ""
+  - name: null_weave
+    status: active
+    source: design/gdd/weapons-and-mods.md
+    referenced_by: [docs/armory.md]
+    value_lumen: [300, 700, 1500]
+    skill_damage_taken: [-0.08, -0.13, -0.18]
+    category: mount_frame
+    added: 2026-10-07
+    revised: ""
   - name: full_weapon_build
     status: active
     source: design/gdd/weapons-and-mods.md

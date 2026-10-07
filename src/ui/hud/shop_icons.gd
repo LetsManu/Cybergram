@@ -3,7 +3,8 @@ extends RefCounted
 ## Code-drawn item glyphs for the Armory shop (art bible §4 shape-first rule:
 ## no textures, each family has its own silhouette so colour is never the only
 ## cue; v0.12: brass line art). Crystal = faceted gem, Chip = square with pins, Frame = bracket,
-## Ammo = round, Squad = three chevrons, Med-Pack = cross.
+## Barrel = lens rings / shroud, defensive Frame = shield, Ammo = round, Squad = three chevrons
+## (Tether + link, Quick Mint = bolt, Bulwark = shield), Med-Pack = cross.
 ##
 ## Example: ShopIcons.draw(self, item, Rect2(8, 8, 56, 56), item.hue)
 
@@ -20,11 +21,29 @@ static func draw(ci: CanvasItem, it: ArmoryItemDef, r: Rect2, col: Color) -> voi
 		ArmoryItemDef.Kind.CONSUMABLE:
 			_cross(ci, c, s * 0.62, lc, w)
 		ArmoryItemDef.Kind.SQUAD:
-			_chevrons(ci, c, s * 0.62, lc, w)
+			match it.id:
+				&"harmonic_tether":
+					_chevrons(ci, c + Vector2(0.0, s * 0.12), s * 0.5, lc, w)
+					_link(ci, c + Vector2(0.0, -s * 0.62), s * 0.3, lc, w)
+				&"quick_mint":
+					_bolt(ci, c, s * 0.66, lc, w)
+				&"bulwark_protocol":
+					_shield(ci, c, s * 0.66, lc, w)
+					_chevrons(ci, c + Vector2(0.0, s * 0.1), s * 0.28, lc, w)
+				_:
+					_chevrons(ci, c, s * 0.62, lc, w)
 		ArmoryItemDef.Kind.AMMO:
 			_bullet(ci, c, s * 0.62, lc, w)
 		_:
-			if it.socket == ArmoryItemDef.Socket.FRAME:
+			if it.category == &"defense":  # defensive Frame lines (fit every gun)
+				_shield(ci, c, s * 0.66, lc, w)
+				if it.counter_tags.has("skill_dps"):
+					ci.draw_arc(c + Vector2(0.0, -s * 0.05), s * 0.22, 0.0, TAU, 16, lc, w, true)
+				else:
+					ci.draw_line(c + Vector2(-s * 0.3, -s * 0.05), c + Vector2(s * 0.3, -s * 0.05), lc, w, true)
+			elif it.socket == ArmoryItemDef.Socket.BARREL:
+				_lens(ci, c, s * 0.62, lc, w, it.family == ArmoryItemDef.Family.CHIP)
+			elif it.socket == ArmoryItemDef.Socket.FRAME:
 				_bracket(ci, c, s * 0.6, lc, w, it.family == ArmoryItemDef.Family.CHIP)
 			elif it.family == ArmoryItemDef.Family.CHIP:
 				_chip(ci, c, s * 0.6, lc, w)
@@ -83,6 +102,37 @@ static func _cross(ci: CanvasItem, c: Vector2, s: float, col: Color, w: float) -
 	ci.draw_polyline(PackedVector2Array([c + Vector2(-t, -s), c + Vector2(t, -s), c + Vector2(t, -t), c + Vector2(s, -t),
 		c + Vector2(s, t), c + Vector2(t, t), c + Vector2(t, s), c + Vector2(-t, s), c + Vector2(-t, t), c + Vector2(-s, t),
 		c + Vector2(-s, -t), c + Vector2(-t, -t), c + Vector2(-t, -s)]), col, w, true)
+
+
+## Barrel: lens rings (Crystal) or a ribbed shroud (Chip), seen from the side.
+static func _lens(ci: CanvasItem, c: Vector2, s: float, col: Color, w: float, chip: bool) -> void:
+	ci.draw_line(c + Vector2(-s, 0.0), c + Vector2(s, 0.0), col, w, true)
+	for i in 3:
+		var x := -s * 0.5 + s * 0.5 * i
+		if chip:
+			ci.draw_rect(Rect2(c + Vector2(x - s * 0.12, -s * 0.5), Vector2(s * 0.24, s)), col, false, w)
+		else:
+			ci.draw_arc(c + Vector2(x, 0.0), s * (0.35 + 0.12 * i), PI * 0.5, PI * 1.5, 12, col, w, true)
+
+
+## Defensive shield outline.
+static func _shield(ci: CanvasItem, c: Vector2, s: float, col: Color, w: float) -> void:
+	ci.draw_polyline(PackedVector2Array([c + Vector2(-s * 0.75, -s * 0.8), c + Vector2(s * 0.75, -s * 0.8),
+		c + Vector2(s * 0.75, -s * 0.05), c + Vector2(0.0, s), c + Vector2(-s * 0.75, -s * 0.05),
+		c + Vector2(-s * 0.75, -s * 0.8)]), col, w, true)
+
+
+## Lightning bolt (fast minting).
+static func _bolt(ci: CanvasItem, c: Vector2, s: float, col: Color, w: float) -> void:
+	ci.draw_polyline(PackedVector2Array([c + Vector2(s * 0.2, -s), c + Vector2(-s * 0.45, s * 0.1),
+		c + Vector2(s * 0.05, s * 0.1), c + Vector2(-s * 0.2, s), c + Vector2(s * 0.45, -s * 0.15),
+		c + Vector2(-s * 0.05, -s * 0.15), c + Vector2(s * 0.2, -s)]), col, w, true)
+
+
+## Two linked rings (tether).
+static func _link(ci: CanvasItem, c: Vector2, s: float, col: Color, w: float) -> void:
+	ci.draw_arc(c + Vector2(-s * 0.45, 0.0), s * 0.6, 0.0, TAU, 14, col, w, true)
+	ci.draw_arc(c + Vector2(s * 0.45, 0.0), s * 0.6, 0.0, TAU, 14, col, w, true)
 
 
 ## Five-point star (recommended badge), centre `c`, outer radius `s`.

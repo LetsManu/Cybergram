@@ -47,6 +47,15 @@ var attack_expire_tick: int = -1
 var owner_dead_tick: int = -1
 ## Mints still to come (staggered) and the tick of the next one.
 var pending_mints: int = 0
+## Owner's Armory squad upgrades, refreshed every tick by WardlingWorld:
+## move speed multiplier and extra Follow leash (Harmonic Tether), mint
+## interval multiplier and post-mint resistance (Quick Mint), damage
+## resistance while holding / capturing (Bulwark Protocol).
+var speed_mult: float = 1.0
+var leash_bonus_m: float = 0.0
+var mint_interval_mult: float = 1.0
+var mint_guard: float = 0.0
+var guard_dr: float = 0.0
 var next_mint_tick: int = 0
 
 ## Retaliation memory: who last damaged the owner, and when.

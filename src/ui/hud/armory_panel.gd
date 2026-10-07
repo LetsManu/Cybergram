@@ -36,7 +36,9 @@ const CARD_BG := Color(0.07, 0.09, 0.15, 0.9)
 ## Localization keys of the stat names shown in the tier table.
 const STAT_KEYS := {&"mod_damage": "HUD_STAT_DAMAGE", &"mana_regen": "HUD_STAT_REGEN", &"regen_delay": "HUD_STAT_REGEN_DELAY",
 	&"reload_time": "HUD_STAT_RELOAD", &"squad_capacity_bonus": "HUD_STAT_SQUAD", &"wardling_hp_mult": "HUD_STAT_WARDLING_HP",
-	&"wardling_damage_mult": "HUD_STAT_WARDLING_DMG"}
+	&"wardling_damage_mult": "HUD_STAT_WARDLING_DMG",
+	&"falloff_range": "HUD_STAT_FALLOFF", &"armor_pen_bonus": "HUD_STAT_ARMOR_PEN",
+	&"weapon_damage_taken": "HUD_STAT_GUN_DMG_TAKEN", &"skill_damage_taken": "HUD_STAT_SKILL_DMG_TAKEN"}
 
 var open: bool = false
 var tab: int = ShopModel.Tab.RECOMMENDED
@@ -720,8 +722,13 @@ func _draw_cards() -> void:
 			ctx.font_numbers)
 		_draw_pips(it, held, Vector2(tx, r.position.y + 84.0), a)
 		var adv := model.advice_for(idx) if tab == ShopModel.Tab.RECOMMENDED else null
-		if adv != null:  # Recommended tab: the one-line reason under the price
-			text(_fit(tr(adv.reason_key), 13, r.end.x - tx - 8.0), Vector2(tx, r.position.y + 96.0), 13,
+		if adv != null:  # Recommended tab: the one-line reason, clear of the NEXT / SITUATIONAL chips
+			var chip_w := 0.0
+			if idx == next:
+				chip_w += caps_width(tr("HUD_SHOP_NEXT"), 12, 0.16) + 20.0
+			if adv.situational:
+				chip_w += caps_width(tr("HUD_SHOP_SITUATIONAL"), 12, 0.18) + 14.0
+			text(_fit(tr(adv.reason_key), 13, r.end.x - tx - 12.0 - chip_w), Vector2(tx, r.position.y + 96.0), 13,
 				Color(HudPalette.BRASS_HI if adv.situational else HudPalette.MUTED, a), ctx.font_body)
 		elif it.kind == ArmoryItemDef.Kind.CONSUMABLE:
 			text(tr("HUD_ARMORY_CARRY") % [p.medpacks, it.carry_limit], Vector2(tx, r.position.y + 94.0), 13,
@@ -732,7 +739,9 @@ func _draw_cards() -> void:
 			caps(soon, Vector2(r.end.x - 12.0 - caps_width(soon, 12, 0.18), r.position.y + 22.0), 12, HudPalette.TEAL, 0.18)
 		if adv != null and adv.situational:
 			var sit := tr("HUD_SHOP_SITUATIONAL")
-			caps(sit, Vector2(r.end.x - 12.0 - caps_width(sit, 12, 0.18), r.position.y + 40.0), 12, HudPalette.WARN_UI, 0.18)
+			tag_x -= caps_width(sit, 12, 0.18)
+			caps(sit, Vector2(tag_x, r.end.y - 12.0), 12, HudPalette.WARN_UI, 0.18)
+			tag_x -= 12.0
 		if model.is_recommended(idx) and tab != ShopModel.Tab.RECOMMENDED:
 			var rec := tr("HUD_SHOP_REC")
 			tag_x -= caps_width(rec, 13, 0.18)
@@ -797,14 +806,18 @@ func _draw_detail() -> void:
 	var x := d.position.x + 16.0
 	var y := d.position.y
 	ShopIcons.draw(self, it, Rect2(Vector2(x, y + 16.0), Vector2(84.0, 84.0)), Color.WHITE)
-	caps(_kind_line(it), Vector2(x + 100.0, y + 30.0), 15, HudPalette.BRASS, 0.22)
+	caps(_kind_line(it, idx), Vector2(x + 100.0, y + 30.0), 15, HudPalette.BRASS, 0.22)
 	caps(it.label(), Vector2(x + 100.0, y + 64.0), 27, HudPalette.IVORY, 0.12)
 	var bx := x + 100.0
-	if model.is_recommended(idx):
+	var why := model.reason_key(idx)
+	var held := model.held_tier(idx)
+	if why != "":  # the reason is the recommendation tag
+		text(_fit(tr("HUD_SHOP_WHY") % tr(why), 15, d.end.x - 16.0 - bx), Vector2(bx, y + 98.0), 15,
+			HudPalette.BRASS_HI, ctx.font_body)
+	elif model.is_recommended(idx):
 		caps(tr("HUD_SHOP_RECOMMENDED_TAG"), Vector2(bx, y + 96.0), 14, HudPalette.BRASS, 0.18)
 		bx += caps_width(tr("HUD_SHOP_RECOMMENDED_TAG"), 14, 0.18) + 16.0
-	var held := model.held_tier(idx)
-	if held > 0:
+	if held > 0 and why == "":
 		var s := tr("HUD_ARMORY_MOUNTED") % TIER_NAMES[held] if it.tiers() > 1 and it.kind != ArmoryItemDef.Kind.SQUAD \
 			else tr("HUD_ARMORY_OWNED")
 		caps(s, Vector2(bx, y + 96.0), 14, HudPalette.TEAL, 0.18)
@@ -862,36 +875,32 @@ func _draw_detail() -> void:
 	_draw_advice(idx, it, x, ty, d)
 
 
-## Why the item is recommended, its valid alternatives, and (expert view)
-## the matched rules, guide tags and counters.
+## Valid alternatives of a recommendation and (expert view) the matched
+## rules, guide tags and counters, below the sell / undo line.
 func _draw_advice(idx: int, it: ArmoryItemDef, x: float, ty: float, d: Rect2) -> void:
 	var w := d.end.x - 16.0 - x
-	caps(tr(model.kind_key(idx)), Vector2(x, ty + 10.0), 12, HudPalette.DIM, 0.18)
-	ty += 26.0
+	var limit := d.end.y - 8.0
 	var a := model.advice_for(idx)
-	if a != null:
-		draw_multiline_string(ctx.font_body, Vector2(x, ty + 10.0), tr("HUD_SHOP_WHY") % tr(a.reason_key),
-			HORIZONTAL_ALIGNMENT_LEFT, w, ts(15), 2, HudPalette.BRASS_HI)
-		ty += 44.0
-		if not a.alternatives.is_empty():
-			var names := PackedStringArray()
-			for ai in a.alternatives:
-				names.append(ctx.client.catalog.at(ai).label())
-			text(_fit(tr("HUD_SHOP_ALTS") % ", ".join(names), 14, w), Vector2(x, ty + 10.0), 14, HudPalette.MUTED)
-			ty += 24.0
+	if a != null and not a.alternatives.is_empty() and ty + 24.0 <= limit:
+		var names := PackedStringArray()
+		for ai in a.alternatives:
+			names.append(ctx.client.catalog.at(ai).label())
+		text(_fit(tr("HUD_SHOP_ALTS") % ", ".join(names), 14, w), Vector2(x, ty + 10.0), 14, HudPalette.MUTED)
+		ty += 24.0
 	if not expert:
 		return
+	var lines := PackedStringArray()
 	if a != null and not a.rules.is_empty():
-		text(_fit(tr("HUD_SHOP_EXPERT_RULES") % ", ".join(a.rules), 13, w), Vector2(x, ty + 10.0), 13, HudPalette.DIM,
-			ctx.font_mono)
-		ty += 20.0
+		lines.append(tr("HUD_SHOP_EXPERT_RULES") % ", ".join(a.rules))
 	if not it.tags.is_empty():
-		text(_fit(tr("HUD_SHOP_EXPERT_TAGS") % ", ".join(it.tags), 13, w), Vector2(x, ty + 10.0), 13, HudPalette.DIM,
-			ctx.font_mono)
-		ty += 20.0
+		lines.append(tr("HUD_SHOP_EXPERT_TAGS") % ", ".join(it.tags))
 	if not it.counter_tags.is_empty():
-		text(_fit(tr("HUD_SHOP_EXPERT_COUNTERS") % ", ".join(it.counter_tags), 13, w), Vector2(x, ty + 10.0), 13,
-			HudPalette.DIM, ctx.font_mono)
+		lines.append(tr("HUD_SHOP_EXPERT_COUNTERS") % ", ".join(it.counter_tags))
+	for l in lines:
+		if ty + 20.0 > limit:
+			break
+		text(_fit(l, 13, w), Vector2(x, ty + 10.0), 13, HudPalette.DIM, ctx.font_mono)
+		ty += 20.0
 
 
 ## Why the item is unavailable, or what a buy would swap out.
@@ -905,14 +914,16 @@ func _note(index: int, st: int) -> String:
 	return _reason(index, st)
 
 
-func _kind_line(it: ArmoryItemDef) -> String:
+## "CORE - Mana guns only - New mount": shelf, family rule, what a buy does.
+func _kind_line(it: ArmoryItemDef, idx: int = -1) -> String:
 	var fam := ""
 	match it.family:
 		ArmoryItemDef.Family.CRYSTAL:
 			fam = " - " + tr("HUD_ARMORY_MANA_ONLY")
 		ArmoryItemDef.Family.CHIP:
 			fam = " - " + tr("HUD_ARMORY_MECH_ONLY")
-	return tr(ShopModel.TAB_KEYS[ShopModel.tab_of(it)]) + fam
+	var kind := (" - " + tr(model.kind_key(idx))) if idx >= 0 and model.kind_key(idx) != "" else ""
+	return tr(ShopModel.TAB_KEYS[ShopModel.tab_of(it)]) + fam + kind
 
 
 ## "Damage +6%" for one tier row.

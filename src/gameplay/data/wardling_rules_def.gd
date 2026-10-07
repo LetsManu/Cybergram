@@ -9,6 +9,8 @@ extends Resource
 @export_range(1.0, 30.0, 0.5) var foundry_radius_m: float = 6.0
 ## Stagger between mints (§3: 0.5 s per Wardling).
 @export_range(0.0, 5.0, 0.05) var mint_interval_s: float = 0.5
+## Quick Mint (Armory squad upgrade): seconds of damage resistance after a mint (§7).
+@export_range(0.0, 30.0, 0.5) var quick_mint_guard_s: float = 5.0
 ## Owner death: hold, then dissolve (C15, §9.8).
 @export_range(0.0, 60.0, 0.1) var death_hold_s: float = 10.0
 

@@ -68,7 +68,8 @@ func test_tabs_and_search_filter_the_catalog() -> void:
 	assert_array(_names(m, m.rows(ShopModel.Tab.CORE))).contains_exactly(["ember_heart", "overclock"])
 	assert_array(_names(m, m.rows(ShopModel.Tab.CHAMBER))).contains_exactly(["ammo_piercing", "ammo_sunder"])
 	assert_array(_names(m, m.rows(ShopModel.Tab.CONSUMABLES))).contains_exactly(["med_pack"])
-	assert_int(m.rows(ShopModel.Tab.SQUAD).size()).is_equal(5)
+	assert_int(m.rows(ShopModel.Tab.SQUAD).size()).is_equal(8)
+	assert_array(_names(m, m.rows(ShopModel.Tab.BARREL))).contains_exactly(["focus_lens", "rifling", "penetrator"])
 	assert_array(_names(m, m.rows(ShopModel.Tab.ALL, "  EMBER "))).contains_exactly(["ember_heart"])
 	# Search also reads the effect text, inside a tab.
 	assert_array(_names(m, m.rows(ShopModel.Tab.FRAME, "reload"))).contains_exactly(["quickload"])
@@ -221,8 +222,16 @@ func test_tabs_start_with_recommended_and_hide_an_empty_barrel_socket() -> void:
 	var m := _model(_hero(CombatFixtures.vesper()), VESPER)
 	var tabs := m.tabs()
 	assert_int(tabs[0]).is_equal(ShopModel.Tab.RECOMMENDED)
-	assert_bool(tabs.has(ShopModel.Tab.BARREL)).is_false()
-	assert_int(tabs.size()).is_equal(7)
+	assert_bool(tabs.has(ShopModel.Tab.BARREL)).is_true()
+	assert_int(tabs.size()).is_equal(8)
+	# A catalog that sells nothing for the Barrel hides that tab.
+	var trimmed := ArmoryCatalogDef.new()
+	for it in _cat.items:
+		if it.socket != ArmoryItemDef.Socket.BARREL:
+			trimmed.items.append(it)
+	m.catalog = trimmed
+	assert_bool(m.tabs().has(ShopModel.Tab.BARREL)).is_false()
+	assert_int(m.tabs().size()).is_equal(7)
 
 
 func test_recommended_tab_lists_open_advice_with_reasons() -> void:

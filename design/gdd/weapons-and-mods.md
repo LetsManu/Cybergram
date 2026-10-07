@@ -234,6 +234,17 @@ All prices are list prices; every tier sits inside its band (Tier I Minor 250–
 | CH-9 | **Quickload** | Frame | Reload time −12% / −22% / −30% | — | 350 / 800 / 1,600 | violet |
 | CH-10 | **Gyro** | Frame | Recoil −15% / −25% / −35% | — | 250 / 650 / 1,400 | amber |
 
+#### Weaves (defensive Frame lines, both families; added 2026-10-07)
+
+A Weave sits in the **Frame** socket, so it replaces the damage Frame (Flux Coil, Quickload, …) instead of stacking on it: the choice is "more damage" or "survive the threat that keeps killing you". Only one Weave can be held (same socket). The Armory's build guides offer a Weave only while the matching threat shows (damage taken in the last 20 s, or enemy heroes tagged for it), and the Frame path then continues on the Weave.
+
+| ID | Line | Socket | Effect (I / II / III) | Restriction | Price I / II / III | Hue |
+| ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| WV-1 | **Bastion Weave** | Frame | Weapon (gunfire) damage taken −6% / −10% / −14% (after armor) | — | 300 / 700 / 1,500 | steel |
+| WV-2 | **Null Weave** | Frame | Ability damage taken −8% / −13% / −18% (after armor) | — | 300 / 700 / 1,500 | pale cyan |
+
+Rationale: Tier III Bastion (−14%) is worth about a 16% longer TTK against gunfire, the same size as the Tier III damage Core it gives up a Frame line for, and well under the 25% build cap (§3.4). Null Weave is a little stronger per tier because ability damage arrives in fewer, larger hits. TRUE damage ignores both.
+
 #### Ammo Types and Ammo Mods (both families; not tiered)
 
 | ID | Item | Kind | Band | Price |
@@ -252,7 +263,7 @@ All prices are list prices; every tier sits inside its band (Tier I Minor 250–
 | MD-5 | Overcharged | Ammo Mod | Minor | 350 |
 | — | Med-Pack (consumable, reference) | Consumable | fixed | 100 |
 
-Catalog size: 10 Crystal lines + 10 Chip lines (60 tier entries), 6 Ammo Types, 5 Ammo Mods.
+Catalog size: 10 Crystal lines + 10 Chip lines + 2 Weaves (66 tier entries), 6 Ammo Types, 5 Ammo Mods.
 
 #### Spending budget (economy check)
 
@@ -281,12 +292,12 @@ Plays as: deletes Ward Generators, traps and enemy squads on Breach/Hold tasks; 
 | In slice | Content |
 | ---- | ---- |
 | Weapons | 2: **Threadcaster** (Vesper, Mana) and **Ironmaw** (Brannoc, Mechanical) |
-| Sockets | Core + Frame + Chamber (no Barrel socket in slice) |
-| Lines | Crystals: Ember Heart, Flux Coil. Chips: Overclock, Quickload. All 3 tiers each. |
+| Sockets | Core + Barrel + Frame + Chamber (Barrel added 2026-10-07) |
+| Lines | Crystals: Ember Heart, Flux Coil, Focus Lens. Chips: Overclock, Quickload, Rifling, Penetrator. Weaves: Bastion, Null. All 3 tiers each. |
 | Ammo | Piercing, Sunder. No Ammo Mods. |
 | Visuals | Greybox mounts: one primitive mesh per line, scaled by tier, emissive per tier; ammo tracer colour. No unique sounds; one generic "mount" pitch layer per tier. |
 | Rules | Full buy / upgrade-in-place / sell / undo rules; death persistence; reset at match end. |
-| Out of slice | Breakline AR-7, Halo Repeater (and its heal beam), Tackhammer, Whisperfang, Glitchcaster (they arrive with their heroes in M3/M4); Barrel socket, Ammo Mods, Incendiary/Shock/Siphon/Cryo, remaining lines, final mount art and audio, scoreboard build icons. Supply Caches arrive in M3. |
+| Out of slice | Breakline AR-7, Halo Repeater (and its heal beam), Tackhammer, Whisperfang, Glitchcaster (they arrive with their heroes in M3/M4); the other Barrel lines (Stillwater, Velocity, Stabilizer), Ammo Mods, Incendiary/Shock/Siphon/Cryo, remaining lines, final mount art and audio, scoreboard build icons. Supply Caches arrive in M3. |
 
 ---
 

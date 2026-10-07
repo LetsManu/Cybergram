@@ -37,7 +37,20 @@ as it is, new tests run inside the existing test job.
   add the GDD-cut items plus a new defensive line; protocol 20 -> 21 so the
   server's buy/sell result reaches the client; squad upgrades and Med-Packs can
   be undone within the same Armory visit; custom builds stored locally
-  (`user://builds.json`). Next: step 1 (data fields, HeroDef roles, validator).
+  (`user://builds.json`). Working guide: `docs/armory.md`.
+  - Done: step 1 (guide fields, HeroDef roles / tags, BuildNodeDef,
+    ArmoryValidator); steps 2–3 (protocol 21 result channel, same-visit undo,
+    OpsLog `armory.*`, BuildAdvisor + rules + server signals, guides for all
+    7 heroes); step 4 (Recommended tab, path strip, reasons, sort / filter,
+    pad keys); step 5 (8 items appended at ids 12–19: Focus Lens, Rifling,
+    Penetrator, Bastion Weave, Null Weave, Harmonic Tether, Quick Mint,
+    Bulwark Protocol, with their stats, combat hooks, icons, GDD + registry,
+    guide branches; `armory_new_items_test.gd`).
+  - Gaps: Bulwark's body-block radius; per-hero item restrictions (Hex /
+    Focus Lens kept by the guide only).
+  - Next: step 6 (custom local builds; bots shop through `ACTION_BUY`), step 7
+    (balance report, 1080p / 720p screenshots, `docs/item-shop-polish.md`,
+    release: protocol 21 needs launcher 1.9.0 and a server + client update).
 
 ## Done
 - P1a State machines (player, party, lobby) with legal tables, rejection +

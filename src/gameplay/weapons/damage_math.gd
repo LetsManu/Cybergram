@@ -38,7 +38,9 @@ static func level_mult(level: int) -> float:
 
 
 ## §4.3 F(d): 1 up to r0, linear to f_min at r1, f_min beyond.
-static func falloff(def: WeaponDef, distance: float) -> float:
+## `range_mult` (Barrel FALLOFF_RANGE) stretches the falloff start and end.
+static func falloff(def: WeaponDef, distance: float, range_mult: float = 1.0) -> float:
+	distance /= maxf(range_mult, 0.1)
 	var r0 := def.falloff_start_m
 	var r1 := def.falloff_end_m
 	if distance <= r0:
@@ -79,6 +81,6 @@ static func ammo_armor_pen(ammo: int) -> float:
 ## Damage of one hit (one pellet) before the target's armor:
 ## D_base * L(level) * F(d) * H. S_skill, M_dmg, V_mult and Brittle are 1.0
 ## until skills, mods and ammo types land (E10, E13).
-static func hit_damage(def: WeaponDef, distance: float, headshot: bool, level: int = 1) -> float:
+static func hit_damage(def: WeaponDef, distance: float, headshot: bool, level: int = 1, range_mult: float = 1.0) -> float:
 	var h := def.headshot_mult if headshot else 1.0
-	return def.damage * level_mult(level) * falloff(def, distance) * h
+	return def.damage * level_mult(level) * falloff(def, distance, range_mult) * h

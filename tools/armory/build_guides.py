@@ -20,29 +20,47 @@ def situational(core_item):
         ("behind_pack", "med_pack", 3, "DEFENSIVE", 480, ["heal_pack"], dict(cond=["team_behind", "died_often"], skippable=True, core=False, optional=True)),
         ("vs_armor", "ammo_piercing", 1, "COUNTER", 560, ["c1"], dict(cond=["enemy_frontline", "counters_enemy"], skippable=True, core=False, alts=["ammo_sunder"], reason="HUD_ADVICE_N_VS_ARMOR")),
         ("vs_squads", "ammo_sunder", 1, "COUNTER", 540, ["c1"], dict(cond=["enemy_squad"], skippable=True, core=False, reason="HUD_ADVICE_N_VS_SQUADS")),
+        # Defensive Frame weaves replace the damage Frame (same socket): offered
+        # only while the matching threat shows, and the Frame path then
+        # continues on the weave (see "alts" on the f-nodes).
+        ("vs_guns", "bastion_weave", 1, "DEFENSIVE", 575, ["c1"], dict(cond=["taking_weapon_damage", "enemy_weapon_dps", "enemy_burst"], skippable=True, core=False, alts=["null_weave"], reason="HUD_ADVICE_N_VS_GUNS")),
+        ("vs_skills", "null_weave", 1, "DEFENSIVE", 570, ["c1"], dict(cond=["taking_skill_damage", "enemy_skill_dps", "enemy_cc", "enemy_zone"], skippable=True, core=False, alts=["bastion_weave"], reason="HUD_ADVICE_N_VS_SKILLS")),
     ]
 
-def mana_core(extra_squad):
+WEAVES = ["bastion_weave", "null_weave"]
+
+def mana_core(extra_squad, barrel=True):
     n = [
         ("open", "med_pack", 1, "OPENING", 1000, [], dict(reason="HUD_ADVICE_N_OPEN")),
         ("c1", "ember_heart", 1, "EARLY", 900, ["open"], dict(reason="HUD_ADVICE_N_FIRST_MOUNT")),
-        ("f1", "flux_coil", 1, "SPIKE", 800, ["c1"], dict(reason="HUD_ADVICE_N_SPIKE")),
+        ("f1", "flux_coil", 1, "SPIKE", 800, ["c1"], dict(alts=WEAVES, reason="HUD_ADVICE_N_SPIKE")),
         ("c2", "ember_heart", 2, "CORE", 700, ["f1"], dict()),
-        ("f2", "flux_coil", 2, "CORE", 640, ["c2"], dict()),
+        ("b1", "focus_lens", 1, "CORE", 660, ["c2"], dict(alts=[], reason="HUD_ADVICE_N_RANGE")),
+        ("f2", "flux_coil", 2, "CORE", 640, ["c2"], dict(alts=WEAVES)),
         ("c3", "ember_heart", 3, "LATE", 600, ["f2"], dict()),
-        ("f3", "flux_coil", 3, "LATE", 400, ["c3"], dict(optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
+        ("b2", "focus_lens", 2, "LATE", 560, ["b1", "c3"], dict(alts=[])),
+        ("f3", "flux_coil", 3, "LATE", 400, ["c3"], dict(alts=WEAVES, optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
+        ("b3", "focus_lens", 3, "LATE", 380, ["b2"], dict(alts=[], optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
     ]
+    if not barrel:  # GDD CR-5: Focus Lens is "Not Hex" (beam, no falloff)
+        n = [x for x in n if not x[0].startswith("b")]
     return n + extra_squad
 
 def mech_core(extra_squad):
     n = [
         ("open", "med_pack", 1, "OPENING", 1000, [], dict(reason="HUD_ADVICE_N_OPEN")),
         ("c1", "overclock", 1, "EARLY", 900, ["open"], dict(reason="HUD_ADVICE_N_FIRST_MOUNT")),
-        ("f1", "quickload", 1, "SPIKE", 800, ["c1"], dict(reason="HUD_ADVICE_N_SPIKE")),
+        ("f1", "quickload", 1, "SPIKE", 800, ["c1"], dict(alts=WEAVES, reason="HUD_ADVICE_N_SPIKE")),
         ("c2", "overclock", 2, "CORE", 700, ["f1"], dict()),
-        ("f2", "quickload", 2, "CORE", 640, ["c2"], dict()),
+        ("b1", "rifling", 1, "CORE", 660, ["c2"], dict(alts=["penetrator"], reason="HUD_ADVICE_N_RANGE")),
+        ("f2", "quickload", 2, "CORE", 640, ["c2"], dict(alts=WEAVES)),
         ("c3", "overclock", 3, "LATE", 600, ["f2"], dict()),
-        ("f3", "quickload", 3, "LATE", 400, ["c3"], dict(optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
+        ("b2", "rifling", 2, "LATE", 560, ["b1", "c3"], dict(alts=["penetrator"])),
+        ("f3", "quickload", 3, "LATE", 400, ["c3"], dict(alts=WEAVES, optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
+        ("b3", "rifling", 3, "LATE", 380, ["b2"], dict(alts=["penetrator"], optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
+        # Penetrator (a Chip, so Mechanical guns only) swaps
+        # out a held Rifling on purpose (a counter, not a path step).
+        ("vs_armor_barrel", "penetrator", 1, "COUNTER", 530, ["c1"], dict(cond=["enemy_frontline"], skippable=True, core=False, reason="HUD_ADVICE_N_PENETRATOR")),
     ]
     return n + extra_squad
 
@@ -54,18 +72,22 @@ SQUAD_COMMANDER = [
     ("sq_dmg", "amplifier_emitters", 1, "SQUAD", 750, ["f1"], dict(reason="HUD_ADVICE_N_SQUAD")),
     ("sq_size", "squad_expansion_1", 1, "SQUAD", 690, ["sq_dmg"], dict(reason="HUD_ADVICE_N_SQUAD_SIZE")),
     ("sq_hp2", "reinforced_cores_2", 1, "SQUAD", 560, ["sq_hp", "c2"], dict()),
+    ("sq_mint", "quick_mint", 1, "SQUAD", 620, ["sq_size"], dict(reason="HUD_ADVICE_N_QUICK_MINT")),
+    ("sq_tether", "harmonic_tether", 1, "SQUAD", 600, ["sq_size"], dict(reason="HUD_ADVICE_N_TETHER")),
+    ("sq_bulwark", "bulwark_protocol", 1, "LATE", 540, ["sq_hp2", "c3"], dict(reason="HUD_ADVICE_N_BULWARK")),
     ("sq_size2", "squad_expansion_2", 1, "LATE", 520, ["sq_size", "c3"], dict(optional=True, core=False, reason="HUD_ADVICE_N_LUXURY")),
 ]
 SQUAD_FRONTLINE = [
     ("sq_hp", "reinforced_cores_1", 1, "SQUAD", 760, ["f1"], dict(reason="HUD_ADVICE_N_SQUAD")),
     ("sq_size", "squad_expansion_1", 1, "SQUAD", 620, ["c2"], dict(reason="HUD_ADVICE_N_SQUAD_SIZE")),
+    ("sq_bulwark", "bulwark_protocol", 1, "LATE", 550, ["sq_size", "c3"], dict(reason="HUD_ADVICE_N_BULWARK")),
 ]
 
 GUIDES = [
     # hero, name, summary key, roles, nodes, simple list (old readers)
     ("hero_vesper_loom", "Loom Weaver", "HUD_ADVICE_B_VESPER", ["commander"], mana_core(SQUAD_COMMANDER)),
     ("hero_sable", "Shadow Edge", "HUD_ADVICE_B_SABLE", ["infiltrator"], mana_core(SQUAD_LIGHT)),
-    ("hero_hex", "Static Overload", "HUD_ADVICE_B_HEX", ["hacker"], mana_core(SQUAD_LIGHT)),
+    ("hero_hex", "Static Overload", "HUD_ADVICE_B_HEX", ["hacker"], mana_core(SQUAD_LIGHT, barrel=False)),
     ("hero_liora_vale", "Steady Light", "HUD_ADVICE_B_LIORA", ["healer"], mana_core(SQUAD_LIGHT)),
     ("hero_brannoc", "Bulwark Gunner", "HUD_ADVICE_B_BRANNOC", ["tank"], mech_core(SQUAD_FRONTLINE)),
     ("hero_ryker_vance", "Line Breaker", "HUD_ADVICE_B_RYKER", ["soldier"], mech_core(SQUAD_LIGHT)),

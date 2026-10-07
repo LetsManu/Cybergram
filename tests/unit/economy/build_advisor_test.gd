@@ -212,7 +212,8 @@ func test_affordability_soon_and_swap_credit() -> void:
 
 func test_completed_guide_reports_full_progress_and_ignored_advice_never_blocks() -> void:
 	var g := _guide(&"hero_brannoc")
-	var own := {&"med_pack": 1, &"overclock": 3, &"quickload": 2, &"reinforced_cores_1": 1, &"squad_expansion_1": 1}
+	var own := {&"med_pack": 1, &"overclock": 3, &"quickload": 2, &"rifling": 2,
+		&"reinforced_cores_1": 1, &"squad_expansion_1": 1, &"bulwark_protocol": 1}
 	var r := BuildAdvisor.evaluate(g, _state(_mech(), 0, own), _ar)
 	assert_int(r.core_done).is_equal(r.core_total)
 	# A player who bought something off-guide still gets the rest of the guide.

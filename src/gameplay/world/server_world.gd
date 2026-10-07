@@ -228,7 +228,8 @@ func weapon_hit_damage(h: HeroBody, distance: float, headshot: bool = false,
 	var c := h.combat
 	if c.weapon == null:
 		return 0.0
-	return DamageMath.hit_damage(c.weapon.def, distance, headshot) * c.weapon_damage_mult() \
+	return DamageMath.hit_damage(c.weapon.def, distance, headshot, 1, c.stats.get_value(StatCatalog.FALLOFF_RANGE)) \
+		* c.weapon_damage_mult() \
 		* DamageMath.ammo_mult(c.ammo_type, target_class) * c.stats.get_value(StatCatalog.DAMAGE_DEALT)
 
 
@@ -553,6 +554,7 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 	var dealt := c.stats.get_value(StatCatalog.DAMAGE_DEALT)  # E10
 	var wm := c.weapon_damage_mult()  # E15 level L + E13 mod M_dmg
 	var ammo := c.ammo_type  # E13 Chamber
+	var fr := c.stats.get_value(StatCatalog.FALLOFF_RANGE)  # Armory Barrel range lines
 	for dir in dirs:
 		var clip := abilities.clip_shot(origin, dir, max_range, c.team)  # E10: enemy shield walls
 		var hit := _tracer.trace(space, origin, dir, clip[0], targets, view_tick, view_alpha)
@@ -566,7 +568,7 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 				if not per_wardling.has(wl[0]):
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
 				# heroes.md §3.7: Wardlings are gadgets (Hex Signal Sight +50 %).
-				per_wardling[wl[0]][0] += DamageMath.hit_damage(wdef, wl[1] + dist_off, false) * wm \
+				per_wardling[wl[0]][0] += DamageMath.hit_damage(wdef, wl[1] + dist_off, false, 1, fr) * wm \
 					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT) * c.def.gadget_damage_mult
 				continue
 		ends.append(origin + dir * end_d)
@@ -580,11 +582,11 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 			continue
 		if hit.target == null:
 			if clip[1] != null and _tracer.last_limit >= clip[0] - 1e-3:
-				abilities.damage_deployable(clip[1], DamageMath.hit_damage(wdef, clip[0] + dist_off, false) * wm * dealt
+				abilities.damage_deployable(clip[1], DamageMath.hit_damage(wdef, clip[0] + dist_off, false, 1, fr) * wm * dealt
 					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT, true))
 				abilities.blocked_shots += 1
 			continue
-		var raw := DamageMath.hit_damage(wdef, hit.distance + dist_off, hit.headshot) * wm \
+		var raw := DamageMath.hit_damage(wdef, hit.distance + dist_off, hit.headshot, 1, fr) * wm \
 			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO) * abilities.extras.shot_mult(h, hit.target)
 		var id := hit.target.net_id
 		if not per_target.has(id):
@@ -599,7 +601,7 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 		var rec: Array = per_target[id]
 		var dmg_flags: int = DamageInfo.FLAG_HEADSHOT if (rec[1] & GameEvent.FLAG_HEADSHOT) != 0 else 0
 		var info := DamageInfo.make(rec[0] * dealt, h.net_id, c.team, dmg_flags)
-		info.armor_pen = DamageMath.ammo_armor_pen(ammo)  # E13 Piercing
+		info.armor_pen = DamageMath.ammo_armor_pen(ammo) + c.stats.get_value(StatCatalog.ARMOR_PEN_BONUS)  # E13 Piercing + Penetrator
 		var applied := target.combat.health.apply_damage(info)
 		if applied > 0.0:
 			hero_damaged.emit(id, h.net_id, applied)

@@ -63,6 +63,11 @@ func apply_damage(info: DamageInfo) -> float:
 		amount *= after
 		if stats != null:
 			amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
+			# Armory defensive Frame lines (Bastion / Null Weave).
+			if info.type == DamageInfo.Type.WEAPON:
+				amount *= stats.get_value(StatCatalog.WEAPON_DAMAGE_TAKEN)
+			elif info.type == DamageInfo.Type.SKILL:
+				amount *= stats.get_value(StatCatalog.SKILL_DAMAGE_TAKEN)
 	last_absorbed = 0.0
 	if shield > 0.0:
 		last_absorbed = minf(shield, amount)

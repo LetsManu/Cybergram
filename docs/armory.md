@@ -30,6 +30,35 @@ every rule and answers with a `HeroProgress.Result`.
 
 There is no generic six-slot inventory.
 
+**Items on sale** (catalog order = wire id):
+
+| # | Item | Kind / socket | Family | Effect (hero stat) |
+|---|---|---|---|---|
+| 0 | Med-Pack | Consumable | any | Heal over time |
+| 1–2 | Squad Expansion I / II | Squad | any | Squad size |
+| 3–4 | Reinforced Cores I / II | Squad | any | Wardling HP |
+| 5 | Amplifier Emitters | Squad | any | `wardling_damage_mult` |
+| 6 / 8 | Ember Heart / Overclock | Core | Crystal / Chip | `mod_damage` |
+| 7 | Flux Coil | Frame | Crystal | Mana regen and delay |
+| 9 | Quickload | Frame | Chip | `reload_time` |
+| 10–11 | Piercing / Sunder | Ammo | any | Armor pen / anti-Wardling |
+| 12 / 13 | Focus Lens / Rifling | Barrel | Crystal / Chip | `falloff_range` (falloff start and end) |
+| 14 | Penetrator | Barrel | Chip | `armor_pen_bonus` (adds to ammo pen, cap 60%) |
+| 15 | Bastion Weave | Frame | any | `weapon_damage_taken` |
+| 16 | Null Weave | Frame | any | `skill_damage_taken` |
+| 17 | Harmonic Tether | Squad | any | `wardling_speed_mult`, `wardling_leash_bonus` |
+| 18 | Quick Mint | Squad | any | `mint_interval_mult`, `mint_guard` (5 s resist after minting) |
+| 19 | Bulwark Protocol | Squad | any | `wardling_guard_dr` (in Hold / Go Capture) |
+
+Where the stats are read: `ServerWorld._resolve_pellets` (falloff range, armor
+pen), `HealthComponent.apply_damage` (damage taken by type),
+`WardlingWorld._refresh_upgrades` copies the squad stats onto the `Squad`
+each tick (speed, leash, mint interval, mint guard, guard DR).
+
+**Known gaps.** The Armory has no per-hero restriction field, so the GDD's
+"Focus Lens: not Hex" is kept by the guides only (Hex's guide has no Barrel
+node). Bulwark's "+25% body-block radius" is not built yet.
+
 **Rules** (`design/gdd/weapons-and-mods.md` §3.6.4):
 - You can shop only in your own HQ zone and only while alive.
 - Upgrading a line costs `list(new) − list(held)`.
@@ -179,6 +208,7 @@ What each suite covers:
   - undo, the result channel, forged and repeated requests
   - `price_of`, the wire round-trip, the pinned catalog order
 - `armory_validator_test.gd`: the data checks.
+- `armory_new_items_test.gd`: Barrel, Weave and squad items: stats, combat hooks, guide branches.
 - `build_advisor_test.gd`: recommendations.
 - `shop_model_test.gd`: shop logic.
 

@@ -1154,3 +1154,30 @@ HUD_ADVICE_B_LIORA,Healer: steady mana regen with a safe damage core.
 HUD_ADVICE_B_BRANNOC,Tank: damage and reload core plus tougher Wardlings.
 HUD_ADVICE_B_RYKER,Soldier: damage and reload for constant gunfire.
 HUD_ADVICE_B_JUNIPER,Trapper: damage and reload core around your traps.
+HUD_ITEM_X_MED_PACK,Heals 40% of your health over 3 s. Cheap insurance for any fight.
+HUD_ITEM_X_SQUAD_EXPANSION,One more Wardling in your squad from the next Foundry visit.
+HUD_ITEM_X_REINFORCED,Tougher Wardlings hold the front and soak more fire.
+HUD_ITEM_X_AMPLIFIER,Your Wardlings hit harder; strong against big enemy squads.
+HUD_ITEM_X_CORE_DAMAGE,More damage on every shot: the backbone of any build.
+HUD_ITEM_X_FLUX,Faster mana recovery so you can keep firing.
+HUD_ITEM_X_QUICKLOAD,Shorter reloads keep your gun in the fight.
+HUD_ITEM_X_PIERCING,Ignores part of the target's armor: buy it against tanks.
+HUD_ITEM_X_SUNDER,Shreds Wardlings and constructs; weaker against heroes.
+HUD_ITEM_X_RANGE,Full damage from farther away: win long sightlines.
+HUD_ITEM_X_PENETRATOR,More armor penetration; stacks with Piercing rounds.
+HUD_ITEM_X_BASTION,Take less gunfire damage: for when guns keep dropping you.
+HUD_ITEM_X_NULL,Take less ability damage: for when skills keep dropping you.
+HUD_ITEM_X_TETHER,Faster Wardlings that follow you farther.
+HUD_ITEM_X_QUICK_MINT,Rebuild your squad fast; fresh Wardlings resist damage.
+HUD_ITEM_X_BULWARK,Wardlings guarding or capturing a point take much less damage.
+HUD_STAT_FALLOFF,Range
+HUD_STAT_ARMOR_PEN,Armor pen
+HUD_STAT_GUN_DMG_TAKEN,Gunfire taken
+HUD_STAT_SKILL_DMG_TAKEN,Ability dmg taken
+HUD_ADVICE_N_RANGE,A Barrel line keeps your damage up at range.
+HUD_ADVICE_N_VS_GUNS,Bastion Weave blunts the gunfire that keeps dropping you.
+HUD_ADVICE_N_VS_SKILLS,Null Weave blunts the abilities that keep dropping you.
+HUD_ADVICE_N_TETHER,A cheap speed boost so your squad keeps up.
+HUD_ADVICE_N_QUICK_MINT,Rebuild your squad quickly after a lost fight.
+HUD_ADVICE_N_BULWARK,Late game: your squad holds points far longer.
+HUD_ADVICE_N_PENETRATOR,More armor penetration against armored enemies.

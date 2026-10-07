@@ -587,9 +587,9 @@ The M1 slice ships **Vesper Loom + Brannoc** (duplicates allowed per team, Canon
   - Vesper hooks: capacity, modifier, elite, `command_vanguard`, `subvert` (Rewrite turns enemy Wardlings from rank 1).
   - The full Resonance table and sources (levels 1–15; skill tree reduced to Unlock + Boost + ult ranks, `heroes.md` §11).
   - All Lumen sources except Sentinels.
-  - Med-Pack, Squad Expansion I/II, Reinforced Cores I/II, Amplifier Emitters, plus the minimal mount pipeline of `weapons-and-mods.md` §3.10.
+  - Med-Pack, Squad Expansion I/II, Reinforced Cores I/II, Amplifier Emitters, Harmonic Tether, Quick Mint, Bulwark Protocol (added 2026-10-07), plus the mount pipeline of `weapons-and-mods.md` §3.10.
   - D, C, Shutdown and the capture cooldown.
-- **Out.** Variants (including the Surge II Vanguard Shieldling, which is replaced by a Picket), Sentinels, Barricade pathing, Harmonic Tether, Quick Mint, Bulwark, utility items other than the Med-Pack.
+- **Out.** Variants (including the Surge II Vanguard Shieldling, which is replaced by a Picket), Sentinels, Barricade pathing, utility items other than the Med-Pack. Bulwark's "+25% body-block radius" is not in the slice (its −30% damage taken in Hold / Go Capture is).
 - **Slice re-tune.** With no Sentinels the average player loses about 560 Lumen per 30 min, so `trickle_per_min` is raised to **60** for the slice. The model gives about 8,990 Lumen and L14–15 at 30:00. Check criteria 1–2 at the slice gate (in M1 the curve is checked at 10:00 and 20:00 because slice matches run 12–22 min).
 
 ---
