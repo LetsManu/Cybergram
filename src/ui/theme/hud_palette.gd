@@ -67,6 +67,14 @@ const TEAL := Color("#4FB8B0")
 const WARN_UI := Color("#D0904E")
 const HAIR := Color("#1E272D")
 const HAIR_STRONG := Color("#2A3238")
+## Armory v2 shop (owner mockup design/ux/reference/armory-v2-owner-mockup.webp):
+## deep navy panel and cards, saturated gold for primary actions and the
+## current build node (brass stays the HUD accent elsewhere).
+const NAVY := Color("#060D17")
+const NAVY_CARD := Color("#0B1624")
+const NAVY_EDGE := Color("#1D3047")
+const GOLD := Color("#F2B544")
+const GOLD_DIM := Color("#7A5C24")
 
 
 ## Colour of damage warnings (direction arc, damage vignette) under `preset`:

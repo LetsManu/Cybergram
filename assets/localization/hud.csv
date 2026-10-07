@@ -1307,3 +1307,62 @@ HUD_SHOP2_MORE,More steps below (Down or mouse wheel)
 HUD_SHOP2_TOTAL,total %s
 HUD_SHOP2_TOTAL_COMPLETE,Total %s  ·  to complete %s
 HUD_SHOP2_OR,or
+HUD_SHOP2_SEARCH,Search items...
+HUD_SHOP2_LUMEN_UNIT,Lumen
+HUD_SHOP2_INCOME,+%d/min
+HUD_SHOP2_BUILD_PATH,Build path
+HUD_SHOP2_NEXT_PURCHASE,Next purchase
+HUD_SHOP2_BUILD_DONE,Build complete. Browse All Items for extras.
+HUD_SHOP2_FOR,for %s
+HUD_SHOP2_CAN_AFFORD,Can afford
+HUD_SHOP2_NEED,Need %s
+HUD_SHOP2_BUY,Buy
+HUD_SHOP2_KEY_ENTER,Enter
+HUD_SHOP2_WHY_ENEMY_CC,Enemy: heavy crowd control
+HUD_SHOP2_WHY_ENEMY_BURST,Enemy: burst damage
+HUD_SHOP2_WHY_ENEMY_SUSTAIN,Enemy: strong healing
+HUD_SHOP2_WHY_ENEMY_GUNS,Enemy: heavy gunfire
+HUD_SHOP2_WHY_ENEMY_SKILLS,Enemy: ability damage
+HUD_SHOP2_WHY_ENEMY_MOBILITY,Enemy: mobile heroes
+HUD_SHOP2_WHY_ENEMY_ZONE,Enemy: area denial
+HUD_SHOP2_WHY_ENEMY_SQUAD,Enemy: strong squads
+HUD_SHOP2_WHY_ENEMY_FRONTLINE,Enemy: armored frontline
+HUD_SHOP2_WHY_COUNTER,Enemy: counters their heroes
+HUD_SHOP2_WHY_YOU_GUNS,You: taking gunfire
+HUD_SHOP2_WHY_YOU_SKILLS,You: taking ability damage
+HUD_SHOP2_WHY_YOU_DYING,You: dying often
+HUD_SHOP2_WHY_YOU_LOW,You: low health
+HUD_SHOP2_WHY_TEAM_BEHIND,Team: behind
+HUD_SHOP2_WHY_TEAM_AHEAD,"Team: ahead, press it"
+HUD_SHOP2_WHY_TEAM_OBJECTIVE,Team: objective soon
+HUD_SHOP2_WHY_TEAM_SUSTAIN,Team: needs sustain
+HUD_SHOP2_WHY_TEAM_FRONTLINE,Team: needs a frontline
+HUD_SHOP2_WHY_SITUATIONAL,Situational pick
+HUD_SHOP2_NODE_STARTER,Starter
+HUD_SHOP2_NODE_CORE,Core
+HUD_SHOP2_NODE_CORE_SIG,Core Signature
+HUD_SHOP2_NODE_BARREL,Barrel
+HUD_SHOP2_NODE_FRAME,Frame
+HUD_SHOP2_NODE_AMMO,Ammo
+HUD_SHOP2_NODE_GEAR,Gear
+HUD_SHOP2_NODE_SIGNATURE,Signature
+HUD_SHOP2_NODE_SIG2,2nd Signature
+HUD_SHOP2_LOADOUT,Your loadout
+HUD_SHOP2_MED_CHIP,Med-Pack ×%d
+HUD_SHOP2_SQUAD_CHIP,Squad upgrades %d
+HUD_SHOP2_OPEN_SLOTS,Open slots
+HUD_SHOP2_SELL,Sell
+HUD_SHOP2_UNDO,Undo
+HUD_SHOP2_NEXT_TAG,Next
+HUD_SHOP2_MORE_STEPS,+%d more steps
+HUD_SHOP2_K_USE,Use set
+HUD_SHOP2_K_NEW,New from guide
+HUD_SHOP2_K_COPY,Copy
+HUD_SHOP2_K_PASTE,Paste
+HUD_SHOP2_K_CLOSE,Close
+HUD_SHOP2_K_BUY,Buy
+HUD_SHOP2_K_SELL,Sell
+HUD_SHOP2_K_JUMP,Jump to recommended
+HUD_SHOP2_K_UNDO,Undo
+HUD_SHOP2_K_TABS,Tabs
+HUD_SHOP2_K_SEARCH,Search

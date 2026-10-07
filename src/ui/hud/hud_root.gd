@@ -134,7 +134,7 @@ func _build() -> void:
 	var cat := load(ArmoryCatalogDef.active_path()) as ArmoryCatalogDef
 	if cat != null and cat.is_recipe_catalog():
 		# Armory v2: a full-width modal shop with the always-on bottom strip.
-		_armory = _fill(ItemShopPanel.new(), _zone("Armory", 0.03, 0.075, 0.97, 0.965))
+		_armory = _fill(ItemShopPanel.new(), _zone("Armory", 0.0, 0.0, 1.0, 1.0))
 		# Above every sibling layer (scrims, combat widgets): nothing may draw over the modal.
 		(_armory as Control).get_parent().z_index = 5
 	else:
