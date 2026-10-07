@@ -42,13 +42,13 @@ const REC_RIGHT_X: float = 820.0
 const STEP_W: float = 58.0
 ## Recommended grid (canvas units): cell = icon + 2 name lines + price.
 const CELL_W: float = 92.0
-const CELL_H: float = 96.0
-const ICON: float = 46.0
-const MINI: float = 30.0
+const CELL_H: float = 90.0
+const ICON: float = 42.0
+const MINI: float = 28.0
 const NAME_PX: float = 12.0
 const GUTTER: float = 14.0
 const CHEVRON_W: float = 26.0
-const SECTION_GAP: float = 30.0
+const SECTION_GAP: float = 24.0
 const LEFT_W: float = DETAIL_X - 10.0 - 2.0 * PAD
 const MAX_CORE_TILES: int = 10
 const TOAST_LIFE_S: float = 2.5
@@ -981,7 +981,10 @@ func _draw_rec() -> void:
 	for l in _labels:
 		var pos: Vector2 = l["pos"]
 		if l.has("chevron"):
-			chevron_line(pos * _k, 5.0 * _k, HudPalette.BRASS_DIM)
+			var cp := pos * _k
+			var cs := 5.0 * _k
+			draw_polyline(PackedVector2Array([cp + Vector2(-cs * 0.5, -cs), cp + Vector2(cs * 0.5, 0.0),
+				cp + Vector2(-cs * 0.5, cs)]), HudPalette.BRASS, 1.5, true)
 		elif l.has("or"):
 			_c(tr("HUD_SHOP2_OR"), pos.x, pos.y, 10.0, HudPalette.DIM, 0.2)
 		else:
