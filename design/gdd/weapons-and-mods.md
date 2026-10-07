@@ -171,14 +171,18 @@ Enemy build readability: the third-person model shows every mount; the scoreboar
 #### 3.6.4 Buying, swapping and selling rules
 
 1. Mounts are bought, swapped and sold **only inside your own HQ Armory zone** while alive (C6, C14). Not at Forward Beacons. Shop disabled during Sudden Death (C10); mounts are kept into Sudden Death.
-2. **Socket limit:** one mount per socket; one Ammo Type and one Ammo Mod in the Chamber. Crystals only fit Mana guns; Chips only fit Mechanical guns. Lines marked with a weapon restriction (catalog §3.8) are greyed out for other weapons.
-3. **Swap:** buying a different line for an occupied socket automatically sells the held mount (rule 4), then buys the new one. Same rule for Ammo Type and Ammo Mod.
-4. **Sell value:** 100% of Lumen paid if sold during the **same Armory visit** it was bought in (undo; the visit ends when the player leaves the Armory zone or dies). Otherwise **60%** of total Lumen paid for that mount's line (all tiers), rounded down to a multiple of 5. *Revised 2026-10-07 (owner): Squad upgrades and Med-Packs bought during the current visit can also be undone for 100% (no later sell); a Squad upgrade cannot be undone while an upgrade that requires it is held, and a Med-Pack already used cannot be undone.*
+*Rules 2–4 are replaced by Armory v2 (`items-and-armory.md` §3.6: recipe purchase, slot check, socket swap with confirm, Signature limit 2, one copy per item id, sell 60% of the recipe total, per-item undo plus Undo last). Their v1 text is kept as history. Rules 1 and 5–7 still apply, to items as well as mounts.*
+
+2. **Socket limit:** one mount per socket; one Ammo Type and one Ammo Mod in the Chamber. Crystals only fit Mana guns; Chips only fit Mechanical guns. Lines marked with a weapon restriction (catalog §3.8) are greyed out for other weapons. *(v2: one finished part per socket; every weapon item fits every gun in its family form.)*
+3. **Swap:** buying a different line for an occupied socket automatically sells the held mount (rule 4), then buys the new one. Same rule for Ammo Type and Ammo Mod. *(v2: same, after a confirm prompt; a held part that is in the new item's recipe is used up instead.)*
+4. **Sell value:** 100% of Lumen paid if sold during the **same Armory visit** it was bought in (undo; the visit ends when the player leaves the Armory zone or dies). Otherwise **60%** of total Lumen paid for that mount's line (all tiers), rounded down to a multiple of 5. *(v2: 60% of the item's recipe total; undo restores used-up parts.)* *Revised 2026-10-07 (owner): Squad upgrades and Med-Packs bought during the current visit can also be undone for 100% (no later sell); a Squad upgrade cannot be undone while an upgrade that requires it is held, and a Med-Pack already used cannot be undone.*
 5. Mounts persist through death and respawn for the rest of the match. A bot that replaces a disconnected player (C1) inherits that player's mounts and Lumen; a reconnecting player gets them back.
 6. **No persistent power:** all mounts, ammo types and Lumen are deleted at match end (Anti-Pillar). Account progression may unlock cosmetic recolours only.
 7. An Ammo Mod requires an Ammo Type in the Chamber. Selling the Ammo Type also sells the Ammo Mod. Swapping the Ammo Type keeps the Mod only if it is compatible with the new type (§3.7.2); otherwise the Mod is sold.
 
 ### 3.7 Ammo Types (Chamber)
+
+*Armory v2 (2026-10-07): all 6 Ammo Types and all 5 Ammo Mods ship in the protocol 22 release, with the effects and prices below unchanged. On a build already at the item cap, Cryo Brittle and Incendiary Burn count toward the 1.333 throughput limit (`items-and-armory.md` §4.3); their statuses still apply in full.*
 
 Mana guns call them **Infusions**; Mechanical guns call them **Rounds**. Same six effects for both families, same prices. The default is **Standard** (free, no effect). Every effect scales with **final damage dealt**, so it works fairly on a 10/s rifle, a 10-pellet shotgun and a 20-tick beam (§4.5).
 
@@ -210,6 +214,8 @@ One Ammo Mod slot per Chamber. A Mod changes **how the loaded Ammo Type behaves*
 "—" = incompatible; the Armory greys the mod out and rule 3.6.4-7 applies on ammo swap.
 
 ### 3.8 Full catalog with prices
+
+> **Replaced by Armory v2 (owner, 2026-10-07).** The release catalog (10 Components, 10 Assemblies, 14 Signatures, 6 Ammo Types, 5 Ammo Mods), its prices, stats, passives and visual tells are in `items-and-armory.md` §3.5; the spending check is §4.7 there. The v1 Crystal, Chip and Weave tables below are **history only** (they match the shipped protocol 21 code until the v2 implementation lands). The Ammo Type and Ammo Mod prices below remain canon.
 
 All prices are list prices; every tier sits inside its band (Tier I Minor 250–400, Tier II Standard 600–900, Tier III Major 1,400–1,800). Effects listed I / II / III. Hue = family colour for art (must avoid team blue/red hue ranges).
 
@@ -275,6 +281,8 @@ Rationale: Tier III Bastion (−14%) is worth about a 16% longer TTK against gun
 Catalog size: 10 Crystal lines + 10 Chip lines + 2 Weaves (66 tier entries), 6 Ammo Types, 5 Ammo Mods.
 
 #### Spending budget (economy check)
+
+*Replaced by `items-and-armory.md` §4.7: a full item build (2 Signatures, the other sockets and open slots with Assemblies, Chamber) costs about **11,850–12,600**, the 30-min Lumen of a strong player. v1 text kept as history:*
 
 A full weapon build costs `Core III + Barrel III + Frame III + Ammo Type + Ammo Mod` = **5,350–6,150 Lumen**, i.e. **60–69%** of the ≈8,970 Lumen an average player earns in 30 minutes (`wardlings-and-economy.md` §18). The remaining ~2,800–3,600 goes to Wardling squad upgrades/variants and Med-Packs (owned by `wardlings-and-economy.md`). The design intent: a player who spends only on the gun is fully built around minute 20–22; a balanced spender completes the gun at ~28–32 min. Target: **no player completes both a full gun and a maxed squad before 30:00** in median telemetry. The shop is an exhaustible sink (≤ 6,150 on the gun), so Lumen earned after a full build only has squad and Med-Pack sinks; this is acceptable because it coincides with Surge II and the end of a typical match.
 
