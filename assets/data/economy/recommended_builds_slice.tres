@@ -393,6 +393,53 @@ optional = true
 
 [sub_resource type="Resource" id="n_1_11"]
 script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 10
+priority = 370
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_12"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 10
+priority = 360
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_13"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 10
+priority = 350
+requires = PackedStringArray("sq_hp", "sq_size")
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_14"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 340
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_15"]
+script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
 target = 2
@@ -403,7 +450,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_12"]
+[sub_resource type="Resource" id="n_1_16"]
 script = ExtResource("3")
 id = &"behind_pack"
 item_id = &"med_pack"
@@ -416,7 +463,7 @@ core = false
 optional = true
 skippable = true
 
-[sub_resource type="Resource" id="n_1_13"]
+[sub_resource type="Resource" id="n_1_17"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -430,7 +477,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_14"]
+[sub_resource type="Resource" id="n_1_18"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_sunder"
@@ -443,7 +490,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_15"]
+[sub_resource type="Resource" id="n_1_19"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_weave"
@@ -457,7 +504,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_16"]
+[sub_resource type="Resource" id="n_1_20"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_weave"
@@ -477,7 +524,7 @@ hero_id = &"hero_sable"
 display_name = "Shadow Edge"
 item_ids = PackedStringArray("med_pack", "ember_heart", "flux_coil", "ember_heart", "focus_lens", "flux_coil", "ember_heart", "focus_lens")
 targets = PackedInt32Array(1, 1, 1, 2, 1, 2, 3, 2)
-nodes = Array[ExtResource("3")]([SubResource("n_1_0"), SubResource("n_1_1"), SubResource("n_1_2"), SubResource("n_1_3"), SubResource("n_1_4"), SubResource("n_1_5"), SubResource("n_1_6"), SubResource("n_1_7"), SubResource("n_1_8"), SubResource("n_1_9"), SubResource("n_1_10"), SubResource("n_1_11"), SubResource("n_1_12"), SubResource("n_1_13"), SubResource("n_1_14"), SubResource("n_1_15"), SubResource("n_1_16")])
+nodes = Array[ExtResource("3")]([SubResource("n_1_0"), SubResource("n_1_1"), SubResource("n_1_2"), SubResource("n_1_3"), SubResource("n_1_4"), SubResource("n_1_5"), SubResource("n_1_6"), SubResource("n_1_7"), SubResource("n_1_8"), SubResource("n_1_9"), SubResource("n_1_10"), SubResource("n_1_11"), SubResource("n_1_12"), SubResource("n_1_13"), SubResource("n_1_14"), SubResource("n_1_15"), SubResource("n_1_16"), SubResource("n_1_17"), SubResource("n_1_18"), SubResource("n_1_19"), SubResource("n_1_20")])
 roles = PackedStringArray("infiltrator")
 summary_key = "HUD_ADVICE_B_SABLE"
 
@@ -566,6 +613,77 @@ optional = true
 
 [sub_resource type="Resource" id="n_2_8"]
 script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 10
+priority = 370
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_9"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 10
+priority = 360
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_10"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 10
+priority = 350
+requires = PackedStringArray("sq_hp", "sq_size")
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_11"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 340
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_12"]
+script = ExtResource("3")
+id = &"sq_mint"
+item_id = &"quick_mint"
+target = 1
+section = 10
+priority = 330
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_QUICK_MINT"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_13"]
+script = ExtResource("3")
+id = &"sq_bulwark"
+item_id = &"bulwark_protocol"
+target = 1
+section = 10
+priority = 320
+requires = PackedStringArray("sq_hp2", "c3")
+reason_key = "HUD_ADVICE_N_BULWARK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_14"]
+script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
 target = 2
@@ -576,7 +694,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_9"]
+[sub_resource type="Resource" id="n_2_15"]
 script = ExtResource("3")
 id = &"behind_pack"
 item_id = &"med_pack"
@@ -589,7 +707,7 @@ core = false
 optional = true
 skippable = true
 
-[sub_resource type="Resource" id="n_2_10"]
+[sub_resource type="Resource" id="n_2_16"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -603,7 +721,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_11"]
+[sub_resource type="Resource" id="n_2_17"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_sunder"
@@ -616,7 +734,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_12"]
+[sub_resource type="Resource" id="n_2_18"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_weave"
@@ -630,7 +748,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_13"]
+[sub_resource type="Resource" id="n_2_19"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_weave"
@@ -650,7 +768,7 @@ hero_id = &"hero_hex"
 display_name = "Static Overload"
 item_ids = PackedStringArray("med_pack", "ember_heart", "flux_coil", "ember_heart", "flux_coil", "ember_heart")
 targets = PackedInt32Array(1, 1, 1, 2, 2, 3)
-nodes = Array[ExtResource("3")]([SubResource("n_2_0"), SubResource("n_2_1"), SubResource("n_2_2"), SubResource("n_2_3"), SubResource("n_2_4"), SubResource("n_2_5"), SubResource("n_2_6"), SubResource("n_2_7"), SubResource("n_2_8"), SubResource("n_2_9"), SubResource("n_2_10"), SubResource("n_2_11"), SubResource("n_2_12"), SubResource("n_2_13")])
+nodes = Array[ExtResource("3")]([SubResource("n_2_0"), SubResource("n_2_1"), SubResource("n_2_2"), SubResource("n_2_3"), SubResource("n_2_4"), SubResource("n_2_5"), SubResource("n_2_6"), SubResource("n_2_7"), SubResource("n_2_8"), SubResource("n_2_9"), SubResource("n_2_10"), SubResource("n_2_11"), SubResource("n_2_12"), SubResource("n_2_13"), SubResource("n_2_14"), SubResource("n_2_15"), SubResource("n_2_16"), SubResource("n_2_17"), SubResource("n_2_18"), SubResource("n_2_19")])
 roles = PackedStringArray("hacker")
 summary_key = "HUD_ADVICE_B_HEX"
 
@@ -770,6 +888,53 @@ optional = true
 
 [sub_resource type="Resource" id="n_3_11"]
 script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 10
+priority = 370
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_12"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 10
+priority = 360
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_13"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 10
+priority = 350
+requires = PackedStringArray("sq_hp", "sq_size")
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_14"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 340
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_15"]
+script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
 target = 2
@@ -780,7 +945,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_12"]
+[sub_resource type="Resource" id="n_3_16"]
 script = ExtResource("3")
 id = &"behind_pack"
 item_id = &"med_pack"
@@ -793,7 +958,7 @@ core = false
 optional = true
 skippable = true
 
-[sub_resource type="Resource" id="n_3_13"]
+[sub_resource type="Resource" id="n_3_17"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -807,7 +972,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_14"]
+[sub_resource type="Resource" id="n_3_18"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_sunder"
@@ -820,7 +985,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_15"]
+[sub_resource type="Resource" id="n_3_19"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_weave"
@@ -834,7 +999,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_16"]
+[sub_resource type="Resource" id="n_3_20"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_weave"
@@ -854,7 +1019,7 @@ hero_id = &"hero_liora_vale"
 display_name = "Steady Light"
 item_ids = PackedStringArray("med_pack", "ember_heart", "flux_coil", "ember_heart", "focus_lens", "flux_coil", "ember_heart", "focus_lens")
 targets = PackedInt32Array(1, 1, 1, 2, 1, 2, 3, 2)
-nodes = Array[ExtResource("3")]([SubResource("n_3_0"), SubResource("n_3_1"), SubResource("n_3_2"), SubResource("n_3_3"), SubResource("n_3_4"), SubResource("n_3_5"), SubResource("n_3_6"), SubResource("n_3_7"), SubResource("n_3_8"), SubResource("n_3_9"), SubResource("n_3_10"), SubResource("n_3_11"), SubResource("n_3_12"), SubResource("n_3_13"), SubResource("n_3_14"), SubResource("n_3_15"), SubResource("n_3_16")])
+nodes = Array[ExtResource("3")]([SubResource("n_3_0"), SubResource("n_3_1"), SubResource("n_3_2"), SubResource("n_3_3"), SubResource("n_3_4"), SubResource("n_3_5"), SubResource("n_3_6"), SubResource("n_3_7"), SubResource("n_3_8"), SubResource("n_3_9"), SubResource("n_3_10"), SubResource("n_3_11"), SubResource("n_3_12"), SubResource("n_3_13"), SubResource("n_3_14"), SubResource("n_3_15"), SubResource("n_3_16"), SubResource("n_3_17"), SubResource("n_3_18"), SubResource("n_3_19"), SubResource("n_3_20")])
 roles = PackedStringArray("healer")
 summary_key = "HUD_ADVICE_B_LIORA"
 
@@ -1228,6 +1393,53 @@ optional = true
 
 [sub_resource type="Resource" id="n_5_12"]
 script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 10
+priority = 370
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_13"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 10
+priority = 360
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_14"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 10
+priority = 350
+requires = PackedStringArray("sq_hp", "sq_size")
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_15"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 340
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_16"]
+script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
 target = 2
@@ -1238,7 +1450,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_13"]
+[sub_resource type="Resource" id="n_5_17"]
 script = ExtResource("3")
 id = &"behind_pack"
 item_id = &"med_pack"
@@ -1251,7 +1463,7 @@ core = false
 optional = true
 skippable = true
 
-[sub_resource type="Resource" id="n_5_14"]
+[sub_resource type="Resource" id="n_5_18"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -1265,7 +1477,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_15"]
+[sub_resource type="Resource" id="n_5_19"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_sunder"
@@ -1278,7 +1490,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_16"]
+[sub_resource type="Resource" id="n_5_20"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_weave"
@@ -1292,7 +1504,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_17"]
+[sub_resource type="Resource" id="n_5_21"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_weave"
@@ -1312,7 +1524,7 @@ hero_id = &"hero_ryker_vance"
 display_name = "Line Breaker"
 item_ids = PackedStringArray("med_pack", "overclock", "quickload", "overclock", "rifling", "quickload", "overclock", "rifling")
 targets = PackedInt32Array(1, 1, 1, 2, 1, 2, 3, 2)
-nodes = Array[ExtResource("3")]([SubResource("n_5_0"), SubResource("n_5_1"), SubResource("n_5_2"), SubResource("n_5_3"), SubResource("n_5_4"), SubResource("n_5_5"), SubResource("n_5_6"), SubResource("n_5_7"), SubResource("n_5_8"), SubResource("n_5_9"), SubResource("n_5_10"), SubResource("n_5_11"), SubResource("n_5_12"), SubResource("n_5_13"), SubResource("n_5_14"), SubResource("n_5_15"), SubResource("n_5_16"), SubResource("n_5_17")])
+nodes = Array[ExtResource("3")]([SubResource("n_5_0"), SubResource("n_5_1"), SubResource("n_5_2"), SubResource("n_5_3"), SubResource("n_5_4"), SubResource("n_5_5"), SubResource("n_5_6"), SubResource("n_5_7"), SubResource("n_5_8"), SubResource("n_5_9"), SubResource("n_5_10"), SubResource("n_5_11"), SubResource("n_5_12"), SubResource("n_5_13"), SubResource("n_5_14"), SubResource("n_5_15"), SubResource("n_5_16"), SubResource("n_5_17"), SubResource("n_5_18"), SubResource("n_5_19"), SubResource("n_5_20"), SubResource("n_5_21")])
 roles = PackedStringArray("soldier")
 summary_key = "HUD_ADVICE_B_RYKER"
 
@@ -1448,6 +1660,53 @@ optional = true
 
 [sub_resource type="Resource" id="n_6_12"]
 script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 10
+priority = 370
+requires = PackedStringArray("c3")
+reason_key = "HUD_ADVICE_N_SQUAD"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_13"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 10
+priority = 360
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_14"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 10
+priority = 350
+requires = PackedStringArray("sq_hp", "sq_size")
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_15"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 340
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_16"]
+script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
 target = 2
@@ -1458,7 +1717,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_13"]
+[sub_resource type="Resource" id="n_6_17"]
 script = ExtResource("3")
 id = &"behind_pack"
 item_id = &"med_pack"
@@ -1471,7 +1730,7 @@ core = false
 optional = true
 skippable = true
 
-[sub_resource type="Resource" id="n_6_14"]
+[sub_resource type="Resource" id="n_6_18"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -1485,7 +1744,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_15"]
+[sub_resource type="Resource" id="n_6_19"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_sunder"
@@ -1498,7 +1757,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_16"]
+[sub_resource type="Resource" id="n_6_20"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_weave"
@@ -1512,7 +1771,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_17"]
+[sub_resource type="Resource" id="n_6_21"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_weave"
@@ -1532,7 +1791,7 @@ hero_id = &"hero_juniper_quill"
 display_name = "Snare Field"
 item_ids = PackedStringArray("med_pack", "overclock", "quickload", "overclock", "rifling", "quickload", "overclock", "rifling")
 targets = PackedInt32Array(1, 1, 1, 2, 1, 2, 3, 2)
-nodes = Array[ExtResource("3")]([SubResource("n_6_0"), SubResource("n_6_1"), SubResource("n_6_2"), SubResource("n_6_3"), SubResource("n_6_4"), SubResource("n_6_5"), SubResource("n_6_6"), SubResource("n_6_7"), SubResource("n_6_8"), SubResource("n_6_9"), SubResource("n_6_10"), SubResource("n_6_11"), SubResource("n_6_12"), SubResource("n_6_13"), SubResource("n_6_14"), SubResource("n_6_15"), SubResource("n_6_16"), SubResource("n_6_17")])
+nodes = Array[ExtResource("3")]([SubResource("n_6_0"), SubResource("n_6_1"), SubResource("n_6_2"), SubResource("n_6_3"), SubResource("n_6_4"), SubResource("n_6_5"), SubResource("n_6_6"), SubResource("n_6_7"), SubResource("n_6_8"), SubResource("n_6_9"), SubResource("n_6_10"), SubResource("n_6_11"), SubResource("n_6_12"), SubResource("n_6_13"), SubResource("n_6_14"), SubResource("n_6_15"), SubResource("n_6_16"), SubResource("n_6_17"), SubResource("n_6_18"), SubResource("n_6_19"), SubResource("n_6_20"), SubResource("n_6_21")])
 roles = PackedStringArray("trapper")
 summary_key = "HUD_ADVICE_B_JUNIPER"
 

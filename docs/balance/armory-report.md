@@ -65,9 +65,15 @@ First spike 3:00, core path done 21:00, 1423 Lumen unspent at 30:00, spent 7550.
 | 9:15 | ember_heart | 3 | 900 | c3 | LATE |
 | 10:33 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 13:29 | flux_coil | 3 | 800 | f3 | LATE |
+| 15:56 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 18:22 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 20:56 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 21:44 | quick_mint | 1 | 250 | sq_mint | LATE |
+| 22:41 | harmonic_tether | 1 | 300 | sq_tether | LATE |
+| 27:07 | bulwark_protocol | 1 | 1400 | sq_bulwark | LATE |
 
-First spike 2:20, core path done 9:15, 5123 Lumen unspent at 30:00, spent 3850.
-Dead zones (> 240 s without a purchase): 13:29-30:00.
+First spike 2:20, core path done 9:15, 923 Lumen unspent at 30:00, spent 8050.
+Dead zones (> 240 s without a purchase): 22:41-27:07.
 
 ### slice / visit 180s / neutral
 
@@ -81,9 +87,15 @@ Dead zones (> 240 s without a purchase): 13:29-30:00.
 | 12:00 | ember_heart | 3 | 900 | c3 | LATE |
 | 12:00 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 15:00 | flux_coil | 3 | 800 | f3 | LATE |
+| 18:00 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 21:00 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 21:00 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 24:00 | harmonic_tether | 1 | 300 | sq_tether | LATE |
+| 24:00 | quick_mint | 1 | 250 | sq_mint | LATE |
+| 30:00 | bulwark_protocol | 1 | 1400 | sq_bulwark | LATE |
 
-First spike 3:00, core path done 12:00, 5123 Lumen unspent at 30:00, spent 3850.
-Dead zones (> 240 s without a purchase): 6:00-12:00, 15:00-30:00.
+First spike 3:00, core path done 12:00, 923 Lumen unspent at 30:00, spent 8050.
+Dead zones (> 240 s without a purchase): 6:00-12:00, 24:00-30:00.
 
 ## Juniper Quill (Snare Field)
 
@@ -101,10 +113,13 @@ Dead zones (> 240 s without a purchase): 6:00-12:00, 15:00-30:00.
 | 11:39 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 13:07 | rifling | 2 | 400 | b2 | LATE |
 | 15:56 | quickload | 3 | 800 | f3 | LATE |
-| 18:32 | rifling | 3 | 800 | b3 | LATE |
+| 18:12 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 20:47 | rifling | 3 | 800 | b3 | LATE |
+| 23:10 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 25:42 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 26:39 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 2:20, core path done 13:07, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 18:32-30:00.
+First spike 2:20, core path done 13:07, 1073 Lumen unspent at 30:00, spent 7900.
 
 ### slice / visit 180s / neutral
 
@@ -121,9 +136,12 @@ Dead zones (> 240 s without a purchase): 18:32-30:00.
 | 15:00 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 18:00 | quickload | 3 | 800 | f3 | LATE |
 | 21:00 | rifling | 3 | 800 | b3 | LATE |
+| 21:00 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 24:00 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 27:00 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 27:00 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 3:00, core path done 12:00, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 21:00-30:00.
+First spike 3:00, core path done 12:00, 1073 Lumen unspent at 30:00, spent 7900.
 
 ## Liora Vale (Steady Light)
 
@@ -141,10 +159,13 @@ Dead zones (> 240 s without a purchase): 21:00-30:00.
 | 11:39 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 13:07 | focus_lens | 2 | 400 | b2 | LATE |
 | 15:56 | flux_coil | 3 | 800 | f3 | LATE |
-| 18:32 | focus_lens | 3 | 800 | b3 | LATE |
+| 18:12 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 20:47 | focus_lens | 3 | 800 | b3 | LATE |
+| 23:10 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 25:42 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 26:39 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 2:20, core path done 13:07, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 18:32-30:00.
+First spike 2:20, core path done 13:07, 1073 Lumen unspent at 30:00, spent 7900.
 
 ### slice / visit 180s / neutral
 
@@ -161,9 +182,12 @@ Dead zones (> 240 s without a purchase): 18:32-30:00.
 | 15:00 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 18:00 | flux_coil | 3 | 800 | f3 | LATE |
 | 21:00 | focus_lens | 3 | 800 | b3 | LATE |
+| 21:00 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 24:00 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 27:00 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 27:00 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 3:00, core path done 12:00, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 21:00-30:00.
+First spike 3:00, core path done 12:00, 1073 Lumen unspent at 30:00, spent 7900.
 
 ## Ryker Vance (Line Breaker)
 
@@ -181,10 +205,13 @@ Dead zones (> 240 s without a purchase): 21:00-30:00.
 | 11:39 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 13:07 | rifling | 2 | 400 | b2 | LATE |
 | 15:56 | quickload | 3 | 800 | f3 | LATE |
-| 18:32 | rifling | 3 | 800 | b3 | LATE |
+| 18:12 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 20:47 | rifling | 3 | 800 | b3 | LATE |
+| 23:10 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 25:42 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 26:39 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 2:20, core path done 13:07, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 18:32-30:00.
+First spike 2:20, core path done 13:07, 1073 Lumen unspent at 30:00, spent 7900.
 
 ### slice / visit 180s / neutral
 
@@ -201,9 +228,12 @@ Dead zones (> 240 s without a purchase): 18:32-30:00.
 | 15:00 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 18:00 | quickload | 3 | 800 | f3 | LATE |
 | 21:00 | rifling | 3 | 800 | b3 | LATE |
+| 21:00 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 24:00 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 27:00 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 27:00 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 3:00, core path done 12:00, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 21:00-30:00.
+First spike 3:00, core path done 12:00, 1073 Lumen unspent at 30:00, spent 7900.
 
 ## Sable (Shadow Edge)
 
@@ -221,10 +251,13 @@ Dead zones (> 240 s without a purchase): 21:00-30:00.
 | 11:39 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 13:07 | focus_lens | 2 | 400 | b2 | LATE |
 | 15:56 | flux_coil | 3 | 800 | f3 | LATE |
-| 18:32 | focus_lens | 3 | 800 | b3 | LATE |
+| 18:12 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 20:47 | focus_lens | 3 | 800 | b3 | LATE |
+| 23:10 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 25:42 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 26:39 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 2:20, core path done 13:07, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 18:32-30:00.
+First spike 2:20, core path done 13:07, 1073 Lumen unspent at 30:00, spent 7900.
 
 ### slice / visit 180s / neutral
 
@@ -241,9 +274,12 @@ Dead zones (> 240 s without a purchase): 18:32-30:00.
 | 15:00 | reinforced_cores_1 | 1 | 350 | sq_hp | SQUAD |
 | 18:00 | flux_coil | 3 | 800 | f3 | LATE |
 | 21:00 | focus_lens | 3 | 800 | b3 | LATE |
+| 21:00 | amplifier_emitters | 1 | 700 | sq_dmg | LATE |
+| 24:00 | squad_expansion_1 | 1 | 800 | sq_size | LATE |
+| 27:00 | reinforced_cores_2 | 1 | 750 | sq_hp2 | LATE |
+| 27:00 | harmonic_tether | 1 | 300 | sq_tether | LATE |
 
-First spike 3:00, core path done 12:00, 3623 Lumen unspent at 30:00, spent 5350.
-Dead zones (> 240 s without a purchase): 21:00-30:00.
+First spike 3:00, core path done 12:00, 1073 Lumen unspent at 30:00, spent 7900.
 
 ## Vesper Loom (Loom Weaver)
 
@@ -304,46 +340,46 @@ First spike 6:00, core path done 27:00, 1023 Lumen unspent at 30:00, spent 7950.
 | Brannoc | gdd / visit 180s / neutral | 3:00 | 21:00 | 1432 | 13 | 0 |
 | Brannoc | gdd / pad / all | 2:21 | 20:38 | 1392 | 14 | 2 |
 | Brannoc | gdd / visit 180s / all | 3:00 | 21:00 | 1392 | 14 | 0 |
-| Hex | slice / pad / neutral | 2:20 | 9:15 | 5123 | 8 | 1 |
-| Hex | slice / visit 180s / neutral | 3:00 | 12:00 | 5123 | 8 | 2 |
-| Hex | slice / pad / all | 2:20 | 9:24 | 5083 | 9 | 1 |
-| Hex | slice / visit 180s / all | 3:00 | 12:00 | 5083 | 10 | 1 |
-| Hex | gdd / pad / neutral | 2:21 | 9:19 | 5132 | 8 | 1 |
-| Hex | gdd / visit 180s / neutral | 3:00 | 12:00 | 5132 | 8 | 2 |
-| Hex | gdd / pad / all | 2:21 | 9:28 | 5092 | 9 | 1 |
-| Hex | gdd / visit 180s / all | 3:00 | 12:00 | 5092 | 10 | 1 |
-| Juniper Quill | slice / pad / neutral | 2:20 | 13:07 | 3623 | 11 | 1 |
-| Juniper Quill | slice / visit 180s / neutral | 3:00 | 12:00 | 3623 | 11 | 1 |
-| Juniper Quill | slice / pad / all | 2:20 | 13:16 | 3583 | 12 | 1 |
-| Juniper Quill | slice / visit 180s / all | 3:00 | 12:00 | 3583 | 12 | 1 |
-| Juniper Quill | gdd / pad / neutral | 2:21 | 13:13 | 3632 | 11 | 1 |
-| Juniper Quill | gdd / visit 180s / neutral | 3:00 | 12:00 | 3632 | 11 | 1 |
-| Juniper Quill | gdd / pad / all | 2:21 | 13:22 | 3592 | 12 | 1 |
-| Juniper Quill | gdd / visit 180s / all | 3:00 | 15:00 | 3592 | 12 | 1 |
-| Liora Vale | slice / pad / neutral | 2:20 | 13:07 | 3623 | 11 | 1 |
-| Liora Vale | slice / visit 180s / neutral | 3:00 | 12:00 | 3623 | 11 | 1 |
-| Liora Vale | slice / pad / all | 2:20 | 12:45 | 3723 | 12 | 1 |
-| Liora Vale | slice / visit 180s / all | 3:00 | 12:00 | 3723 | 12 | 1 |
-| Liora Vale | gdd / pad / neutral | 2:21 | 13:13 | 3632 | 11 | 1 |
-| Liora Vale | gdd / visit 180s / neutral | 3:00 | 12:00 | 3632 | 11 | 1 |
-| Liora Vale | gdd / pad / all | 2:21 | 12:51 | 3732 | 12 | 1 |
-| Liora Vale | gdd / visit 180s / all | 3:00 | 12:00 | 3732 | 12 | 1 |
-| Ryker Vance | slice / pad / neutral | 2:20 | 13:07 | 3623 | 11 | 1 |
-| Ryker Vance | slice / visit 180s / neutral | 3:00 | 12:00 | 3623 | 11 | 1 |
-| Ryker Vance | slice / pad / all | 2:20 | 12:45 | 3723 | 12 | 1 |
-| Ryker Vance | slice / visit 180s / all | 3:00 | 12:00 | 3723 | 12 | 1 |
-| Ryker Vance | gdd / pad / neutral | 2:21 | 13:13 | 3632 | 11 | 1 |
-| Ryker Vance | gdd / visit 180s / neutral | 3:00 | 12:00 | 3632 | 11 | 1 |
-| Ryker Vance | gdd / pad / all | 2:21 | 12:51 | 3732 | 12 | 1 |
-| Ryker Vance | gdd / visit 180s / all | 3:00 | 12:00 | 3732 | 12 | 1 |
-| Sable | slice / pad / neutral | 2:20 | 13:07 | 3623 | 11 | 1 |
-| Sable | slice / visit 180s / neutral | 3:00 | 12:00 | 3623 | 11 | 1 |
-| Sable | slice / pad / all | 2:20 | 13:16 | 3583 | 12 | 1 |
-| Sable | slice / visit 180s / all | 3:00 | 12:00 | 3583 | 13 | 1 |
-| Sable | gdd / pad / neutral | 2:21 | 13:13 | 3632 | 11 | 1 |
-| Sable | gdd / visit 180s / neutral | 3:00 | 12:00 | 3632 | 11 | 1 |
-| Sable | gdd / pad / all | 2:21 | 13:22 | 3592 | 12 | 1 |
-| Sable | gdd / visit 180s / all | 3:00 | 15:00 | 3592 | 13 | 1 |
+| Hex | slice / pad / neutral | 2:20 | 9:15 | 923 | 14 | 1 |
+| Hex | slice / visit 180s / neutral | 3:00 | 12:00 | 923 | 14 | 2 |
+| Hex | slice / pad / all | 2:20 | 9:24 | 883 | 15 | 1 |
+| Hex | slice / visit 180s / all | 3:00 | 12:00 | 883 | 16 | 1 |
+| Hex | gdd / pad / neutral | 2:21 | 9:19 | 932 | 14 | 1 |
+| Hex | gdd / visit 180s / neutral | 3:00 | 12:00 | 932 | 14 | 2 |
+| Hex | gdd / pad / all | 2:21 | 9:28 | 892 | 15 | 1 |
+| Hex | gdd / visit 180s / all | 3:00 | 12:00 | 892 | 16 | 1 |
+| Juniper Quill | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
+| Juniper Quill | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
+| Juniper Quill | slice / pad / all | 2:20 | 13:16 | 1033 | 16 | 0 |
+| Juniper Quill | slice / visit 180s / all | 3:00 | 12:00 | 1033 | 16 | 0 |
+| Juniper Quill | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
+| Juniper Quill | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
+| Juniper Quill | gdd / pad / all | 2:21 | 13:22 | 1042 | 16 | 0 |
+| Juniper Quill | gdd / visit 180s / all | 3:00 | 15:00 | 1042 | 16 | 0 |
+| Liora Vale | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
+| Liora Vale | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
+| Liora Vale | slice / pad / all | 2:20 | 12:45 | 1173 | 16 | 0 |
+| Liora Vale | slice / visit 180s / all | 3:00 | 12:00 | 1173 | 16 | 0 |
+| Liora Vale | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
+| Liora Vale | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
+| Liora Vale | gdd / pad / all | 2:21 | 12:51 | 1182 | 16 | 0 |
+| Liora Vale | gdd / visit 180s / all | 3:00 | 12:00 | 1182 | 16 | 0 |
+| Ryker Vance | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
+| Ryker Vance | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
+| Ryker Vance | slice / pad / all | 2:20 | 12:45 | 1173 | 16 | 0 |
+| Ryker Vance | slice / visit 180s / all | 3:00 | 12:00 | 1173 | 16 | 0 |
+| Ryker Vance | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
+| Ryker Vance | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
+| Ryker Vance | gdd / pad / all | 2:21 | 12:51 | 1182 | 16 | 0 |
+| Ryker Vance | gdd / visit 180s / all | 3:00 | 12:00 | 1182 | 16 | 0 |
+| Sable | slice / pad / neutral | 2:20 | 13:07 | 1073 | 15 | 0 |
+| Sable | slice / visit 180s / neutral | 3:00 | 12:00 | 1073 | 15 | 0 |
+| Sable | slice / pad / all | 2:20 | 13:16 | 1033 | 16 | 0 |
+| Sable | slice / visit 180s / all | 3:00 | 12:00 | 1033 | 17 | 0 |
+| Sable | gdd / pad / neutral | 2:21 | 13:13 | 1082 | 15 | 0 |
+| Sable | gdd / visit 180s / neutral | 3:00 | 12:00 | 1082 | 15 | 0 |
+| Sable | gdd / pad / all | 2:21 | 13:22 | 1042 | 16 | 0 |
+| Sable | gdd / visit 180s / all | 3:00 | 15:00 | 1042 | 17 | 0 |
 | Vesper Loom | slice / pad / neutral | 3:39 | 26:48 | 1023 | 15 | 1 |
 | Vesper Loom | slice / visit 180s / neutral | 6:00 | 27:00 | 1023 | 15 | 0 |
 | Vesper Loom | slice / pad / all | 3:39 | 26:56 | 983 | 16 | 1 |
@@ -360,7 +396,7 @@ Items no simulated run buys: squad_expansion_2, ammo_piercing, ammo_sunder, pene
 
 ## Build diversity (slice, visit 180s, neutral)
 
-Distinct items bought across heroes: 14 of 20. Mean pairwise overlap (Jaccard): 0.43. Closest pair: Juniper Quill / Ryker Vance (1.00).
+Distinct items bought across heroes: 14 of 20. Mean pairwise overlap (Jaccard): 0.57. Closest pair: Juniper Quill / Ryker Vance (1.00).
 
 ## Tier value (primary stat gained per 100 Lumen, step vs Tier I)
 

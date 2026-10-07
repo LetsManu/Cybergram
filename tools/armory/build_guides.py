@@ -67,6 +67,21 @@ def mech_core(extra_squad):
 SQUAD_LIGHT = [
     ("sq_hp", "reinforced_cores_1", 1, "SQUAD", 560, ["f1"], dict(core=False, optional=True, reason="HUD_ADVICE_N_SQUAD")),
 ]
+# Late squad sink for heroes that are not commanders (docs/balance/armory-review.md
+# proposal 1): after the third damage tier these heroes had nothing left to buy
+# (about 3,600 Lumen unspent at 30:00); GDD §18 puts about 30% of spend on squad.
+SQUAD_LIGHT_TAIL = [
+    ("sq_dmg", "amplifier_emitters", 1, "LATE", 370, ["c3"], dict(core=False, optional=True, reason="HUD_ADVICE_N_SQUAD")),
+    ("sq_size", "squad_expansion_1", 1, "LATE", 360, ["sq_dmg"], dict(core=False, optional=True, reason="HUD_ADVICE_N_SQUAD_SIZE")),
+    ("sq_hp2", "reinforced_cores_2", 1, "LATE", 350, ["sq_hp", "sq_size"], dict(core=False, optional=True)),
+    ("sq_tether", "harmonic_tether", 1, "LATE", 340, ["sq_size"], dict(core=False, optional=True, reason="HUD_ADVICE_N_TETHER")),
+]
+# Hex has no Barrel line in the slice; its 1,500 Lumen Barrel budget goes to the
+# squad (review proposal 2).
+SQUAD_HEX_TAIL = SQUAD_LIGHT_TAIL + [
+    ("sq_mint", "quick_mint", 1, "LATE", 330, ["sq_size"], dict(core=False, optional=True, reason="HUD_ADVICE_N_QUICK_MINT")),
+    ("sq_bulwark", "bulwark_protocol", 1, "LATE", 320, ["sq_hp2", "c3"], dict(core=False, optional=True, reason="HUD_ADVICE_N_BULWARK")),
+]
 SQUAD_COMMANDER = [
     ("sq_hp", "reinforced_cores_1", 1, "SQUAD", 850, ["c1"], dict(reason="HUD_ADVICE_N_SQUAD")),
     ("sq_dmg", "amplifier_emitters", 1, "SQUAD", 750, ["f1"], dict(reason="HUD_ADVICE_N_SQUAD")),
@@ -86,12 +101,12 @@ SQUAD_FRONTLINE = [
 GUIDES = [
     # hero, name, summary key, roles, nodes, simple list (old readers)
     ("hero_vesper_loom", "Loom Weaver", "HUD_ADVICE_B_VESPER", ["commander"], mana_core(SQUAD_COMMANDER)),
-    ("hero_sable", "Shadow Edge", "HUD_ADVICE_B_SABLE", ["infiltrator"], mana_core(SQUAD_LIGHT)),
-    ("hero_hex", "Static Overload", "HUD_ADVICE_B_HEX", ["hacker"], mana_core(SQUAD_LIGHT, barrel=False)),
-    ("hero_liora_vale", "Steady Light", "HUD_ADVICE_B_LIORA", ["healer"], mana_core(SQUAD_LIGHT)),
+    ("hero_sable", "Shadow Edge", "HUD_ADVICE_B_SABLE", ["infiltrator"], mana_core(SQUAD_LIGHT + SQUAD_LIGHT_TAIL)),
+    ("hero_hex", "Static Overload", "HUD_ADVICE_B_HEX", ["hacker"], mana_core(SQUAD_LIGHT + SQUAD_HEX_TAIL, barrel=False)),
+    ("hero_liora_vale", "Steady Light", "HUD_ADVICE_B_LIORA", ["healer"], mana_core(SQUAD_LIGHT + SQUAD_LIGHT_TAIL)),
     ("hero_brannoc", "Bulwark Gunner", "HUD_ADVICE_B_BRANNOC", ["tank"], mech_core(SQUAD_FRONTLINE)),
-    ("hero_ryker_vance", "Line Breaker", "HUD_ADVICE_B_RYKER", ["soldier"], mech_core(SQUAD_LIGHT)),
-    ("hero_juniper_quill", "Snare Field", "HUD_ADVICE_B_JUNIPER", ["trapper"], mech_core(SQUAD_LIGHT)),
+    ("hero_ryker_vance", "Line Breaker", "HUD_ADVICE_B_RYKER", ["soldier"], mech_core(SQUAD_LIGHT + SQUAD_LIGHT_TAIL)),
+    ("hero_juniper_quill", "Snare Field", "HUD_ADVICE_B_JUNIPER", ["trapper"], mech_core(SQUAD_LIGHT + SQUAD_LIGHT_TAIL)),
 ]
 
 

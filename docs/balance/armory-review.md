@@ -120,3 +120,17 @@ not edit the registry.
    player)?
 5. **Default ammo:** should guides other than Brannoc carry an unconditional Ammo Type (§3.8 full
    build), or does ammo stay counter-only?
+
+## 5. Applied (2026-10-07)
+
+Proposals 1 and 2 are applied. They change only guide content, in `tools/armory/build_guides.py`
+(`SQUAD_LIGHT_TAIL`, `SQUAD_HEX_TAIL`). After the change the guides were regenerated and the report
+was re-run.
+
+| hero (slice, neutral) | unspent 30:00 before | after | dead zones (pad) before | after |
+|---|---|---|---|---|
+| Juniper, Liora, Ryker, Sable | 3,623 | 1,073 | 1 (18:32-30:00) | 0 |
+| Hex | 5,123 | 923 | 1 (13:29-30:00) | 1 |
+
+Proposals 3, 4 and 5 are still open and wait for the owner's answers to the questions above.
+Squad Expansion II, Piercing, Sunder and Penetrator are still never bought.
