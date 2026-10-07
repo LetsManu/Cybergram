@@ -790,7 +790,7 @@ func _set_rect(i: int) -> Rect2:
 
 ## Bottom-strip box of inventory place `k`: sockets, the Chamber's two halves, open slots.
 func _place_rect(k: int) -> Rect2:
-	var y := STRIP_Y + 30.0
+	var y := STRIP_Y + 40.0
 	if k <= ItemShopModel.P_FRAME:
 		return Rect2(156.0 + k * 62.0, y, 56.0, 56.0)
 	if k == ItemShopModel.P_AMMO:
@@ -801,15 +801,15 @@ func _place_rect(k: int) -> Rect2:
 
 
 func _row_rect() -> Rect2:
-	return Rect2(852.0, STRIP_Y + 30.0, 118.0, 56.0)
+	return Rect2(852.0, STRIP_Y + 40.0, 118.0, 56.0)
 
 
 func _undo_rect() -> Rect2:
-	return Rect2(984.0, STRIP_Y + 30.0, VW - PAD - 984.0, 25.0)
+	return Rect2(984.0, STRIP_Y + 40.0, VW - PAD - 984.0, 25.0)
 
 
 func _sell_rect() -> Rect2:
-	return Rect2(984.0, STRIP_Y + 60.0, VW - PAD - 984.0, 26.0)
+	return Rect2(984.0, STRIP_Y + 70.0, VW - PAD - 984.0, 26.0)
 
 
 # --- Drawing helpers (canvas units) -----------------------------------------------------
@@ -1220,9 +1220,9 @@ func _draw_strip() -> void:
 	draw_line(Vector2(PAD, STRIP_Y) * _k, Vector2(VW - PAD, STRIP_Y) * _k, HudPalette.HAIR_STRONG, 1.0)
 	# Lumen.
 	_c(tr("HUD_LUMEN"), PAD, STRIP_Y + 22.0, 11.0, HudPalette.MUTED, 0.22)
-	var g := Vector2(PAD + 9.0, STRIP_Y + 60.0) * _k
+	var g := Vector2(PAD + 9.0, STRIP_Y + 68.0) * _k
 	diamond(g, 6.0 * _k, HudPalette.BRASS_HI, false)
-	_t(HudFormat.thousands(p.lumen), PAD + 24.0, STRIP_Y + 69.0, 24.0, HudPalette.BRASS_HI, ctx.font_numbers)
+	_t(HudFormat.thousands(p.lumen), PAD + 24.0, STRIP_Y + 77.0, 24.0, HudPalette.BRASS_HI, ctx.font_numbers)
 	# Labels over the groups.
 	_c(tr("HUD_SHOP2_GUN"), 156.0, STRIP_Y + 22.0, 11.0, HudPalette.MUTED, 0.2)
 	_c(tr("HUD_SOCKET_CHAMBER"), 342.0, STRIP_Y + 22.0, 11.0, HudPalette.MUTED, 0.2)
