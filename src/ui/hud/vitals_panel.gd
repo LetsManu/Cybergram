@@ -190,17 +190,21 @@ func _hp_bar(r: Rect2, cb: SnapshotData.OwnCombat, frac: float, critical: bool, 
 
 
 ## Armory v2 Lattice overshield (design/gdd/items-and-armory.md §3.5 SG-G4):
-## a thin bar right over the HP bar, one HP-bar unit per point (80 points read
-## as 80 HP), with a diamond cap so it is not told apart by colour alone.
-## Shown only while OwnCombat.overshield > 0.
+## a teal bar right over the HP bar (never the ivory HP colour), one HP-bar
+## unit per point, with a diamond cap and a "+80" count so it is not told
+## apart by colour alone. Shown only while OwnCombat.overshield > 0.
 func _overshield_bar(r: Rect2, cb: SnapshotData.OwnCombat, unit: float) -> void:
 	var pts := cb.overshield
-	if pts <= 0 and OS.get_environment("CYBERGRAM_HUD_EVIDENCE") == "overshield":
-		pts = 80  # evidence capture only: no Lattice in the debug build
+	var ev := OS.get_environment("CYBERGRAM_HUD_EVIDENCE")
+	if pts <= 0 and ev.begins_with("overshield"):
+		# Evidence capture only (no Lattice in the debug build): "overshield" = 80, "overshield40" = 40.
+		pts = ev.trim_prefix("overshield").to_int() if ev != "overshield" else 80
 	if pts <= 0:
 		return
 	var w := minf(pts * unit, r.size.x)
-	var br := Rect2(r.position.x, r.position.y - 7.0, w, 4.0)
-	draw_rect(Rect2(r.position.x, br.position.y, r.size.x, br.size.y), Color(HudPalette.SHIELD, 0.14))
-	draw_rect(br, HudPalette.SHIELD)
-	diamond(Vector2(br.end.x, br.get_center().y), 4.0, HudPalette.SHIELD)
+	var br := Rect2(r.position.x, r.position.y - 8.0, w, 6.0)
+	draw_rect(Rect2(r.position.x, br.position.y, r.size.x, br.size.y), Color(HudPalette.TEAL, 0.16))
+	draw_rect(br, HudPalette.TEAL)
+	draw_rect(br, Color(HudPalette.INK_DEEP, 0.6), false, 1.0)
+	diamond(Vector2(br.end.x, br.get_center().y), 5.0, HudPalette.TEAL)
+	text("+%d" % pts, Vector2(r.end.x + 8.0, br.end.y + 2.0), 13, HudPalette.TEAL, ctx.font_numbers)

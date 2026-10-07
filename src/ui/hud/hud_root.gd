@@ -135,6 +135,8 @@ func _build() -> void:
 	if cat != null and cat.is_recipe_catalog():
 		# Armory v2: a full-width modal shop with the always-on bottom strip.
 		_armory = _fill(ItemShopPanel.new(), _zone("Armory", 0.03, 0.075, 0.97, 0.965))
+		# Above every sibling layer (scrims, combat widgets): nothing may draw over the modal.
+		(_armory as Control).get_parent().z_index = 5
 	else:
 		_armory = _fill(ArmoryPanel.new(), _zone("Armory", -0.032, 0.104, 0.616, 0.83))
 	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.22, 0.8, 0.9)) as DeathScreen

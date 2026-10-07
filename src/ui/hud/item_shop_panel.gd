@@ -1039,7 +1039,7 @@ func _draw_all() -> void:
 			draw_rect(_r(fr), Color(HudPalette.BRASS, 0.14))
 		var box := Rect2(fr.position + Vector2(6.0, 7.0), Vector2(12.0, 12.0))
 		draw_rect(_r(box), HudPalette.BRASS if on else HudPalette.HAIR_STRONG, on, 1.0)
-		_t(tr("HUD_SHOP2_F_" + String(ItemShopModel.FILTERS[f]).to_upper()), fr.position.x + 26.0, fr.position.y + 18.0,
+		_t(tr(ItemShopModel.FILTER_KEYS[f]), fr.position.x + 26.0, fr.position.y + 18.0,
 			13.0, HudPalette.IVORY if on or foc else HudPalette.MUTED, ctx.font_body)
 	_draw_labels()
 	for i in _items.size():
@@ -1104,7 +1104,7 @@ func _draw_detail(idx: int) -> void:
 		_t(_fit(it.effect_label(), 12.0, w), x, y, 12.0, HudPalette.IVORY, ctx.font_body)
 		y += 17.0
 	if it.passive != &"":
-		var ptxt := tr("HUD_PASSIVE_" + String(it.passive).to_upper())
+		var ptxt := tr(String(ItemShopModel.PASSIVE_KEYS.get(it.passive, String(it.passive))))
 		draw_multiline_string(ctx.font_body, Vector2(x, y) * _k, ptxt, HORIZONTAL_ALIGNMENT_LEFT, w * _k, ts(_px(11.0)), 2,
 			HudPalette.BRASS_HI)
 		y += 32.0
@@ -1134,8 +1134,8 @@ func _draw_detail(idx: int) -> void:
 			y += 19.0
 			lines += 1
 		y += 2.0
-		_t(tr("HUD_SHOP2_TO_COMPLETE") % HudFormat.thousands(model.cost(idx)), x, y + 12.0, 13.0, HudPalette.BRASS_HI,
-			ctx.font_body)
+		_t(_fit(tr("HUD_SHOP2_TOTAL_COMPLETE") % [HudFormat.thousands(model.total(idx)),
+			HudFormat.thousands(model.cost(idx))], 13.0, w), x, y + 12.0, 13.0, HudPalette.BRASS_HI, ctx.font_body)
 		y += 20.0
 	# Builds into.
 	var into := model.builds_into(idx)

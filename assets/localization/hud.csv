@@ -1305,3 +1305,4 @@ HUD_PASSIVE_RESONANT_CAST,Resonant Cast: casting your ultimate cuts the remainin
 HUD_PASSIVE_SIEGEBREAKER,"Siegebreaker: weapon damage vs Ward Generators and an Exposed Uplink +15% (target-class modifier, not an ammo effect, so the Uplink rule of `weapons-and-mods.md` §3.7.1 is untouched). Absorbs the old Uplink Breaker."
 HUD_SHOP2_MORE,More steps below (Down or mouse wheel)
 HUD_SHOP2_TOTAL,total %s
+HUD_SHOP2_TOTAL_COMPLETE,Total %s  ·  to complete %s

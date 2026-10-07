@@ -32,6 +32,22 @@ const SHELF_KEYS: Array[String] = ["HUD_SHOP2_SHELF_COMPONENTS", "HUD_SHOP2_SHEL
 ## Stat filters, top to bottom (§3.9 All Items). A filter matches by stat id or item kind.
 const FILTERS: Array[StringName] = [&"damage", &"fire_rate", &"range", &"handling", &"feed", &"health", &"armor",
 	&"resist", &"cooldown", &"speed", &"siege", &"ammo", &"squad", &"consumable"]
+## Filter labels (HUD_ rows), FILTERS order.
+const FILTER_KEYS: Array[String] = ["HUD_SHOP2_F_DAMAGE", "HUD_SHOP2_F_FIRE_RATE", "HUD_SHOP2_F_RANGE",
+	"HUD_SHOP2_F_HANDLING", "HUD_SHOP2_F_FEED", "HUD_SHOP2_F_HEALTH", "HUD_SHOP2_F_ARMOR", "HUD_SHOP2_F_RESIST",
+	"HUD_SHOP2_F_COOLDOWN", "HUD_SHOP2_F_SPEED", "HUD_SHOP2_F_SIEGE", "HUD_SHOP2_F_AMMO", "HUD_SHOP2_F_SQUAD",
+	"HUD_SHOP2_F_CONSUMABLE"]
+## "Shows on" labels per body anchor (§3.8).
+const ANCHOR_KEYS := {&"body_belt": "HUD_SHOP2_ON_BELT", &"body_chest": "HUD_SHOP2_ON_CHEST",
+	&"body_shoulders": "HUD_SHOP2_ON_SHOULDERS", &"body_back": "HUD_SHOP2_ON_BACK", &"body_head": "HUD_SHOP2_ON_HEAD",
+	&"body_legs": "HUD_SHOP2_ON_LEGS", &"body_forearm": "HUD_SHOP2_ON_FOREARM"}
+## Signature passive texts (§3.5 content tables).
+const PASSIVE_KEYS := {&"kindle": "HUD_PASSIVE_KINDLE", &"overdrive_loop": "HUD_PASSIVE_OVERDRIVE_LOOP",
+	&"true_line": "HUD_PASSIVE_TRUE_LINE", &"long_reach": "HUD_PASSIVE_LONG_REACH", &"rend": "HUD_PASSIVE_REND",
+	&"deep_reserve": "HUD_PASSIVE_DEEP_RESERVE", &"cold_start": "HUD_PASSIVE_COLD_START",
+	&"planted": "HUD_PASSIVE_PLANTED", &"brace": "HUD_PASSIVE_BRACE", &"grounding": "HUD_PASSIVE_GROUNDING",
+	&"regrowth": "HUD_PASSIVE_REGROWTH", &"lattice": "HUD_PASSIVE_LATTICE",
+	&"resonant_cast": "HUD_PASSIVE_RESONANT_CAST", &"siegebreaker": "HUD_PASSIVE_SIEGEBREAKER"}
 const FILTER_STATS := {
 	&"damage": ["mod_damage", "armor_pen_bonus", "headshot_bonus"],
 	&"fire_rate": ["fire_rate_bonus"],
@@ -619,7 +635,7 @@ func shows_on_key(index: int) -> String:
 	if it == null:
 		return ""
 	if it.body_anchor != &"":
-		return "HUD_SHOP2_ON_" + String(it.body_anchor).trim_prefix("body_").to_upper()
+		return String(ANCHOR_KEYS.get(it.body_anchor, ""))
 	match it.socket:
 		ArmoryItemDef.Socket.CORE:
 			return "HUD_SOCKET_CORE"
