@@ -830,8 +830,7 @@ func _decide_shop(tick: int, h: HeroBody) -> void:
 		return
 	_shop_key = key
 	if builds == null:
-		builds = load(RecommendedBuildsDef.V22_PATH if prog.is_v2() else RecommendedBuildsDef.DEFAULT_PATH) \
-			as RecommendedBuildsDef
+		builds = load(RecommendedBuildsDef.active_path()) as RecommendedBuildsDef
 	var guide: RecommendedBuildDef = builds.for_hero(h.combat.def.id) if builds != null else null
 	if guide == null:
 		return

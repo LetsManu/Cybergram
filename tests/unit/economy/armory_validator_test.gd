@@ -218,7 +218,7 @@ func test_hero_roles_and_tags_from_data() -> void:
 # --- Armory v2 (v22 catalog) -------------------------------------------------------
 
 func _v22() -> ArmoryCatalogDef:
-	return (load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef).duplicate(true) as ArmoryCatalogDef
+	return (load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef).duplicate(true) as ArmoryCatalogDef
 
 
 func _errors_of(cat: ArmoryCatalogDef) -> String:
@@ -226,7 +226,7 @@ func _errors_of(cat: ArmoryCatalogDef) -> String:
 
 
 func test_v22_catalog_is_clean() -> void:
-	var r := ArmoryValidator.check(load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef)
+	var r := ArmoryValidator.check(load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef)
 	assert_array(Array(r["errors"])).is_empty()
 
 

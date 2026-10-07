@@ -8,7 +8,7 @@ var _link: LoopbackLink
 var _net: NetConfig
 
 
-func _world(catalog_path: String = ArmoryCatalogDef.V22_PATH) -> void:
+func _world(catalog_path: String = ArmoryCatalogDef.DEFAULT_PATH) -> void:
 	_net = NetFixtures.net_config()
 	_link = LoopbackLink.new(NetFixtures.profile(0, 0, 0.0))
 	var vp := SubViewport.new()

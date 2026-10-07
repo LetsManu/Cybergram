@@ -36,7 +36,7 @@ func before_test() -> void:
 	vp.add_child(_server)
 	_server.setup(net, MovementDef.new(), CombatFixtures.range_scene(false), _link.create_endpoint(1),
 		CombatFixtures.vesper(), load("res://assets/data/match/match_rules_slice.tres") as MatchRulesDef)
-	_cat = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+	_cat = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	_pr = _server.enable_progression(load("res://assets/data/economy/economy_rules_slice.tres"), _cat, null)
 	_pr.debug_shop_anywhere = true
 	_pr.armory_log = false

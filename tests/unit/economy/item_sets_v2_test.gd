@@ -12,9 +12,9 @@ var _guides: RecommendedBuildsDef
 
 
 func before_test() -> void:
-	_v22 = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+	_v22 = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 	_v1 = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
-	_guides = load(RecommendedBuildsDef.V22_PATH) as RecommendedBuildsDef
+	_guides = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
 
 
 func _vm(store: CustomBuildStore) -> BuildsViewModel:

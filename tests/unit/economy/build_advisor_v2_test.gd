@@ -18,8 +18,8 @@ var _bodies: Array[HeroBody] = []
 
 
 func before_test() -> void:
-	_cat = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
-	_guides = load(RecommendedBuildsDef.V22_PATH) as RecommendedBuildsDef
+	_cat = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
+	_guides = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
 	_ar = load(AdviceRulesDef.DEFAULT_PATH) as AdviceRulesDef
 
 

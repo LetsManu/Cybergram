@@ -132,7 +132,7 @@ func test_bots_shop_their_guides_through_action_buy() -> void:
 ## Armory v2: on the recipe catalog bots buy the next part of their v22
 ## guide (a Med-Pack, then the starter component) through the same ACTION_BUY.
 func test_bots_shop_recipe_parts_on_the_v22_catalog() -> void:
-	var b := _build(1.0, 22, 5, ArmoryCatalogDef.V22_PATH)
+	var b := _build(1.0, 22, 5, ArmoryCatalogDef.DEFAULT_PATH)
 	var server: ServerWorld = b[0]
 	var director: BotDirector = b[1]
 	assert_bool(await WardlingFixtures.await_nav(get_tree(), server)).is_true()

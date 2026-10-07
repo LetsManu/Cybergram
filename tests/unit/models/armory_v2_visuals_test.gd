@@ -11,7 +11,7 @@ var _cat: ArmoryCatalogDef
 
 
 func before() -> void:
-	_cat = load(ArmoryCatalogDef.V22_PATH) as ArmoryCatalogDef
+	_cat = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
 
 
 func _i(id: StringName) -> int:
