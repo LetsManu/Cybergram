@@ -106,7 +106,7 @@ uniform float wall_saturation = 1.0;
 uniform float floor_value = 1.0;
 // Large-scale world-space albedo breakup on walls (value, +-).
 uniform float albedo_noise : hint_range(0.0, 0.3) = 0.0;
-// Light wear line along the mesh's face borders (BoxMesh UV cells), ~2 px wide, near only.
+// Light wear line along wall face borders (BoxMesh UV cells), ~2 px wide, near only.
 uniform float edge_wear : hint_range(0.0, 1.0) = 0.0;
 // Painted contact AO at the foot of walls: value at the ground, and grime tint mix.
 uniform float contact_ao_min : hint_range(0.2, 1.0) = 0.72;
@@ -296,10 +296,14 @@ void fragment() {
 		}
 	}
 	col = mix(col, seam_color, seam * seam_k);
-	if (edge_wear > 0.0) {
+	// Walls only, and only on meshes with real UVs: a mesh without them (the
+	// rolling lane floors) reads "on the border" everywhere, which painted
+	// noise-shaped light blotches over the whole floor (look-dev review).
+	vec2 uw = fwidth(UV * vec2(3.0, 2.0));
+	if (edge_wear > 0.0 && an.y <= 0.7 && max(uw.x, uw.y) > 1e-6) {
 		// BoxMesh lays its 6 faces out in a 3 x 2 UV grid: distance to the face border.
 		vec2 fu = fract(UV * vec2(3.0, 2.0));
-		vec2 de = min(fu, 1.0 - fu) / max(fwidth(UV * vec2(3.0, 2.0)), vec2(1e-5));
+		vec2 de = min(fu, 1.0 - fu) / max(uw, vec2(1e-5));
 		float e = 1.0 - smoothstep(1.0, 2.5, min(de.x, de.y));
 		float near = 1.0 - smoothstep(15.0, 40.0, length(VERTEX));
 		float brk = smoothstep(0.35, 0.6, vnoise(v_pos.xz * 1.7 + v_pos.y * 2.3));

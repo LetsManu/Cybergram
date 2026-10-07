@@ -161,10 +161,11 @@ Reading:
 
 | Review item | Change |
 |---|---|
-| 1. cloud-like blotches on the lane floor | Not shadows: the exact-triangle probe (`tools/lookdev_shadow_probe.gd`) found no caster over those points. They were the panel's 9 m albedo value noise; it now applies to walls only (0.04). Sun bias also raised to 0.05 / normal bias 2.0-1.6 (safer on the curved lane floors). Real cast shadows (lamp posts, cover) stay. |
+| 1. cloud-like blotches on the lane floor | Not shadows (they stayed put when the sun moved; the exact-triangle probe `tools/lookdev_shadow_probe.gd` found no caster). Cause: the new panel `edge_wear` finds face borders from BoxMesh UV cells; the rolling lane floors are ArrayMeshes without those UVs, so the whole floor counted as "border" and got the noise-modulated wear lightening. Edge wear is now walls-only and skipped where UVs are degenerate; albedo noise is walls-only too. Sun bias also raised (0.05 / normal 2.0-1.6). Real cast shadows (lamp posts, cover) stay. |
 | 2. floor detail flat | cel highlight band 0.2, floor value 0.9, SSAO 2.6 / 1.5 m for contact darkening where floors meet walls; painted grime gradient stays on wall feet only |
 | 3. walls dark brown-grey in shadow | sky ambient (0.42, 0.47, 0.74) x0.58, violet fill (0.48, 0.52, 0.9) x0.35, shadow tint (0.38, 0.42, 0.74), wall value 0.86: warm light / cool shadow |
 | 4. A's neon, signal tiers | glow x1.4, bloom 0.1 (Signal emissives: Uplink core, hardpoint holo, crystals, team telegraphs already sit above 1.1); map neon / trims x1.5 but capped at Accent 1.0 (no lane bloom); city signs x1.8, skyline windows x1.4 (Set-piece); horizon softened to (0.98, 0.72, 0.6) so `ember_core` enemies separate from the sky |
+| sun | raised from B's 16 deg to 22 deg: still golden, shorter shadows of the Garrison Sentinels / props across the lanes |
 | 5. default + tiers | see the shadow table above; Low: blob shadows, no glow; Medium: PSSM 2, 2 shadowed practicals, glow 0.63; High: PSSM 4 blended, 4 shadowed, grade LUT, SSAO; Ultra: 8192 atlas, 8 shadowed, volumetric off for this look |
 
 Final evidence: `production/qa/evidence/lookdev/fp-lane-center_final.png`,
