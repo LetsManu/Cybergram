@@ -39,7 +39,9 @@ func record_heal(healer: int, target: int, tick: int) -> void:
 ## damagers and heals received).
 func assisters(victim: int, killer: int, tick: int) -> Array[int]:
 	var out: Array[int] = []
-	var helped: Array[int] = [killer] if killer > 0 else []
+	var helped: Array[int] = []
+	if killer > 0:
+		helped.append(killer)
 	var d: Dictionary = _damagers.get(victim, {})
 	for a: int in d:
 		if tick - int(d[a]) <= window_ticks:
