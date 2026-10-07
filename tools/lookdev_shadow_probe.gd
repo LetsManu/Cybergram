@@ -55,7 +55,14 @@ func _run(view: String) -> void:
 			var p: Vector3 = r.position + Vector3.UP * 0.05
 			for g in casters:
 				var box := g.global_transform * g.get_aabb()
-				if box.intersects_segment(p, p + to_sun * 250.0):
+				if not box.intersects_segment(p, p + to_sun * 250.0):
+					continue
+				if g is MeshInstance3D and (g as MeshInstance3D).mesh != null:
+					# exact: the triangles, not the bounds (the floor's own box contains p)
+					var tm := _tri(g as MeshInstance3D)
+					var inv := g.global_transform.affine_inverse()
+					if tm == null or tm.intersect_segment(inv * (p + to_sun * 0.3), inv * (p + to_sun * 250.0)).is_empty():
+						continue
 					var key := "%s (%s)" % [g.get_path().get_concatenated_names().substr(0, 0), _label(g)]
 					hits[key] = int(hits.get(key, 0)) + 1
 	var keys := hits.keys()
@@ -64,6 +71,15 @@ func _run(view: String) -> void:
 	for k in keys.slice(0, 25):
 		print("[probe] %4d  %s" % [hits[k], k])
 	quit()
+
+
+var _tris := {}
+
+
+func _tri(mi: MeshInstance3D) -> TriangleMesh:
+	if not _tris.has(mi.mesh):
+		_tris[mi.mesh] = mi.mesh.generate_triangle_mesh()
+	return _tris[mi.mesh]
 
 
 func _label(g: GeometryInstance3D) -> String:

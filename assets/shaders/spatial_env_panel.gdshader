@@ -104,7 +104,7 @@ group_uniforms look;
 uniform float wall_value = 1.0;
 uniform float wall_saturation = 1.0;
 uniform float floor_value = 1.0;
-// Large-scale world-space albedo breakup (value, +-).
+// Large-scale world-space albedo breakup on walls (value, +-).
 uniform float albedo_noise : hint_range(0.0, 0.3) = 0.0;
 // Light wear line along the mesh's face borders (BoxMesh UV cells), ~2 px wide, near only.
 uniform float edge_wear : hint_range(0.0, 1.0) = 0.0;
@@ -186,8 +186,9 @@ void fragment() {
 		float lum = dot(base, vec3(0.299, 0.587, 0.114));
 		base = mix(vec3(lum), base, wall_saturation) * wall_value;
 	}
-	if (albedo_noise > 0.0) {
-		vec2 np = an.y > 0.7 ? v_pos.xz : (an.x > an.z ? v_pos.zy : v_pos.xy);
+	// Walls only: on floors the 9 m noise cells read as stains (the tiles carry their own variation).
+	if (albedo_noise > 0.0 && an.y <= 0.7) {
+		vec2 np = an.x > an.z ? v_pos.zy : v_pos.xy;
 		float nz = vnoise(np * 0.11) * 0.65 + vnoise(np * 0.37 + 13.1) * 0.35;
 		base *= 1.0 + (nz - 0.5) * 2.0 * albedo_noise;
 	}
