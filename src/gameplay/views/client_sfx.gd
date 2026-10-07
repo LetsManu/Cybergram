@@ -12,7 +12,7 @@ extends Node
 ##   ClientWorld.hit_confirmed / kill_received   hit, headshot, kill, assist, own death
 ##   AbilityPresenter.fx_*           skill impacts / loops / end explosions
 ##   snapshots                       reload phases, Burnout, damage taken + victim
-##                                   impact, heartbeat, level up, Lumen, mounts,
+##                                   impact, heartbeat, level up, mounts (no Lumen income sound),
 ##                                   fork, hardpoint contest / capture / lost,
 ##                                   Uplink alarm, countdown, Wardlings, enemy
 ##                                   footsteps and landings
@@ -59,7 +59,6 @@ var _prev_cd: PackedInt32Array = PackedInt32Array()
 var _prev_flags: PackedInt32Array = PackedInt32Array()
 var _prev_level: int = -1
 var _prev_mounts: PackedInt32Array = PackedInt32Array()
-var _prev_lumen: int = -1
 var _prev_hp: int = -1
 var _prev_dead: bool = false
 var _prev_burnout: bool = false
@@ -301,9 +300,7 @@ func _on_snapshot(s: SnapshotData) -> void:
 		if _prev_level >= 0 and p.level > _prev_level:
 			play_ui(&"level_up")
 		_prev_level = p.level
-		if _prev_lumen >= 0 and p.lumen > _prev_lumen and not _mounts_changed(p):
-			play_ui(&"lumen")
-		_prev_lumen = p.lumen
+		# Owner 2026-10-07: no sound on Lumen income (it played on every gain and annoyed).
 		if _prev_mounts.size() == p.mount_item.size():
 			for i in p.mount_item.size():
 				if p.mount_item[i] != _prev_mounts[i]:

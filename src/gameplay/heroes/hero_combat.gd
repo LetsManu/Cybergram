@@ -25,8 +25,13 @@ var status: StatusComponent
 var abilities: AbilityRunner
 ## E13: Chamber Ammo Type (DamageMath.AMMO_*), set by the Armory.
 var ammo_type: int = DamageMath.AMMO_STANDARD
+## Armory v2: Chamber Ammo Mod (DamageMath MOD_*, 0 = none), set by ItemShop.
+var ammo_mod: int = 0
 ## Liora's heal beam is held: the weapon does not fire (SkillEntities sets it).
 var beaming: bool = false
+## Armory v2 Signature passives (items-and-armory.md §3.5.3); none are on until
+## the server sets them from the hero's active items.
+var passives: SignaturePassives
 
 
 func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
@@ -46,6 +51,7 @@ func _init(hero: HeroDef, team_: int, tick_rate_hz: int, rng_seed: int) -> void:
 	var rules := AbilityRulesDef.new()
 	status = StatusComponent.new(stats, health, rules, tick_rate_hz, rng_seed)
 	abilities = AbilityRunner.new(self, rules, tick_rate_hz)
+	passives = SignaturePassives.new(self, tick_rate_hz)
 
 
 ## heroes.md §3.3 SkillPower(L): the SKILL_POWER stat (apply_level writes the
@@ -67,8 +73,14 @@ func apply_level(new_level: int, hp_per_level: float = 0.04, weapon_per_level: f
 		stats.add_modifier(Modifier.make(StatCatalog.WEAPON_DAMAGE, Modifier.Op.MUL, 1.0 + weapon_per_level * k, src))
 		stats.add_modifier(Modifier.make(StatCatalog.SKILL_POWER, Modifier.Op.MUL,
 			1.0 + abilities.rules.skill_power_per_level * k, src))
+	sync_max_hp()
+
+
+## Re-reads max HP = MAX_HP(L) + item HP (items-and-armory.md §3.7, cap +200).
+## A gain raises current HP by the same amount; a loss only clamps it.
+func sync_max_hp() -> void:
 	var old_max := health.max_hp
-	health.max_hp = stats.get_value(StatCatalog.MAX_HP)
+	health.max_hp = stats.get_value(StatCatalog.MAX_HP) + stats.get_value(StatCatalog.ITEM_MAX_HP)
 	if health.is_alive():
 		health.hp = minf(health.max_hp, health.hp + maxf(0.0, health.max_hp - old_max))
 

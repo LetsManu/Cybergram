@@ -26,6 +26,26 @@ class EntityState:
 	## W11-V1: Fork / Mastery of the 3 basic skills, 3 bits per slot (slot i at bit 3i):
 	## bits 0-1 Fork (0 none, 1 A, 2 B), bit 2 Mastery. Use fork_of() / mastery_of().
 	var fork_bits: int = 0
+	## v22 public build (items-and-armory.md §3.8 rule 7, weapons-and-mods.md
+	## §3.6.3): catalog index per ProgressState.INV_LOCS place (Core, Barrel,
+	## Frame, Ammo Type, Ammo Mod, open slots 0..5; -1 = empty), for EVERY hero
+	## so remote models, the scoreboard and the death card can show it. A
+	## spare is a later copy of an id already held in an open slot.
+	var build: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+
+	## Places in `build` (same order as ProgressState.INV_LOCS).
+	const BUILD_SIZE: int = 11
+	const B_CORE: int = 0
+	const B_BARREL: int = 1
+	const B_FRAME: int = 2
+	const B_AMMO: int = 3
+	const B_MOD: int = 4
+	const B_OPEN0: int = 5
+
+	## True when open slot `slot` (0..5) holds a spare: an earlier open slot
+	## holds the same item id (items-and-armory.md §3.4 rule 3).
+	func is_spare(slot: int) -> bool:
+		return SnapshotData.spare_at(build, slot)
 
 	func fork_of(slot: int) -> int:
 		return (fork_bits >> (slot * 3)) & 3
@@ -53,6 +73,14 @@ class OwnCombat:
 	var reserve: int = 0
 	## AmmoFeed.FLAG_* bits.
 	var ammo_flags: int = 0
+	## Armory v2 prediction parity (C2): fire-rate (skill × items), spread and recoil multipliers.
+	## Wire: u8 hundredths each (0..2.55), see SnapshotCodec OWN_COMBAT.
+	var weapon_rate_mult: float = 1.0
+	var weapon_spread_mult: float = 1.0
+	var weapon_recoil_mult: float = 1.0   # skill (WeaponSim.recoil_mult): view kick and server bloom
+	var weapon_kick_mult: float = 1.0     # item RECOIL_MULT: view kick only
+	## Armory v2 Lattice overshield points left (items-and-armory.md §3.5.3 SG-G4; HUD).
+	var overshield: int = 0
 	## E10 skill bar, per slot S1/S2/S3/Ult: ticks of cooldown left, cooldown
 	## length (ticks) and AbilityRunner.FLAG_* (locked, active, casting).
 	var skill_cd_left: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
@@ -165,10 +193,31 @@ class ProgressState:
 	var owned_bits: int = 0
 	## Per socket (MOUNT_SOCKETS order): catalog index (-1 = empty), tier, Lumen
 	## paid for the line, part paid this Armory visit.
-	var mount_item: PackedInt32Array = PackedInt32Array([-1, -1, -1])
-	var mount_tier: PackedInt32Array = PackedInt32Array([0, 0, 0])
-	var mount_paid: PackedInt32Array = PackedInt32Array([0, 0, 0])
-	var mount_paid_visit: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var mount_item: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1])
+	var mount_tier: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	var mount_paid: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	var mount_paid_visit: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+	## v21 (Armory build system): Armory requests (ACTION_BUY / ACTION_SELL)
+	## the server has handled, mod 256, and the HeroProgress.Result of the
+	## last one. The client compares shop_seq with the value it saw when it
+	## sent a request to show the exact outcome instead of guessing.
+	var shop_seq: int = 0
+	var shop_result: int = 0
+	## Squad upgrades bought during the current Armory visit (bit i = catalog
+	## index i) and Med-Packs bought this visit: these can still be undone.
+	var visit_owned_bits: int = 0
+	var visit_medpacks: int = 0
+	## BuildAdvisor signal bits (SIG_*), server-computed from recent combat.
+	var signals: int = 0
+	## v22 Armory v2 (items-and-armory.md §3.1): catalog index per inventory
+	## place (INV_LOCS order: Core, Barrel, Frame, Ammo Type, Ammo Mod, then
+	## open slots 0..5; -1 = empty). Spares are the later copies of an id.
+	var inv_items: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+	## Bit i: the item at INV_LOCS[i] was bought this visit and can be undone
+	## on its own (not used up by a later buy).
+	var inv_undo_bits: int = 0
+	## Purchases / sales this visit ("Undo last" is available when > 0).
+	var inv_txns: int = 0
 	## Lumen Motes on the ground (everyone's; positions only).
 	var motes: PackedVector3Array = PackedVector3Array()
 
@@ -176,8 +225,31 @@ class ProgressState:
 	const FLAG_BEACON_READY: int = 2
 	const FLAG_SPAWN_BEACON: int = 4
 	const FLAG_HEALING: int = 8
-	## Slice sockets (weapons-and-mods.md §3.10: no Barrel): ArmoryItemDef.Socket.
-	const MOUNT_SOCKETS: Array[int] = [1, 3, 4]
+	## Replicated sockets (ArmoryItemDef.Socket): Core, Frame, Chamber, then
+	## Barrel (v21, appended so the first three slots keep their meaning).
+	const MOUNT_SOCKETS: Array[int] = [1, 3, 4, 2]
+	## v22 inventory places (ItemInventory.LOC_*): sockets, Chamber, 6 open slots.
+	const INV_LOCS: Array[int] = [1, 2, 3, 4, 5, 16, 17, 18, 19, 20, 21]
+	## BuildAdvisor signals (v21): what hurt this hero lately (rolling window).
+	const SIG_WEAPON_DAMAGE: int = 1
+	const SIG_SKILL_DAMAGE: int = 2
+	const SIG_DIED_OFTEN: int = 4
+	const SIG_TEAM_BEHIND: int = 8
+	const SIG_TEAM_AHEAD: int = 16
+	const SIG_LOW_HEALTH: int = 32
+	const SIG_OBJECTIVE_SOON: int = 64
+
+## True when open slot `slot` of an 11-place build (EntityState.build or
+## ProgressState.inv_items) repeats an id held in an earlier open slot.
+static func spare_at(places: PackedInt32Array, slot: int) -> bool:
+	var i := EntityState.B_OPEN0 + slot
+	if i >= places.size() or places[i] < 0:
+		return false
+	for j in range(EntityState.B_OPEN0, i):
+		if places[j] == places[i]:
+			return true
+	return false
+
 
 var tick: int = 0
 ## W16-NET (client side): the acknowledged snapshot this one was delta-encoded

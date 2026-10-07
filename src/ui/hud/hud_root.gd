@@ -10,7 +10,7 @@ extends CanvasLayer
 ##   right-middle  ObjectiveTracker, ToastLane   centre      CenterFeedback
 ##   bottom-left   SquadStrip + VitalsPanel      bottom-ctr  SkillBar (+ Med-Pack)
 ##   bottom-right  WeaponPanel
-## Overlays: ArmoryPanel (left 60%), DeathScreen, Scoreboard (hold Tab / View),
+## Overlays: ItemShopPanel (full-width modal), DeathScreen, Scoreboard (hold Tab / View),
 ## EndBanner. World-anchored plates and damage numbers draw in an unscaled
 ## WorldOverlay underneath. Context rules (hud.md §14): Armory open hides
 ## skills, squad strip and kill feed; scoreboard hides the gameplay HUD except
@@ -47,7 +47,8 @@ var _squad: SquadStrip
 var _vitals: VitalsPanel
 var _skills: SkillBar
 var _weapon: WeaponPanel
-var _armory: ArmoryPanel
+## ItemShopPanel (Armory v2 recipe catalog, design/gdd/items-and-armory.md §3.9).
+var _armory: ItemShopPanel
 var _armory_guide: ArmoryWaypoint
 var _death: DeathScreen
 var _scoreboard: Scoreboard
@@ -129,7 +130,10 @@ func _build() -> void:
 	_skills = _fill(SkillBar.new(), _zone("BottomCentre", 0.3, 0.72, 0.7, 1.0)) as SkillBar
 	_weapon = _fill(WeaponPanel.new(), _zone("BottomRight", 0.70, 0.74, 1.0, 1.0)) as WeaponPanel
 	# v0.12: left panel, 1170 wide, between the header and the vitals.
-	_armory = _fill(ArmoryPanel.new(), _zone("Armory", -0.032, 0.104, 0.616, 0.83)) as ArmoryPanel
+	# Armory v2: a full-width modal shop with the always-on bottom strip.
+	_armory = _fill(ItemShopPanel.new(), _zone("Armory", 0.0, 0.0, 1.0, 1.0)) as ItemShopPanel
+	# Above every sibling layer (scrims, combat widgets): nothing may draw over the modal.
+	_armory.get_parent().z_index = 5
 	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.22, 0.8, 0.9)) as DeathScreen
 	_end = _fill(EndBanner.new(), _zone("End", 0.0, 0.20, 1.0, 0.36)) as EndBanner
 	_scoreboard = _fill(Scoreboard.new(), _zone("Scoreboard", 0.0, 0.0, 1.0, 1.0)) as Scoreboard
@@ -238,6 +242,15 @@ func _apply_context(c: ClientWorld) -> void:
 	_skills.visible = v.skills
 	_weapon.visible = v.weapon
 	_armory.visible = shop or _armory.wants_draw()
+	if shop:
+		# The v2 shop is a modal with its own Lumen / inventory strip (§3.9):
+		# nothing of the combat HUD may read through it.
+		_vitals.visible = false
+		_header.visible = false
+		_front.visible = false
+		_weapon.visible = false
+		_skills.visible = false
+		_squad.visible = false
 	_death.visible = dead and not board
 	_end.visible = not board
 	_scoreboard.visible = board

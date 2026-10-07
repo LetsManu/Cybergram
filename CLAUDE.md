@@ -23,6 +23,13 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
   `$GODOT --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests/unit/matchmaking --ignoreHeadlessMode -c`
   (leave out `-d` locally: with it a script error stops in the debugger and the run hangs).
 - Layer check: `tools/ci/check_deps.sh`. Launcher copies of shared scripts: `launcher/tools/sync_shared.sh`.
+- Armory v2 (recipes, gear, guides, shop, Item Sets, bots): `docs/armory.md`. Regenerate the catalog and hero guides with
+  `python3 tools/armory/build_catalog.py` and `python3 tools/armory/build_guides_v22.py` (never hand-edit the `.tres`);
+  data checks + advisor tests: `-a res://tests/unit/economy`. Private Item Sets live in `user://builds.json`
+  (`CustomBuildStore`); bots buy through `ACTION_BUY` with the same `BuildAdvisor`. Screenshot presets:
+  `--map slice --debug-armory[-builds|-catalog]` (`RESOLUTION=1920x1080` for 1080p). Balance report:
+  `-s res://tools/balance/armory_report.gd` (about 3 min, writes `docs/balance/armory-v2-report.md`; `-- --quick` is a 30 s
+  average-curve check; review in `docs/balance/armory-v2-review.md`). Catalog order is the wire id: append items only.
 - Screenshot under a virtual display: `GODOT=... tools/ci/capture_scene.sh res://src/ui/menu/matchmaking/mm_preview.tscn out.png 90 --mm queued`
 - Server (front + match processes): `tools/server/docker-compose.yml`; monitoring: `docs/monitoring.md`.
 
@@ -31,7 +38,7 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 Front process (`--front`, UDP 7777, ENet/DTLS): AccountService (accounts,
 friends, parties) + MatchmakingFront (queues, ready check, draft + team chat,
 custom lobbies with bot slots, loading progress relay) + FrontPhases (player / party / lobby state machines, pushed as
-versioned `EV_PHASE`, protocol 20) + OpsHttpServer (`/health`, `/metrics`,
+versioned `EV_PHASE`, protocol 21) + OpsHttpServer (`/health`, `/metrics`,
 `/admin` on TCP 8090). Matches run in separate processes (MatchSupervisor).
 The game's main menu (`src/ui/menu/matchmaking/`) is the queueing client; the
 launcher logs in, updates and starts the game. State diagram:

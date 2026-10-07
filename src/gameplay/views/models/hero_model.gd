@@ -19,6 +19,8 @@ var weapon: WeaponModel
 var _bp: Dictionary = {}
 var _pivots: Dictionary = {}  # name -> Node3D
 var _markers: Dictionary = {}  # name -> Marker3D
+## Armory v2 body anchors + gear (null until set_build()).
+var gear: BodyGearRig
 var _mats: Array = []  # [MeshInstance3D, descriptor String]
 var _anim: Array = []  # extras: [Node3D, kind, speed, amount, base_rot, phase]
 var _vel_local := Vector3.ZERO
@@ -76,6 +78,22 @@ func build_from(bp: Dictionary, team_: int) -> void:
 		(_markers[&"HAND_R_weapon"] as Node3D).add_child(weapon)
 	set_team(team_)
 	_apply_pose(0.0)
+
+
+## Armory v2 public build (items-and-armory.md §3.8): body gear on the
+## `body_*` anchors plus gun parts on the held weapon (or, for rigged heroes
+## whose gun is part of the glb, on preset gun sockets off the hand bone).
+## `build` = SnapshotData.EntityState.build. Returns the gear node count.
+func set_build(build: PackedInt32Array, cat: ArmoryCatalogDef = null) -> int:
+	if gear == null:
+		gear = BodyGearRig.new()
+		gear.mana_gun = weapon.mana if weapon != null else bool(ArmoryVisualsData.hero_preset(key).get("mana", true))
+		gear.setup(self, key, get("skeleton") as Skeleton3D)
+	if weapon != null:
+		weapon.set_build(build, cat)
+	else:
+		gear.set_gun_build(build, cat)
+	return gear.set_build(build, cat)
 
 
 func pivot(pivot_name: StringName) -> Node3D:

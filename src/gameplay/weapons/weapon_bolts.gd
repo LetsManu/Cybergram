@@ -25,6 +25,10 @@ class Bolt:
 	var view_tick: int
 	var view_alpha: float
 	var age: int = 0
+	## Flight speed (m/s) and range (m): the def's, or Armory v2 conversions
+	## (items-and-armory.md §3.5: Liora's Lens items raise projectile speed).
+	var speed: float = 0.0
+	var max_range: float = 0.0
 
 var bolts: Array[Bolt] = []
 ## [from, to] segments of bolts launched this tick, for the snapshot bolt block.
@@ -32,8 +36,10 @@ var launched: Array = []
 
 
 func spawn(owner_id: int, def: WeaponDef, origin: Vector3, dir: Vector3, view_tick: int,
-		view_alpha: float) -> Bolt:
+		view_alpha: float, speed_mult: float = 1.0) -> Bolt:
 	var b := Bolt.new()
+	b.speed = def.projectile_speed * maxf(speed_mult, 0.01)
+	b.max_range = def.range_m
 	b.owner_id = owner_id
 	b.def = def
 	b.pos = origin
@@ -55,12 +61,12 @@ func step(dt: float, resolve: Callable, alive: Callable) -> void:
 		if not alive.call(b.owner_id):
 			bolts.remove_at(i)
 			continue
-		var seg := minf(b.def.projectile_speed * dt, b.def.range_m - b.traveled)
+		var seg := minf(b.speed * dt, b.max_range - b.traveled)
 		var stopped: bool = resolve.call(b, seg)
 		b.pos += b.dir * seg
 		b.traveled += seg
 		b.age += 1
-		if stopped or b.traveled >= b.def.range_m - 1e-3:
+		if stopped or b.traveled >= b.max_range - 1e-3:
 			bolts.remove_at(i)
 			continue
 		i += 1

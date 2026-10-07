@@ -62,6 +62,8 @@ extends RefCounted
 ##                                                  skills learned and points banked (E15 evidence)
 ##   ... -- --map slice --debug-armory           -> debug: spawn on the Armory pad with Lumen,
 ##                                                  mounts bought, Armory panel open (E13 evidence)
+##   ... -- --map slice --debug-armory-builds    -> the same, opened on My builds with a sample build
+##   ... -- --map slice --debug-armory-catalog   -> the same, opened on All with the expert detail
 
 ## CLIENT: no local server; the client connects over UDP (--connect).
 enum Mode { OFFLINE, DEDICATED, CLIENT }
@@ -97,6 +99,11 @@ var debug_uplink_integrity: float = -1.0
 ## E13/E15 debug: start level (0 = off) and the Armory evidence setup.
 var debug_level: int = 0
 var debug_armory: bool = false
+## Armory step 6 evidence: --debug-armory plus the My builds tab with a sample
+## build held in memory only (never written to user://builds.json).
+var debug_armory_builds: bool = false
+## Armory step 7 evidence: --debug-armory opened on the All tab with the expert detail.
+var debug_armory_catalog: bool = false
 ## W16-SDWATER debug: spawn in the first water zone of the map (splash / wading evidence).
 var debug_water: bool = false
 ## E11 bots: --bots (player + 9 bots), --bots-only (10 bots, no player; with
@@ -312,6 +319,14 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 					c.debug_level = clampi(args[i].to_int(), 0, 15)
 			"--debug-armory":
 				c.debug_armory = true
+			"--debug-armory-builds":
+				c.debug_armory = true
+				c.debug_armory_builds = true
+			"--debug-armory-catalog":
+				c.debug_armory = true
+				c.debug_armory_catalog = true
+			"--catalog-v22":
+				pass  # no-op: the v2 recipe catalog is the only Armory (kept so old scripts still launch)
 			"--debug-water":
 				c.debug_water = true
 			"--debug-skill-demo":

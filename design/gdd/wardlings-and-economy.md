@@ -461,12 +461,14 @@ The strong profile is ×1.4 activity (kills ×1.96). The weak profile is ×0.65.
 - Strong-to-weak Lumen at 30:00 is **1.9×**.
 - Purse plus trickle (1,660) is a floor of about 18%.
 - With the catch-up multipliers, the weak player reaches about L12 by 30:00.
-- **Sink check.** At 30:00 the average player holds about 9,000. weapons-and-mods plans a full gun of 5,350–6,150, and the squad sink is about 8,350, so the shop cannot be exhausted before about minute 45. Med-Packs are an unlimited sink beyond that.
-- **Intended spend split:** ~60% gun, ~30% squad, ~10% consumables and utility.
+- **Sink check.** *(Revised 2026-10-07, Armory v2, owner-approved.)* At 30:00 the average player holds about 9,000. A full item build (gun sockets + 6 open item slots + Chamber, at most 2 Signatures) costs about **11,850–12,600** (`items-and-armory.md` §4.7), the 30-min Lumen of a strong player (12,280); the squad sink is about 8,350 more. A strong player finishes items at about 30 min and the squad at about 44 min; nobody exhausts the shop before then. Med-Packs are an unlimited sink beyond that. *(v1: full gun 5,350–6,150.)*
+- **Intended spend split (balanced player):** **65–70% items** (gun + body gear), **20–25% squad**, **~10% consumables**. At that split the average player owns 45–55% of the full item build at 30:00. Gun-first guides may reach ~80% items. *(v1: ~60% gun, ~30% squad, ~10% consumables and utility.)*
 
 ## 19. Armory: Non-Weapon Items
 
-Purchases are at the HQ Armory only (C14). Bands: Minor 250–400, Standard 600–900, Major 1,400–1,800. **Consumables** sit below the bands and are anchored by the Med-Pack at 100. Squad items are in §6–§7.
+Purchases are at the HQ Armory only (C14). Bands for squad upgrades and ammo: Minor 250–400, Standard 600–900, Major 1,400–1,800. Item bands (Armory v2, `items-and-armory.md` §3.2): **Component 250–450, Assembly 800–1,100, Signature 2,400–3,200**. **Consumables** sit below the bands and are anchored by the Med-Pack at 100. Squad items are in §6–§7. Consumables and squad upgrades do **not** use the 6 open item slots.
+
+*Revised 2026-10-07 (owner, Armory v2): the four Utility rows below are folded into the item recipe tree and are no longer sold as listed. Cell Harness → **Stride Clip** (component), Stride Rig → **Stride Rig** (Assembly), Barrier Lattice → **Barrier Lattice** (gear Signature), Uplink Breaker → **Breaker Sigil** (gear Signature); see `items-and-armory.md` §3.5. The rows stay as history.*
 
 | Item | Type | Price | Effect | Limit |
 | ---- | ---- | ---- | ---- | ---- |
@@ -527,7 +529,7 @@ Purchases are at the HQ Armory only (C14). Bands: Minor 250–400, Standard 600�
 | System | This doc needs | That doc must reflect |
 | ---- | ---- | ---- |
 | `match-flow-and-map.md` | Presence F1 (AI cap 3.0, C4), capture rates F2–F4, capture and defence Lumen (120 / 40 / 60), purse 500, trickle 40, Garrison 10 s delay, 3 s Surge morph, lane splines, Foundry lane gates | **Wardling raw DPS** (vs structures) 21 / 25.5 / 30 by tier; F4 and F9 use 21 at Tier I, which with Uplink Integrity 33,000 (C7) gives the ~60 s reference siege. Also: Vanguard waves (24 agents, §10), the D and Recap multipliers on capture Lumen, Go Capture as a presence source. Match-flow cites this doc's Lumen curve (§18). |
-| `weapons-and-mods.md` | Ammo Spark size, gun price total (full build 5,350–6,150) | Spark drop rates (§12). The Lumen curve (§18, single source): purse 500, trickle 40/min, about 1,550 at 5:00, 2,880 at 10:00, 5,790 at 20:00, 8,970 at 30:00. |
+| `weapons-and-mods.md`, `items-and-armory.md` | Ammo Spark size; full item build total (≈ 11,850–12,600, `items-and-armory.md` §4.7; v1 gun 5,350–6,150) | Spark drop rates (§12). The Lumen curve (§18, single source): purse 500, trickle 40/min, about 1,550 at 5:00, 2,880 at 10:00, 5,790 at 20:00, 8,970 at 30:00. |
 | `heroes.md` | Soldier reference DPS 180 (Ryker, §3.2), hero HP and armor (§3.1), Vesper's kit (§13 hooks), Hex malfunction, Sable stealth (Seeker) | Squad +2 for Vesper. `command_vanguard`, `rewrite_to_elite`, `subvert`, the U_dmg cap. |
 | `design/ux/hud.md` | — | Squad strip, Smart Command + Follow keys, radial wheel, command preview glyph, detached-squad chevron (§8 is the binding source for command input) |
 | Bot AI (future) | — | Bots issue commands via the same API. Buy priorities follow the §18 spend split and the §19 catalog. |
@@ -587,9 +589,9 @@ The M1 slice ships **Vesper Loom + Brannoc** (duplicates allowed per team, Canon
   - Vesper hooks: capacity, modifier, elite, `command_vanguard`, `subvert` (Rewrite turns enemy Wardlings from rank 1).
   - The full Resonance table and sources (levels 1–15; skill tree reduced to Unlock + Boost + ult ranks, `heroes.md` §11).
   - All Lumen sources except Sentinels.
-  - Med-Pack, Squad Expansion I/II, Reinforced Cores I/II, Amplifier Emitters, plus the minimal mount pipeline of `weapons-and-mods.md` §3.10.
+  - Med-Pack, Squad Expansion I/II, Reinforced Cores I/II, Amplifier Emitters, Harmonic Tether, Quick Mint, Bulwark Protocol (added 2026-10-07), plus the mount pipeline of `weapons-and-mods.md` §3.10.
   - D, C, Shutdown and the capture cooldown.
-- **Out.** Variants (including the Surge II Vanguard Shieldling, which is replaced by a Picket), Sentinels, Barricade pathing, Harmonic Tether, Quick Mint, Bulwark, utility items other than the Med-Pack.
+- **Out.** Variants (including the Surge II Vanguard Shieldling, which is replaced by a Picket), Sentinels, Barricade pathing, utility items other than the Med-Pack. Bulwark's "+25% body-block radius" is not in the slice (its −30% damage taken in Hold / Go Capture is).
 - **Slice re-tune.** With no Sentinels the average player loses about 560 Lumen per 30 min, so `trickle_per_min` is raised to **60** for the slice. The model gives about 8,990 Lumen and L14–15 at 30:00. Check criteria 1–2 at the slice gate (in M1 the curve is checked at 10:00 and 20:00 because slice matches run 12–22 min).
 
 ---

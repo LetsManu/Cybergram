@@ -157,6 +157,15 @@ func _add_arms(hero_key: StringName, team: int) -> void:
 ## `tiers` follow SnapshotData.ProgressState.MOUNT_SOCKETS (Core, Frame,
 ## Chamber); null = empty socket. Crystals are faceted prisms, Chips are cards
 ## with fins; Tier III adds a halo ring. The Chamber tints the conduit strip.
+## Armory v2 own build (ProgressState.inv_items, items-and-armory.md §3.8):
+## gun parts by recipe tier on the viewmodel, forearm + belt gear on the arms.
+func set_build(build: PackedInt32Array, cat: ArmoryCatalogDef = null) -> void:
+	if fp_model != null:
+		fp_model.set_build(build, cat)
+	elif weapon_model != null:
+		weapon_model.set_build(build, cat)
+
+
 func set_mounts(items: Array, tiers: PackedInt32Array) -> void:
 	var key := ""
 	for i in items.size():

@@ -75,9 +75,30 @@ func _mounts(client: ClientWorld, at: Vector2) -> void:
 	var items := client.mount_items()
 	var p := client.progress
 	var a := idle_a(0.42)
-	var bw := (W - 2.0 * 9.0) / 3.0
+	# Armory v2 (items-and-armory.md §3.8 rule 7): the 3 sockets + Chamber (type,
+	# mod) from inv_items, tier by glyph size + pips + ring, never colour alone.
+	if p != null and BuildIcons.has_any(p.inv_items):
+		var cell := minf(39.0, (W - 4.0 * 39.0 * BuildIcons.GAP_RATIO) / 5.0)
+		BuildIcons.draw_strip(self, p.inv_items, ScoreboardModel.build_catalog(client), at, cell, maxf(a, 0.75),
+			SnapshotData.EntityState.B_OPEN0)
+		return
+	# Only sockets the catalog sells for (the Barrel slot stays hidden until
+	# Barrel lines exist).
+	var slots: Array[int] = []
 	for i in SnapshotData.ProgressState.MOUNT_SOCKETS.size():
-		var r := Rect2(at + Vector2(i * (bw + 9.0), 0.0), Vector2(bw, 39.0))
+		if _socket_sold(client.catalog, SnapshotData.ProgressState.MOUNT_SOCKETS[i]):
+			slots.append(i)
+	var n := maxi(1, slots.size())
+	var bw := (W - (n - 1) * 9.0) / n
+	# Narrow slots (4 sockets): every label on top and pips below, so they never
+	# touch and all slots share one layout.
+	var stacked := false
+	for i in slots:
+		var lab := tr(SOCKET_KEYS.get(SnapshotData.ProgressState.MOUNT_SOCKETS[i], "HUD_SOCKET_CORE"))
+		stacked = stacked or caps_width(lab, 12, 0.06) > bw - (3 * 10.5 + 8.0) - 14.0
+	for col in slots.size():
+		var i := slots[col]
+		var r := Rect2(at + Vector2(col * (bw + 9.0), 0.0), Vector2(bw, 39.0))
 		var item: ArmoryItemDef = items[i] if i < items.size() else null
 		var socket: int = SnapshotData.ProgressState.MOUNT_SOCKETS[i]
 		var label := tr(SOCKET_KEYS.get(socket, "HUD_SOCKET_CORE"))
@@ -89,10 +110,15 @@ func _mounts(client: ClientWorld, at: Vector2) -> void:
 			draw_rect(r.grow(-0.5), Color(HudPalette.BRASS_DIM, a), false, 1.0)
 		var pips_w := tiers * 10.5 + 8.0
 		var lsz := 14 if caps_width(label, 14, 0.1) <= r.size.x - pips_w - 14.0 else 12
-		caps(label, Vector2(r.position.x + 8.0, r.get_center().y + 5.0), lsz,
-			Color(HudPalette.BRASS_HI if item != null else HudPalette.DIM, a), 0.06 if lsz == 12 else 0.1)
+		var lc := Color(HudPalette.BRASS_HI if item != null else HudPalette.DIM, a)
+		if stacked:
+			caps(label, Vector2(r.position.x + 8.0, r.position.y + 16.0), 11, lc, 0.06)
+		else:
+			caps(label, Vector2(r.position.x + 8.0, r.get_center().y + 5.0), lsz, lc, 0.06 if lsz == 12 else 0.1)
 		for k in tiers:
 			var pc := Vector2(r.end.x - 10.0 - (tiers - 1 - k) * 10.5, r.get_center().y)
+			if stacked:
+				pc = Vector2(r.position.x + 12.0 + k * 10.5, r.end.y - 10.0)
 			if k < tier:
 				diamond(pc, 3.6, Color(HudPalette.BRASS, a))
 			else:
@@ -107,3 +133,13 @@ func _dashed(r: Rect2, col: Color) -> void:
 	draw_dashed_line(Vector2(p.end.x, p.position.y), p.end, col, 1.0, 4.0)
 	draw_dashed_line(p.end, Vector2(p.position.x, p.end.y), col, 1.0, 4.0)
 	draw_dashed_line(Vector2(p.position.x, p.end.y), p.position, col, 1.0, 4.0)
+
+
+## True if `cat` has any item for `socket`.
+static func _socket_sold(cat: ArmoryCatalogDef, socket: int) -> bool:
+	if cat == null:
+		return socket != ArmoryItemDef.Socket.BARREL
+	for it in cat.items:
+		if it != null and int(it.socket) == socket:
+			return true
+	return false

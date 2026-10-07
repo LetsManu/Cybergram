@@ -68,3 +68,19 @@ noted here instead of "fixed" silently. Changing it means re-tuning every hero.
 Procedural fallback shader (`spatial_char_toon`) still has its own ramp (only
 used without the glb packs). Emissive tier brightness is not measured per
 surface yet (Part 4 paint pass).
+
+## Look-dev follow-up (2026-10-07, docs/lookdev.md)
+
+- The panel shader gained look uniforms (wall value / saturation, albedo
+  breakup, edge wear, contact AO + grime, a cel specular band, floor env
+  specular); all default to the panel above, so the shared cel ramp and the
+  hero-equal `TOON_*` defaults are unchanged (`shading_unified_test` still
+  holds). The default `LookProfile` sets them per material at runtime.
+- Panel shadow tone in the default look: value 0.45, tint (0.38, 0.42, 0.74)
+  mixed 0.55: the same cool blue-violet family as the heroes' shadow tint,
+  deeper value for light / shadow contrast. The hero shader is untouched.
+- `specular_disabled` was removed from the panel's render mode: `SPECULAR` is
+  written explicitly (0 except floors with `floor_env_specular`), and the cel
+  spec band writes `SPECULAR_LIGHT` itself.
+- Shadow casting: opaque panel meshes now all cast (Medium+), small world
+  props cast on High+; Low gets blob shadows under characters.

@@ -248,6 +248,27 @@ HUD_SET_DMG_NUMBERS,Damage numbers
 HUD_SET_COLORBLIND,Colour-blind preset
 HUD_SET_UI_SCALE,UI scale
 HUD_SHOP_TAB_ALL,ALL
+HUD_SHOP_TAB_REC,RECOMMENDED
+HUD_SHOP_SORT_DEFAULT,Sort: default
+HUD_SHOP_SORT_PRICE,Sort: price
+HUD_SHOP_SORT_NAME,Sort: name
+HUD_SHOP_FILTER_AFFORDABLE,Affordable only
+HUD_SHOP_WHY,Why: %s
+HUD_SHOP_ALTS,Also fine: %s
+HUD_SHOP_PROGRESS,Core %d / %d
+HUD_SHOP_SITUATIONAL,SITUATIONAL
+HUD_SHOP_SOON,SOON
+HUD_SHOP_EXPERT_RULES,Rules matched: %s
+HUD_SHOP_EXPERT_TAGS,Tags: %s
+HUD_SHOP_EXPERT_COUNTERS,Counters: %s
+HUD_SHOP_KIND_TIER_UP,Tier upgrade
+HUD_SHOP_KIND_NEW_MOUNT,New mount
+HUD_SHOP_KIND_SQUAD,Squad upgrade
+HUD_SHOP_KIND_CONSUMABLE,Consumable
+HUD_SHOP_KIND_DONE,Complete
+HUD_SHOP_DISABLED,Not available in this match
+HUD_SHOP_BUILD_DONE,Build complete: buy what you like
+HUD_SHOP_PAD_KEYS,[D-pad] move  [LB/RB] tabs  [A] buy  [X] sell  [R3] undo  [L3] next  [Back] affordable  [RT/LT] my build +/-  [B] close
 HUD_SHOP_SEARCH,Search items (/)
 HUD_SHOP_EMPTY,No items match your search.
 HUD_SHOP_OFF_PAD,Return to your Armory pad to buy
@@ -262,6 +283,18 @@ HUD_SHOP_NO_UNDO,Nothing to undo
 HUD_SHOP_TOAST_BOUGHT,Purchased %s (-%d)
 HUD_SHOP_TOAST_SOLD,Sold %s (+%d)
 HUD_SHOP_TOAST_REFUSED,The server refused that request
+HUD_SHOP_TOAST_UNDONE,Undone: %s (+%d)
+HUD_SHOP_TOAST_NO_ANSWER,No answer from the server. Try again.
+HUD_SHOP_R_NOT_AT_ARMORY,Go back to the Armory to shop
+HUD_SHOP_R_DEAD,You cannot shop while down
+HUD_SHOP_R_NO_FUNDS,Not enough Lumen
+HUD_SHOP_R_WRONG_FAMILY,That mount does not fit your gun
+HUD_SHOP_R_REQUIRES,Needs another upgrade first (or undo the one built on it)
+HUD_SHOP_R_LIMIT,You already have that
+HUD_SHOP_R_NOT_OWNED,Nothing to sell or undo there
+HUD_SHOP_R_MAXED,Already at the top tier
+HUD_SHOP_R_DISABLED,Not available in this match
+HUD_SHOP_R_INVALID,The Armory did not understand that request
 HUD_SHOP_NEED_LUMEN,Need %d more Lumen
 HUD_SHOP_CARRY_FULL,Carrying the maximum
 HUD_SHOP_COL_TIER,TIER
@@ -277,7 +310,7 @@ HUD_SHOP_BTN_UPGRADE,"UPGRADE to %s: %s"
 HUD_SHOP_BTN_UNDO,UNDO +%d
 HUD_SHOP_BTN_SELL,SELL +%d
 HUD_SHOP_BTN_SELL_NA,Nothing to sell
-HUD_SHOP_KEYS,[Arrows] move  [Q/E] tabs  [Enter / double-click] buy  [1-3] tier  [Bksp] sell  [Ctrl+Z] undo  [/] search  [Esc] close
+HUD_SHOP_KEYS,[Arrows] move  [Q/E] tabs  [Enter] buy  [1-3] tier  [Bksp] sell  [Ctrl+Z] undo  [R] next  [O] sort  [Tab] affordable  [I] details  [+/-] my build  [/] search  [Esc] close
 HUD_STAT_DAMAGE,Damage
 HUD_STAT_REGEN,Mana regen
 HUD_STAT_REGEN_DELAY,Regen delay
@@ -542,7 +575,7 @@ HUD_TUT_SKILL_PAD,Left bumper area: see the skill bar
 HUD_TUT_LEVEL,Level up with %s (free in the range).
 HUD_TUT_LEVEL_PAD,D-pad up
 HUD_TUT_FORK,Pick a fork for a skill with %s.
-HUD_TUT_FORK_PAD,L1 = fork A, R1 = fork B
+HUD_TUT_FORK_PAD,"L1 = fork A, R1 = fork B"
 HUD_TUT_SHOP,Open the shop with %s.
 HUD_TUT_SHOP_PAD,Y / Triangle
 HUD_TUT_BUY,Buy an item: move to it and confirm.
@@ -1073,3 +1106,275 @@ HUD_MM_SEAT_OPEN,Open slot
 HUD_MM_LOADING_MAP,Loading the map…
 HUD_MM_TEAM_CHAT,Team chat
 HUD_MM_ULTIMATE,Ultimate
+HUD_ADVICE_R_CORE_TIER_READY,Your main mount line is ready for its next tier.
+HUD_ADVICE_R_AFFORDABLE_NOW,You can afford this now.
+HUD_ADVICE_R_COUNTERS_ENEMY,This answers what the enemy team does best.
+HUD_ADVICE_R_TAKING_WEAPON_DAMAGE,You keep taking gunfire damage.
+HUD_ADVICE_R_TAKING_SKILL_DAMAGE,You keep taking ability damage.
+HUD_ADVICE_R_DIED_OFTEN,You have gone down several times recently.
+HUD_ADVICE_R_LOW_HEALTH,You are low on health.
+HUD_ADVICE_R_TEAM_BEHIND,Your team is behind: stabilize first.
+HUD_ADVICE_R_TEAM_AHEAD,Your team is ahead: press the power spike.
+HUD_ADVICE_R_OBJECTIVE_SOON,A Surge is close: be ready for the fight.
+HUD_ADVICE_R_ENEMY_CC,The enemy team has a lot of crowd control.
+HUD_ADVICE_R_ENEMY_BURST,The enemy team deals heavy burst damage.
+HUD_ADVICE_R_ENEMY_SUSTAIN,The enemy team heals a lot.
+HUD_ADVICE_R_ENEMY_WEAPON_DPS,The enemy team relies on gunfire.
+HUD_ADVICE_R_ENEMY_SKILL_DPS,The enemy team relies on abilities.
+HUD_ADVICE_R_ENEMY_MOBILITY,The enemy team is very mobile.
+HUD_ADVICE_R_ENEMY_ZONE,The enemy team controls zones.
+HUD_ADVICE_R_ENEMY_SQUAD,The enemy team fields big Wardling squads.
+HUD_ADVICE_R_ENEMY_FRONTLINE,The enemy team has armored frontliners.
+HUD_ADVICE_R_TEAM_LACKS_SUSTAIN,Your team has no healer.
+HUD_ADVICE_R_TEAM_LACKS_FRONTLINE,Your team has no frontliner.
+HUD_ADVICE_S_OPENING,Your opening purchase.
+HUD_ADVICE_S_EARLY,An early purchase that pays off fast.
+HUD_ADVICE_S_SPIKE,This completes your first power spike.
+HUD_ADVICE_S_CORE,The next step of your core build.
+HUD_ADVICE_S_SQUAD,Makes your Wardling squad stronger.
+HUD_ADVICE_S_CONSUMABLE,Carry this for emergencies.
+HUD_ADVICE_S_DEFENSIVE,Helps you survive longer.
+HUD_ADVICE_S_OFFENSIVE,Raises your damage.
+HUD_ADVICE_S_UTILITY,Adds utility for you and your team.
+HUD_ADVICE_S_COUNTER,Counters the enemy team.
+HUD_ADVICE_S_LATE,A late-game upgrade once your core is done.
+HUD_ADVICE_N_OPEN,A Med-Pack keeps your first fights safe.
+HUD_ADVICE_N_RESTOCK,Top the bag back up to three Med-Packs.
+HUD_ADVICE_N_FIRST_MOUNT,Your first Core mount: more damage on every shot.
+HUD_ADVICE_N_SPIKE,This completes your first power spike.
+HUD_ADVICE_N_LUXURY,Luxury upgrade once everything else is done.
+HUD_ADVICE_N_SQUAD,Tougher Wardlings hold your front longer.
+HUD_ADVICE_N_SQUAD_SIZE,One more Wardling in your squad.
+HUD_ADVICE_N_HEAL_PACK,Carry a second Med-Pack while fights go badly.
+HUD_ADVICE_N_VS_ARMOR,Piercing rounds cut through armored enemies.
+HUD_ADVICE_N_VS_SQUADS,Sunder rounds shred big Wardling squads.
+HUD_ADVICE_B_VESPER,Commander: grow and harden your squad around a damage core.
+HUD_ADVICE_B_SABLE,Infiltrator: fast damage core with mana sustain.
+HUD_ADVICE_B_HEX,Hacker: damage core and regen for ability uptime.
+HUD_ADVICE_B_LIORA,Healer: steady mana regen with a safe damage core.
+HUD_ADVICE_B_BRANNOC,Tank: damage and reload core plus tougher Wardlings.
+HUD_ADVICE_B_RYKER,Soldier: damage and reload for constant gunfire.
+HUD_ADVICE_B_JUNIPER,Trapper: damage and reload core around your traps.
+HUD_ITEM_X_MED_PACK,Heals 40% of your health over 3 s. Cheap insurance for any fight.
+HUD_ITEM_X_SQUAD_EXPANSION,One more Wardling in your squad from the next Foundry visit.
+HUD_ITEM_X_REINFORCED,Tougher Wardlings hold the front and soak more fire.
+HUD_ITEM_X_AMPLIFIER,Your Wardlings hit harder; strong against big enemy squads.
+HUD_ITEM_X_CORE_DAMAGE,More damage on every shot: the backbone of any build.
+HUD_ITEM_X_FLUX,Faster mana recovery so you can keep firing.
+HUD_ITEM_X_QUICKLOAD,Shorter reloads keep your gun in the fight.
+HUD_ITEM_X_PIERCING,Ignores part of the target's armor: buy it against tanks.
+HUD_ITEM_X_SUNDER,Shreds Wardlings and constructs; weaker against heroes.
+HUD_ITEM_X_RANGE,Full damage from farther away: win long sightlines.
+HUD_ITEM_X_PENETRATOR,More armor penetration; stacks with Piercing rounds.
+HUD_ITEM_X_BASTION,Take less gunfire damage: for when guns keep dropping you.
+HUD_ITEM_X_NULL,Take less ability damage: for when skills keep dropping you.
+HUD_ITEM_X_TETHER,Faster Wardlings that follow you farther.
+HUD_ITEM_X_QUICK_MINT,Rebuild your squad fast; fresh Wardlings resist damage.
+HUD_ITEM_X_BULWARK,Wardlings guarding or capturing a point take much less damage.
+HUD_STAT_FALLOFF,Range
+HUD_STAT_ARMOR_PEN,Armor pen
+HUD_STAT_GUN_DMG_TAKEN,Gunfire taken
+HUD_STAT_SKILL_DMG_TAKEN,Ability dmg taken
+HUD_ADVICE_N_RANGE,A Barrel line keeps your damage up at range.
+HUD_ADVICE_N_VS_GUNS,Bastion Weave blunts the gunfire that keeps dropping you.
+HUD_ADVICE_N_VS_SKILLS,Null Weave blunts the abilities that keep dropping you.
+HUD_ADVICE_N_TETHER,A cheap speed boost so your squad keeps up.
+HUD_ADVICE_N_QUICK_MINT,Rebuild your squad quickly after a lost fight.
+HUD_ADVICE_N_BULWARK,Late game: your squad holds points far longer.
+HUD_ADVICE_N_PENETRATOR,More armor penetration against armored enemies.
+HUD_SHOP_TAB_BUILDS,MY BUILDS
+HUD_BUILDS_NEW_NAME,My build {n}
+HUD_BUILDS_DEFAULT,Hero guide (default)
+HUD_BUILDS_ACTIVE,IN USE
+HUD_BUILDS_STEPS,steps: %d
+HUD_BUILDS_WARN,warnings: %d
+HUD_BUILDS_KEYS,[Up/Down] choose  [Enter] use  [N] new from guide  [D] duplicate  [Del] x2 delete  [C] copy  [V] paste  [Esc] close
+HUD_BUILDS_PAD,[D-pad] choose  [A] use  [L3] new from guide  [R3] duplicate  [X] x2 delete  [B] close
+HUD_BUILDS_LOCAL,Saved on this PC only
+HUD_BUILDS_DEFAULT_NOTE,"The hero's guide adapts to the match (enemy heroes, damage you take, the score). It cannot be edited: press N for your own copy, then add items from the catalog with + and remove them with -."
+HUD_BUILDS_USED,Following %s
+HUD_BUILDS_CREATED,New build ready
+HUD_BUILDS_DELETE_CONFIRM,Press again to delete
+HUD_BUILDS_DELETED,Build deleted
+HUD_BUILDS_COPIED,Build copied
+HUD_BUILDS_PASTED,Build pasted
+HUD_BUILDS_PASTE_BAD,No build for this hero to paste
+HUD_BUILDS_ADDED,Added to %s
+HUD_BUILDS_REMOVED,Removed from %s
+HUD_SHOP_STRIP_RANGE,steps %d-%d of %d
+HUD_SHOP2_TAB_ALL,ALL ITEMS
+HUD_SHOP2_TAB_SETS,ITEM SETS
+HUD_SHOP2_SHELF_COMPONENTS,Components
+HUD_SHOP2_SHELF_ASSEMBLIES,Assemblies
+HUD_SHOP2_SHELF_SIGNATURES,Signatures
+HUD_SHOP2_SHELF_AMMO,Ammo
+HUD_SHOP2_SHELF_CONSUMABLES,Consumables
+HUD_SHOP2_F_DAMAGE,Damage
+HUD_SHOP2_F_FIRE_RATE,Fire rate
+HUD_SHOP2_F_RANGE,Range
+HUD_SHOP2_F_HANDLING,Handling
+HUD_SHOP2_F_FEED,Feed
+HUD_SHOP2_F_HEALTH,Health
+HUD_SHOP2_F_ARMOR,Armor
+HUD_SHOP2_F_RESIST,Resist
+HUD_SHOP2_F_COOLDOWN,Cooldown
+HUD_SHOP2_F_SPEED,Speed
+HUD_SHOP2_F_SIEGE,Siege
+HUD_SHOP2_F_AMMO,Ammo
+HUD_SHOP2_F_SQUAD,Squad
+HUD_SHOP2_F_CONSUMABLE,Consumable
+HUD_STAT2_FIRE_RATE,Fire rate
+HUD_STAT2_SPREAD,Spread
+HUD_STAT2_RECOIL,Recoil
+HUD_STAT2_HEADSHOT,Headshot bonus
+HUD_STAT2_CAPACITY,Pool / magazine
+HUD_STAT2_ARMOR,Armor
+HUD_STAT2_RESIST,Resist
+HUD_STAT2_MAX_HP,Max HP
+HUD_STAT2_MOVE,Move speed
+HUD_STAT2_MOVE_OOC,Move speed out of combat
+HUD_STAT2_CARRY,Mana Cell carry speed
+HUD_STAT2_CDR,Cooldown reduction
+HUD_SHOP2_ALREADY_OWNED,Already owned
+HUD_SHOP2_INVENTORY_FULL,Inventory full: sell or combine first
+HUD_SHOP2_SIGNATURE_LIMIT,Signature limit 2: sell one first
+HUD_SHOP2_NEEDS_AMMO,Needs an Ammo Type first
+HUD_SHOP2_INCOMPATIBLE,Does not work with your Ammo Type
+HUD_SHOP2_LOCKED,Needs the previous upgrade
+HUD_SHOP2_R_UNDO_BLOCKED,Undo the later purchase first
+HUD_SHOP2_SWAP_CONFIRM,Replaces your current part (+%d). Press again to confirm
+HUD_SHOP2_TOAST_UNDONE,Undone: %s (full refund)
+HUD_SHOP2_TOAST_UNDO_LAST,Last change undone
+HUD_SHOP2_SETS_OLD,Made for the old Armory
+HUD_SHOP2_SETS_NOTE,Sets list finished items; the advisor picks the parts. Copy: CGB2 strings.
+HUD_SHOP2_SEC_STARTER,Starter
+HUD_SHOP2_SEC_CORE,Core
+HUD_SHOP2_SEC_SITUATIONAL,Situational
+HUD_SHOP2_SEC_AMMO,Ammo
+HUD_SHOP2_SEC_NONE,Nothing needed right now
+HUD_SHOP2_STEP,Step %d
+HUD_SHOP2_NEXT_PART,Next: %s  %s
+HUD_SHOP2_BUY_NOW,Buy now: %s
+HUD_SHOP2_OPEN_SLOT,Open slot
+HUD_SHOP2_SOCKET,Socket: %s
+HUD_SHOP2_SHOWS_ON,Shows on: %s
+HUD_SHOP2_TIER_COMPONENT,Component
+HUD_SHOP2_TIER_ASSEMBLY,Assembly
+HUD_SHOP2_TIER_SIGNATURE,Signature
+HUD_SHOP2_CAPPED,(capped)
+HUD_SHOP2_RECIPE,Recipe
+HUD_SHOP2_TO_COMPLETE,Cost to complete: %s
+HUD_SHOP2_BUILDS_INTO,Builds into
+HUD_SHOP2_BUY_FOR,Buy for %s
+HUD_SHOP2_GUN,Gun
+HUD_SHOP2_SLOTS,Open slots %d/%d
+HUD_SHOP2_ROW,Squad · Med-Pack
+HUD_SHOP2_SQUAD_N,Squad upgrades: %d
+HUD_SHOP2_SIGNATURES,Signatures %d/%d
+HUD_SHOP2_UNDO_LAST,Undo last
+HUD_SHOP2_SELL_NONE,Sell: focus an owned item
+HUD_SHOP2_SELL_FOR,Sell +%s
+HUD_SHOP2_UNDO_ITEM,Undo (full refund)
+HUD_SHOP2_SPARE,Spare
+HUD_SHOP2_SOCK_CORE,Core
+HUD_SHOP2_SOCK_BARREL,Barrel
+HUD_SHOP2_SOCK_FRAME,Frame
+HUD_SHOP2_SOCK_AMMO,Type
+HUD_SHOP2_SOCK_MOD,Mod
+HUD_SHOP2_KEYS,[Enter] buy  [Backspace] sell / undo  [Ctrl+Z] undo last  [Q/E] tabs  [R] next buy  [/] search  [Tab] clear filters  [Esc] close
+HUD_SHOP2_PAD,[A] buy  [X] sell / undo  [R3] undo last  [LB/RB] tabs  [L3] next buy  [View] clear filters  [B] close
+HUD_SHOP2_ON_BELT,belt
+HUD_SHOP2_ON_CHEST,chest
+HUD_SHOP2_ON_SHOULDERS,shoulders
+HUD_SHOP2_ON_BACK,back
+HUD_SHOP2_ON_HEAD,head
+HUD_SHOP2_ON_LEGS,legs
+HUD_SHOP2_ON_FOREARM,forearm
+HUD_PASSIVE_KINDLE,"Kindle: a hero kill or assist refills 30% of the magazine from nothing (Mech, no reserve used) or 30% of the pool (Mana)."
+HUD_PASSIVE_OVERDRIVE_LOOP,"Overdrive Loop: after 1.5 s of continuous fire (shots ≤ 0.9 s apart), spread bloom −40% (Ironmaw: pellet cone −10%; Hex: beam sway −50%)."
+HUD_PASSIVE_TRUE_LINE,"True Line: a head hit on a hero refunds the shot (Mech: +1 round to the magazine, up to max; Mana: the shot's mana cost). Hex: the beam ramp is kept for 0.5 s after losing the target."
+HUD_PASSIVE_LONG_REACH,"Long Reach: body hits on a hero beyond the weapon's base `falloff_start` apply Slow 10% for 1 s (refresh, no stack; shared 40% slow cap)."
+HUD_PASSIVE_REND,"Rend: each body hit on a hero lowers its gear Armor by 2 points for 4 s (refresh), max −8 points. Base armor untouched."
+HUD_PASSIVE_DEEP_RESERVE,Deep Reserve: Mana: emptying the pool never triggers Burnout. Mech: refills from Supply Caches and Ammo Sparks +50%.
+HUD_PASSIVE_COLD_START,"Cold Start: after 3 s without firing, Mana regen is doubled until you fire; Mech: your next reload is instant."
+HUD_PASSIVE_PLANTED,"Planted: after 0.5 s without moving (or while crouched), recoil −25% more and Knockback / Pull distance on you −50% (Hex: beam sway 0)."
+HUD_PASSIVE_BRACE,"Brace: after losing ≥ 35% max HP to weapon damage within 2 s, gain 15% damage reduction vs weapon damage for 2.5 s (adds to DR, inside the 0.70 clamp); cooldown 20 s."
+HUD_PASSIVE_GROUNDING,"Grounding: Root, Stun, Silence and Slow durations on you −25% (Knockback / Pull unchanged)."
+HUD_PASSIVE_REGROWTH,"Regrowth: after 5 s without taking damage, regenerate 2% max HP per second until damaged (Scorched applies)."
+HUD_PASSIVE_LATTICE,"Lattice: 80-point overshield, refills fully after 6 s without taking damage (absorbs after armor/resist)."
+HUD_PASSIVE_RESONANT_CAST,Resonant Cast: casting your ultimate cuts the remaining cooldown of each basic skill by 25%.
+HUD_PASSIVE_SIEGEBREAKER,"Siegebreaker: weapon damage vs Ward Generators and an Exposed Uplink +15% (target-class modifier, not an ammo effect, so the Uplink rule of `weapons-and-mods.md` §3.7.1 is untouched). Absorbs the old Uplink Breaker."
+HUD_SHOP2_MORE,More steps below (Down or mouse wheel)
+HUD_SHOP2_TOTAL,total %s
+HUD_SHOP2_TOTAL_COMPLETE,Total %s  ·  to complete %s
+HUD_SHOP2_OR,or
+HUD_SHOP2_SEARCH,Search items...
+HUD_SHOP2_LUMEN_UNIT,Lumen
+HUD_SHOP2_INCOME,+%d/min
+HUD_SHOP2_BUILD_PATH,Build path
+HUD_SHOP2_NEXT_PURCHASE,Next purchase
+HUD_SHOP2_BUILD_DONE,Build complete. Browse All Items for extras.
+HUD_SHOP2_FOR,for %s
+HUD_SHOP2_CAN_AFFORD,Can afford
+HUD_SHOP2_NEED,Need %s
+HUD_SHOP2_BUY,Buy
+HUD_SHOP2_KEY_ENTER,Enter
+HUD_SHOP2_WHY_ENEMY_CC,Enemy: heavy crowd control
+HUD_SHOP2_WHY_ENEMY_BURST,Enemy: burst damage
+HUD_SHOP2_WHY_ENEMY_SUSTAIN,Enemy: strong healing
+HUD_SHOP2_WHY_ENEMY_GUNS,Enemy: heavy gunfire
+HUD_SHOP2_WHY_ENEMY_SKILLS,Enemy: ability damage
+HUD_SHOP2_WHY_ENEMY_MOBILITY,Enemy: mobile heroes
+HUD_SHOP2_WHY_ENEMY_ZONE,Enemy: area denial
+HUD_SHOP2_WHY_ENEMY_SQUAD,Enemy: strong squads
+HUD_SHOP2_WHY_ENEMY_FRONTLINE,Enemy: armored frontline
+HUD_SHOP2_WHY_COUNTER,Enemy: counters their heroes
+HUD_SHOP2_WHY_YOU_GUNS,You: taking gunfire
+HUD_SHOP2_WHY_YOU_SKILLS,You: taking ability damage
+HUD_SHOP2_WHY_YOU_DYING,You: dying often
+HUD_SHOP2_WHY_YOU_LOW,You: low health
+HUD_SHOP2_WHY_TEAM_BEHIND,Team: behind
+HUD_SHOP2_WHY_TEAM_AHEAD,"Team: ahead, press it"
+HUD_SHOP2_WHY_TEAM_OBJECTIVE,Team: objective soon
+HUD_SHOP2_WHY_TEAM_SUSTAIN,Team: needs sustain
+HUD_SHOP2_WHY_TEAM_FRONTLINE,Team: needs a frontline
+HUD_SHOP2_WHY_SITUATIONAL,Situational pick
+HUD_SHOP2_NODE_STARTER,Starter
+HUD_SHOP2_NODE_CORE,Core
+HUD_SHOP2_NODE_CORE_SIG,Core Signature
+HUD_SHOP2_NODE_BARREL,Barrel
+HUD_SHOP2_NODE_FRAME,Frame
+HUD_SHOP2_NODE_AMMO,Ammo
+HUD_SHOP2_NODE_GEAR,Gear
+HUD_SHOP2_NODE_SIGNATURE,Signature
+HUD_SHOP2_NODE_SIG2,2nd Signature
+HUD_SHOP2_LOADOUT,Your loadout
+HUD_SHOP2_MED_CHIP,Med-Pack ×%d
+HUD_SHOP2_SQUAD_CHIP,Squad upgrades %d
+HUD_SHOP2_OPEN_SLOTS,Open slots
+HUD_SHOP2_SELL,Sell
+HUD_SHOP2_UNDO,Undo
+HUD_SHOP2_NEXT_TAG,Next
+HUD_SHOP2_MORE_STEPS,+%d more steps
+HUD_SHOP2_K_USE,Use set
+HUD_SHOP2_K_NEW,New from guide
+HUD_SHOP2_K_COPY,Copy
+HUD_SHOP2_K_PASTE,Paste
+HUD_SHOP2_K_CLOSE,Close
+HUD_SHOP2_K_BUY,Buy
+HUD_SHOP2_K_SELL,Sell
+HUD_SHOP2_K_JUMP,Jump to recommended
+HUD_SHOP2_K_UNDO,Undo
+HUD_SHOP2_K_TABS,Tabs
+HUD_SHOP2_K_SEARCH,Search
+HUD_SHOP2_R_STARTER,A cheap first part that gives its stat at once and builds into your core.
+HUD_SHOP2_R_CORE,Your Core socket's Assembly: the base of your first Signature.
+HUD_SHOP2_R_CORE_SIG,Your first Signature on the Core socket: your main power spike.
+HUD_SHOP2_R_BARREL,Fills your Barrel socket: more range and steadier shots.
+HUD_SHOP2_R_FRAME,Fills your Frame socket: a bigger feed and less recoil.
+HUD_SHOP2_R_AMMO,Loads your Chamber: an Ammo Type adds an effect to every hit.
+HUD_SHOP2_R_MOD,An Ammo Mod that works with your loaded Ammo Type.
+HUD_SHOP2_R_GEAR,Body gear in an open slot: more health and armor to stay in fights.
+HUD_SHOP2_R_SIGNATURE,A Signature: the full stat line plus a named passive.
+HUD_SHOP2_R_SIG2,Your second and last Signature: completes the build.
+HUD_SHOP2_R_LUXURY,Fills a free open slot once your two Signatures are done.

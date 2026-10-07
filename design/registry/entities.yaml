@@ -40,7 +40,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-10-02"   # M0 consistency pass (creative-director + systems-designer)
+last_updated: "2026-10-07"   # Armory v2 (items-and-armory.md, owner-approved 2026-10-07)
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Heroes (Canon C17), Wardling types (C15), structures.
@@ -395,9 +395,11 @@ items:
     starting_purse: 500
     trickle_per_min: 40      # 60 in the M1 slice
     avg_curve_by_minute: {5: 1550, 10: 2880, 20: 5790, 30: 8970}
-    price_bands: {minor: [250, 400], standard: [600, 900], major: [1400, 1800]}
+    price_bands: {minor: [250, 400], standard: [600, 900], major: [1400, 1800]}   # squad upgrades and ammo
+    item_price_bands: {component: [250, 450], assembly: [800, 1100], signature: [2400, 3200]}   # items-and-armory.md §3.2
+    spend_split_balanced: {items: [0.65, 0.70], squad: [0.20, 0.25], consumables: 0.10}   # was ~0.60 gun / 0.30 squad / 0.10
     added: 2026-10-02
-    revised: ""
+    revised: 2026-10-07      # Armory v2: item bands and spend split added (items-and-armory.md §3.2, §4.7)
   - name: resonance
     status: active
     source: design/gdd/wardlings-and-economy.md
@@ -429,14 +431,461 @@ items:
     category: squad_upgrade
     added: 2026-10-02
     revised: 2026-10-02      # renamed from "Overclock Emitters" (clashed with the Overclock Chip)
-  - name: full_weapon_build
+  - name: harmonic_tether
     status: active
+    source: design/gdd/wardlings-and-economy.md
+    referenced_by: [docs/armory.md]
+    value_lumen: 300
+    wardling_speed_bonus: 0.12
+    follow_leash_m: 40
+    category: squad_upgrade
+    added: 2026-10-07
+    revised: ""
+  - name: quick_mint
+    status: active
+    source: design/gdd/wardlings-and-economy.md
+    referenced_by: [docs/armory.md]
+    value_lumen: 250
+    mint_s_per_wardling: 0.1
+    post_mint_resist: 0.25
+    post_mint_resist_s: 5
+    category: squad_upgrade
+    added: 2026-10-07
+    revised: ""
+  - name: bulwark_protocol
+    status: active
+    source: design/gdd/wardlings-and-economy.md
+    referenced_by: [docs/armory.md]
+    value_lumen: 1400
+    hold_capture_damage_taken: -0.30
+    category: squad_upgrade
+    added: 2026-10-07
+    revised: ""
+  - name: bastion_weave
+    status: deprecated       # Armory v2: replaced by plate_scale -> plate_harness -> bastion_plate (open slot); v1 code removed at the protocol 22 switch-over
+    source: design/gdd/weapons-and-mods.md
+    referenced_by: [docs/armory.md]
+    value_lumen: [300, 700, 1500]
+    weapon_damage_taken: [-0.06, -0.10, -0.14]
+    category: mount_frame
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: null_weave
+    status: deprecated       # Armory v2: replaced by null_thread -> null_cowl -> null_veil (open slot); v1 code removed at the protocol 22 switch-over
+    source: design/gdd/weapons-and-mods.md
+    referenced_by: [docs/armory.md]
+    value_lumen: [300, 700, 1500]
+    skill_damage_taken: [-0.08, -0.13, -0.18]
+    category: mount_frame
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: full_weapon_build
+    status: deprecated       # Armory v2: replaced by full_item_build
     source: design/gdd/weapons-and-mods.md
     referenced_by: [design/gdd/wardlings-and-economy.md]
     value_lumen: [5350, 6150]
     category: budget_reference
     added: 2026-10-02
-    revised: 2026-10-02      # arithmetic corrected (was 5,250-6,200)
+    revised: 2026-10-07      # deprecated (was active; arithmetic corrected 2026-10-02 from 5,250-6,200)
+  - name: full_item_build
+    status: active
+    source: design/gdd/items-and-armory.md   # §4.7
+    referenced_by: [design/gdd/wardlings-and-economy.md, design/gdd/weapons-and-mods.md]
+    value_lumen: [11850, 12600]   # 2 Signatures + Assemblies + Chamber; reference build 12,300
+    notes: "= strong player's 30-min Lumen (12,280); average owns 45-55% at the balanced split"
+    category: budget_reference
+    added: 2026-10-07
+    revised: ""
+
+  # ── Armory v2 items (protocol 22) ── source: items-and-armory.md §3.5
+  # value_lumen = full recipe total; combine = combine cost; recipe = part ids.
+  # Weapon items have a Crystal form (Mana guns) and a Chip form (Mech guns), one stat block.
+  - name: ember_part
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: component_weapon
+    value_lumen: 400
+    stats: {mod_damage: 0.05}
+    added: 2026-10-07
+    revised: ""
+  - name: tempo_part
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: component_weapon
+    value_lumen: 350        # owner 2026-10-07 (draft 400; review fix)
+    stats: {mod_rate: 0.04}
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: lens_part
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: component_weapon
+    value_lumen: 300
+    stats: {falloff_range: 0.10}
+    added: 2026-10-07
+    revised: ""
+  - name: steady_part
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: component_weapon
+    value_lumen: 250
+    stats: {spread: -0.10, recoil: -0.10}
+    added: 2026-10-07
+    revised: ""
+  - name: feed_part
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: component_weapon
+    value_lumen: 350
+    stats: {mana_regen: 0.10, mech_reload_time: -0.08}
+    added: 2026-10-07
+    revised: ""
+  - name: vital_cell
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: component_gear
+    value_lumen: 300
+    stats: {max_hp: 25}
+    added: 2026-10-07
+    revised: ""
+  - name: plate_scale
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: component_gear
+    value_lumen: 300
+    stats: {gear_armor: 0.08}
+    added: 2026-10-07
+    revised: ""
+  - name: null_thread
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: component_gear
+    value_lumen: 300
+    stats: {gear_resist: 0.09}
+    added: 2026-10-07
+    revised: ""
+  - name: cadence_bead
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: component_gear
+    value_lumen: 350
+    stats: {cdr: 0.05}
+    added: 2026-10-07
+    revised: ""
+  - name: stride_clip
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/wardlings-and-economy.md]
+    category: component_gear
+    value_lumen: 250
+    stats: {move_speed: 0.03, mana_cell_move_speed: 0.15}   # absorbs Cell Harness
+    added: 2026-10-07
+    revised: ""
+  - name: ember_facet
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: assembly_core
+    recipe: [ember_part, lens_part]
+    combine: 300
+    value_lumen: 1000
+    stats: {mod_damage: 0.10, falloff_range: 0.05}
+    added: 2026-10-07
+    revised: ""
+  - name: pulse_facet
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: assembly_core
+    recipe: [tempo_part, steady_part]
+    combine: 300
+    value_lumen: 900        # 950 in draft; Tempo 400 -> 350
+    stats: {mod_rate: 0.08, spread: -0.05}
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: longsight_ring
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: assembly_barrel
+    recipe: [lens_part, steady_part]
+    combine: 300
+    value_lumen: 850
+    stats: {falloff_range: 0.18, spread: -0.08}
+    added: 2026-10-07
+    revised: ""
+  - name: bore_ring
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: assembly_barrel
+    recipe: [ember_part, steady_part]
+    combine: 300
+    value_lumen: 950
+    stats: {armor_pen: 0.15, mod_damage: 0.03}
+    added: 2026-10-07
+    revised: ""
+  - name: wellframe
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: assembly_frame
+    recipe: [feed_part, steady_part]
+    combine: 250
+    value_lumen: 850
+    stats: {pool_or_mag: 0.15, mana_regen: 0.08, mech_reload_time: -0.06, recoil: -0.08}
+    added: 2026-10-07
+    revised: ""
+  - name: vital_core
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: assembly_gear
+    recipe: [vital_cell, vital_cell]
+    combine: 300            # 250 in draft; raised so Vigil Core / Barrier Lattice stay in the 2,400+ band
+    value_lumen: 900
+    stats: {max_hp: 75}     # owner 2026-10-07 (draft 90)
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: plate_harness
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: assembly_gear
+    recipe: [plate_scale, vital_cell]
+    combine: 300
+    value_lumen: 900
+    stats: {gear_armor: 0.13, max_hp: 25}
+    added: 2026-10-07
+    revised: ""
+  - name: null_cowl
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: assembly_gear
+    recipe: [null_thread, vital_cell]
+    combine: 300
+    value_lumen: 900
+    stats: {gear_resist: 0.15, max_hp: 25}
+    added: 2026-10-07
+    revised: ""
+  - name: cadence_circlet
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: assembly_gear
+    recipe: [cadence_bead, null_thread]
+    combine: 300
+    value_lumen: 950
+    stats: {cdr: 0.10, gear_resist: 0.06}
+    added: 2026-10-07
+    revised: ""
+  - name: stride_rig
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/wardlings-and-economy.md]
+    category: assembly_gear
+    recipe: [stride_clip, plate_scale]
+    combine: 250
+    value_lumen: 800        # was 750 (Utility, wardlings-and-economy.md §19 v1)
+    stats: {move_speed: 0.04, out_of_combat_move_speed: 0.08, gear_armor: 0.04, mana_cell_move_speed: 0.15}
+    added: 2026-10-07
+    revised: ""
+  - name: ember_heart
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_core
+    recipe: [ember_facet, ember_part, tempo_part]
+    combine: 800
+    value_lumen: 2550
+    stats: {mod_damage: 0.16, mod_rate: 0.03}
+    passive: kindle
+    added: 2026-10-07
+    revised: 2026-10-07     # 2,600 in draft; Tempo 400 -> 350
+  - name: tempest_heart
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_core
+    recipe: [pulse_facet, tempo_part, ember_part]
+    combine: 750
+    value_lumen: 2400       # 2,500 in draft; Pulse Facet and Tempo each -50
+    stats: {mod_rate: 0.12, mod_damage: 0.03, spread: -0.05}
+    passive: overdrive_loop
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: prism_eye
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_core
+    recipe: [ember_facet, lens_part, steady_part]
+    combine: 950
+    value_lumen: 2500
+    stats: {mod_damage: 0.06, headshot_mult: 0.30}
+    passive: true_line
+    added: 2026-10-07
+    revised: ""
+  - name: longsight_lens
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_barrel
+    recipe: [longsight_ring, lens_part, steady_part]
+    combine: 1000
+    value_lumen: 2400
+    stats: {falloff_range: 0.30, spread: -0.15}
+    passive: long_reach
+    added: 2026-10-07
+    revised: ""
+  - name: breaker_bore
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_barrel
+    recipe: [bore_ring, ember_part, lens_part]
+    combine: 850
+    value_lumen: 2500
+    stats: {armor_pen: 0.25, mod_damage: 0.04, falloff_range: 0.05}
+    passive: rend
+    added: 2026-10-07
+    revised: ""
+  - name: reservoir_frame
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_frame
+    recipe: [wellframe, feed_part, steady_part]
+    combine: 950
+    value_lumen: 2400
+    stats: {pool_or_mag: 0.45}
+    passive: deep_reserve
+    added: 2026-10-07
+    revised: ""
+  - name: flux_coil
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_frame
+    recipe: [wellframe, feed_part, tempo_part]
+    combine: 900
+    value_lumen: 2450       # 2,500 in draft; Tempo 400 -> 350
+    stats: {mana_regen: 0.30, mana_regen_delay_s: -0.3, mech_reload_time: -0.28}
+    passive: cold_start
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: anchor_frame
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    category: signature_frame
+    recipe: [wellframe, steady_part, lens_part]
+    combine: 1000
+    value_lumen: 2400
+    stats: {recoil: -0.35, spread: -0.15, pool_or_mag: 0.15}
+    passive: planted
+    added: 2026-10-07
+    revised: ""
+  - name: bastion_plate
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md, design/gdd/weapons-and-mods.md]
+    category: signature_gear
+    recipe: [plate_harness, plate_scale, vital_cell]
+    combine: 900            # owner ceiling <= 900 for gear Signatures (draft 1,000)
+    value_lumen: 2400
+    stats: {gear_armor: 0.20, max_hp: 60}
+    passive: brace
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: null_veil
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md, design/gdd/weapons-and-mods.md]
+    category: signature_gear
+    recipe: [null_cowl, null_thread, vital_cell]
+    combine: 900            # draft 1,000
+    value_lumen: 2400
+    stats: {gear_resist: 0.22, max_hp: 60}   # 0.22 shows 0.02 "capped" at the 0.20 cap
+    passive: grounding
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: vigil_core
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: signature_gear
+    recipe: [vital_core, vital_cell, plate_scale]
+    combine: 900            # draft 1,050
+    value_lumen: 2400
+    stats: {max_hp: 130, gear_armor: 0.04}   # owner 2026-10-07 (draft 170 HP)
+    passive: regrowth
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: barrier_lattice
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/wardlings-and-economy.md]
+    category: signature_gear
+    recipe: [vital_core, null_thread, vital_cell]
+    combine: 900            # draft 1,050
+    value_lumen: 2400       # was a 800 Utility item in wardlings-and-economy.md §19 v1
+    stats: {max_hp: 60, gear_resist: 0.08}
+    passive: lattice        # 80-point overshield, refills after 6 s without damage
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: cadence_crown
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/heroes.md]
+    category: signature_gear
+    recipe: [cadence_circlet, cadence_bead, null_thread]
+    combine: 900            # draft 1,000
+    value_lumen: 2500
+    stats: {cdr: 0.18, gear_resist: 0.08}
+    passive: resonant_cast
+    added: 2026-10-07
+    revised: 2026-10-07
+  - name: breaker_sigil
+    status: active
+    source: design/gdd/items-and-armory.md
+    referenced_by: [design/gdd/wardlings-and-economy.md, design/gdd/match-flow-and-map.md]
+    category: signature_gear
+    recipe: [stride_rig, plate_harness]   # 2-Assembly recipe (draft: stride_rig + plate_scale + vital_cell + 1,050)
+    combine: 700
+    value_lumen: 2400       # absorbs Uplink Breaker (1,600 Utility, wardlings-and-economy.md §19 v1)
+    stats: {max_hp: 60, gear_armor: 0.06, move_speed: 0.04}
+    passive: siegebreaker   # +15% weapon damage vs Ward Generators and an Exposed Uplink
+    added: 2026-10-07
+    revised: 2026-10-07
+
+  # ── Ammo (Chamber) ── source of effects: weapons-and-mods.md §3.7; prices §3.8. All ship in protocol 22.
+  - name: ammo_types
+    status: active
+    source: design/gdd/weapons-and-mods.md
+    referenced_by: [design/gdd/items-and-armory.md]
+    category: ammo_type
+    value_lumen: {standard: 0, piercing: 750, incendiary: 800, shock: 800, siphon: 850, cryo: 750, sunder: 650}
+    added: 2026-10-07
+    revised: ""
+  - name: ammo_mods
+    status: active
+    source: design/gdd/weapons-and-mods.md
+    referenced_by: [design/gdd/items-and-armory.md]
+    category: ammo_mod
+    value_lumen: {saturated: 350, lingering: 300, volatile: 400, tracer: 300, overcharged: 350}
+    added: 2026-10-07
+    revised: ""
 
 # ─── FORMULAS ────────────────────────────────────────────────────────────────
 
@@ -480,12 +929,21 @@ formulas:
   - name: final_damage_per_hit
     status: active
     source: design/gdd/weapons-and-mods.md   # §4.1
-    referenced_by: [design/gdd/heroes.md]
-    variables: [d_base, level_mult, falloff, headshot, skill_mult, mod_dmg, armor_dr, target_class, brittle]
-    expression: "D_base * L * F(d) * H * min(1.8, S_skill) * (1 + min(0.25, M_dmg)) * (1 - min(0.70, A_eff + DR)) * V * B"
-    output_range: [1, 724]
+    referenced_by: [design/gdd/heroes.md, design/gdd/items-and-armory.md]
+    variables: [d_base, level_mult, falloff, headshot, skill_mult, mod_dmg, mod_rate, burn_share, armor_dr, gear_armor, gear_resist, pen, rend, target_class, brittle]
+    expression: "D_base * L * F(d) * H * min(2.25, min(1.8, S_skill) * G_hit) * A_mult * V * B; G = (1 + min(0.25, M_dmg)) * (1 + min(0.15, M_rate)); G_hit = min(G, 1.333 / (B * (1 + b_burn))); weapon A_mult = 1 - min(0.70, (A + max(0, min(0.20, A_gear) - Rend)) * (1 - min(0.60, P)) + DR); skill A_mult = 1 - min(0.70, A + min(0.20, R_gear) + DR)"
+    output_range: [1, 670]
     added: 2026-10-02
-    revised: 2026-10-02      # armor is now a flat % (heroes.md), skill clamp separated from the mod cap
+    revised: 2026-10-07      # Armory v2: M_rate, G / G_hit cap incl. Brittle and Burn, gear armor (weapon) / resist (skill). Was "... min(1.8, S_skill) * (1 + min(0.25, M_dmg)) * (1 - min(0.70, A_eff + DR)) ...", max 724
+  - name: recipe_remaining_cost
+    status: active
+    source: design/gdd/items-and-armory.md   # §4.1
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    variables: [combine, recipe_parts, owned_instances]
+    expression: "RemainingCost(X) = 0 if owned else combine(X) + sum(RemainingCost(p) for p in recipe(X)); sell later = floor(0.6 * Total(X) / 5) * 5"
+    output_range: [0, 2550]
+    added: 2026-10-07
+    revised: ""
   - name: sudden_death_safety_valve
     status: active               # pending owner confirmation (design/open-questions.md)
     source: design/gdd/match-flow-and-map.md   # F10, Canon C10
@@ -656,4 +1114,60 @@ constants:
     unit: m
     notes: "C13"
     added: 2026-10-02
+    revised: ""
+
+  # ── Armory v2 (items-and-armory.md, owner-approved 2026-10-07) ──
+  - name: open_item_slots
+    status: active
+    source: design/gdd/items-and-armory.md   # §3.1
+    referenced_by: [design/gdd/game-concept.md, design/gdd/heroes.md]
+    value: 6
+    unit: slots
+    notes: "untyped; hold components, gear Assemblies, gear Signatures; squad upgrades and Med-Packs do not use them"
+    added: 2026-10-07
+    revised: ""
+  - name: signature_limit
+    status: active
+    source: design/gdd/items-and-armory.md   # §3.2
+    referenced_by: []
+    value: 2
+    unit: signatures_per_hero
+    notes: "plus one active copy of any item id (component spares allowed as recipe material)"
+    added: 2026-10-07
+    revised: ""
+  - name: item_stat_caps
+    status: active
+    source: design/gdd/items-and-armory.md   # §3.7
+    referenced_by: [design/gdd/weapons-and-mods.md, design/gdd/heroes.md]
+    value: {mod_damage: 0.25, mod_rate: 0.15, throughput_g: 1.333, total_weapon_mult: 2.25, armor_pen: 0.60, gear_armor: 0.20, gear_resist: 0.20, item_hp: 200, cdr: 0.25, item_move_speed: 0.12}
+    unit: mixed
+    notes: "gear_armor, gear_resist, item_hp fixed by owner 2026-10-07 (draft 0.25 / 0.25 / 250); G includes Brittle and Burn"
+    added: 2026-10-07
+    revised: ""
+  - name: item_ttk_bounds
+    status: active
+    source: design/gdd/items-and-armory.md   # §3.7, §4.5
+    referenced_by: [design/gdd/weapons-and-mods.md]
+    value: {offense_min_ttk_ratio: 0.75, defense_max_ttk_ratio_with_counter: 1.25, defense_max_ttk_ratio_without_counter: 1.50}
+    unit: x_naked_ttk
+    notes: "measured at L15 level-matched; counter = penetration at the 0.60 cap"
+    added: 2026-10-07
+    revised: ""
+  - name: brannoc_ehp_ratio_min
+    status: active
+    source: design/gdd/weapons-and-mods.md   # §3.4 rule (c)
+    referenced_by: [design/gdd/items-and-armory.md, design/gdd/heroes.md]
+    value: 2.35
+    unit: x_250hp_ttk
+    notes: "owner 2026-10-07; was 2.5 (broken by 0.60 pen: 2.39)"
+    added: 2026-10-07
+    revised: ""
+  - name: armory_protocol
+    status: active
+    source: design/gdd/items-and-armory.md   # §3.11
+    referenced_by: []
+    value: 22
+    unit: protocol_version
+    notes: "one complete release; v21 is the shipped v1 Armory"
+    added: 2026-10-07
     revised: ""

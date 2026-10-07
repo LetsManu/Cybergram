@@ -18,6 +18,8 @@ signal squad_dissolved(owner_net_id: int)
 signal wardling_allegiance_changed(w: WardlingSim)
 signal vanguard_wave_spawned(team: int, lane: int, minted: int)
 
+## Squad-modifier source of the Quick Mint post-mint resistance.
+const MINT_GUARD_SOURCE: int = 0x51_4D_00
 const KIND_WARDLING: int = EntityRegistry.KIND_WARDLING
 ## Personal squads keep this distance band when choosing a firing spot.
 const VANGUARD_STATE: int = 5
@@ -365,6 +367,9 @@ func damage_wardling(w: WardlingSim, info: DamageInfo) -> float:
 	if w.dead:
 		return 0.0
 	var taken := MinionmancerHooks.damage_taken_mult(w, server.tick)  # E10: Rally Beacon DR
+	if w.squad != null and w.squad.guard_dr > 0.0 \
+			and (w.squad.command == Squad.CMD_HOLD or w.squad.command == Squad.CMD_CAPTURE):
+		taken *= 1.0 - w.squad.guard_dr  # Bulwark Protocol
 	if not is_equal_approx(taken, 1.0):
 		info = DamageInfo.make(info.amount * taken, info.source_net_id, info.instigator_team, info.flags, info.type)
 	var applied := w.health.apply_damage(info)
@@ -474,12 +479,16 @@ func _squad_rules(t: int) -> void:
 					sq.next_mint_tick = t
 				sq.pending_mints += n
 	_just_spawned.clear()
-	var interval := maxi(roundi(rules.mint_interval_s * tick_hz), 1)
 	for owner_id in squads:
 		var sq: Squad = squads[owner_id]
+		_refresh_upgrades(sq)
+		var interval := maxi(roundi(rules.mint_interval_s * sq.mint_interval_mult * tick_hz), 1)
 		while sq.pending_mints > 0 and t >= sq.next_mint_tick:
 			var hq := map_def.hq(sq.team)
-			_mint(picket, sq.team, snap(hq.foundry + _ring_offset(sq.alive_count(), rules.mint_ring_m)), owner_id, sq)
+			var w := _mint(picket, sq.team, snap(hq.foundry + _ring_offset(sq.alive_count(), rules.mint_ring_m)), owner_id, sq)
+			if w != null and sq.mint_guard > 0.0:  # Quick Mint: brief resistance after minting
+				MinionmancerHooks.apply_squad_modifier(w, &"damage_taken", 1.0 - sq.mint_guard,
+					t + roundi(rules.quick_mint_guard_s * tick_hz), MINT_GUARD_SOURCE)
 			sq.pending_mints -= 1
 			sq.next_mint_tick += interval
 		if sq.command == Squad.CMD_ATTACK:
@@ -495,6 +504,19 @@ func _squad_rules(t: int) -> void:
 				_despawn(m, 0)
 			orphan_squads.remove_at(i)
 			squad_dissolved.emit(sq.owner_net_id)
+
+
+## Copies the owner's Armory squad upgrades (hero stats) onto the squad.
+func _refresh_upgrades(sq: Squad) -> void:
+	var owner := server.hero(sq.owner_net_id)
+	if owner == null or owner.combat == null:
+		return
+	var st := owner.combat.stats
+	sq.speed_mult = st.get_value(StatCatalog.WARDLING_SPEED_MULT)
+	sq.leash_bonus_m = st.get_value(StatCatalog.WARDLING_LEASH_BONUS)
+	sq.mint_interval_mult = st.get_value(StatCatalog.MINT_INTERVAL_MULT)
+	sq.mint_guard = st.get_value(StatCatalog.MINT_GUARD)
+	sq.guard_dr = st.get_value(StatCatalog.WARDLING_GUARD_DR)
 
 
 func _vanguard_rules(t: int) -> void:
@@ -734,7 +756,8 @@ func _move(w: WardlingSim) -> void:
 					steer = w.path[w.path_index]
 			var d := Vector3(steer.x - pos.x, 0.0, steer.z - pos.z)
 			if d.length_squared() > 1e-6:
-				desired = d.normalized() * minf(w.move_speed * water_factor, dist / dt)  # W16-SDWATER: wading slow
+				var sm := w.squad.speed_mult if w.squad != null else 1.0  # Harmonic Tether
+				desired = d.normalized() * minf(w.move_speed * sm * water_factor, dist / dt)  # W16-SDWATER: wading slow
 	w.desired_velocity = desired
 	var v := desired
 	var fresh := _ticks_this_frame == 1 and Engine.get_physics_frames() - w.safe_frame <= 1

@@ -78,7 +78,7 @@ static func _pick_threat(sq: Squad, world: WardlingWorld, rules: WardlingRulesDe
 	for m in sq.members:
 		if now - m.last_hit_tick <= memory and not hitters.has(m.last_attacker_id):
 			hitters[m.last_attacker_id] = rules.threat_member_hit
-	var radius := rules.follow_leash_m
+	var radius := rules.follow_leash_m + sq.leash_bonus_m
 	var zone_r := 0.0
 	if cmd == Squad.CMD_HOLD:
 		radius = rules.hold_slot_radius_m + rules.hold_engage_m

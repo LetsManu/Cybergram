@@ -6,7 +6,7 @@ over a war-like front line, each player leading their own squad of minions
 **Mana Uplink**. Anime/cartoon look, futuristic-fantasy world.
 
 > Status: **pre-alpha, playable online.** Latest release:
-> [**v0.18.1**](https://github.com/LetsManu/Cybergram/releases/tag/v0.18.1)
+> [**v0.19.0**](https://github.com/LetsManu/Cybergram/releases/tag/v0.19.0)
 > for Windows and Linux, installed and kept up to date by the launcher.
 > There is an official server (`cyber.djboeck.at`) with accounts, friends,
 > parties, Normal and Ranked queues and custom games. Offline play against

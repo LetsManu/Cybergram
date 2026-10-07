@@ -14,6 +14,8 @@
 script = ExtResource("s9")
 id = &"hero_sable"
 display_name = "Sable"
+roles = PackedStringArray("infiltrator")
+tags = PackedStringArray("burst", "mobility", "skill_dps")
 max_hp = 225
 armor = 0.0
 move_speed = 6.6

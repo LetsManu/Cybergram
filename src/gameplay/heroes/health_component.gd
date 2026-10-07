@@ -31,6 +31,14 @@ var heal_mult: float = 1.0
 ## W11-M1: running total of damage removed by the stats' DAMAGE_REDUCTION (statuses,
 ## zones); window readers (Fortify Lifeblood) take differences.
 var mitigated: float = 0.0
+## Signature passives (items-and-armory.md §3.5.3, §4.3), written by SignaturePassives:
+## Lattice overshield (absorbs after armor / resist, after the status shield; not
+## healing, so Scorched never cuts it), Brace DR_brace (weapon damage only, inside
+## the 0.70 clamp) and the Rend stacks on this hero (gear-armor points removed
+## from every weapon hit, 0-0.08).
+var overshield: float = 0.0
+var brace_dr: float = 0.0
+var rend: float = 0.0
 
 
 func _init(max_hp_: float, armor_: float, team_: int) -> void:
@@ -47,27 +55,43 @@ func is_alive() -> bool:
 ## Applies `info` and returns the HP actually removed (0 if filtered).
 ## TRUE damage ignores armor. Same-team damage is dropped (no friendly fire).
 func apply_damage(info: DamageInfo) -> float:
+	last_absorbed = 0.0
 	if not is_alive() or info.amount <= 0.0:
 		return 0.0
 	if info.instigator_team == team:
 		return 0.0
 	var amount := info.amount
-	if info.type != DamageInfo.Type.TRUE:
+	if info.type != DamageInfo.Type.TRUE and (info.flags & DamageInfo.FLAG_PREMITIGATED) == 0:
 		var dr := damage_reduction
 		if stats != null:
 			dr += stats.get_value(StatCatalog.DAMAGE_REDUCTION)
-		var arm := armor * (1.0 - minf(0.60, maxf(info.armor_pen, 0.0)))
+		var arm := armor_value(info)
 		var after := DamageMath.armor_mult(arm, dr)
 		if stats != null:
 			mitigated += amount * (DamageMath.armor_mult(arm, damage_reduction) - after)
+		if info.type == DamageInfo.Type.WEAPON and brace_dr > 0.0:
+			after = DamageMath.armor_mult(arm, dr + brace_dr)
 		amount *= after
-		if stats != null:
-			amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
+	if info.type != DamageInfo.Type.TRUE and stats != null:
+		amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
+		# Armory v1 defensive Frame lines (Bastion / Null Weave); kept until C7.
+		if info.type == DamageInfo.Type.WEAPON:
+			amount *= stats.get_value(StatCatalog.WEAPON_DAMAGE_TAKEN)
+		elif info.type == DamageInfo.Type.SKILL:
+			amount *= stats.get_value(StatCatalog.SKILL_DAMAGE_TAKEN)
 	last_absorbed = 0.0
 	if shield > 0.0:
 		last_absorbed = minf(shield, amount)
 		shield -= last_absorbed
 		amount -= last_absorbed
+		if amount <= 0.0:
+			last_attacker = info.source_net_id
+			return 0.0
+	if overshield > 0.0:
+		var os := minf(overshield, amount)
+		overshield -= os
+		amount -= os
+		last_absorbed += os
 		if amount <= 0.0:
 			last_attacker = info.source_net_id
 			return 0.0
@@ -78,6 +102,17 @@ func apply_damage(info: DamageInfo) -> float:
 		hp = 0.0
 		died.emit(info.source_net_id)
 	return applied
+
+
+## Armor term of `info` before DR (items-and-armory.md §4.3): weapon hits use
+## A_w = (A_base + max(0, min(0.20, A_gear) − Rend)) × (1 − min(0.60, P)); skill hits
+## A_s = A_base + min(0.20, R_gear). Without a StatBlock gear is 0 (Wardlings).
+func armor_value(info: DamageInfo) -> float:
+	var gear_armor := stats.get_value(StatCatalog.GEAR_ARMOR) if stats != null else 0.0
+	var gear_resist := stats.get_value(StatCatalog.GEAR_RESIST) if stats != null else 0.0
+	if info.type == DamageInfo.Type.SKILL:
+		return DamageMath.skill_armor(armor, gear_resist)
+	return DamageMath.weapon_armor(armor, gear_armor, maxf(info.rend, rend), info.armor_pen)
 
 
 func heal(amount: float, source_net_id: int = 0) -> float:
@@ -93,4 +128,7 @@ func heal(amount: float, source_net_id: int = 0) -> float:
 func reset() -> void:
 	hp = max_hp
 	shield = 0.0
+	overshield = 0.0
+	brace_dr = 0.0
+	rend = 0.0
 	last_attacker = 0

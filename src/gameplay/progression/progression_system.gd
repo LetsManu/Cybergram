@@ -33,11 +33,18 @@ class Mote:
 var server: ServerWorld
 var rules: EconomyRulesDef
 var catalog: ArmoryCatalogDef
+## Cached is_v2() (-1 = not computed).
+var _v2: int = -1
 var map_def: MapDef
 var progress: Dictionary = {}  # hero net id -> HeroProgress
 var motes: Array[Mote] = []
 ## Debug / tests: Armory zone ignored (buy anywhere while alive).
 var debug_shop_anywhere: bool = false
+## Structured Armory log lines (armory.buy / sell / undo / reject; OpsLog
+## format, hero net id only - never account data). Off in tests that buy a lot.
+var armory_log: bool = true
+## Thresholds of the BuildAdvisor signals (SIG_*) sent to each hero's client.
+var advice_rules: AdviceRulesDef
 
 var _unlock_node: SkillNodeDef
 var _hooked_wardlings: bool = false
@@ -65,7 +72,11 @@ func _init(world: ServerWorld, rules_: EconomyRulesDef, catalog_: ArmoryCatalogD
 	_unlock_node.required_level = 1
 	server.hero_died.connect(_on_hero_died)
 	server.hero_damaged.connect(_on_hero_damaged)
+	server.hero_damage_taken.connect(_on_damage_taken)
 	server.objective_event.connect(_on_objective_event)
+	advice_rules = load(AdviceRulesDef.DEFAULT_PATH) as AdviceRulesDef
+	if advice_rules == null:
+		advice_rules = AdviceRulesDef.new()
 	_last_s = server.match_seconds()
 
 
@@ -246,28 +257,93 @@ func buy(h: HeroBody, item_id: StringName, tier: int = 0) -> int:
 	return buy_index(h, catalog.index_of(item_id), tier)
 
 
+## `tier` is ignored (v1 mount tiers are gone; kept for the wire format).
 func buy_index(h: HeroBody, index: int, tier: int = 0) -> int:
 	var p := progress_of(h)
 	if debug_shop_anywhere and not h.combat.dead:
 		p.at_armory = true
-	return Armory.buy(p, h.combat, catalog, index, tier, rules)
+	var before := p.lumen
+	var r := ItemShop.buy(p, h.combat, catalog, index, rules)
+	_log_armory(h, "buy", index, tier, r, before, p.lumen)
+	return r
 
 
-## Sells the mount in `socket` (ArmoryItemDef.Socket).
-func sell(h: HeroBody, socket: int) -> int:
+## True when the catalog is the Armory v2 recipe catalog (items-and-armory.md):
+## purchases go through ItemShop and the inventory is replicated.
+func is_v2() -> bool:
+	if _v2 < 0:
+		_v2 = 0
+		if catalog != null:
+			for it in catalog.items:
+				if it != null and it.tier != ArmoryItemDef.Tier.NONE:
+					_v2 = 1
+					break
+	return _v2 == 1
+
+
+## v2: sells the item at inventory place `loc` (ItemInventory.LOC_*).
+func sell_at(h: HeroBody, loc: int) -> int:
 	var p := progress_of(h)
 	if debug_shop_anywhere and not h.combat.dead:
 		p.at_armory = true
-	return Armory.sell(p, h.combat, socket, rules)
+	var index := p.inv.index_at(loc)
+	var before := p.lumen
+	var r := ItemShop.sell(p, h.combat, catalog, loc, rules)
+	_log_armory(h, "sell", index, loc, r, before, p.lumen)
+	return r
+
+
+## v2: undoes the purchase at `loc`, a squad upgrade / Med-Pack (`row_index`
+## >= 0), or the last change of the visit (`loc` < 0 and `row_index` < 0).
+func undo(h: HeroBody, loc: int, row_index: int = -1) -> int:
+	var p := progress_of(h)
+	if debug_shop_anywhere and not h.combat.dead:
+		p.at_armory = true
+	var before := p.lumen
+	var index := row_index if row_index >= 0 else p.inv.index_at(loc) if loc >= 0 else -1
+	var r: int
+	if row_index >= 0:
+		r = ItemShop.undo_row(p, h.combat, catalog, row_index, rules)
+	elif loc >= 0:
+		r = ItemShop.undo_at(p, h.combat, catalog, loc, rules)
+	else:
+		r = ItemShop.undo_last(p, h.combat, catalog, rules)
+	_log_armory(h, "undo", index, loc, r, before, p.lumen)
+	return r
+
+
+func _log_armory(h: HeroBody, op: String, index: int, arg: int, r: int, before: int, after: int) -> void:
+	if not armory_log:
+		return
+	var item := catalog.at(index) if catalog != null else null
+	var ok := r == HeroProgress.Result.OK
+	var event := "armory." + (op if ok else "reject")
+	OpsLog.emit(OpsLog.record("armory", "info" if ok else "warn", event,
+		"%s %s %s hero=%d lumen %d->%d" % [op, item.id if item != null else "#%d" % index,
+			"ok" if ok else HeroProgress.Result.keys()[r], h.net_id, before, after],
+		{"op": op, "hero": h.net_id, "hero_def": String(h.combat.def.id) if h.combat != null and h.combat.def != null else "",
+		 "item": String(item.id) if item != null else str(index), "arg": arg,
+		 "result": HeroProgress.Result.keys()[r] if r >= 0 and r < HeroProgress.Result.size() else str(r),
+		 "lumen_before": before, "lumen_after": after}))
 
 
 ## Price the hero would pay now for `item_id` at `tier` (0 = next): upgrade
-## cost for a held line, list price otherwise (bots' buy planning).
+## cost for a held line, list price otherwise (bots' buy planning); -1 when the
+## purchase cannot happen (owned squad upgrade, missing requirement, carry
+## limit, maxed line, disabled or unknown item).
 func price_of(h: HeroBody, item_id: StringName, tier: int = 0) -> int:
 	var item := catalog.find(item_id)
 	if item == null:
 		return -1
-	var held := progress_of(h).mount(item.socket) if item.socket != ArmoryItemDef.Socket.NONE else null
+	var p := progress_of(h)
+	if item.disabled:
+		return -1
+	if item.kind == ArmoryItemDef.Kind.SQUAD and (p.owned.has(item.id)
+			or (item.requires != &"" and not p.owned.has(item.requires))):
+		return -1
+	if item.kind == ArmoryItemDef.Kind.CONSUMABLE and p.medpacks >= item.carry_limit:
+		return -1
+	var held := p.mount(item.socket) if item.socket != ArmoryItemDef.Socket.NONE else null
 	if held != null and held.item == item:
 		var nt := tier if tier > 0 else held.tier + 1
 		return EconomyMath.upgrade_cost(item, nt, held.tier) if nt <= item.tiers() and nt > held.tier else -1
@@ -304,8 +380,12 @@ func use_medpack(h: HeroBody) -> int:
 	if p.medpacks <= 0:
 		return HeroProgress.Result.NOT_OWNED
 	if p.heal_until_tick >= 0 and server.tick < p.heal_until_tick:
-		return HeroProgress.Result.LIMIT
+		return HeroProgress.Result.HEALING
 	p.medpacks -= 1
+	# A pack bought this visit and then used can no longer be undone.
+	var med := catalog.find(&"med_pack") if catalog != null else null
+	if med != null and p.visit_count(med.id) > p.medpacks:
+		p._visit_add(med.id, p.medpacks - p.visit_count(med.id))
 	var ticks := maxi(1, roundi(rules.medpack_duration_s * server.net.tick_rate_hz))
 	p.heal_until_tick = server.tick + ticks
 	p.heal_per_tick = h.combat.health.max_hp * rules.medpack_heal_frac / ticks
@@ -452,14 +532,39 @@ func handle_action(h: HeroBody, cmd: InputCommand) -> int:
 		InputCommand.ACTION_LEARN:
 			return learn(h, cmd.action_arg & 3, learn_kind_of_arg(cmd.action_arg))
 		InputCommand.ACTION_BUY:
-			return buy_index(h, cmd.action_arg & 0xFF, cmd.action_arg >> 8)
+			return _shop_result(h, buy_index(h, cmd.action_arg & 0xFF, cmd.action_arg >> 8))
 		InputCommand.ACTION_SELL:
-			return sell(h, cmd.action_arg & 0xFF)
+			return _shop_result(h, _sell_v2(h, cmd.action_arg))
 		InputCommand.ACTION_USE_MEDPACK:
 			return use_medpack(h)
 		InputCommand.ACTION_SPAWN_CHOICE:
 			return set_spawn_choice(h, cmd.action_arg)
 	return HeroProgress.Result.OK
+
+
+## v22 ACTION_SELL arg (InputCommand.UNDO_* layout).
+func _sell_v2(h: HeroBody, arg: int) -> int:
+	if arg == InputCommand.UNDO_LAST:
+		return undo(h, -1)
+	var low := arg & 0xFF
+	if arg & InputCommand.UNDO_ITEM_FLAG:
+		if low & InputCommand.UNDO_ROW_FLAG:
+			return undo(h, -1, low & 0x7F)
+		if not SnapshotData.ProgressState.INV_LOCS.has(low):
+			return HeroProgress.Result.INVALID
+		return undo(h, low)
+	if arg > 0xFF or not SnapshotData.ProgressState.INV_LOCS.has(low):
+		return HeroProgress.Result.INVALID
+	return sell_at(h, low)
+
+
+## Records the outcome of a client Armory request (replicated as
+## ProgressState.shop_seq / shop_result so the HUD shows the real reason).
+func _shop_result(h: HeroBody, r: int) -> int:
+	var p := progress_of(h)
+	p.shop_seq = (p.shop_seq + 1) & 0xFF
+	p.shop_result = r
+	return r
 
 
 # --- Income events ------------------------------------------------------------------
@@ -549,6 +654,7 @@ func _on_hero_died(victim_id: int, killer_id: int) -> void:
 	if victim == null:
 		return
 	var vp := progress_of(victim)
+	vp.death_ticks.append(server.tick)
 	var t := server.tick
 	var kt := 1 - victim.combat.team
 	var killer := _hero_for(killer_id)
@@ -640,9 +746,86 @@ func _last_damager(vp: HeroProgress, t: int, window: int) -> HeroBody:
 	return best
 
 
+# --- Armory advice signals ---------------------------------------------------------
+
+func _on_damage_taken(victim_id: int, amount: float, dtype: int) -> void:
+	var h := server.hero(victim_id)
+	if h == null:
+		return
+	var p := progress_of(h)
+	p.damage_log.append([server.tick, dtype, amount])
+	# Bots never read their signals through fill_own: keep the log bounded here.
+	var from := server.tick - roundi(advice_rules.damage_window_s * server.net.tick_rate_hz)
+	while not p.damage_log.is_empty() and int(p.damage_log[0][0]) < from:
+		p.damage_log.pop_front()
+
+
+## Recomputes `h`'s BuildAdvisor signals (SIG_*) from its recent damage and
+## deaths, its HP, the team's standing and the match clock. Prunes the logs.
+func refresh_signals(h: HeroBody) -> int:
+	var p := progress_of(h)
+	var ar := advice_rules
+	var hz := float(server.net.tick_rate_hz)
+	var t := server.tick
+	var dmg_from := t - roundi(ar.damage_window_s * hz)
+	while not p.damage_log.is_empty() and int(p.damage_log[0][0]) < dmg_from:
+		p.damage_log.pop_front()
+	var weapon := 0.0
+	var skill := 0.0
+	for e in p.damage_log:
+		if int(e[1]) == DamageInfo.Type.WEAPON:
+			weapon += float(e[2])
+		else:
+			skill += float(e[2])
+	var sig := 0
+	var max_hp := h.combat.health.max_hp
+	var need := ar.damage_threshold_frac * max_hp
+	if weapon >= need and weapon >= skill:
+		sig |= SnapshotData.ProgressState.SIG_WEAPON_DAMAGE
+	if skill >= need and skill > weapon:
+		sig |= SnapshotData.ProgressState.SIG_SKILL_DAMAGE
+	var death_from := t - roundi(ar.deaths_window_s * hz)
+	var recent := PackedInt32Array()
+	for d in p.death_ticks:
+		if d >= death_from:
+			recent.append(d)
+	p.death_ticks = recent
+	if recent.size() >= ar.deaths_threshold:
+		sig |= SnapshotData.ProgressState.SIG_DIED_OFTEN
+	if not h.combat.dead and h.combat.health.hp < max_hp * ar.low_health_frac:
+		sig |= SnapshotData.ProgressState.SIG_LOW_HEALTH
+	var team := h.combat.team
+	if team == 0 or team == 1:
+		if deficit(team) >= ar.behind_deficit:
+			sig |= SnapshotData.ProgressState.SIG_TEAM_BEHIND
+		elif team_avg_level(team) - team_avg_level(1 - team) >= ar.ahead_levels:
+			sig |= SnapshotData.ProgressState.SIG_TEAM_AHEAD
+	if server.match_flow != null and server.match_flow.def != null:
+		var now := server.match_seconds()
+		for st in server.match_flow.def.surge_times_s:
+			if st > now and st - now <= ar.objective_soon_s:
+				sig |= SnapshotData.ProgressState.SIG_OBJECTIVE_SOON
+	p.signals = sig
+	return sig
+
+
 # --- Replication --------------------------------------------------------------------
 
 ## Own progress block for `h`'s client; also marks learnable skill slots.
+## Armory v2 public build (items-and-armory.md §3.8 rule 7): catalog index per
+## ProgressState.INV_LOCS place, for SnapshotData.EntityState.build.
+func public_build(h: HeroBody) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(SnapshotData.EntityState.BUILD_SIZE)
+	out.fill(-1)
+	var p := progress_of(h)
+	if not is_v2() or p == null:
+		return out
+	for i in SnapshotData.ProgressState.INV_LOCS.size():
+		out[i] = p.inv.index_at(SnapshotData.ProgressState.INV_LOCS[i])
+	return out
+
+
 func fill_own(s: SnapshotData, h: HeroBody) -> void:
 	var p := progress_of(h)
 	var o := SnapshotData.ProgressState.new()
@@ -663,6 +846,12 @@ func fill_own(s: SnapshotData, h: HeroBody) -> void:
 		var i := catalog.index_of(id)
 		if i >= 0 and i < 32:
 			o.owned_bits |= 1 << i
+			if p.visit_count(id) > 0:
+				o.visit_owned_bits |= 1 << i
+	o.visit_medpacks = p.visit_count(&"med_pack")
+	o.shop_seq = p.shop_seq
+	o.shop_result = p.shop_result
+	o.signals = refresh_signals(h)
 	for i in SnapshotData.ProgressState.MOUNT_SOCKETS.size():
 		var m := p.mount(SnapshotData.ProgressState.MOUNT_SOCKETS[i])
 		if m != null:
@@ -670,6 +859,14 @@ func fill_own(s: SnapshotData, h: HeroBody) -> void:
 			o.mount_tier[i] = m.tier
 			o.mount_paid[i] = m.paid
 			o.mount_paid_visit[i] = m.paid_visit
+	if is_v2():
+		for i in SnapshotData.ProgressState.INV_LOCS.size():
+			var loc: int = SnapshotData.ProgressState.INV_LOCS[i]
+			o.inv_items[i] = p.inv.index_at(loc)
+			var k := p.inv.txn_for(loc)
+			if k >= 0 and not p.inv.is_blocked(k):
+				o.inv_undo_bits |= 1 << i
+		o.inv_txns = p.inv.txns.size()
 	for m in motes:
 		o.motes.append(m.pos)
 	s.progress = o

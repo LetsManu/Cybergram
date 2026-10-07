@@ -16,6 +16,9 @@ extends RefCounted
 var spread_deg: float = 0.0
 var def: WeaponDef
 var recoil_mult: float = 1.0
+## Armory v2 SPREAD_MULT (items-and-armory.md §3.5): scales base, bloom and max,
+## as WeaponSim.spread_mult does on the server.
+var spread_mult: float = 1.0
 ## How long (s) predicted shots may go without an ammo drop before the model
 ## trusts the server and falls back to the base cone.
 const UNCONFIRMED_S: float = 0.5
@@ -48,7 +51,7 @@ func set_weapon(weapon: WeaponDef, force: bool = false) -> void:
 
 ## Respawn / weapon swap: base cone, no recent shot.
 func reset() -> void:
-	spread_deg = def.spread_base_deg if def != null else 0.0
+	spread_deg = def.spread_base_deg * spread_mult if def != null else 0.0
 	_last_shot_tick = -1000000
 	_pending_shots = 0
 	_unconfirmed_s = 0.0
@@ -60,10 +63,11 @@ func step(fired: bool) -> void:
 	if def == null:
 		return
 	if _tick - _last_shot_tick > _recovery_delay_ticks:
-		spread_deg = maxf(def.spread_base_deg, spread_deg - _recovery_per_tick)
+		spread_deg = maxf(def.spread_base_deg * spread_mult, spread_deg - _recovery_per_tick)
+	spread_deg = clampf(spread_deg, def.spread_base_deg * spread_mult, def.spread_max_deg * spread_mult)
 	if fired:
 		_last_shot_tick = _tick
-		spread_deg = minf(def.spread_max_deg, spread_deg + def.spread_bloom_deg * recoil_mult)
+		spread_deg = minf(def.spread_max_deg * spread_mult, spread_deg + def.spread_bloom_deg * recoil_mult * spread_mult)
 		_pending_shots += 1
 	_tick += 1
 

@@ -535,7 +535,7 @@ func test_aurora_floor_lapses_after_2_s() -> void:
 func test_triage_kit_regenerates_a_free_med_pack_every_30_s() -> void:
 	_world()
 	_server.enable_progression(load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef,
-		load("res://assets/data/economy/armory_catalog_slice.tres") as ArmoryCatalogDef)
+		load("res://assets/data/economy/armory_catalog_v22.tres") as ArmoryCatalogDef)
 	var liora := _hero(LIORA, Vector3(0.0, 0.05, 0.0), ServerWorld.TEAM_PLAYERS)
 	await get_tree().physics_frame
 	var p := _server.progression.progress_of(liora)

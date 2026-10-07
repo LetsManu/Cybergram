@@ -1,0 +1,424 @@
+[gd_resource type="Resource" script_class="ArmoryCatalogDef" format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/data/armory_item_def.gd" id="1"]
+[ext_resource type="Script" path="res://src/gameplay/data/armory_catalog_def.gd" id="2"]
+
+[sub_resource type="Resource" id="item_0"]
+script = ExtResource("1")
+id = &"med_pack"
+display_name = "Med-Pack"
+effect_text = "Heal 40% max HP over 3 s; firing cancels. Carry 3."
+kind = 0
+socket = 0
+family = 0
+prices = PackedInt32Array(100)
+carry_limit = 3
+hue = Color(0.4, 1.0, 0.5, 1)
+category = &"supply"
+tags = PackedStringArray("starter", "defensive")
+keywords = PackedStringArray("heal", "health", "potion")
+phase = &"early"
+beginner = true
+explain_key = "HUD_ITEM_X_MED_PACK"
+
+[sub_resource type="Resource" id="item_1"]
+script = ExtResource("1")
+id = &"squad_expansion_1"
+display_name = "Squad Expansion I"
+effect_text = "Squad size +1 (next Foundry visit)."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(800)
+stat = &"squad_capacity_bonus"
+op = 0
+values = PackedFloat32Array(1.0)
+hue = Color(0.6, 0.8, 1, 1)
+category = &"squad"
+tags = PackedStringArray("core", "utility")
+counter_tags = PackedStringArray("frontline")
+keywords = PackedStringArray("wardling", "size")
+phase = &"mid"
+explain_key = "HUD_ITEM_X_SQUAD_EXPANSION"
+
+[sub_resource type="Resource" id="item_2"]
+script = ExtResource("1")
+id = &"squad_expansion_2"
+display_name = "Squad Expansion II"
+effect_text = "Squad size +1 more. Requires I."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(1500)
+stat = &"squad_capacity_bonus"
+op = 0
+values = PackedFloat32Array(1.0)
+requires = &"squad_expansion_1"
+hue = Color(0.6, 0.8, 1, 1)
+category = &"squad"
+tags = PackedStringArray("luxury")
+keywords = PackedStringArray("wardling", "size")
+phase = &"late"
+explain_key = "HUD_ITEM_X_SQUAD_EXPANSION"
+
+[sub_resource type="Resource" id="item_3"]
+script = ExtResource("1")
+id = &"reinforced_cores_1"
+display_name = "Reinforced Cores I"
+effect_text = "Wardling HP +20%."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(350)
+stat = &"wardling_hp_mult"
+op = 1
+values = PackedFloat32Array(0.2)
+hue = Color(0.8, 0.8, 0.8, 1)
+category = &"squad"
+tags = PackedStringArray("core", "defensive")
+keywords = PackedStringArray("wardling", "hp", "tough")
+phase = &"early"
+beginner = true
+explain_key = "HUD_ITEM_X_REINFORCED"
+
+[sub_resource type="Resource" id="item_4"]
+script = ExtResource("1")
+id = &"reinforced_cores_2"
+display_name = "Reinforced Cores II"
+effect_text = "Wardling HP +40% total. Requires I."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(750)
+stat = &"wardling_hp_mult"
+op = 1
+values = PackedFloat32Array(0.2)
+requires = &"reinforced_cores_1"
+hue = Color(0.8, 0.8, 0.8, 1)
+category = &"squad"
+tags = PackedStringArray("defensive")
+keywords = PackedStringArray("wardling", "hp", "tough")
+phase = &"mid"
+explain_key = "HUD_ITEM_X_REINFORCED"
+
+[sub_resource type="Resource" id="item_5"]
+script = ExtResource("1")
+id = &"amplifier_emitters"
+display_name = "Amplifier Emitters"
+effect_text = "Wardling damage +20%."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(700)
+stat = &"wardling_damage_mult"
+op = 1
+values = PackedFloat32Array(0.2)
+hue = Color(1, 0.9, 0.5, 1)
+category = &"squad"
+tags = PackedStringArray("offensive")
+counter_tags = PackedStringArray("squad")
+keywords = PackedStringArray("wardling", "damage")
+phase = &"mid"
+explain_key = "HUD_ITEM_X_AMPLIFIER"
+
+[sub_resource type="Resource" id="item_6"]
+script = ExtResource("1")
+id = &"ember_heart"
+display_name = "Ember Heart"
+effect_text = "Core Crystal: damage +6 / 11 / 16%."
+kind = 2
+socket = 1
+family = 1
+prices = PackedInt32Array(400, 900, 1800)
+stat = &"mod_damage"
+op = 0
+values = PackedFloat32Array(0.06, 0.11, 0.16)
+hue = Color(1.0, 0.62, 0.12, 1)
+category = &"offense"
+tags = PackedStringArray("core", "offensive")
+keywords = PackedStringArray("damage", "crystal")
+phase = &"early"
+beginner = true
+unique_group = &"core_damage"
+explain_key = "HUD_ITEM_X_CORE_DAMAGE"
+
+[sub_resource type="Resource" id="item_7"]
+script = ExtResource("1")
+id = &"flux_coil"
+display_name = "Flux Coil"
+effect_text = "Frame Crystal: regen +15/25/35%, delay -0.1/0.2/0.3 s."
+kind = 2
+socket = 3
+family = 1
+prices = PackedInt32Array(350, 800, 1600)
+stat = &"mana_regen"
+op = 1
+values = PackedFloat32Array(0.15, 0.25, 0.35)
+stat2 = &"regen_delay"
+op2 = 0
+values2 = PackedFloat32Array(-0.1, -0.2, -0.3)
+hue = Color(0.62, 0.35, 1.0, 1)
+category = &"utility"
+tags = PackedStringArray("core", "utility")
+counter_tags = PackedStringArray("sustain")
+keywords = PackedStringArray("mana", "regen", "sustain")
+phase = &"early"
+beginner = true
+explain_key = "HUD_ITEM_X_FLUX"
+
+[sub_resource type="Resource" id="item_8"]
+script = ExtResource("1")
+id = &"overclock"
+display_name = "Overclock"
+effect_text = "Core Chip: damage +6 / 11 / 16%."
+kind = 2
+socket = 1
+family = 2
+prices = PackedInt32Array(400, 900, 1800)
+stat = &"mod_damage"
+op = 0
+values = PackedFloat32Array(0.06, 0.11, 0.16)
+hue = Color(1.0, 0.62, 0.12, 1)
+category = &"offense"
+tags = PackedStringArray("core", "offensive")
+keywords = PackedStringArray("damage", "chip")
+phase = &"early"
+beginner = true
+unique_group = &"core_damage"
+explain_key = "HUD_ITEM_X_CORE_DAMAGE"
+
+[sub_resource type="Resource" id="item_9"]
+script = ExtResource("1")
+id = &"quickload"
+display_name = "Quickload"
+effect_text = "Frame Chip: reload time -12 / 22 / 30%."
+kind = 2
+socket = 3
+family = 2
+prices = PackedInt32Array(350, 800, 1600)
+stat = &"reload_time"
+op = 1
+values = PackedFloat32Array(-0.12, -0.22, -0.3)
+hue = Color(0.62, 0.35, 1.0, 1)
+category = &"utility"
+tags = PackedStringArray("core", "utility")
+keywords = PackedStringArray("reload", "chip")
+phase = &"early"
+beginner = true
+explain_key = "HUD_ITEM_X_QUICKLOAD"
+
+[sub_resource type="Resource" id="item_10"]
+script = ExtResource("1")
+id = &"ammo_piercing"
+display_name = "Piercing"
+effect_text = "Ammo: ignore 40% armor; +25% vs shields."
+kind = 3
+socket = 4
+family = 0
+prices = PackedInt32Array(750)
+ammo_type = 1
+hue = Color(0.55, 0.7, 0.85, 1)
+category = &"offense"
+tags = PackedStringArray("counter", "offensive")
+counter_tags = PackedStringArray("frontline")
+keywords = PackedStringArray("armor", "pierce", "tank")
+phase = &"mid"
+situational = true
+unique_group = &"ammo"
+explain_key = "HUD_ITEM_X_PIERCING"
+
+[sub_resource type="Resource" id="item_11"]
+script = ExtResource("1")
+id = &"ammo_sunder"
+display_name = "Sunder"
+effect_text = "Ammo: +35% vs Wardlings/constructs, -10% vs heroes."
+kind = 3
+socket = 4
+family = 0
+prices = PackedInt32Array(650)
+ammo_type = 2
+hue = Color(0.95, 0.45, 0.15, 1)
+category = &"offense"
+tags = PackedStringArray("counter")
+counter_tags = PackedStringArray("squad")
+keywords = PackedStringArray("wardling", "shred")
+phase = &"mid"
+situational = true
+unique_group = &"ammo"
+explain_key = "HUD_ITEM_X_SUNDER"
+
+[sub_resource type="Resource" id="item_12"]
+script = ExtResource("1")
+id = &"focus_lens"
+display_name = "Focus Lens"
+effect_text = "Barrel Crystal: falloff range +12 / 20 / 30%."
+kind = 2
+socket = 2
+family = 1
+prices = PackedInt32Array(300, 700, 1500)
+stat = &"falloff_range"
+op = 1
+values = PackedFloat32Array(0.12, 0.2, 0.3)
+hue = Color(0.94, 0.94, 0.88, 1)
+category = &"offense"
+tags = PackedStringArray("offensive", "utility")
+counter_tags = PackedStringArray("mobility")
+keywords = PackedStringArray("range", "falloff", "lens")
+phase = &"mid"
+explain_key = "HUD_ITEM_X_RANGE"
+
+[sub_resource type="Resource" id="item_13"]
+script = ExtResource("1")
+id = &"rifling"
+display_name = "Rifling"
+effect_text = "Barrel Chip: falloff range +12 / 20 / 30%."
+kind = 2
+socket = 2
+family = 2
+prices = PackedInt32Array(300, 700, 1500)
+stat = &"falloff_range"
+op = 1
+values = PackedFloat32Array(0.12, 0.2, 0.3)
+hue = Color(0.94, 0.94, 0.88, 1)
+category = &"offense"
+tags = PackedStringArray("offensive", "utility")
+counter_tags = PackedStringArray("mobility")
+keywords = PackedStringArray("range", "falloff")
+phase = &"mid"
+unique_group = &"barrel_chip"
+explain_key = "HUD_ITEM_X_RANGE"
+
+[sub_resource type="Resource" id="item_14"]
+script = ExtResource("1")
+id = &"penetrator"
+display_name = "Penetrator"
+effect_text = "Barrel Chip: armor penetration +10 / 18 / 25% (stacks with Piercing, cap 60%)."
+kind = 2
+socket = 2
+family = 2
+prices = PackedInt32Array(300, 700, 1500)
+stat = &"armor_pen_bonus"
+op = 0
+values = PackedFloat32Array(0.1, 0.18, 0.25)
+hue = Color(0.86, 0.3, 0.82, 1)
+category = &"offense"
+tags = PackedStringArray("counter", "offensive")
+counter_tags = PackedStringArray("frontline")
+keywords = PackedStringArray("armor", "pierce", "tank")
+phase = &"mid"
+situational = true
+unique_group = &"barrel_chip"
+explain_key = "HUD_ITEM_X_PENETRATOR"
+
+[sub_resource type="Resource" id="item_15"]
+script = ExtResource("1")
+id = &"bastion_weave"
+display_name = "Bastion Weave"
+effect_text = "Frame: gunfire damage taken -6 / 10 / 14%. Fits every gun."
+kind = 2
+socket = 3
+family = 0
+prices = PackedInt32Array(300, 700, 1500)
+stat = &"weapon_damage_taken"
+op = 1
+values = PackedFloat32Array(-0.06, -0.1, -0.14)
+hue = Color(0.78, 0.7, 0.55, 1)
+category = &"defense"
+tags = PackedStringArray("defensive", "counter")
+counter_tags = PackedStringArray("weapon_dps", "burst")
+keywords = PackedStringArray("armor", "defense", "tank", "survive")
+phase = &"mid"
+situational = true
+unique_group = &"frame_ward"
+explain_key = "HUD_ITEM_X_BASTION"
+
+[sub_resource type="Resource" id="item_16"]
+script = ExtResource("1")
+id = &"null_weave"
+display_name = "Null Weave"
+effect_text = "Frame: ability damage taken -8 / 13 / 18%. Fits every gun."
+kind = 2
+socket = 3
+family = 0
+prices = PackedInt32Array(300, 700, 1500)
+stat = &"skill_damage_taken"
+op = 1
+values = PackedFloat32Array(-0.08, -0.13, -0.18)
+hue = Color(0.45, 0.85, 0.62, 1)
+category = &"defense"
+tags = PackedStringArray("defensive", "counter")
+counter_tags = PackedStringArray("skill_dps", "zone", "cc")
+keywords = PackedStringArray("magic", "ability", "defense", "survive")
+phase = &"mid"
+situational = true
+unique_group = &"frame_ward"
+explain_key = "HUD_ITEM_X_NULL"
+
+[sub_resource type="Resource" id="item_17"]
+script = ExtResource("1")
+id = &"harmonic_tether"
+display_name = "Harmonic Tether"
+effect_text = "Squad move speed +12%; Follow leash 30 -> 40 m."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(300)
+stat = &"wardling_speed_mult"
+op = 1
+values = PackedFloat32Array(0.12)
+stat2 = &"wardling_leash_bonus"
+op2 = 0
+values2 = PackedFloat32Array(10.0)
+hue = Color(0.95, 0.8, 0.35, 1)
+category = &"squad"
+tags = PackedStringArray("utility")
+counter_tags = PackedStringArray("mobility")
+keywords = PackedStringArray("wardling", "speed", "leash")
+phase = &"early"
+explain_key = "HUD_ITEM_X_TETHER"
+
+[sub_resource type="Resource" id="item_18"]
+script = ExtResource("1")
+id = &"quick_mint"
+display_name = "Quick Mint"
+effect_text = "Mint 0.1 s per Wardling; fresh Wardlings take 25% less damage for 5 s."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(250)
+stat = &"mint_interval_mult"
+op = 1
+values = PackedFloat32Array(-0.8)
+stat2 = &"mint_guard"
+op2 = 0
+values2 = PackedFloat32Array(0.25)
+hue = Color(1.0, 0.82, 0.3, 1)
+category = &"squad"
+tags = PackedStringArray("utility")
+keywords = PackedStringArray("wardling", "mint", "foundry")
+phase = &"early"
+explain_key = "HUD_ITEM_X_QUICK_MINT"
+
+[sub_resource type="Resource" id="item_19"]
+script = ExtResource("1")
+id = &"bulwark_protocol"
+display_name = "Bulwark Protocol"
+effect_text = "While holding or capturing, your Wardlings take 30% less damage."
+kind = 1
+socket = 0
+family = 0
+prices = PackedInt32Array(1400)
+stat = &"wardling_guard_dr"
+op = 0
+values = PackedFloat32Array(0.3)
+hue = Color(0.7, 0.75, 0.6, 1)
+category = &"squad"
+tags = PackedStringArray("defensive", "luxury")
+counter_tags = PackedStringArray("squad", "zone")
+keywords = PackedStringArray("wardling", "hold", "capture", "defense")
+phase = &"late"
+explain_key = "HUD_ITEM_X_BULWARK"
+
+[resource]
+script = ExtResource("2")
+items = Array[ExtResource("1")]([SubResource("item_0"), SubResource("item_1"), SubResource("item_2"), SubResource("item_3"), SubResource("item_4"), SubResource("item_5"), SubResource("item_6"), SubResource("item_7"), SubResource("item_8"), SubResource("item_9"), SubResource("item_10"), SubResource("item_11"), SubResource("item_12"), SubResource("item_13"), SubResource("item_14"), SubResource("item_15"), SubResource("item_16"), SubResource("item_17"), SubResource("item_18"), SubResource("item_19")])

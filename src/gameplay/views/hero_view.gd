@@ -29,6 +29,9 @@ var _status: int = 0
 const DEFAULT_MODEL_ID: StringName = &"ryker"
 var model: HeroModel
 var model_key: StringName = &""
+## Armory v2 public build of this hero (SnapshotData.EntityState.build; the
+## tracer, scoreboard and death card read it).
+var build := PackedInt32Array()
 var team: int = -1
 var _net_id: int = 0
 var _pitch: float = 0.0
@@ -198,6 +201,8 @@ func _attach_model(k: StringName) -> void:
 	model_key = k
 	model = HeroModelLoader.build(k, team)  # W13: rigged glb if present, else the box model
 	add_child(model)
+	if GfxQuality.blob_shadows_enabled(GfxQuality.level()):
+		model.add_child(GfxQuality.make_blob_shadow(0.7))
 	_body.visible = false
 	scale = Vector3.ONE
 
@@ -277,6 +282,10 @@ func _on_snapshot(snap: SnapshotData) -> void:
 			_vel = e.velocity
 			if model != null:
 				model.set_grounded(e.grounded)
+				# Armory v2 public build (items-and-armory.md §3.8): gun parts and
+				# body gear; skipped inside the model while the build is unchanged.
+				model.set_build(e.build)
+			build = e.build
 			if e.team != team:
 				team = e.team
 				if model != null:

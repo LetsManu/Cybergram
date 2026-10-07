@@ -12,6 +12,8 @@
 script = ExtResource("1")
 id = &"hero_juniper_quill"
 display_name = "Juniper Quill"
+roles = PackedStringArray("trapper")
+tags = PackedStringArray("cc", "zone")
 max_hp = 250
 armor = 0.0
 move_speed = 6.0

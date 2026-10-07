@@ -60,7 +60,7 @@ func test_armory_toggles_on_the_interact_action_not_a_fixed_f() -> void:
 	if not InputMap.has_action(&"interact"):
 		GameSettings.shared().apply_bindings()
 	Input.action_release(&"interact")
-	var panel: ArmoryPanel = auto_free(ArmoryPanel.new())
+	var panel: ItemShopPanel = auto_free(ItemShopPanel.new())
 	assert_bool(panel._toggle_edge()).is_false()  # primes the edge tracker (released)
 	Input.action_press(&"interact")
 	var first := panel._toggle_edge()

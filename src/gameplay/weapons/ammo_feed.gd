@@ -13,6 +13,10 @@ var tick_rate_hz: int
 ## E13: the owner's hero StatBlock (Frame mounts: MANA_REGEN, REGEN_DELAY,
 ## RELOAD_TIME). Null = the WeaponDef values.
 var stats: StatBlock
+## Armory v2 Overcharged ammo mod (weapons-and-mods.md §3.7.2): Mana cost and
+## reload time multipliers (1 = none). Set by the server from HeroCombat.ammo_mod.
+var cost_mult: float = 1.0
+var reload_mult: float = 1.0
 
 
 func _init(weapon: WeaponDef, tick_rate: int) -> void:
@@ -38,9 +42,34 @@ func regen_delay_s() -> float:
 	return maxf(0.0, (def.mana_regen_delay_s + stats.get_value(StatCatalog.REGEN_DELAY)) * stats.get_value(StatCatalog.REGEN_DELAY_MULT))
 
 
-## Reload time `t` after mounts (Quickload).
+## Reload time `t` after mounts (Quickload) and Overcharged.
 func reload_time(t: float) -> float:
-	return t * (stats.get_value(StatCatalog.RELOAD_TIME) if stats != null else 1.0)
+	return t * (stats.get_value(StatCatalog.RELOAD_TIME) if stats != null else 1.0) * reload_mult
+
+
+## Armory v2 capacity_mult (items-and-armory.md §3.5: pool / magazine / reserve,
+## cap +60%); 1.0 without stats.
+func capacity_mult() -> float:
+	return stats.get_value(StatCatalog.CAPACITY_MULT) if stats != null else 1.0
+
+
+## `base` scaled by capacity_mult(), rounded down; Mechanical counts gain at least
+## AmmoRulesDef.min_capacity_gain when the bonus is above 0 (§3.5.3 Reservoir Frame).
+func scaled_capacity(base: int, whole_rounds: bool) -> int:
+	var m := capacity_mult()
+	if is_equal_approx(m, 1.0):
+		return base
+	var n := floori(base * m + 1e-4)
+	if whole_rounds and m > 1.0:
+		n = maxi(n, base + DamageMath.rules().min_capacity_gain)
+	return maxi(1 if base > 0 else 0, n)
+
+
+## Shock Overload Disrupted (weapons-and-mods.md §3.7.1) for `duration_ticks`:
+## Mana pauses regen and restarts the delay; Mech adds `penalty_ticks` to the
+## current reload, or to the next one started while Disrupted.
+func disrupt(_tick: int, _duration_ticks: int, _penalty_ticks: int) -> void:
+	pass
 
 
 ## Seconds -> whole ticks (rounded up, at least 1).

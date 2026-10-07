@@ -4,13 +4,14 @@
 *Status: Draft — authored autonomously by systems-designer + economy-designer (modes.automation: autonomous, rigor: minimal). All 8 standard GDD sections are included even though `minimal` requires none, because this system defines damage, prices and caps that other docs will tune against.*
 *Binding source: `design/gdd/game-concept.md` → **## Canon** (C1–C18). Owner intent: `/ideas` → "Weapons".*
 *Sibling docs: `heroes.md` (owns hero HP/armor §3.1, DPS and range bands §3.2, TTK targets §5.2, skills), `wardlings-and-economy.md` (owns the Lumen income curve §17–§18, Wardling drops and squad upgrades), `match-flow-and-map.md` (owns Supply Caches, Barricades, structures), art bible (owns palette and shape language). Values taken from them are cited by section.*
+*Armory v2 (owner-approved 2026-10-07): items, recipes, open item slots, the catalog, shop math and the item caps now live in `items-and-armory.md`. This doc keeps the weapons, sockets, ammo, the damage formula and the TTK targets. Sections replaced by v2 are marked; the v1 tables are kept below as history only.*
 *Consistency pass 2026-10-02: weapon numbers retuned to the `heroes.md` bands and HP/armor (the earlier "[assumed]" values are gone); Ryker's rifle renamed **Breakline AR-7**; Liora's heal-beam alt-fire added (§3.3.1); Supply Cache Mana benefit added; slice reduced to the 2 slice heroes' weapons.*
 
 ---
 
 ## 1. Overview
 
-Every hero carries **one signature weapon** (no weapon swapping, no pickups) and it is their primary damage source (Anti-Pillar: guns are not decoration). Weapons are fed one of two ways (C16): **Mana guns** fire from a recharging pool; **Mechanical guns** fire from magazines backed by a finite reserve. During a match the player spends Lumen at the HQ Armory (C14) to **mount** upgrades physically onto the gun: **Crystals** on Mana guns, **Chips** on Mechanical guns, into fixed **sockets** (Core, Barrel, Frame) plus a **Chamber** that holds one **Ammo Type** and one **Ammo Mod**. Each mount comes in three tiers that map 1:1 to the Armory price bands (Minor / Standard / Major), and every tier changes the weapon's mesh, VFX and sound so an opponent can read your build from across a lane (Pillar 4). Everything resets at match end.
+Every hero carries **one signature weapon** (no weapon swapping, no pickups) and it is their primary damage source (Anti-Pillar: guns are not decoration). Weapons are fed one of two ways (C16): **Mana guns** fire from a recharging pool; **Mechanical guns** fire from magazines backed by a finite reserve. During a match the player spends Lumen at the HQ Armory (C14) to **mount** upgrades physically onto the gun: **Crystals** on Mana guns, **Chips** on Mechanical guns, into fixed **sockets** (Core, Barrel, Frame) plus a **Chamber** that holds one **Ammo Type** and one **Ammo Mod**. Weapon parts are built from recipes (Component → Assembly → Signature, `items-and-armory.md` §3.2); a socket holds a finished part (Assembly or Signature), and components wait in the hero's open item slots until then. Every tier changes the weapon's mesh, VFX and sound so an opponent can read your build from across a lane (Pillar 4). Everything resets at match end.
 
 ## 2. Player Fantasy
 
@@ -75,13 +76,17 @@ Liora heals with mana through her weapon (owner intent; Canon C16 keeps skills o
 
 | Socket | Line | Effect on the beam |
 | ---- | ---- | ---- |
-| Core | Ember Heart, Tempest Shard, Prism Eye | None (damage lines do not change heal output). |
-| Core | Wellspring | Heal-beam assists count as assists, so it refills the pool on them. |
-| Barrel | Focus Lens | Beam lock range +12% / +20% / +30% (18 → 20.2 / 21.6 / 23.4 m; leash scales the same). |
-| Barrel | Stillwater Ring, Velocity Facet | None (bolts only). |
-| Frame | Reservoir | Pool +20 / 35 / 50% → beam from full lasts 4.8 / 5.4 / 6.0 s. |
-| Frame | Flux Coil | Faster regen and shorter delay → more beam uptime between bursts. |
-| Frame | Anchor Crystal | None. |
+*Item names updated to Armory v2 (`items-and-armory.md` §3.5), 2026-10-07.*
+
+| Socket | Item | Effect on the beam |
+| ---- | ---- | ---- |
+| Core | Ember Facet, Pulse Facet, Tempest Heart, Prism Eye; Ember / Tempo components | None (damage and fire-rate stats do not change heal output). |
+| Core | Ember Heart (passive Kindle) | Heal-beam assists count as assists, so Kindle refills 30% of the pool on them. |
+| Barrel | Lens Shard, Longsight Ring, Longsight Lens | Beam lock range +10% / +18% / +30% (18 → 19.8 / 21.2 / 23.4 m; leash scales the same). |
+| Barrel | Bore Ring, Breaker Bore; Steady Shard | None (bolts only). |
+| Frame | Wellframe, Reservoir Frame | Pool +15% / +45% → beam from full lasts 4.6 / 5.8 s. |
+| Frame | Feed Shard, Wellframe, Flux Coil | Faster regen and shorter delay → more beam uptime between bursts. |
+| Frame | Anchor Frame | Pool +15% only. |
 | Chamber | Any Ammo Type / Mod | Never applies to the beam (ammo effects never apply to allies, §3.1). Siphon on bolts still restores mana that the beam can spend. |
 
 The Supply Cache Mana benefit (C5, §3.5) also shortens the beam's regen delay.
@@ -102,7 +107,7 @@ Reference targets are the `heroes.md` §3.1 values at level 1: **225 HP / 0% arm
 
 ¹ 39 hits, so one 1.6 s reload in practice. ² The pool empties first (Whisperfang at 2.9 s, Glitchcaster at 4.5 s), so a Brannoc kill needs a second engagement. ³ Within the ±10% acceptance tolerance of `heroes.md` AC 3.
 
-Global rules: (a) a **fully built** weapon (Tier III Core + matching Barrel/Frame + ammo type) may cut body TTK by **15–25%**, never more; (b) **no weapon may reach a body TTK_ideal below 0.80 s against a level-matched 250 HP target** at any build without an ultimate (the `heroes.md` §5.2 floor); (c) Brannoc TTK must stay ≥ 2.5× the 250 HP TTK for every non-tank weapon (Piercing included).
+Global rules: (a) a hero's **full item build** (sockets, loose components and Chamber, with ammo effects such as Brittle and Burn counted) may cut body TTK by **15–25%**, never more; enforced by the throughput cap `G_hit ≤ 1.333` (`items-and-armory.md` §3.7, §4.3); (b) **no weapon may reach a body TTK_ideal below 0.80 s against a level-matched 250 HP target** at any build without an ultimate (the `heroes.md` §5.2 floor); (c) Brannoc TTK must stay **≥ 2.35×** the 250 HP TTK for every non-tank weapon, penetration at its 0.60 cap included (550 / 0.92 = 598 EHP = 2.39×). *Revised 2026-10-07 (owner): (a) now covers the whole item build; (c) relaxed from 2.5× (which 60% penetration already broke) to 2.35×.* (d) A full **defensive** build lengthens TTK by at most +25% against a full damage build with the counter and +50% without (`items-and-armory.md` §3.7, §4.5).
 
 **Reference structure DPS (used by `match-flow-and-map.md` F4/F9): 80 per hero at mid-match gear.** Derivation: roster mean sustained body DPS ≈ 125 at L1 (§3.3) × L10 1.225 × Tier II Core 1.11 ≈ 170 nominal, × ≈ 0.47 siege uptime (reloads, mana duty cycles, skill casts, repositioning under defender fire) ≈ 80.
 
@@ -122,7 +127,9 @@ Global rules: (a) a **fully built** weapon (Tier III Core + matching Barrel/Fram
 
 ### 3.6 The Mount System
 
-**Principle:** every purchase is a physical object mounted on the gun. No invisible stat item exists (Pillar 4 design test).
+**Principle:** every purchase is a physical object, mounted on the gun or worn on the hero's body. No invisible stat item exists (Pillar 4 design test).
+
+**Armory v2 (2026-10-07):** each socket holds one **finished** weapon part (an Assembly or a Signature, `items-and-armory.md` §3.2). Weapon components wait in the hero's 6 open item slots, shown on the belt, until their part is mounted (`items-and-armory.md` §3.4). Each weapon item is one entry with a Crystal form and a Chip form (§3.3 there). The Weaves no longer use the Frame socket; they became the Plate and Null body-gear lines. §3.6.2 and §3.6.4 rules 2–4 below are replaced by `items-and-armory.md` §3.2 and §3.6.
 
 #### 3.6.1 Sockets (identical layout on all 7 weapons)
 
@@ -136,6 +143,8 @@ Global rules: (a) a **fully built** weapon (Tier III Core + matching Barrel/Fram
 Every weapon is authored with four attach markers (`socket_core`, `socket_barrel`, `socket_frame`, `socket_chamber`) as `Marker3D` nodes in first- and third-person rigs. Mount meshes are shared per family and placed via per-weapon scale/offset presets, so the art cost is *families × tiers*, not *families × tiers × weapons*.
 
 #### 3.6.2 Tiers (rarity) and price bands
+
+*Replaced by Armory v2 (`items-and-armory.md` §3.2): Tier I = Component (250–450), Tier II = Assembly (800–1,100), Tier III = Signature (2,400–3,200), built by recipe, not upgraded in place. The visual signal column below still applies (Component = small, Assembly = medium, Signature = large). v1 text kept as history:*
 
 Each Crystal/Chip is a **line** with three tiers. Tier = rarity = price band. A socket holds one tier of one line.
 
@@ -162,14 +171,18 @@ Enemy build readability: the third-person model shows every mount; the scoreboar
 #### 3.6.4 Buying, swapping and selling rules
 
 1. Mounts are bought, swapped and sold **only inside your own HQ Armory zone** while alive (C6, C14). Not at Forward Beacons. Shop disabled during Sudden Death (C10); mounts are kept into Sudden Death.
-2. **Socket limit:** one mount per socket; one Ammo Type and one Ammo Mod in the Chamber. Crystals only fit Mana guns; Chips only fit Mechanical guns. Lines marked with a weapon restriction (catalog §3.8) are greyed out for other weapons.
-3. **Swap:** buying a different line for an occupied socket automatically sells the held mount (rule 4), then buys the new one. Same rule for Ammo Type and Ammo Mod.
-4. **Sell value:** 100% of Lumen paid if sold during the **same Armory visit** it was bought in (undo; the visit ends when the player leaves the Armory zone or dies). Otherwise **60%** of total Lumen paid for that mount's line (all tiers), rounded down to a multiple of 5.
+*Rules 2–4 are replaced by Armory v2 (`items-and-armory.md` §3.6: recipe purchase, slot check, socket swap with confirm, Signature limit 2, one copy per item id, sell 60% of the recipe total, per-item undo plus Undo last). Their v1 text is kept as history. Rules 1 and 5–7 still apply, to items as well as mounts.*
+
+2. **Socket limit:** one mount per socket; one Ammo Type and one Ammo Mod in the Chamber. Crystals only fit Mana guns; Chips only fit Mechanical guns. Lines marked with a weapon restriction (catalog §3.8) are greyed out for other weapons. *(v2: one finished part per socket; every weapon item fits every gun in its family form.)*
+3. **Swap:** buying a different line for an occupied socket automatically sells the held mount (rule 4), then buys the new one. Same rule for Ammo Type and Ammo Mod. *(v2: same, after a confirm prompt; a held part that is in the new item's recipe is used up instead.)*
+4. **Sell value:** 100% of Lumen paid if sold during the **same Armory visit** it was bought in (undo; the visit ends when the player leaves the Armory zone or dies). Otherwise **60%** of total Lumen paid for that mount's line (all tiers), rounded down to a multiple of 5. *(v2: 60% of the item's recipe total; undo restores used-up parts.)* *Revised 2026-10-07 (owner): Squad upgrades and Med-Packs bought during the current visit can also be undone for 100% (no later sell); a Squad upgrade cannot be undone while an upgrade that requires it is held, and a Med-Pack already used cannot be undone.*
 5. Mounts persist through death and respawn for the rest of the match. A bot that replaces a disconnected player (C1) inherits that player's mounts and Lumen; a reconnecting player gets them back.
 6. **No persistent power:** all mounts, ammo types and Lumen are deleted at match end (Anti-Pillar). Account progression may unlock cosmetic recolours only.
 7. An Ammo Mod requires an Ammo Type in the Chamber. Selling the Ammo Type also sells the Ammo Mod. Swapping the Ammo Type keeps the Mod only if it is compatible with the new type (§3.7.2); otherwise the Mod is sold.
 
 ### 3.7 Ammo Types (Chamber)
+
+*Armory v2 (2026-10-07): all 6 Ammo Types and all 5 Ammo Mods ship in the protocol 22 release, with the effects and prices below unchanged. On a build already at the item cap, Cryo Brittle and Incendiary Burn count toward the 1.333 throughput limit (`items-and-armory.md` §4.3); their statuses still apply in full.*
 
 Mana guns call them **Infusions**; Mechanical guns call them **Rounds**. Same six effects for both families, same prices. The default is **Standard** (free, no effect). Every effect scales with **final damage dealt**, so it works fairly on a 10/s rifle, a 10-pellet shotgun and a 20-tick beam (§4.5).
 
@@ -201,6 +214,8 @@ One Ammo Mod slot per Chamber. A Mod changes **how the loaded Ammo Type behaves*
 "—" = incompatible; the Armory greys the mod out and rule 3.6.4-7 applies on ammo swap.
 
 ### 3.8 Full catalog with prices
+
+> **Replaced by Armory v2 (owner, 2026-10-07).** The release catalog (10 Components, 10 Assemblies, 14 Signatures, 6 Ammo Types, 5 Ammo Mods), its prices, stats, passives and visual tells are in `items-and-armory.md` §3.5; the spending check is §4.7 there. The v1 Crystal, Chip and Weave tables below are **history only** (they match the shipped protocol 21 code until the v2 implementation lands). The Ammo Type and Ammo Mod prices below remain canon.
 
 All prices are list prices; every tier sits inside its band (Tier I Minor 250–400, Tier II Standard 600–900, Tier III Major 1,400–1,800). Effects listed I / II / III. Hue = family colour for art (must avoid team blue/red hue ranges).
 
@@ -234,6 +249,17 @@ All prices are list prices; every tier sits inside its band (Tier I Minor 250–
 | CH-9 | **Quickload** | Frame | Reload time −12% / −22% / −30% | — | 350 / 800 / 1,600 | violet |
 | CH-10 | **Gyro** | Frame | Recoil −15% / −25% / −35% | — | 250 / 650 / 1,400 | amber |
 
+#### Weaves (defensive Frame lines, both families; added 2026-10-07)
+
+A Weave sits in the **Frame** socket, so it replaces the damage Frame (Flux Coil, Quickload, …) instead of stacking on it: the choice is "more damage" or "survive the threat that keeps killing you". Only one Weave can be held (same socket). The Armory's build guides offer a Weave only while the matching threat shows (damage taken in the last 20 s, or enemy heroes tagged for it), and the Frame path then continues on the Weave.
+
+| ID | Line | Socket | Effect (I / II / III) | Restriction | Price I / II / III | Hue |
+| ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| WV-1 | **Bastion Weave** | Frame | Weapon (gunfire) damage taken −6% / −10% / −14% (after armor) | — | 300 / 700 / 1,500 | steel |
+| WV-2 | **Null Weave** | Frame | Ability damage taken −8% / −13% / −18% (after armor) | — | 300 / 700 / 1,500 | pale cyan |
+
+Rationale: Tier III Bastion (−14%) is worth about a 16% longer TTK against gunfire, the same size as the Tier III damage Core it gives up a Frame line for, and well under the 25% build cap (§3.4). Null Weave is a little stronger per tier because ability damage arrives in fewer, larger hits. TRUE damage ignores both.
+
 #### Ammo Types and Ammo Mods (both families; not tiered)
 
 | ID | Item | Kind | Band | Price |
@@ -252,13 +278,17 @@ All prices are list prices; every tier sits inside its band (Tier I Minor 250–
 | MD-5 | Overcharged | Ammo Mod | Minor | 350 |
 | — | Med-Pack (consumable, reference) | Consumable | fixed | 100 |
 
-Catalog size: 10 Crystal lines + 10 Chip lines (60 tier entries), 6 Ammo Types, 5 Ammo Mods.
+Catalog size: 10 Crystal lines + 10 Chip lines + 2 Weaves (66 tier entries), 6 Ammo Types, 5 Ammo Mods.
 
 #### Spending budget (economy check)
+
+*Replaced by `items-and-armory.md` §4.7: a full item build (2 Signatures, the other sockets and open slots with Assemblies, Chamber) costs about **11,850–12,600**, the 30-min Lumen of a strong player. v1 text kept as history:*
 
 A full weapon build costs `Core III + Barrel III + Frame III + Ammo Type + Ammo Mod` = **5,350–6,150 Lumen**, i.e. **60–69%** of the ≈8,970 Lumen an average player earns in 30 minutes (`wardlings-and-economy.md` §18). The remaining ~2,800–3,600 goes to Wardling squad upgrades/variants and Med-Packs (owned by `wardlings-and-economy.md`). The design intent: a player who spends only on the gun is fully built around minute 20–22; a balanced spender completes the gun at ~28–32 min. Target: **no player completes both a full gun and a maxed squad before 30:00** in median telemetry. The shop is an exhaustible sink (≤ 6,150 on the gun), so Lumen earned after a full build only has squad and Med-Pack sinks; this is acceptable because it coincides with Surge II and the end of a typical match.
 
 ### 3.9 Build examples
+
+*Superseded by Armory v2: the items below are v1 lines. The v2 reference build and average timeline are in `items-and-armory.md` §4.7; per-hero guides are generated by `tools/armory/build_guides.py` when v2 is implemented.*
 
 Lumen timeline: the average-player curve in `wardlings-and-economy.md` §18 (single source): purse **500**, trickle 40/min, about **1,550 by 5:00, 2,880 by 10:00, 5,790 by 20:00, 8,970 by 30:00**. Purchases happen on HQ visits. The examples are gun-first spenders; a balanced spender (≈60% gun, §3.8) reaches each step a few minutes later.
 
@@ -276,17 +306,19 @@ Plays as: deletes Ward Generators, traps and enemy squads on Breach/Hold tasks; 
 
 ### 3.10 Vertical slice subset (M1)
 
+*Superseded for the catalog by Armory v2: protocol 22 ships the full v2 catalog and all ammo in one release (`items-and-armory.md` §3.5, §3.11). The weapon and hero scope below is history of M1.*
+
 **Decided (consistency pass 2026-10-02, R5; CC1 accepted):** the M1 slice ships the **minimal mount pipeline** below, because a shop with only squad upgrades and Med-Packs cannot test spend pacing or Pillar 4. The slice heroes are **Vesper Loom and Brannoc** (`heroes.md` §11), so it ships their two weapons only.
 
 | In slice | Content |
 | ---- | ---- |
 | Weapons | 2: **Threadcaster** (Vesper, Mana) and **Ironmaw** (Brannoc, Mechanical) |
-| Sockets | Core + Frame + Chamber (no Barrel socket in slice) |
-| Lines | Crystals: Ember Heart, Flux Coil. Chips: Overclock, Quickload. All 3 tiers each. |
+| Sockets | Core + Barrel + Frame + Chamber (Barrel added 2026-10-07) |
+| Lines | Crystals: Ember Heart, Flux Coil, Focus Lens. Chips: Overclock, Quickload, Rifling, Penetrator. Weaves: Bastion, Null. All 3 tiers each. |
 | Ammo | Piercing, Sunder. No Ammo Mods. |
 | Visuals | Greybox mounts: one primitive mesh per line, scaled by tier, emissive per tier; ammo tracer colour. No unique sounds; one generic "mount" pitch layer per tier. |
 | Rules | Full buy / upgrade-in-place / sell / undo rules; death persistence; reset at match end. |
-| Out of slice | Breakline AR-7, Halo Repeater (and its heal beam), Tackhammer, Whisperfang, Glitchcaster (they arrive with their heroes in M3/M4); Barrel socket, Ammo Mods, Incendiary/Shock/Siphon/Cryo, remaining lines, final mount art and audio, scoreboard build icons. Supply Caches arrive in M3. |
+| Out of slice | Breakline AR-7, Halo Repeater (and its heal beam), Tackhammer, Whisperfang, Glitchcaster (they arrive with their heroes in M3/M4); the other Barrel lines (Stillwater, Velocity, Stabilizer), Ammo Mods, Incendiary/Shock/Siphon/Cryo, remaining lines, final mount art and audio, scoreboard build icons. Supply Caches arrive in M3. |
 
 ---
 
@@ -294,24 +326,32 @@ Plays as: deletes Ward Generators, traps and enemy squads on Breach/Hold tasks; 
 
 ### 4.1 Final damage per hit
 
-`D_final = D_base × L(level) × F(d) × H × S_skill × (1 + M_dmg) × A_mult × V_mult × B_brittle`
+`D_final = D_base × L(level) × F(d) × H × min(2.25, S_skill × G_hit) × A_mult × V_mult × B_brittle`
+
+`G = (1 + min(0.25, M_dmg)) × (1 + min(0.15, M_rate))`; `G_hit = min(G, 1.333 / (B_brittle × (1 + b_burn)))`
+
+*Revised 2026-10-07 (Armory v2, owner-approved; full definitions in `items-and-armory.md` §4.3). `M_rate` changes the shot interval, not the hit; it is in `G` for the cap only, and the server takes any excess off the damage part. Before v2 the formula was `… × S_skill × (1 + M_dmg) × …`.*
 
 | Symbol | Type | Range | Description |
 | ---- | ---- | ---- | ---- |
 | D_base | float | 5–90 | Weapon `damage` per hit / pellet / tick (§3.3) |
 | L | float | 1.00–1.35 | Level multiplier (§4.2) |
 | F(d) | float | 0.50–1.00 | Falloff multiplier at distance d (§4.3) |
-| H | float | 1.0 or 1.0–2.70 | 1.0 body; `headshot_mult` (+Prism/Solver up to +0.45) head |
+| H | float | 1.0 or 1.0–2.55 | 1.0 body; `headshot_mult` (+Prism Eye / Ballistic Solver +0.30, the only item source) head |
 | S_skill | float | 1.00–1.80 | Hero-skill weapon bonuses (Shadowgraph, Ambush, Eclipse, Overdrive, Momentum, Overcharge…), additive with each other and **clamped at 1.80** (`heroes.md` §5.3) |
-| M_dmg | float | 0–0.25 | Sum of additive **mod** damage bonuses (Core +0.16 max, Uplink Breaker, …); **capped at +0.25**; applied after the skill clamp (`heroes.md` §5.3) |
-| A_mult | float | 0.30–1.0 | `1 − min(0.70, A_eff + DR)`: armor and damage reduction are flat percentages, total clamped at 0.70 (`heroes.md` §3.1, §5.1) |
-| A_eff | float | 0–0.20 | `A × (1 − min(0.60, P))`, A = target armor % (0 for most heroes, 0.20 Brannoc; `heroes.md` §3.1), P = Piercing + Penetrator |
+| M_dmg | float | 0–0.25 | Sum of additive item damage bonuses (sockets and loose components, `items-and-armory.md` §3.5); **capped at +0.25**; applied after the skill clamp (`heroes.md` §5.3) |
+| M_rate | float | 0–0.15 | Sum of item fire-rate bonuses; capped at +0.15 |
+| G, G_hit | float | 1.00–1.333 | Item throughput; `G_hit` keeps `G × B_brittle × (1 + b_burn) ≤ 1.333` (offense bound, §3.4 rule a) |
+| b_burn | float | 0 or 0.12–0.18 | Burn-pool share of this hit from the shooter's Incendiary (×Pot) |
+| A_mult | float | 0.30–1.0 | Weapon hit: `1 − min(0.70, A_w + DR)`; skill hit: `1 − min(0.70, A_s + DR)`; TRUE damage: 1. Flat percentages, total clamped at 0.70 (`heroes.md` §3.1, §5.1) |
+| A_w | float | 0–0.40 | `(A + max(0, min(0.20, A_gear) − Rend)) × (1 − min(0.60, P))`, A = base hero armor (0 for most heroes, 0.20 Brannoc; `heroes.md` §3.1), A_gear = item Armor, Rend = Breaker Bore stacks (≤ 0.08), P = Piercing (+mod) + Bore items. Penetration cuts base and gear armor. |
+| A_s | float | 0–0.40 | `A + min(0.20, R_gear)`, R_gear = item Resist (skill damage only; no penetration) |
 | DR | float | 0–0.50 | Active damage reduction from skills (Fortify, Anchor, Bastion…; `heroes.md` §5.1) |
 | V_mult | float | 0.90–1.35 | Target-class modifier (Sunder: 1.35 constructs, 1.20 structures, 0.90 heroes; else 1.0) |
 | B_brittle | float | 1.0 or 1.08 | Cryo Brittle |
 | D_final | float | ≥ 0.9 (clamped ≥ 1 for display) | Damage applied |
 
-Output range: min ≈ 5 × 1.0 × 0.75 × 1.0 × 1.0 × 1.0 × 0.30 × 0.90 ≈ 1.0 (Hex first tick at range vs a Fortified Brannoc, with Sunder); max ≈ 90 × 1.35 × 1 × 2.45 × 1.80 × 1.25 × 1.0 × 1.0 × 1.08 ≈ 724 (theoretical: Tackhammer headshot, L15, Ballistic Solver III, skill clamp, Brittle). No division. Never negative (A_mult ≥ 0.30).
+Output range: min ≈ 5 × 1.0 × 0.75 × 1.0 × 1.0 × 1.0 × 0.30 × 0.90 ≈ 1.0 (Hex first tick at range vs a Fortified Brannoc, with Sunder); max ≈ 90 × 1.35 × 1 × 2.30 × (1.80 × 1.234) × 1.0 × 1.0 × 1.08 ≈ 670 (theoretical: Tackhammer headshot, L15, Ballistic Solver, skill clamp, capped items on a Brittle target; v1 max was ≈ 724). No division. Never negative (A_mult ≥ 0.30).
 
 **Worked example:** Ryker, level 10, Overclock III, Piercing, 30 m, body, vs Brannoc (A = 0.20).
 L = 1 + 0.025 × 9 = 1.225; F(30) = 1 − 0.4 × (8/18) = 0.822; A_eff = 0.20 × 0.6 = 0.12 → A_mult = 0.88.
@@ -347,6 +387,8 @@ Because accumulation is proportional to damage, proc rate ∝ DPS regardless of 
 Threadcaster: T_fire = 100/24 = 4.17 s; T_refill = 1.0 + 2.86 = 3.86 s; uptime 52%. With Flux Coil III: regen 47.25, delay 0.7 → T_refill 2.82 s, uptime 60%. Burnout multiplies regen_delay by 1.5; a Supply Cache touch (C5) multiplies it by 0.5 for 10 s. Halo heal beam: T_fire = 100/25 = 4.0 s; T_refill = 0.8 + 2.5 = 3.3 s; uptime 55% (≈ 33 HP/s sustained to one hero at L1).
 
 ### 4.7 Shop math
+
+*Replaced by Armory v2: recipe price `RemainingCost`, slot count and sell value are in `items-and-armory.md` §4.1, §4.2 and §4.4 (sell = 60% of the recipe total, rounded down to 5). v1 text kept as history:*
 
 `UpgradeCost = list(tier_new) − list(tier_held)` (held tier of the same line; 0 if empty).
 `SellValue = 100% × paid` (same Armory visit) else `floor(0.6 × paid_line_total / 5) × 5`.
@@ -390,7 +432,8 @@ Example: Overclock I (400) → II pays 500 → III pays 900; total paid 1,800; s
 | ---- | ---- | ---- |
 | `game-concept.md` Canon C5, C6, C7, C10, C14, C16, C17 | This doc obeys | Supply Cache refill, Armory-only shopping, Uplink immune to effects, Sudden Death gear rules, Lumen sink, Crystals/Chips split. |
 | `heroes.md` | Both | heroes.md supplies HP and armor (§3.1), DPS and range bands (§3.2), HP-per-level (§3.3), TTK targets (§5.2), skill-bonus clamp (§5.3), cleanse/stealth/slow rules and Liora's heal-beam intent; it references this doc's weapon names and stats and the 40% slow cap. |
-| `wardlings-and-economy.md` | Both | It supplies the Lumen income curve (§17–§18, single source) and Ammo Spark drop rate (§12); it references this doc's gun spend (5,350–6,150 per full build) when sizing squad-upgrade prices, and Sunder/Shock/Volatile as Wardling counters. |
+| `wardlings-and-economy.md` | Both | It supplies the Lumen income curve (§17–§18, single source) and Ammo Spark drop rate (§12); it references the full item build (≈ 11,850–12,600, `items-and-armory.md` §4.7; v1 gun spend was 5,350–6,150) when sizing squad-upgrade prices, and Sunder/Shock/Volatile as Wardling counters. |
+| `items-and-armory.md` | Both | Owns items, recipes, open slots, catalog, shop math, item caps and the defense bound; uses this doc's sockets, ammo, damage formula and TTK targets. |
 | Art bible | Both | It owns family hues (must avoid team blue/red), tier silhouettes and mount meshes; it must implement the 4 attach markers and the tier channels in §3.6.2–3.6.3. |
 | `match-flow-and-map.md` | Both | It supplies Supply Cache, Barricade and Ward Generator rules (C5); this doc supplies the reference structure DPS (80 per hero, §3.4) for F4/F9 and Sunder/Piercing vs structures. |
 | HUD / UX (future) | This → | Pool / magazine / reserve display, Burnout state, status icons (Burn, Charge, Chill, Brittle, Scorched, Disrupted), scoreboard mount icons, death card. |
@@ -414,34 +457,35 @@ Example: Overclock I (400) → II pays 500 → III pays 900; total paid 1,800; s
 | Supply Cache refill rate (Mech) | 25%/s | 10–50%/s | Mechanical sustain near held nodes |
 | Supply Cache Mana buff: regen-delay cut / duration / per-hero cooldown | −50% / 10 s / 8 s (C5) | −25–75% / 5–15 s / 5–15 s | Mana sustain near held nodes |
 | Heal beam: hero / Wardling heal, mana drain, range | 60 / 30 HP/s, 25 mana/s, 18 m | 45–75 / 20–40, 20–30, 15–22 m | Liora's sustain vs her own DPS |
-| Tier power share | 40 / 70 / 100% | ±10 pts each | Value of early vs late buys |
-| Sell rate | 60% | 50–75% | Cost of experimenting / adapting |
+| Tier power share | 40 / 70 / 100% | ±10 pts each | Value of early vs late buys. *v2: moved to `items-and-armory.md` §7.* |
+| Sell rate | 60% | 50–75% | Cost of experimenting / adapting. *v2: `items-and-armory.md` §7.* |
 | Ammo potency (Burn 12%, Shock 0.6, Siphon 8%, Cryo 0.5, Sunder 35%, Pierce 40%) | §3.7.1 | ±30% each | Ammo strength |
 | Shock Overload ICD | 3 s | 2–5 s | Teamfight chain spam |
 | Cryo slow max | 25% | 15–30% | Kiting frustration |
 | Uplink ammo immunity | on | on/off | Siege length (keep on; Canon C7) |
-| Price per tier | §3.8 | Inside band only | Build pacing |
+| Price per tier | §3.8 | Inside band only | Build pacing. *v2: item prices, combine costs and caps are in `items-and-armory.md` §7.* |
+| Brannoc EHP ratio vs 250 HP (rule c) | ≥ 2.35× (owner 2026-10-07) | 2.3–2.5× | Tank survival vs penetration |
 
 ---
 
 ## 8. Acceptance Criteria
 
 1. In a test range, each weapon's unmodded body TTK vs 225 HP, 250 HP and Brannoc (550 HP, 20% armor) dummies at optimal range is within its §3.4 / `heroes.md` §5.2 band (±10%, automated test).
-2. With any combination of mounts, ammo and Ammo Mod, body TTK_ideal vs a level-matched 250 HP target is never below 0.80 s without an ultimate (automated sweep over all valid builds).
-3. Every catalog entry's price sits inside its band; Tier I/II/III map to Minor/Standard/Major; Ammo Types are Standard, Ammo Mods Minor (data validation test).
+2. With any combination of items, ammo and Ammo Mod, body TTK_ideal vs a level-matched 250 HP target is never below 0.80 s without an ultimate and never below 0.75 × the unmodded TTK, ammo effects included (automated sweep over all valid builds; `items-and-armory.md` AC 9).
+3. Every catalog entry's price sits inside its band; Ammo Types are Standard, Ammo Mods Minor (data validation test). *v2: item bands per tier are checked by `items-and-armory.md` AC 1.*
 4. Buying any Crystal/Chip tier changes the first-person and third-person weapon model within 1 frame of purchase; QA can identify each socket's tier from 20 m in third person by size/glow alone (screenshot review, greyscale pass).
 5. Crystals cannot be bought for a Mechanical gun and vice versa; restricted lines are greyed for other weapons.
 6. Purchases are impossible outside the own HQ Armory zone, at Forward Beacons, and during Sudden Death.
 7. Selling within the same Armory visit refunds 100%; after leaving and re-entering, 60% rounded down to 5.
-8. Upgrading Overclock I → III charges 400 + 500 + 900 = 1,800 total.
+8. *(v1; replaced by `items-and-armory.md` AC 2: Ember Heart costs 2,550 from nothing, 1,550 with Ember Facet mounted.)* Upgrading Overclock I → III charges 400 + 500 + 900 = 1,800 total.
 9. Emptying a Mana pool triggers Burnout (regen delay ×1.5) and the crystals visibly go dark; the crackle is audible at 15 m and not at 20 m.
 10. Standing in a held Supply Cache refills a Mechanical reserve from 0 to full in 4 s ±0.1 s. A Mana hero touching it gets `regen_delay` ×0.5 for 10 s ±0.1 s, and touching it again within 8 s does nothing.
-16. Halo Repeater heal beam: heals an allied hero at 60 HP/s ±2% (L1), a Wardling at 30 HP/s, drains 25 mana/s from the shared pool, drains nothing on a full-HP target, and its heal output is unchanged by any Core damage line or Ammo Type; with Reservoir III a full-pool beam lasts 6.0 s ±0.1 s.
+16. Halo Repeater heal beam: heals an allied hero at 60 HP/s ±2% (L1), a Wardling at 30 HP/s, drains 25 mana/s from the shared pool, drains nothing on a full-HP target, and its heal output is unchanged by any Core damage line or Ammo Type; with Reservoir Frame (pool +45%) a full-pool beam lasts 5.8 s ±0.1 s (v1: Reservoir III, 6.0 s).
 11. The Mana Uplink takes base damage only from any ammo type (no Burn, no Sunder bonus).
 12. Shock Overload cannot proc on the same target from the same shooter more than once per 3 s.
 13. Cryo never reduces a target's move speed by more than 25% from Cryo alone.
 14. At match end all mounts, ammo types and Lumen are cleared; the next match starts every weapon unmodded.
-15. Median telemetry from 20+ bot matches: full gun build completes at 24–32 min; no player completes a full gun + max squad before 30:00.
+15. Median telemetry from 20+ bot matches: no player completes a full item build + max squad before 30:00. *(v2: full-build timing targets are `items-and-armory.md` AC 15–17; v1 said "full gun build completes at 24–32 min".)*
 
 ---
 

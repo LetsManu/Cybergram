@@ -12,6 +12,8 @@
 script = ExtResource("1")
 id = &"hero_hex"
 display_name = "Hex"
+roles = PackedStringArray("hacker")
+tags = PackedStringArray("skill_dps", "zone")
 max_hp = 250
 armor = 0.0
 move_speed = 6.0

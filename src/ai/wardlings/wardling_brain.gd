@@ -175,7 +175,7 @@ func perceive() -> Percept:
 			p.out_of_leash = d > rules.capture_leash_m
 			p.returned = d <= sq.capture_radius
 		_:
-			p.out_of_leash = d > rules.follow_leash_m
+			p.out_of_leash = d > rules.follow_leash_m + sq.leash_bonus_m
 			p.returned = d <= rules.return_fire_m
 	return p
 
@@ -295,7 +295,7 @@ func _leash_radius(focused: bool) -> float:
 			return rules.hold_slot_radius_m + rules.hold_engage_m
 		Squad.CMD_CAPTURE:
 			return rules.capture_leash_m
-	return rules.follow_leash_m
+	return rules.follow_leash_m + sq.leash_bonus_m
 
 
 func _march() -> void:
