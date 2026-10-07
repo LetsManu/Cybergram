@@ -1335,10 +1335,7 @@ static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:
 	o.max_hp = ceili(c.health.max_hp)
 	o.dead = c.dead
 	o.respawn_tick = c.respawn_tick
-	# Armory v2 Lattice overshield for the HUD: filled once OwnCombat carries the
-	# field (snippet in the C3 report).
-	if "overshield" in o:
-		o.set("overshield", ceili(c.health.overshield))
+	o.overshield = ceili(c.health.overshield)  # Armory v2 Lattice overshield (HUD)
 	if c.weapon != null:
 		var f := c.weapon.feed
 		o.feed_kind = c.weapon.def.feed_kind

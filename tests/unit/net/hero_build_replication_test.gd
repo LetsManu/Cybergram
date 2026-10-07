@@ -92,3 +92,12 @@ func test_own_combat_weapon_multipliers_round_trip() -> void:
 	assert_float(d.weapon_kick_mult).is_equal_approx(0.35, 0.005)
 	c.weapon_rate_mult = 9.0
 	assert_float(SnapshotCodec.own_combat_from(SnapshotCodec.own_combat_blob(c)).weapon_rate_mult).is_equal(2.55)
+
+
+## C3: the Lattice overshield rides in OWN_COMBAT as a u16.
+func test_own_combat_overshield_round_trip() -> void:
+	var c := SnapshotData.OwnCombat.new()
+	c.overshield = 80
+	assert_int(SnapshotCodec.own_combat_from(SnapshotCodec.own_combat_blob(c)).overshield).is_equal(80)
+	c.overshield = 0
+	assert_int(SnapshotCodec.own_combat_from(SnapshotCodec.own_combat_blob(c)).overshield).is_equal(0)

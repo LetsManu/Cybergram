@@ -79,6 +79,8 @@ class OwnCombat:
 	var weapon_spread_mult: float = 1.0
 	var weapon_recoil_mult: float = 1.0   # skill (WeaponSim.recoil_mult): view kick and server bloom
 	var weapon_kick_mult: float = 1.0     # item RECOIL_MULT: view kick only
+	## Armory v2 Lattice overshield points left (items-and-armory.md §3.5.3 SG-G4; HUD).
+	var overshield: int = 0
 	## E10 skill bar, per slot S1/S2/S3/Ult: ticks of cooldown left, cooldown
 	## length (ticks) and AbilityRunner.FLAG_* (locked, active, casting).
 	var skill_cd_left: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])

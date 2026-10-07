@@ -37,7 +37,8 @@ extends RefCounted
 ##   u8 feed, f32 ammo, u16 capacity, u16 reserve, u8 ammo flags, 4 x [u16 cd
 ##   left, u16 cd total, u8 flags], u16 shield, u8 level, u16 status, then (v22, C2
 ##   prediction parity) u8 x 4 weapon rate / spread / recoil / kick multipliers in
-##   hundredths, appended after the v16 bytes so earlier offsets stay put: 48 B);
+##   hundredths, appended after the v16 bytes so earlier offsets stay put, then
+##   (v22, C3) u16 Lattice overshield: 50 B);
 ##   FRONTS u8 n + n x i8; PROGRESS / MATCH as in v15 without the presence
 ##   byte (the MATCH payload carries clock 0, the clock follows the blob).
 ## Positions are 1/32 m in i16: +-1023 m covers the maps (Front spans 160 x 415 m).
@@ -46,9 +47,11 @@ const HEADER_SIZE: int = 16
 const FLAG_HAS_OWN: int = 1
 const FLAG_DELTA: int = 2
 const OWN_MOTOR_SIZE: int = 44
-const OWN_COMBAT_SIZE: int = 48
+const OWN_COMBAT_SIZE: int = 50
 ## v22 C2: first of the 4 weapon multiplier bytes in OWN_COMBAT.
 const OWN_MULT_OFF: int = 44
+## v22 C3: u16 Lattice overshield in OWN_COMBAT.
+const OWN_OVERSHIELD_OFF: int = 48
 
 ## Keyed sections.
 const SEC_HERO: int = 0
@@ -377,6 +380,7 @@ static func own_combat_blob(c: SnapshotData.OwnCombat) -> PackedByteArray:
 	var mults := [c.weapon_rate_mult, c.weapon_spread_mult, c.weapon_recoil_mult, c.weapon_kick_mult]
 	for i in mults.size():
 		b.encode_u8(OWN_MULT_OFF + i, q_mult(mults[i]))
+	b.encode_u16(OWN_OVERSHIELD_OFF, clampi(c.overshield, 0, 65535))
 	return b
 
 
@@ -409,6 +413,7 @@ static func own_combat_from(b: PackedByteArray) -> SnapshotData.OwnCombat:
 	c.weapon_spread_mult = b.decode_u8(OWN_MULT_OFF + 1) / 100.0
 	c.weapon_recoil_mult = b.decode_u8(OWN_MULT_OFF + 2) / 100.0
 	c.weapon_kick_mult = b.decode_u8(OWN_MULT_OFF + 3) / 100.0
+	c.overshield = b.decode_u16(OWN_OVERSHIELD_OFF)
 	return c
 
 
