@@ -75,6 +75,13 @@ func _mounts(client: ClientWorld, at: Vector2) -> void:
 	var items := client.mount_items()
 	var p := client.progress
 	var a := idle_a(0.42)
+	# Armory v2 (items-and-armory.md §3.8 rule 7): the 3 sockets + Chamber (type,
+	# mod) from inv_items, tier by glyph size + pips + ring, never colour alone.
+	if p != null and BuildIcons.has_any(p.inv_items):
+		var cell := minf(39.0, (W - 4.0 * 39.0 * BuildIcons.GAP_RATIO) / 5.0)
+		BuildIcons.draw_strip(self, p.inv_items, ScoreboardModel.build_catalog(client), at, cell, maxf(a, 0.75),
+			SnapshotData.EntityState.B_OPEN0)
+		return
 	# Only sockets the catalog sells for (the Barrel slot stays hidden until
 	# Barrel lines exist).
 	var slots: Array[int] = []
