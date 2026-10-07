@@ -55,6 +55,12 @@ const ACTION_BUY: int = 2
 ## this Armory visit (v21).
 const ACTION_SELL: int = 3
 const UNDO_ITEM_FLAG: int = 0x100
+## v22 Armory v2 ACTION_SELL args: the low byte is an inventory place
+## (ProgressState.INV_LOCS value) to sell; UNDO_ITEM_FLAG | place undoes the
+## purchase that put the item there; UNDO_ITEM_FLAG | UNDO_ROW_FLAG | index
+## undoes a squad upgrade / Med-Pack; UNDO_LAST reverts the last change.
+const UNDO_ROW_FLAG: int = 0x80
+const UNDO_LAST: int = 0x200
 const ACTION_USE_MEDPACK: int = 4
 ## arg = HeroProgress.SPAWN_*.
 const ACTION_SPAWN_CHOICE: int = 5

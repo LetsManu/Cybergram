@@ -83,7 +83,8 @@ const _HF_LOCKED1: int = 16
 const _MATCH: int = 1 + 4 + 4 + 1 + 1 + 1
 const _UPLINK: int = 10
 ## v21: + shop seq/result, visit squad bits (u32), visit Med-Packs, signals; 4 mount slots.
-const _PROGRESS: int = 1 + 4 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + 4 * 6 + 1
+## v22: + 11 inventory places (s8), undo bits (u16), visit transactions (u8).
+const _PROGRESS: int = 1 + 4 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + 4 + 1 + 1 + 4 * 6 + 11 + 2 + 1 + 1
 const _MOTE: int = 6
 
 
@@ -955,6 +956,12 @@ static func _encode_progress(b: PackedByteArray, off: int, s: SnapshotData) -> i
 		b.encode_u16(off + 2, clampi(p.mount_paid[i], 0, 65535))
 		b.encode_u16(off + 4, clampi(p.mount_paid_visit[i], 0, 65535))
 		off += 6
+	for i in SnapshotData.ProgressState.INV_LOCS.size():
+		b.encode_s8(off + i, clampi(p.inv_items[i], -1, 127))
+	off += SnapshotData.ProgressState.INV_LOCS.size()
+	b.encode_u16(off, p.inv_undo_bits & 0xFFFF)
+	b.encode_u8(off + 2, clampi(p.inv_txns, 0, 255))
+	off += 3
 	var n := mini(p.motes.size(), 255)
 	b.encode_u8(off, n)
 	off += 1
@@ -993,6 +1000,12 @@ static func _decode_progress(b: PackedByteArray, off: int, s: SnapshotData) -> i
 		p.mount_paid[i] = b.decode_u16(off + 2)
 		p.mount_paid_visit[i] = b.decode_u16(off + 4)
 		off += 6
+	for i in SnapshotData.ProgressState.INV_LOCS.size():
+		p.inv_items[i] = b.decode_s8(off + i)
+	off += SnapshotData.ProgressState.INV_LOCS.size()
+	p.inv_undo_bits = b.decode_u16(off)
+	p.inv_txns = b.decode_u8(off + 2)
+	off += 3
 	var n := b.decode_u8(off)
 	off += 1
 	if b.size() < off + n * _MOTE:

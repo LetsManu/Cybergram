@@ -33,6 +33,8 @@ class Mote:
 var server: ServerWorld
 var rules: EconomyRulesDef
 var catalog: ArmoryCatalogDef
+## Cached is_v2() (-1 = not computed).
+var _v2: int = -1
 var map_def: MapDef
 var progress: Dictionary = {}  # hero net id -> HeroProgress
 var motes: Array[Mote] = []
@@ -260,8 +262,53 @@ func buy_index(h: HeroBody, index: int, tier: int = 0) -> int:
 	if debug_shop_anywhere and not h.combat.dead:
 		p.at_armory = true
 	var before := p.lumen
-	var r := Armory.buy(p, h.combat, catalog, index, tier, rules)
+	var r := ItemShop.buy(p, h.combat, catalog, index, rules) if is_v2() else \
+		Armory.buy(p, h.combat, catalog, index, tier, rules)
 	_log_armory(h, "buy", index, tier, r, before, p.lumen)
+	return r
+
+
+## True when the catalog is the Armory v2 recipe catalog (items-and-armory.md):
+## purchases go through ItemShop and the inventory is replicated.
+func is_v2() -> bool:
+	if _v2 < 0:
+		_v2 = 0
+		if catalog != null:
+			for it in catalog.items:
+				if it != null and it.tier != ArmoryItemDef.Tier.NONE:
+					_v2 = 1
+					break
+	return _v2 == 1
+
+
+## v2: sells the item at inventory place `loc` (ItemInventory.LOC_*).
+func sell_at(h: HeroBody, loc: int) -> int:
+	var p := progress_of(h)
+	if debug_shop_anywhere and not h.combat.dead:
+		p.at_armory = true
+	var index := p.inv.index_at(loc)
+	var before := p.lumen
+	var r := ItemShop.sell(p, h.combat, catalog, loc, rules)
+	_log_armory(h, "sell", index, loc, r, before, p.lumen)
+	return r
+
+
+## v2: undoes the purchase at `loc`, a squad upgrade / Med-Pack (`row_index`
+## >= 0), or the last change of the visit (`loc` < 0 and `row_index` < 0).
+func undo(h: HeroBody, loc: int, row_index: int = -1) -> int:
+	var p := progress_of(h)
+	if debug_shop_anywhere and not h.combat.dead:
+		p.at_armory = true
+	var before := p.lumen
+	var index := row_index if row_index >= 0 else p.inv.index_at(loc) if loc >= 0 else -1
+	var r: int
+	if row_index >= 0:
+		r = ItemShop.undo_row(p, h.combat, catalog, row_index, rules)
+	elif loc >= 0:
+		r = ItemShop.undo_at(p, h.combat, catalog, loc, rules)
+	else:
+		r = ItemShop.undo_last(p, h.combat, catalog, rules)
+	_log_armory(h, "undo", index, loc, r, before, p.lumen)
 	return r
 
 
@@ -513,6 +560,8 @@ func handle_action(h: HeroBody, cmd: InputCommand) -> int:
 		InputCommand.ACTION_BUY:
 			return _shop_result(h, buy_index(h, cmd.action_arg & 0xFF, cmd.action_arg >> 8))
 		InputCommand.ACTION_SELL:
+			if is_v2():
+				return _shop_result(h, _sell_v2(h, cmd.action_arg))
 			if cmd.action_arg & InputCommand.UNDO_ITEM_FLAG:
 				return _shop_result(h, undo_item(h, cmd.action_arg & 0xFF))
 			if not SnapshotData.ProgressState.MOUNT_SOCKETS.has(cmd.action_arg & 0xFF):
@@ -523,6 +572,22 @@ func handle_action(h: HeroBody, cmd: InputCommand) -> int:
 		InputCommand.ACTION_SPAWN_CHOICE:
 			return set_spawn_choice(h, cmd.action_arg)
 	return HeroProgress.Result.OK
+
+
+## v22 ACTION_SELL arg (InputCommand.UNDO_* layout).
+func _sell_v2(h: HeroBody, arg: int) -> int:
+	if arg == InputCommand.UNDO_LAST:
+		return undo(h, -1)
+	var low := arg & 0xFF
+	if arg & InputCommand.UNDO_ITEM_FLAG:
+		if low & InputCommand.UNDO_ROW_FLAG:
+			return undo(h, -1, low & 0x7F)
+		if not SnapshotData.ProgressState.INV_LOCS.has(low):
+			return HeroProgress.Result.INVALID
+		return undo(h, low)
+	if arg > 0xFF or not SnapshotData.ProgressState.INV_LOCS.has(low):
+		return HeroProgress.Result.INVALID
+	return sell_at(h, low)
 
 
 ## Records the outcome of a client Armory request (replicated as
@@ -812,6 +877,14 @@ func fill_own(s: SnapshotData, h: HeroBody) -> void:
 			o.mount_tier[i] = m.tier
 			o.mount_paid[i] = m.paid
 			o.mount_paid_visit[i] = m.paid_visit
+	if is_v2():
+		for i in SnapshotData.ProgressState.INV_LOCS.size():
+			var loc: int = SnapshotData.ProgressState.INV_LOCS[i]
+			o.inv_items[i] = p.inv.index_at(loc)
+			var k := p.inv.txn_for(loc)
+			if k >= 0 and not p.inv.is_blocked(k):
+				o.inv_undo_bits |= 1 << i
+		o.inv_txns = p.inv.txns.size()
 	for m in motes:
 		o.motes.append(m.pos)
 	s.progress = o

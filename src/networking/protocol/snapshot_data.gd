@@ -181,6 +181,15 @@ class ProgressState:
 	var visit_medpacks: int = 0
 	## BuildAdvisor signal bits (SIG_*), server-computed from recent combat.
 	var signals: int = 0
+	## v22 Armory v2 (items-and-armory.md §3.1): catalog index per inventory
+	## place (INV_LOCS order: Core, Barrel, Frame, Ammo Type, Ammo Mod, then
+	## open slots 0..5; -1 = empty). Spares are the later copies of an id.
+	var inv_items: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1])
+	## Bit i: the item at INV_LOCS[i] was bought this visit and can be undone
+	## on its own (not used up by a later buy).
+	var inv_undo_bits: int = 0
+	## Purchases / sales this visit ("Undo last" is available when > 0).
+	var inv_txns: int = 0
 	## Lumen Motes on the ground (everyone's; positions only).
 	var motes: PackedVector3Array = PackedVector3Array()
 
@@ -191,6 +200,8 @@ class ProgressState:
 	## Replicated sockets (ArmoryItemDef.Socket): Core, Frame, Chamber, then
 	## Barrel (v21, appended so the first three slots keep their meaning).
 	const MOUNT_SOCKETS: Array[int] = [1, 3, 4, 2]
+	## v22 inventory places (ItemInventory.LOC_*): sockets, Chamber, 6 open slots.
+	const INV_LOCS: Array[int] = [1, 2, 3, 4, 5, 16, 17, 18, 19, 20, 21]
 	## BuildAdvisor signals (v21): what hurt this hero lately (rolling window).
 	const SIG_WEAPON_DAMAGE: int = 1
 	const SIG_SKILL_DAMAGE: int = 2
