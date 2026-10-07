@@ -31,6 +31,14 @@ var heal_mult: float = 1.0
 ## W11-M1: running total of damage removed by the stats' DAMAGE_REDUCTION (statuses,
 ## zones); window readers (Fortify Lifeblood) take differences.
 var mitigated: float = 0.0
+## Signature passives (items-and-armory.md §3.5.3, §4.3), written by SignaturePassives:
+## Lattice overshield (absorbs after armor / resist, after the status shield; not
+## healing, so Scorched never cuts it), Brace DR_brace (weapon damage only, inside
+## the 0.70 clamp) and the Rend stacks on this hero (gear-armor points removed
+## from every weapon hit, 0-0.08).
+var overshield: float = 0.0
+var brace_dr: float = 0.0
+var rend: float = 0.0
 
 
 func _init(max_hp_: float, armor_: float, team_: int) -> void:
@@ -61,6 +69,8 @@ func apply_damage(info: DamageInfo) -> float:
 		var after := DamageMath.armor_mult(arm, dr)
 		if stats != null:
 			mitigated += amount * (DamageMath.armor_mult(arm, damage_reduction) - after)
+		if info.type == DamageInfo.Type.WEAPON and brace_dr > 0.0:
+			after = DamageMath.armor_mult(arm, dr + brace_dr)
 		amount *= after
 	if info.type != DamageInfo.Type.TRUE and stats != null:
 		amount *= stats.get_value(StatCatalog.DAMAGE_TAKEN)
@@ -74,6 +84,14 @@ func apply_damage(info: DamageInfo) -> float:
 		last_absorbed = minf(shield, amount)
 		shield -= last_absorbed
 		amount -= last_absorbed
+		if amount <= 0.0:
+			last_attacker = info.source_net_id
+			return 0.0
+	if overshield > 0.0:
+		var os := minf(overshield, amount)
+		overshield -= os
+		amount -= os
+		last_absorbed += os
 		if amount <= 0.0:
 			last_attacker = info.source_net_id
 			return 0.0
@@ -94,7 +112,7 @@ func armor_value(info: DamageInfo) -> float:
 	var gear_resist := stats.get_value(StatCatalog.GEAR_RESIST) if stats != null else 0.0
 	if info.type == DamageInfo.Type.SKILL:
 		return DamageMath.skill_armor(armor, gear_resist)
-	return DamageMath.weapon_armor(armor, gear_armor, info.rend, info.armor_pen)
+	return DamageMath.weapon_armor(armor, gear_armor, maxf(info.rend, rend), info.armor_pen)
 
 
 func heal(amount: float, source_net_id: int = 0) -> float:
@@ -110,4 +128,7 @@ func heal(amount: float, source_net_id: int = 0) -> float:
 func reset() -> void:
 	hp = max_hp
 	shield = 0.0
+	overshield = 0.0
+	brace_dr = 0.0
+	rend = 0.0
 	last_attacker = 0

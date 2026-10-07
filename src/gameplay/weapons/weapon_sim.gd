@@ -28,6 +28,10 @@ var recoil_mult: float = 1.0
 ## cone (base, bloom, max) × spread_mult. Written by apply_item_stats().
 var item_rate_mult: float = 1.0
 var spread_mult: float = 1.0
+## Signature passives (items-and-armory.md §3.5.3), written each tick by
+## SignaturePassives: Overdrive Loop bloom (-40%) and pellet cone (-10%).
+var passive_bloom_mult: float = 1.0
+var passive_cone_mult: float = 1.0
 ## Tick of the latest shot and its index in the current burst (0 = first).
 var shot_tick: int = 0
 var burst_index: int = 0
@@ -83,11 +87,11 @@ func total_rate_mult() -> float:
 
 
 func _spread_base() -> float:
-	return def.spread_base_deg * spread_mult
+	return def.spread_base_deg * spread_mult * passive_cone_mult
 
 
 func _spread_max() -> float:
-	return def.spread_max_deg * spread_mult
+	return def.spread_max_deg * spread_mult * passive_cone_mult
 
 
 ## One tick with `cmd`. `allowed` is false while sprinting, stunned, etc.
@@ -133,7 +137,7 @@ func _shoot(tick: int, index: int) -> void:
 	shot_tick = tick
 	burst_index = index
 	shot_spread_deg = spread_deg
-	spread_deg = minf(_spread_max(), spread_deg + def.spread_bloom_deg * recoil_mult * spread_mult)
+	spread_deg = minf(_spread_max(), spread_deg + def.spread_bloom_deg * recoil_mult * spread_mult * passive_bloom_mult)
 	shots_fired += 1
 
 

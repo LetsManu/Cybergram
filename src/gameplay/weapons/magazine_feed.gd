@@ -17,6 +17,10 @@ var reserve: int
 var reload_end_tick: int = -1
 ## Shock Disrupted: ticks added to the next reload started before `_penalty_until`.
 var _penalty_ticks: int = 0
+## Cold Start (Flux Coil, items-and-armory.md §3.5.3): the next reload is
+## instant (fills the magazine from the reserve at once, Ironmaw too). Armed by
+## SignaturePassives, spent by request_reload().
+var instant_reload: bool = false
 var _penalty_until: int = -1
 
 
@@ -76,6 +80,12 @@ func consume(tick: int) -> void:
 func request_reload(tick: int) -> void:
 	if is_reloading() or rounds >= max_magazine() or reserve <= 0:
 		return
+	if instant_reload:
+		instant_reload = false
+		var n := mini(max_magazine() - rounds, reserve)
+		rounds += n
+		reserve -= n
+		return
 	var t := def.reload_s
 	if rounds == 0 and not def.reload_per_round and def.reload_empty_s > 0.0:
 		t = def.reload_empty_s
@@ -92,6 +102,14 @@ func refill() -> void:
 	reload_end_tick = -1
 	_penalty_ticks = 0
 	_penalty_until = -1
+
+
+## Kindle / True Line: adds up to `n` rounds to the magazine from nothing (no
+## reserve used, never above the magazine size); returns how many fit.
+func add_rounds(n: int) -> int:
+	var add := clampi(n, 0, max_magazine() - rounds)
+	rounds += add
+	return add
 
 
 func disrupt(tick: int, duration_ticks: int, penalty_ticks: int) -> void:
