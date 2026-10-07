@@ -175,6 +175,8 @@ func is_spare(k: int) -> bool:
 ## Places holding catalog item `index`, in INV_LOCS order.
 func places_of(index: int) -> Array[int]:
 	var out: Array[int] = []
+	if index < 0:
+		return out
 	for k in PLACES:
 		if item_at(k) == index:
 			out.append(k)

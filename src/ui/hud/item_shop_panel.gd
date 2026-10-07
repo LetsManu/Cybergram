@@ -66,6 +66,8 @@ var _scroll: float = 0.0
 var _view: Vector2 = Vector2(BODY_Y, BODY_B)
 ## Bottom of the Core steps (canvas units, unscrolled): the "more below" hint.
 var _core_bottom: float = 0.0
+## Bottom of the right Recommended column (Situational + Ammo cards).
+var _right_bottom: float = 0.0
 ## Evidence only (env CYBERGRAM_SHOP_EVIDENCE=full): fill the open slots, then
 ## send one buy the server refuses (INVENTORY_FULL) to show its toast.
 var _evidence: Array = []
@@ -715,6 +717,7 @@ func _layout_rec() -> void:
 		_items.append({"rect": Rect2(rx, yy, rw, CARD_H), "index": int(ammo[i]["next"]), "goal": int(ammo[i]["goal"]),
 			"card": ammo[i]})
 		yy += CARD_PITCH
+	_right_bottom = yy - (CARD_PITCH - CARD_H)
 
 
 func _layout_all() -> void:
@@ -961,6 +964,11 @@ func _draw_tip(r: Rect2, c: Dictionary) -> void:
 	var x := clampf(r.position.x, PAD, VW - PAD - w)
 	var h := 74.0
 	var y := r.end.y + 4.0 if r.end.y + 4.0 + h < STRIP_Y - 4.0 else r.position.y - h - 4.0
+	# Prefer the free space under the right column, so the tip never covers cards.
+	if _right_bottom + 8.0 + h <= BODY_B:
+		x = REC_RIGHT_X
+		w = VW - PAD - REC_RIGHT_X
+		y = _right_bottom + 8.0
 	var tr_ := Rect2(x, y, w, h)
 	draw_rect(_r(tr_), Color(0.03, 0.045, 0.06, 0.99))
 	draw_rect(_r(tr_).grow(-0.5), HudPalette.BRASS, false, 1.0)
