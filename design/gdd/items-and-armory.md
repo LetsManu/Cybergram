@@ -558,3 +558,15 @@ All knobs live in `assets/data/economy/` (catalog, advice rules), never in code.
 9. **Brannoc 2.5× rule** is already broken at 60% pen (2.39×). Lower the pen cap to 0.55, or relax the rule to 2.3×?
 10. **Spend split** 65–70% items / 20–25% squad / ~10% consumables: accept?
 11. **Squad upgrades and Med-Packs outside open slots** (recommended): confirm.
+
+### Owner answers (2026-10-07)
+
+| Question | Answer |
+|---|---|
+| Q4 Utility items | As drafted: the four §19 utility effects are folded into the recipe tree; "6 gear items" = the 6 gear Signatures. |
+| Q5 Gun families | One item with two forms (Crystal on Mana guns, Chip on Mechanical guns); only Feed items differ in stats. |
+| Q7 Wardling / Sentinel shots | Answered from code: they are `DamageInfo.Type.WEAPON` (the `DamageInfo.make` default), so gear armor applies. |
+| Q8 Undo | Per-item undo within the visit plus an "Undo last" key. |
+| Q11 Squad upgrades, Med-Packs | Stay outside the open slots, in their own row. |
+
+Questions 1, 2, 3, 6, 9 and 10 wait for the economy review (`docs/balance/armory-v2-review.md`).
