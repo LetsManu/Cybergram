@@ -99,6 +99,7 @@ var _comfort_sig: String = ""
 var _poll: int = 0
 var _env: Environment
 var _sun: DirectionalLight3D
+var _lk_cache: Dictionary = {}
 
 
 ## True when ambient life may be built under `node`: never headless, never in
@@ -167,6 +168,22 @@ func _ready() -> void:
 
 
 ## Re-reads settings, re-picks mood / weather and rebuilds every layer.
+## The mood's look keys, scaled by the active LookProfile (neon, shafts, fog card colour).
+func _look() -> Dictionary:
+	if not _lk_cache.is_empty() and int(_lk_cache.get("_mood", -1)) == mood:
+		return _lk_cache
+	var lk := AmbientMood.look(mood)
+	var look := LookProfile.active()
+	if look != null:
+		lk = lk.duplicate()
+		lk.neon_gain = float(lk.neon_gain) * look.neon_gain
+		lk.shaft_gain = float(lk.shaft_gain) * look.shaft_gain
+		lk.fog_color = look.fog_color
+	_lk_cache = lk.duplicate()
+	_lk_cache["_mood"] = mood
+	return lk
+
+
 func _rebuild() -> void:
 	for c in get_children():
 		c.queue_free()
@@ -193,12 +210,17 @@ func _rebuild() -> void:
 	mood = int(debug.mood) if debug.get("mood", -1) >= 0 else AmbientMood.pick_mood(match_seed)
 	weather = int(debug.weather) if debug.get("weather", -1) >= 0 \
 		else AmbientMood.pick_weather(match_seed, _settings.ambient_rain)
-	AmbientMood.apply(mood, weather, _env, _sun)
+	var look := LookProfile.active()
+	if look == null:
+		AmbientMood.apply(mood, weather, _env, _sun)
+	else:  # the look profile owns sky, ambient, fog and the sun (docs/lookdev.md)
+		look.apply_environment(_env, GfxQuality.level())
+		look.apply_sun(_sun)
 	_schedule = SkyTrainSchedule.new(match_seed)
 	if debug.has("train_at"):
 		_clock_offset = _schedule.current_start() + float(debug.train_at) * SkyTrainSchedule.PASS_S - _raw_clock()
 	var b := AmbientComfort.budget(level)
-	var lk := AmbientMood.look(mood)
+	var lk := _look()
 	_build_traffic(b, lk)
 	_build_drones(b)
 	_build_train()
@@ -343,7 +365,7 @@ func _apply_comfort() -> void:
 	_flicker = AmbientComfort.flicker_amount(fx, rm)
 	_glow = AmbientComfort.glow_gain(fx)
 	_anim = AmbientComfort.anim_speed(rm)
-	var lk := AmbientMood.look(mood)
+	var lk := _look()
 	for m in _holo_mats:
 		m.set_shader_parameter("anim_speed", _anim)
 	if _trail_mat != null:
@@ -618,7 +640,7 @@ func _build_billboards(b: Dictionary) -> void:
 		for i in xfs.size():
 			sizes.append(Vector2(32.0, 12.0))
 	var font := _font()
-	var lk := AmbientMood.look(mood)
+	var lk := _look()
 	for i in mini(n, xfs.size()):
 		var ad: Array = ADS[(i + match_seed) % ADS.size()]
 		var q := QuadMesh.new()
@@ -728,7 +750,7 @@ func _build_signs(b: Dictionary) -> void:
 
 ## Neon brightness: mood gain x comfort glow x subtle flicker (steady when off).
 func _update_signs(t: float) -> void:
-	var gain := float(AmbientMood.look(mood).neon_gain) * _glow
+	var gain := float(_look().neon_gain) * _glow
 	for i in _signs.size():
 		var f := AmbientComfort.flicker(t, i * 0.618, _flicker)
 		var c := _sign_colors[i] * (gain * f * 1.6)
@@ -739,7 +761,7 @@ func _update_signs(t: float) -> void:
 			_sign_frames.set_instance_color(i * 2 + 1, c)
 	for i in _holo_mats.size():
 		var f := AmbientComfort.flicker(t, 0.31 + i * 0.47, _flicker * 0.6)
-		_holo_mats[i].set_shader_parameter("gain", float(AmbientMood.look(mood).neon_gain) * _glow * f)
+		_holo_mats[i].set_shader_parameter("gain", float(_look().neon_gain) * _glow * f)
 		if i < _holo_labels.size():
 			var lc := Color(1.0, 1.0, 1.0) * (_glow * f * 1.3)
 			lc.a = 1.0
@@ -796,7 +818,7 @@ func _build_fog(b: Dictionary) -> void:
 		return
 	var m := ShaderMaterial.new()
 	m.shader = load(FOG_SHADER)
-	m.set_shader_parameter("color", AmbientMood.look(mood).fog_color)
+	m.set_shader_parameter("color", _look().fog_color)
 	m.set_shader_parameter("density", 0.55 if weather == AmbientMood.Weather.FOG else 0.3)
 	_anim_mats.append(m)
 	var q := QuadMesh.new()
