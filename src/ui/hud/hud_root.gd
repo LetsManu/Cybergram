@@ -47,7 +47,9 @@ var _squad: SquadStrip
 var _vitals: VitalsPanel
 var _skills: SkillBar
 var _weapon: WeaponPanel
-var _armory: ArmoryPanel
+## ArmoryPanel (v1 tiered catalog) or ItemShopPanel (Armory v2 recipe catalog,
+## design/gdd/items-and-armory.md §3.9); both expose open, poll() and wants_draw().
+var _armory
 var _armory_guide: ArmoryWaypoint
 var _death: DeathScreen
 var _scoreboard: Scoreboard
@@ -129,7 +131,12 @@ func _build() -> void:
 	_skills = _fill(SkillBar.new(), _zone("BottomCentre", 0.3, 0.72, 0.7, 1.0)) as SkillBar
 	_weapon = _fill(WeaponPanel.new(), _zone("BottomRight", 0.70, 0.74, 1.0, 1.0)) as WeaponPanel
 	# v0.12: left panel, 1170 wide, between the header and the vitals.
-	_armory = _fill(ArmoryPanel.new(), _zone("Armory", -0.032, 0.104, 0.616, 0.83)) as ArmoryPanel
+	var cat := load(ArmoryCatalogDef.active_path()) as ArmoryCatalogDef
+	if cat != null and cat.is_recipe_catalog():
+		# Armory v2: a full-width modal shop with the always-on bottom strip.
+		_armory = _fill(ItemShopPanel.new(), _zone("Armory", 0.03, 0.075, 0.97, 0.965))
+	else:
+		_armory = _fill(ArmoryPanel.new(), _zone("Armory", -0.032, 0.104, 0.616, 0.83))
 	_death = _fill(DeathScreen.new(), _zone("Death", 0.2, 0.22, 0.8, 0.9)) as DeathScreen
 	_end = _fill(EndBanner.new(), _zone("End", 0.0, 0.20, 1.0, 0.36)) as EndBanner
 	_scoreboard = _fill(Scoreboard.new(), _zone("Scoreboard", 0.0, 0.0, 1.0, 1.0)) as Scoreboard
