@@ -73,6 +73,12 @@ class OwnCombat:
 	var reserve: int = 0
 	## AmmoFeed.FLAG_* bits.
 	var ammo_flags: int = 0
+	## Armory v2 prediction parity (C2): fire-rate (skill × items), spread and recoil multipliers.
+	## Wire: u8 hundredths each (0..2.55), see SnapshotCodec OWN_COMBAT.
+	var weapon_rate_mult: float = 1.0
+	var weapon_spread_mult: float = 1.0
+	var weapon_recoil_mult: float = 1.0   # skill (WeaponSim.recoil_mult): view kick and server bloom
+	var weapon_kick_mult: float = 1.0     # item RECOIL_MULT: view kick only
 	## E10 skill bar, per slot S1/S2/S3/Ult: ticks of cooldown left, cooldown
 	## length (ticks) and AbilityRunner.FLAG_* (locked, active, casting).
 	var skill_cd_left: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])

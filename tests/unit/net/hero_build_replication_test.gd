@@ -76,3 +76,19 @@ func test_spare_is_a_later_copy_in_the_open_slots() -> void:
 	assert_bool(e.is_spare(1)).is_true()
 	assert_bool(e.is_spare(2)).is_false()
 	assert_bool(e.is_spare(3)).is_false()
+
+
+## C2 prediction parity: the 4 weapon multipliers ride in OWN_COMBAT as hundredths.
+func test_own_combat_weapon_multipliers_round_trip() -> void:
+	var c := SnapshotData.OwnCombat.new()
+	c.weapon_rate_mult = 1.15
+	c.weapon_spread_mult = 0.62
+	c.weapon_recoil_mult = 0.8
+	c.weapon_kick_mult = 0.35
+	var d := SnapshotCodec.own_combat_from(SnapshotCodec.own_combat_blob(c))
+	assert_float(d.weapon_rate_mult).is_equal_approx(1.15, 0.005)
+	assert_float(d.weapon_spread_mult).is_equal_approx(0.62, 0.005)
+	assert_float(d.weapon_recoil_mult).is_equal_approx(0.8, 0.005)
+	assert_float(d.weapon_kick_mult).is_equal_approx(0.35, 0.005)
+	c.weapon_rate_mult = 9.0
+	assert_float(SnapshotCodec.own_combat_from(SnapshotCodec.own_combat_blob(c)).weapon_rate_mult).is_equal(2.55)
