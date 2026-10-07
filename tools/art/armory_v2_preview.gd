@@ -63,7 +63,7 @@ func _label(text: String, pos: Vector3, size: int = 48) -> void:
 	var l := Label3D.new()
 	l.text = text
 	l.font_size = size
-	l.pixel_size = 0.0012
+	l.pixel_size = 0.0012 if _mode != "tracers" else 0.004
 	l.outline_size = 8
 	l.position = pos
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -80,8 +80,8 @@ func _build(ids: Array) -> PackedInt32Array:
 
 
 func _guns() -> void:
-	_cam(Vector3(0.0, 0.05, 2.1), Vector3(0.0, 0.05, 0.0))
-	var cols := [[&"threadcaster", "Mana gun (Crystal form)", -0.5], [&"breakline", "Mechanical gun (Chip form)", 0.5]]
+	_cam(Vector3(0.05, 0.05, 2.3), Vector3(0.05, 0.05, 0.0))
+	var cols := [[&"threadcaster", "Mana gun (Crystal form)", -0.45], [&"breakline", "Mechanical gun (Chip form)", 0.62]]
 	for c in cols:
 		var x: float = c[2]
 		_label(String(c[1]), Vector3(x, 0.62, 0.0), 44)
@@ -92,7 +92,7 @@ func _guns() -> void:
 			w.position = Vector3(x + 0.16, 0.3 - r * 0.36, 0.0)
 			w.scale = Vector3.ONE * 0.75
 			w.set_build(_build(GUN_ASSEMBLY if r == 0 else GUN_SIGNATURE), _cat)
-			_label("Assembly" if r == 0 else "Signature", Vector3(x, 0.45 - r * 0.36, 0.0), 30)
+			_label("Assembly" if r == 0 else "Signature", Vector3(x - 0.42, 0.3 - r * 0.36, 0.0), 30)
 		# Belt clip-on Components (open slots) in this gun family's form.
 		var mana: bool = c[0] == &"threadcaster"
 		for k in COMPONENTS.size():
@@ -135,7 +135,7 @@ func _tracer_stage() -> void:
 	add_child(_tracers)
 	for k in AMMO_ORDER.size():
 		_label(String(ArmoryVisualsData.ammo_tell(AMMO_ORDER[k]).get("name", "")).capitalize(),
-			Vector3(-3.3 + k * 1.1, 2.6, -3.8), 200)
+			Vector3(-3.3 + k * 1.1, 2.75 - 0.32 * (k % 2), -3.8), 52)
 
 
 func _process(delta: float) -> void:

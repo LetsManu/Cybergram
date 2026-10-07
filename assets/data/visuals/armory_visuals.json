@@ -11,7 +11,7 @@
   1.6
  ],
  "spare_dim": 0.15,
- "gear_base_scale": 1.5,
+ "gear_base_scale": 1.25,
  "item_cuts": {
   "ember_part": "ember_heart",
   "ember_facet": "ember_heart",

@@ -31,7 +31,7 @@ DATA = {
     "tier_glow": [0.6, 1.0, 1.6],
     "spare_dim": 0.15,
     # Body gear base scale: silhouette first, readable at 20 m (§3.8 rule 6).
-    "gear_base_scale": 1.5,
+    "gear_base_scale": 1.25,
     "item_cuts": {
         "ember_part": "ember_heart", "ember_facet": "ember_heart", "ember_heart": "ember_heart",
         "tempo_part": "tempest", "pulse_facet": "tempest", "tempest_heart": "tempest",

@@ -25,7 +25,7 @@ static func build(item: ArmoryItemDef, tier: int, mana_gun: bool, spare: bool, s
 	var energy := ArmoryVisualsData.tier_glow(t) * (ArmoryVisualsData.spare_dim() if spare else 1.0)
 	var hue := item.hue.darkened(0.55) if spare else item.hue
 	var glow := ModelMaterials.crystal(hue, energy, 1.0 if spare else 2.0, 0.0 if spare else 0.25 * (t - 1))
-	var hw := ModelMaterials.toon(ModelPalette.TEAM_NEUTRAL)
+	var hw := _steel()
 	var spinners: Array = []
 	var shape := ArmoryVisualsData.gear_shape(item.id)
 	if item.kind == ArmoryItemDef.Kind.MOUNT:
@@ -71,10 +71,12 @@ static func _hardware(b: PartBuilder, shape: String, t: int) -> void:
 				var a := TAU * k / (2.0 + t)
 				b.box(Vector3(0.004, 0.05, 0.004), PartBuilder.xf(Vector3(cos(a) * 0.024, 0, sin(a) * 0.024)), CHROME, PB.CHROME)
 		"plate", "plates", "pauldron":
-			for k in t:  # stacked plates = tier
-				b.box(Vector3(0.09 - k * 0.012, 0.012, 0.08 - k * 0.01), PartBuilder.xf(Vector3(0, -k * 0.016, 0), Vector3(0, 0, -12)), CHROME, PB.METAL)
-			if t >= 3:
-				b.box(Vector3(0.1, 0.035, 0.014), PartBuilder.xf(Vector3(0, 0.025, -0.03)), CHROME, PB.METAL)  # raised collar
+			# Domed shoulder cap, then overlapping lames down the outer shoulder (+X); lames = tier.
+			b.sphere(0.045, PartBuilder.xf(Vector3(0.0, 0.004, 0), Vector3(0, 0, -12), Vector3(1.15, 0.5, 1.0)), CHROME, PB.METAL, 0.0, 10)
+			for k in t:
+				b.box(Vector3(0.07, 0.008, 0.075), PartBuilder.xf(Vector3(0.012 + k * 0.022, -k * 0.016, 0), Vector3(0, 0, -18.0 - k * 14.0)), CHROME, PB.METAL)
+			if t >= 3:  # raised collar on the neck side
+				b.box(Vector3(0.012, 0.04, 0.07), PartBuilder.xf(Vector3(-0.026, 0.018, 0), Vector3(0, 0, 10)), CHROME, PB.METAL)
 		"spool":
 			b.cyl(0.018, 0.018, 0.006, PartBuilder.xf(Vector3(0, 0.014, 0)), HW, PB.METAL, 0.0, 10)
 			b.cyl(0.018, 0.018, 0.006, PartBuilder.xf(Vector3(0, -0.014, 0)), HW, PB.METAL, 0.0, 10)
@@ -110,8 +112,20 @@ static func _glow(b: PartBuilder, shape: String, t: int, cut: String) -> void:
 					b.capsule(0.007, 0.034, PartBuilder.xf(Vector3(0, 0.01, -0.008)), w)
 				_:
 					b.sphere(0.01, PartBuilder.xf(Vector3(0, 0.01, -0.008), Vector3.ZERO, Vector3(0.9, 1.7, 0.9)), w, PB.FLAT, 0.0, 6)
-		"clip_card":
-			b.box(Vector3(0.026, 0.034, 0.003), PartBuilder.xf(Vector3(0, 0.012, -0.006)), w)
+		"clip_card":  # card + one glyph module per line (art bible §7.3)
+			b.box(Vector3(0.022, 0.03, 0.003), PartBuilder.xf(Vector3(0, 0.012, -0.005)), w)
+			match cut:
+				"ember_heart":  # heat fins
+					for k in 3:
+						b.box(Vector3(0.024, 0.003, 0.008), PartBuilder.xf(Vector3(0, 0.002 + k * 0.009, -0.01)), w)
+				"tempest":  # clock-tick LED dial
+					b.torus(0.006, 0.009, PartBuilder.xf(Vector3(0, 0.014, -0.009), Vector3(90, 0, 0)), w, PB.FLAT, 0.0, 10, 3)
+				"lens":  # optic barrel
+					b.cyl(0.007, 0.007, 0.012, PartBuilder.xf(Vector3(0, 0.014, -0.012), Vector3(90, 0, 0)), w, PB.FLAT, 0.0, 10)
+				"flat":  # gyro ring
+					b.torus(0.009, 0.012, PartBuilder.xf(Vector3(0, 0.014, -0.009)), w, PB.FLAT, 0.0, 12, 3)
+				"vial":  # cell clip
+					b.capsule(0.005, 0.03, PartBuilder.xf(Vector3(0, 0.012, -0.01)), w)
 		"cell":
 			b.capsule(0.016, 0.04, PartBuilder.xf(Vector3.ZERO), w)
 		"cell_cage":
@@ -121,8 +135,8 @@ static func _glow(b: PartBuilder, shape: String, t: int, cut: String) -> void:
 			b.sphere(0.02, PartBuilder.xf(Vector3(0.012, 0.008, 0)), w, PB.FLAT, 0.0, 8)
 			b.prism(Vector3(0.05, 0.035, 0.03), PartBuilder.xf(Vector3(0, -0.012, 0), Vector3(0, 0, 180)), w)
 		"plate", "plates", "pauldron":
-			for k in t:  # one glowing edge strip per plate
-				b.box(Vector3(0.08 - k * 0.012, 0.003, 0.004), PartBuilder.xf(Vector3(0, -k * 0.016 + 0.007, -0.04 + k * 0.005), Vector3(0, 0, -12)), w)
+			for k in t:  # one edge light per lame
+				b.box(Vector3(0.05, 0.004, 0.004), PartBuilder.xf(Vector3(0.012 + k * 0.022, -k * 0.016 + 0.005, -0.039), Vector3(0, 0, -18.0 - k * 14.0)), w)
 		"spool":
 			b.cyl(0.012, 0.012, 0.024, PartBuilder.xf(Vector3.ZERO), w, PB.FLAT, 0.0, 10)
 		"cowl":
@@ -130,7 +144,7 @@ static func _glow(b: PartBuilder, shape: String, t: int, cut: String) -> void:
 				b.prism(Vector3(0.02, 0.07, 0.008), PartBuilder.xf(Vector3(-0.04 + k * 0.08 / (1.0 + t), -0.035, 0.0), Vector3(0, 0, 180)), w)
 		"fins":
 			for k in 3 + t:  # spine fins
-				b.prism(Vector3(0.006, 0.05, 0.04), PartBuilder.xf(Vector3(0, 0.04 - k * 0.03, 0.02)), w)
+				b.prism(Vector3(0.014, 0.06, 0.055), PartBuilder.xf(Vector3(0, 0.05 - k * 0.032, 0.03), Vector3(-25, 0, 0)), w)
 		"lattice":
 			b.cyl(0.03, 0.03, 0.01, PartBuilder.xf(Vector3(0, 0, 0.012), Vector3(90, 0, 0)), w, PB.FLAT, 0.0, 6)
 		"bead":
@@ -164,6 +178,18 @@ static func _idle_part(b: PartBuilder, shape: String) -> void:
 			b.torus(0.036, 0.04, PartBuilder.xf(Vector3.ZERO), w, PB.FLAT, 0.0, 16, 3)
 		_:
 			b.torus(0.05, 0.055, PartBuilder.xf(Vector3.ZERO), w, PB.FLAT, 0.0, 16, 3)
+
+
+## Gear hardware: plain brushed steel (vertex colours: dark housings, chrome
+## plates), so plate armour reads as metal, not as a team / brass block.
+static func _steel() -> StandardMaterial3D:
+	if not _cache.has("mat_steel"):
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.metallic = 0.6
+		m.roughness = 0.45
+		_cache["mat_steel"] = m
+	return _cache["mat_steel"]
 
 
 static func _mesh(k: String, fill: Callable) -> ArrayMesh:
