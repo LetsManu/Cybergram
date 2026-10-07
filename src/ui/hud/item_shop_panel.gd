@@ -698,7 +698,7 @@ func _layout_rec() -> void:
 	if n > 0 and (path[n - 1]["cards"] as Array).size() > 1:
 		branch = path[n - 1]["cards"]
 	var x0 := L + 64.0
-	var x1 := (LR - 330.0) if not branch.is_empty() else (LR - 64.0)
+	var x1 := (LR - 420.0) if not branch.is_empty() else (LR - 64.0)
 	var step := (x1 - x0) / maxf(1.0, n - 1)
 	var cy := _path_y()
 	var current := -1
@@ -719,11 +719,11 @@ func _layout_rec() -> void:
 		_items.append({"rect": Rect2(center - Vector2(38.0, 38.0), Vector2(76.0, 76.0)), "index": int(c["next"]),
 			"goal": int(c["goal"]), "card": c, "kind": "node", "label": String(node["label"]), "done": bool(node["done"]),
 			"current": i == current, "center": center})
-	var split := Vector2(x0 + step * (n - 1) + 120.0, cy)
+	var split := Vector2(x0 + step * (n - 1) + 100.0, cy)
 	for j in mini(branch.size(), 3):
 		var c: Dictionary = branch[j]
-		var oc := Vector2(split.x + 90.0, cy + (j - (mini(branch.size(), 3) - 1) * 0.5) * 54.0)
-		_items.append({"rect": Rect2(oc - Vector2(22.0, 22.0), Vector2(250.0, 44.0)), "index": int(c["next"]),
+		var oc := Vector2(split.x + 70.0, cy + (j - (mini(branch.size(), 3) - 1) * 0.5) * 54.0)
+		_items.append({"rect": Rect2(oc - Vector2(22.0, 22.0), Vector2(LR - oc.x + 22.0, 44.0)), "index": int(c["next"]),
 			"goal": int(c["goal"]), "card": c, "kind": "branch", "center": oc, "split": split})
 	var sit: Array = s["situational"]
 	var cw := (LR - L - 2.0 * 24.0) / 3.0
@@ -799,7 +799,7 @@ func _search_rect() -> Rect2:
 
 
 func _close_rect() -> Rect2:
-	return Rect2(VW - 40.0 - 4.0, 4.0, 36.0, 36.0)
+	return Rect2(VW - 34.0, 4.0, 28.0, 28.0)
 
 
 func _filter_rect(f: int) -> Rect2:

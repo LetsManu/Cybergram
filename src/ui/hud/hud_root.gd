@@ -251,6 +251,8 @@ func _apply_context(c: ClientWorld) -> void:
 		# The v2 shop is a modal with its own Lumen / inventory strip (§3.9):
 		# nothing of the combat HUD may read through it.
 		_vitals.visible = false
+		_header.visible = false
+		_front.visible = false
 		_weapon.visible = false
 		_skills.visible = false
 		_squad.visible = false
