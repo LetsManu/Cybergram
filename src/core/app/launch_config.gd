@@ -104,6 +104,8 @@ var debug_armory: bool = false
 var debug_armory_builds: bool = false
 ## Armory step 7 evidence: --debug-armory opened on the All tab with the expert detail.
 var debug_armory_catalog: bool = false
+## Armory v2 preview: play on the v22 recipe catalog and guides (until the switch-over).
+var catalog_v22: bool = false
 ## W16-SDWATER debug: spawn in the first water zone of the map (splash / wading evidence).
 var debug_water: bool = false
 ## E11 bots: --bots (player + 9 bots), --bots-only (10 bots, no player; with
@@ -325,6 +327,8 @@ static func parse(args: PackedStringArray, headless: bool) -> LaunchConfig:
 			"--debug-armory-catalog":
 				c.debug_armory = true
 				c.debug_armory_catalog = true
+			"--catalog-v22":
+				c.catalog_v22 = true
 			"--debug-water":
 				c.debug_water = true
 			"--debug-skill-demo":

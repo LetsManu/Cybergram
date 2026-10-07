@@ -85,6 +85,8 @@ var _tick_us_n: int = 0
 func _ready() -> void:
 	if launch_config != null:
 		dedicated = launch_config.mode == LaunchConfig.Mode.DEDICATED
+		# Armory v2 preview: server and client both read ArmoryCatalogDef.active_path().
+		ArmoryCatalogDef.use_v22 = launch_config.catalog_v22
 		_quit_after_ticks = launch_config.quit_after_ticks
 		if launch_config.net_sim_name != "":
 			net_sim = load(NET_SIM_PATH % launch_config.net_sim_name) as NetSimProfile
@@ -194,7 +196,7 @@ func _build_match() -> void:
 		if launch_config.spawn_wardlings > 0:
 			server.wardlings.debug_spawn(launch_config.spawn_wardlings)
 	server.enable_progression(load(ECONOMY_RULES) as EconomyRulesDef,
-		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, map_def)  # E13/E15
+		load(ArmoryCatalogDef.active_path()) as ArmoryCatalogDef, map_def)  # E13/E15
 	if launch_config != null and launch_config.debug_armory and map_def != null and not map_def.hqs.is_empty():
 		server.debug_player_spawn = map_def.hq(ServerWorld.TEAM_PLAYERS).armory + Vector3(0.0, 0.05, 1.5)
 	if launch_config != null and launch_config.debug_water and map_def != null and not map_def.water_zones.is_empty():
@@ -395,7 +397,17 @@ func _debug_progress() -> void:
 			server.learn_skill(h, slot)
 		server.learn_skill(h, 0)
 		server.learn_skill(h, 3)
-	if launch_config.debug_armory:
+	if launch_config.debug_armory and pr.is_v2():
+		# Armory v2 evidence: a Core Signature, a Barrel Assembly, gear, a loose
+		# part and a spare, the Chamber, and Lumen left to browse.
+		pr.progress_of(h).lumen = 9000
+		pr.progress_of(h).at_armory = pr.is_at_armory(h)
+		var res2 := []
+		for id in [&"ember_heart", &"longsight_ring", &"plate_harness", &"vital_cell", &"vital_cell",
+				&"tempo_part", &"ammo_shock", &"mod_saturated", &"med_pack"]:
+			res2.append(server.buy(h, id))
+		print("[debug-armory] v22 buys %s, Lumen left %d" % [res2, pr.progress_of(h).lumen])
+	elif launch_config.debug_armory:
 		pr.progress_of(h).lumen = 6000
 		pr.progress_of(h).at_armory = pr.is_at_armory(h)
 		var mana := h.combat.weapon != null and h.combat.weapon.def.feed_kind == WeaponDef.FeedKind.MANA

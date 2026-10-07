@@ -46,7 +46,11 @@ const SECTION_REASONS := ["HUD_ADVICE_S_OPENING", "HUD_ADVICE_S_EARLY", "HUD_ADV
 ## One recommendation.
 class Advice:
 	var node: BuildNodeDef
+	## The item to buy now. Armory v2: the next part toward `goal_index`
+	## (items-and-armory.md §3.10 rule 2); v1: the node's item.
 	var item_index: int = -1
+	## Armory v2: the finished item this advice builds toward (-1 = v1).
+	var goal_index: int = -1
 	var target: int = 1
 	var section: int = BuildNodeDef.Section.CORE
 	## Lumen to reach `target` now (after swap credit), and whether it fits the wallet.
@@ -148,6 +152,10 @@ static func cost_to(st: BuildState, index: int, target: int) -> int:
 	if it == null:
 		return -1
 	var held := st.held(index)
+	if st.v2 and it.tier != ArmoryItemDef.Tier.NONE:
+		return int(RecipeMath.resolve(st.catalog, st.pool, index)["cost"])
+	if st.v2 and (it.kind == ArmoryItemDef.Kind.AMMO or it.kind == ArmoryItemDef.Kind.AMMO_MOD):
+		return 0 if held > 0 else it.price(1)
 	match it.kind:
 		ArmoryItemDef.Kind.CONSUMABLE:
 			return it.price(1) * maxi(0, target - held)
@@ -163,20 +171,23 @@ static func cost_to(st: BuildState, index: int, target: int) -> int:
 
 # --- node state -------------------------------------------------------------------
 
-static func _satisfied(st: BuildState, item_id: StringName, target: int) -> bool:
+static func _satisfied(st: BuildState, item_id: StringName, target: int, keep: bool = false) -> bool:
 	var i := st.catalog.index_of(item_id)
 	if i < 0:
 		return false
 	var it := st.catalog.at(i)
+	if st.v2 and it.tier != ArmoryItemDef.Tier.NONE:
+		# Owned, or already built into an owned item (a used-up part stays done).
+		return st.held(i) > 0 or (not keep and st.built_into(i))
 	var t := target if it.kind == ArmoryItemDef.Kind.CONSUMABLE else mini(target, it.tiers())
 	return st.held(i) >= t
 
 
 static func _done(n: BuildNodeDef, st: BuildState) -> bool:
-	if _satisfied(st, n.item_id, n.target_or_one()):
+	if _satisfied(st, n.item_id, n.target_or_one(), n.keep):
 		return true
 	for a in n.alternatives:
-		if _satisfied(st, StringName(a), n.target_or_one()):
+		if _satisfied(st, StringName(a), n.target_or_one(), n.keep):
 			return true
 	return false
 
@@ -246,16 +257,115 @@ static func _offer_check(n: BuildNodeDef, st: BuildState, ar: AdviceRulesDef, by
 	if not n.conditions.is_empty() and _matched_conditions(n, st, ar).is_empty():
 		return "conditions [%s] not met" % ", ".join(n.conditions)
 	var idx := _buy_index(n, st)
+	if st.v2 and idx < 0:
+		return "blocked (Signature limit, Ammo Type, slots)"
 	var it := st.catalog.at(idx)
 	if it != null and it.requires != &"" and st.held(st.catalog.index_of(it.requires)) <= 0:
 		return "needs %s first" % it.requires
 	return ""
 
 
+# --- Armory v2 (items-and-armory.md §3.10) ------------------------------------------
+
+## The node choice to build toward: among the node's item and its
+## alternatives (the step's 2-3 choices), the buyable one with the most Lumen
+## of parts already owned (Total - remaining cost); ties keep data order, so
+## with nothing owned the guide's first choice wins. -1 when all are blocked.
+static func _goal_v2(n: BuildNodeDef, st: BuildState) -> int:
+	var best := -1
+	var best_owned := -1
+	for id in [n.item_id] + Array(n.alternatives):
+		var i := st.catalog.index_of(StringName(id))
+		if i < 0 or _item_unavailable(st, StringName(id)) or _blocked_v2(st, i) != "":
+			continue
+		var owned := RecipeMath.total(st.catalog, i) - cost_to(st, i, 1)
+		if owned > best_owned:
+			best = i
+			best_owned = owned
+	return best
+
+
+## Why the server would refuse buying `index` outright ("" = it would not).
+static func _blocked_v2(st: BuildState, index: int) -> String:
+	var it := st.catalog.at(index)
+	if it == null:
+		return "unknown"
+	if it.tier == ArmoryItemDef.Tier.SIGNATURE and st.held(index) <= 0 \
+			and st.signature_count() >= st.signature_limit:
+		return "signature limit"
+	if it.tier != ArmoryItemDef.Tier.NONE and it.recipe.is_empty() and st.slots_used >= st.open_slots:
+		return "no free open slot"
+	if it.kind == ArmoryItemDef.Kind.AMMO_MOD:
+		var ammo := st.catalog.at(st.chamber(ItemInventory.LOC_AMMO))
+		if ammo == null:
+			return "needs an Ammo Type"
+		if not it.fits_ammo.is_empty() and not it.fits_ammo.has(ammo.ammo_type):
+			return "does not fit the loaded ammo"
+	return ""
+
+
+## Open slots after buying `index` with `take` used up.
+static func _slots_after(st: BuildState, index: int, take: Array) -> int:
+	var used := st.slots_used
+	for t in take:
+		if int(t["loc"]) >= ItemInventory.LOC_SLOT:
+			used -= 1
+	var it := st.catalog.at(index)
+	return used + (1 if it != null and it.uses_open_slot() else 0)
+
+
+## The next purchase toward `goal` (§3.10 rule 2): the goal itself when it is
+## affordable and fits; else the largest affordable missing Assembly; else the
+## cheapest missing component that gives stats now (not a spare) and fits a
+## slot; else the goal (shown as "save for"). Returns {index, cost, fits}:
+## `fits` is false when buying it now would overflow the open slots.
+static func next_part(st: BuildState, goal: int) -> Dictionary:
+	var it := st.catalog.at(goal)
+	var full_cost := cost_to(st, goal, 1)
+	if it == null or it.tier == ArmoryItemDef.Tier.NONE or it.recipe.is_empty():
+		return {"index": goal, "cost": full_cost, "fits": _blocked_v2(st, goal) == ""}
+	var full := RecipeMath.resolve(st.catalog, st.pool, goal)
+	var goal_fits := _slots_after(st, goal, full["take"]) <= st.open_slots
+	if full_cost <= st.lumen and goal_fits:
+		return {"index": goal, "cost": full_cost, "fits": true}
+	var missing := RecipeMath.missing(st.catalog, st.pool, goal)
+	var best := -1
+	var best_total := -1
+	var best_cost := 0
+	for m in missing:
+		var mit := st.catalog.at(m)
+		if mit == null or mit.tier != ArmoryItemDef.Tier.ASSEMBLY:
+			continue
+		var r := RecipeMath.resolve(st.catalog, st.pool, m)
+		var total := RecipeMath.total(st.catalog, m)
+		if int(r["cost"]) <= st.lumen and _slots_after(st, m, r["take"]) <= st.open_slots and total > best_total:
+			best = m
+			best_total = total
+			best_cost = int(r["cost"])
+	if best >= 0:
+		return {"index": best, "cost": best_cost, "fits": true}
+	var cheapest := -1
+	var cheapest_cost := 1 << 30
+	for m in missing:
+		var mit := st.catalog.at(m)
+		if mit == null or mit.tier != ArmoryItemDef.Tier.COMPONENT or st.held(m) > 0:
+			continue  # an owned id would only be a spare
+		if st.slots_used + 1 > st.open_slots:
+			break
+		if mit.price(1) < cheapest_cost:
+			cheapest = m
+			cheapest_cost = mit.price(1)
+	if cheapest >= 0:
+		return {"index": cheapest, "cost": cheapest_cost, "fits": true}
+	return {"index": goal, "cost": full_cost, "fits": goal_fits}
+
+
 ## The item actually recommended for `n`: a line the hero already holds
 ## (its own item first, then an alternative: never suggest swapping a held
 ## line out), else its own item, else the first buyable alternative.
 static func _buy_index(n: BuildNodeDef, st: BuildState) -> int:
+	if st.v2:
+		return _goal_v2(n, st)
 	for id in [n.item_id] + Array(n.alternatives):
 		var hi := st.catalog.index_of(StringName(id))
 		if hi >= 0 and st.held(hi) > 0 and not _item_unavailable(st, StringName(id)):
@@ -276,6 +386,13 @@ static func _advise(n: BuildNodeDef, st: BuildState, ar: AdviceRulesDef) -> Advi
 	a.item_index = _buy_index(n, st)
 	a.situational = not n.conditions.is_empty()
 	a.cost = cost_to(st, a.item_index, a.target)
+	if st.v2:
+		a.goal_index = a.item_index
+		var nxt := next_part(st, a.goal_index)
+		a.item_index = int(nxt["index"])
+		a.cost = int(nxt["cost"])
+		if not bool(nxt["fits"]):
+			a.cost = 1 << 30  # would overflow the open slots: never "affordable"
 	a.affordable = a.cost >= 0 and a.cost <= st.lumen
 	a.soon = a.affordable or (a.cost >= 0 and a.cost - st.lumen <= ar.expected_income_per_min * ar.affordable_soon_s / 60.0)
 	for alt in n.alternatives:
@@ -322,6 +439,11 @@ static func _rule_matches(rule: String, n: BuildNodeDef, st: BuildState, ar: Adv
 		return int(st.enemy_tags.get(tag, 0)) >= ar.tag_threshold(st.team_size, tag)
 	match rule:
 		"core_tier_ready":
+			if st.v2:  # every part owned: only the combine is left
+				var g := _buy_index(n, st)
+				return g >= 0 and st.catalog.at(g).tier != ArmoryItemDef.Tier.NONE \
+					and not st.catalog.at(g).recipe.is_empty() \
+					and RecipeMath.missing(st.catalog, st.pool, g).is_empty() and cost_to(st, g, 1) <= st.lumen
 			var i := _buy_index(n, st)
 			var it := st.catalog.at(i)
 			return it != null and it.kind == ArmoryItemDef.Kind.MOUNT and st.held(i) > 0 \

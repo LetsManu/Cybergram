@@ -20,7 +20,7 @@ static func rules_with_team_size(team_size: int) -> MatchRulesDef:
 	return r
 
 
-func _build(clock_scale: float, seed_: int, team_size: int = 5) -> Array:
+func _build(clock_scale: float, seed_: int, team_size: int = 5, catalog_path: String = ArmoryCatalogDef.DEFAULT_PATH) -> Array:
 	var built := WardlingFixtures.slice_server(self, WardlingFixtures.rules(), true, rules_with_team_size(team_size))
 	var server: ServerWorld = built[0]
 	auto_free(built[3])
@@ -28,7 +28,7 @@ func _build(clock_scale: float, seed_: int, team_size: int = 5) -> Array:
 	server.setup_match(def, clock_scale)
 	server.wardlings.clock_scale = clock_scale
 	server.enable_progression(load("res://assets/data/economy/economy_rules_slice.tres") as EconomyRulesDef,
-		load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef, def)  # E15: skills must be learned
+		load(catalog_path) as ArmoryCatalogDef, def)  # E15: skills must be learned
 	var roster := load(ROSTER) as BotRosterDef
 	var director := BotDirector.new()
 	director.setup(server, roster, roster.profile("normal"), seed_)
@@ -126,6 +126,27 @@ func test_bots_shop_their_guides_through_action_buy() -> void:
 		assert_int(p.medpacks).is_greater(0)  # every guide opens with a Med-Pack
 		assert_int(p.spent_lumen).is_greater_equal(cat.find(&"med_pack").price(1))
 		assert_bool(br.log_lines.size() > 0 and Array(br.log_lines).any(func(l: String) -> bool: return l.contains(" buy "))).is_true()
+	assert_array(_invalid).is_empty()
+
+
+## Armory v2: on the recipe catalog bots buy the next part of their v22
+## guide (a Med-Pack, then the starter component) through the same ACTION_BUY.
+func test_bots_shop_recipe_parts_on_the_v22_catalog() -> void:
+	var b := _build(1.0, 22, 5, ArmoryCatalogDef.V22_PATH)
+	var server: ServerWorld = b[0]
+	var director: BotDirector = b[1]
+	assert_bool(await WardlingFixtures.await_nav(get_tree(), server)).is_true()
+	assert_int(director.fill(false)).is_equal(10)
+	assert_bool(server.progression.is_v2()).is_true()
+	var cap := 20 * HZ
+	while server.tick < cap:
+		server.step()
+	for br in director.brains:
+		var h := server.hero(br.hero_id)
+		var p: HeroProgress = server.progression.progress_of(h)
+		assert_int(p.medpacks).is_greater(0)
+		assert_int(p.inv.pool().size()).override_failure_message("bot %d bought no part" % br.hero_id).is_greater(0)
+		assert_int(p.lumen).is_greater_equal(0)
 	assert_array(_invalid).is_empty()
 
 

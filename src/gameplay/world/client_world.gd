@@ -143,7 +143,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	water.name = "WaterFx"
 	water.client = self
 	add_child(water)
-	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
+	catalog = load(ArmoryCatalogDef.active_path()) as ArmoryCatalogDef
 	session.connect_to_server()
 
 
@@ -196,10 +196,33 @@ func own_team() -> int:
 	return ServerWorld.TEAM_PLAYERS
 
 
-## View-recoil multiplier for the own hero. GAP: the server's WeaponSim.recoil_mult
-## (Ryker Overdrive 0.5) is not replicated to the client (no field in OwnCombat,
-## protocol is off limits for this chunk), so this is 1.0 until it is.
+## Skill recoil multiplier (Ryker Overdrive; WeaponSim.recoil_mult, which also
+## scales the server's spread bloom). Read from OwnCombat.weapon_recoil_mult once
+## the protocol carries it; 1.0 (v1) until then (C2 report: snippet).
 func own_recoil_mult() -> float:
+	return _own_weapon_field("weapon_recoil_mult")
+
+
+## View-kick multiplier: skill recoil × item RECOIL_MULT (items-and-armory.md
+## §3.5; item recoil is view kick only, the server cone uses SPREAD_MULT).
+func own_kick_mult() -> float:
+	return own_recoil_mult() * _own_weapon_field("weapon_kick_mult")
+
+
+## Fire-rate multiplier (skill buffs × item M_rate) for predicted shots.
+func own_rate_mult() -> float:
+	return _own_weapon_field("weapon_rate_mult")
+
+
+## Item spread multiplier (cone base, bloom, max) for the dynamic crosshair.
+func own_spread_mult() -> float:
+	return _own_weapon_field("weapon_spread_mult")
+
+
+func _own_weapon_field(field: String) -> float:
+	if combat != null and field in combat:
+		var v: float = combat.get(field)
+		return v if v > 0.0 else 1.0
 	return 1.0
 
 
@@ -283,7 +306,7 @@ func tick() -> void:
 		player_input.recoil_def = hero_def.weapon
 		var firing := (_cmd.buttons & InputCommand.BTN_FIRE) != 0
 		var can := combat != null and combat.ammo > 0.0 and not combat.dead
-		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_recoil_mult())
+		var kicked := player_input.recoil.tick(firing, can, hero_def.weapon, 1.0 / float(net.tick_rate_hz), own_kick_mult(), own_rate_mult())
 		_step_spread(kicked)
 		if kicked and rig != null:
 			rig.play_shot()  # W19-VM: FP fire clip on the same predicted shot as the kick
@@ -331,6 +354,7 @@ func _step_spread(kicked: bool) -> void:
 		spread = SpreadModel.new(hero_def.weapon, net.tick_rate_hz)
 	spread.set_weapon(hero_def.weapon)
 	spread.recoil_mult = own_recoil_mult()
+	spread.spread_mult = own_spread_mult()
 	if is_dead():
 		spread.reset()
 	spread.step(kicked and not is_dead())

@@ -24,6 +24,13 @@ var signals: int = 0
 var enemy_tags: Dictionary = {}
 ## Role -> number of allied heroes (HeroDef.roles), including this hero.
 var ally_roles: Dictionary = {}
+## Armory v2 (items-and-armory.md §3.10): the recipe catalog is in use; the
+## owned instances as a RecipeMath pool, open slots used, and the limits.
+var v2: bool = false
+var pool: Array = []
+var slots_used: int = 0
+var open_slots: int = 6
+var signature_limit: int = 2
 
 
 func held(index: int) -> int:
@@ -67,6 +74,19 @@ static func from_progress(p: SnapshotData.ProgressState, cat: ArmoryCatalogDef, 
 		return st
 	st.lumen = p.lumen
 	st.signals = p.signals
+	if econ != null:
+		st.open_slots = econ.open_slots
+		st.signature_limit = econ.signature_limit
+	if cat.is_recipe_catalog():
+		st.v2 = true
+		for k in SnapshotData.ProgressState.INV_LOCS.size():
+			var idx := p.inv_items[k]
+			if idx >= 0:
+				var loc: int = SnapshotData.ProgressState.INV_LOCS[k]
+				st.pool.append({"index": idx, "loc": loc, "key": k})
+				st.holdings[idx] = int(st.holdings.get(idx, 0)) + 1
+				if loc >= ItemInventory.LOC_SLOT:
+					st.slots_used += 1
 	for i in cat.items.size():
 		var it := cat.items[i]
 		if it == null:
@@ -97,6 +117,15 @@ static func from_hero(hp: HeroProgress, cat: ArmoryCatalogDef, weapon_: WeaponDe
 		return st
 	st.lumen = hp.lumen
 	st.signals = hp.signals
+	if econ != null:
+		st.open_slots = econ.open_slots
+		st.signature_limit = econ.signature_limit
+	if cat.is_recipe_catalog():
+		st.v2 = true
+		st.pool = hp.inv.pool()
+		st.slots_used = hp.inv.slots.size()
+		for e in st.pool:
+			st.holdings[int(e["index"])] = int(st.holdings.get(int(e["index"]), 0)) + 1
 	for id in hp.owned:
 		var i := cat.index_of(id)
 		if i >= 0:
@@ -111,3 +140,41 @@ static func from_hero(hp: HeroProgress, cat: ArmoryCatalogDef, weapon_: WeaponDe
 		if econ != null:
 			st.credits[int(s)] = EconomyMath.sell_value(econ, m.paid, m.paid_visit)
 	return st
+
+
+## v2: Signatures held.
+func signature_count() -> int:
+	var n := 0
+	for e in pool:
+		var it := catalog.at(int(e["index"]))
+		if it != null and it.tier == ArmoryItemDef.Tier.SIGNATURE:
+			n += 1
+	return n
+
+
+## v2: catalog index in the Chamber at `loc` (ItemInventory.LOC_AMMO / LOC_MOD), -1 if empty.
+func chamber(loc: int) -> int:
+	for e in pool:
+		if int(e["loc"]) == loc:
+			return int(e["index"])
+	return -1
+
+
+## v2: true when catalog item `index` is a part (at any depth) of an owned item.
+func built_into(index: int) -> bool:
+	var id := catalog.at(index).id if catalog != null and catalog.at(index) != null else &""
+	if id == &"":
+		return false
+	for e in pool:
+		if _contains_part(catalog.at(int(e["index"])), id):
+			return true
+	return false
+
+
+func _contains_part(it: ArmoryItemDef, id: StringName) -> bool:
+	if it == null:
+		return false
+	for part in it.recipe:
+		if StringName(part) == id or _contains_part(catalog.find(StringName(part)), id):
+			return true
+	return false

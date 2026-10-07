@@ -132,7 +132,7 @@ def main(out_path):
             if o.get("cond"): lines.append('conditions = ' + arr_s(o["cond"]))
             if o.get("reason"): lines.append('reason_key = "%s"' % o["reason"])
             if o.get("core") is False: lines.append('core = false')
-            for flag in ("optional", "fallback", "skippable", "expert"):
+            for flag in ("optional", "fallback", "skippable", "expert", "keep"):
                 if o.get(flag): lines.append('%s = true' % flag)
             if o.get("min_s"): lines.append('min_s = %d' % o["min_s"])
             if o.get("max_s"): lines.append('max_s = %d' % o["max_s"])

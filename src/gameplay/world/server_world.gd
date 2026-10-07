@@ -86,6 +86,11 @@ var stats: MatchStats = MatchStats.new()
 var _stats_sent: bool = false
 ## Stable content indices for the wire (hero identity in snapshots).
 var content: ContentDB = ContentDB.shared()
+## Armory v2 ammo effects (weapons-and-mods.md §3.7): Burn, Shock, Siphon, Cryo,
+## Brittle, mods. Hero states live in StatusComponent.ammo, Wardlings' here.
+var ammo_fx: AmmoEffects
+## Hero net id -> last tick it took or dealt damage (Stride Rig out-of-combat speed).
+var _last_combat_tick: Dictionary = {}
 
 
 ## Builds the map and session. Call after the node is in the tree.
@@ -102,6 +107,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, map_scene: PackedSc
 	session = ServerSession.new(transport, net)
 	session.client_joined.connect(_on_client_joined)
 	abilities = AbilityWorld.new(self)
+	ammo_fx = AmmoEffects.new(DamageMath.rules(), net.tick_rate_hz)
 	_setup_stats()
 	_map = map_scene.instantiate()
 	add_child(_map)
@@ -113,7 +119,9 @@ func _setup_stats() -> void:
 	if f != null:
 		stats.assist_window_ticks = roundi(f.assist_window_s * net.tick_rate_hz)
 	hero_damaged.connect(func(victim: int, attacker: int, amount: float) -> void:
-		stats.record_damage(attacker, victim, amount, tick))
+		stats.record_damage(attacker, victim, amount, tick)
+		_note_combat(victim)
+		_note_combat(attacker))
 	hero_died.connect(func(victim: int, killer: int) -> void:
 		stats.record_death(victim, killer, tick, hero(killer) != null))
 
@@ -222,15 +230,21 @@ func use_medpack(h: HeroBody) -> int:
 
 
 ## Weapon damage of one body hit at `distance` m against `target_class`
-## (DamageMath.TARGET_*), before the target's armor: level, mounts and ammo.
+## (DamageMath.TARGET_*), before the target's armor: level, items (G_hit with the
+## 2.25 clamp, items-and-armory.md §4.3), headshot bonus and ammo.
 func weapon_hit_damage(h: HeroBody, distance: float, headshot: bool = false,
 		target_class: int = DamageMath.TARGET_HERO) -> float:
 	var c := h.combat
 	if c.weapon == null:
 		return 0.0
-	return DamageMath.hit_damage(c.weapon.def, distance, headshot, 1, c.stats.get_value(StatCatalog.FALLOFF_RANGE)) \
-		* c.weapon_damage_mult() \
-		* DamageMath.ammo_mult(c.ammo_type, target_class) * c.stats.get_value(StatCatalog.DAMAGE_DEALT)
+	var wdef := c.weapon.def
+	var fr: float = DamageMath.range_conversion(wdef, c.stats.get_value(StatCatalog.FALLOFF_RANGE))[0]
+	var pot := ammo_fx.potency(c.ammo_type, c.ammo_mod)
+	return DamageMath.hit_damage(wdef, distance, headshot, 1, fr, c.stats.get_value(StatCatalog.HEADSHOT_BONUS)) \
+		* c.stats.get_value(StatCatalog.WEAPON_DAMAGE) \
+		* DamageMath.weapon_hit_mult(c.stats.get_value(StatCatalog.MOD_DAMAGE), c.stats.get_value(StatCatalog.FIRE_RATE_BONUS),
+			c.stats.get_value(StatCatalog.DAMAGE_DEALT), 1.0, 0.0, DamageMath.rules().is_beam(wdef)) \
+		* DamageMath.ammo_mult(c.ammo_type, target_class, false, pot)
 
 
 ## World-space position of a Marker3D in the map, or the origin.
@@ -315,6 +329,7 @@ func step() -> void:
 		d[1].sample(tick, _cmd)
 		_step_hero(d[0], _cmd)
 	_step_bolts()
+	_step_ammo()  # Armory v2: Burn ticks, Chill / Scorched, meter decay
 	if wardlings != null:
 		wardlings.step()
 	abilities.step()
@@ -482,6 +497,7 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 	if objectives != null:
 		h.state.speed_scale *= objectives.move_speed_mult(h.net_id)  # E14: Cell carrier 90%
 		_note_actor(h, cmd)
+	h.state.speed_scale *= _item_move_mult(h)  # Armory v2 move-speed items
 	h.motor.water_zones = _water_zones  # W16-SDWATER: shared wading slow
 	h.step(cmd, dt)
 	if not c.dead and h.global_position.y < rules.kill_plane_y:
@@ -497,6 +513,7 @@ func _step_hero(h: HeroBody, cmd: InputCommand) -> void:
 		return
 	# heroes.md §3.1: no firing while sprinting.
 	var sprinting := cmd.has(InputCommand.BTN_SPRINT) and cmd.move.y > 0.0 and not h.state.crouching
+	_apply_weapon_items(c)
 	if c.weapon.step(cmd, c.local_tick, not sprinting and c.can_shoot()):
 		_fire(h, cmd)
 
@@ -509,15 +526,17 @@ func _fire(h: HeroBody, cmd: InputCommand) -> void:
 	var origin := h.state.position + Vector3(0.0, h.eye_height(), 0.0)
 	var fwd := Basis(Vector3.UP, h.look_yaw) * Basis(Vector3.RIGHT, h.look_pitch) * Vector3.FORWARD
 	var dirs := w.pellet_directions(fwd)
+	# items-and-armory.md §3.5: Liora converts falloff items to projectile speed, Hex to beam range.
+	var conv := DamageMath.range_conversion(w.def, c.stats.get_value(StatCatalog.FALLOFF_RANGE))
 	if w.def.projectile_speed > 0.0:
 		var space := h.get_world_3d().direct_space_state
 		for dir in dirs:
-			bolts.spawn(h.net_id, w.def, origin, dir, cmd.view_tick, cmd.view_alpha)
+			bolts.spawn(h.net_id, w.def, origin, dir, cmd.view_tick, cmd.view_alpha, conv[1])
 			# Client visual: the bolt's flight line up to the first wall.
 			_tracer.trace(space, origin, dir, w.def.range_m, _no_targets, 0, 0.0)
 			bolts.launched.append([origin, origin + dir * _tracer.last_limit])
 		return
-	_resolve_pellets(h, w.def, origin, dirs, w.def.range_m, cmd.view_tick, cmd.view_alpha, 0.0, true)
+	_resolve_pellets(h, w.def, origin, dirs, w.def.range_m + conv[2], cmd.view_tick, cmd.view_alpha, 0.0, true)
 
 
 ## One tick of hero bolts (WeaponBolts documents the lag-compensation choice).
@@ -552,9 +571,16 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 	var gens := _enemy_generators(c.team)  # E14 Breach
 	var per_gen := {}  # GeneratorTarget -> [raw damage, first point]
 	var dealt := c.stats.get_value(StatCatalog.DAMAGE_DEALT)  # E10
-	var wm := c.weapon_damage_mult()  # E15 level L + E13 mod M_dmg
+	# items-and-armory.md §4.3: L × min(2.25, S_skill × G_hit) / (1 + M_rate), per target.
+	var lvl := c.stats.get_value(StatCatalog.WEAPON_DAMAGE)  # E15 level L
+	var m_dmg := c.stats.get_value(StatCatalog.MOD_DAMAGE)
+	var m_rate := c.stats.get_value(StatCatalog.FIRE_RATE_BONUS)
+	var beam := DamageMath.rules().is_beam(wdef)
+	var wm := lvl * DamageMath.weapon_hit_mult(m_dmg, m_rate, 1.0, 1.0, 0.0, beam)  # structures: no S_skill
 	var ammo := c.ammo_type  # E13 Chamber
-	var fr := c.stats.get_value(StatCatalog.FALLOFF_RANGE)  # Armory Barrel range lines
+	var pot := ammo_fx.potency(ammo, c.ammo_mod)
+	var fr: float = DamageMath.range_conversion(wdef, c.stats.get_value(StatCatalog.FALLOFF_RANGE))[0]
+	var hs_bonus := c.stats.get_value(StatCatalog.HEADSHOT_BONUS)
 	for dir in dirs:
 		var clip := abilities.clip_shot(origin, dir, max_range, c.team)  # E10: enemy shield walls
 		var hit := _tracer.trace(space, origin, dir, clip[0], targets, view_tick, view_alpha)
@@ -568,8 +594,8 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 				if not per_wardling.has(wl[0]):
 					per_wardling[wl[0]] = [0.0, origin + dir * float(wl[1])]
 				# heroes.md §3.7: Wardlings are gadgets (Hex Signal Sight +50 %).
-				per_wardling[wl[0]][0] += DamageMath.hit_damage(wdef, wl[1] + dist_off, false, 1, fr) * wm \
-					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT) * c.def.gadget_damage_mult
+				per_wardling[wl[0]][0] += DamageMath.hit_damage(wdef, wl[1] + dist_off, false, 1, fr) \
+					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT, false, pot) * c.def.gadget_damage_mult
 				continue
 		ends.append(origin + dir * end_d)
 		if hit.target != null or end_d < max_range - 1e-3:
@@ -577,17 +603,18 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 		if not uplinks.is_empty() and _pellet_hits_uplink(uplinks, origin, dir, hit, per_uplink, wdef, wm, dist_off):
 			stopped = true
 			continue
-		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, wdef, wm, dist_off):
+		if not gens.is_empty() and _pellet_hits_generator(gens, origin, dir, hit, per_gen, wdef,
+				wm * DamageMath.ammo_mult(ammo, DamageMath.TARGET_STRUCTURE, false, pot), dist_off):
 			stopped = true
 			continue
 		if hit.target == null:
 			if clip[1] != null and _tracer.last_limit >= clip[0] - 1e-3:
 				abilities.damage_deployable(clip[1], DamageMath.hit_damage(wdef, clip[0] + dist_off, false, 1, fr) * wm * dealt
-					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT, true))
+					* DamageMath.ammo_mult(ammo, DamageMath.TARGET_CONSTRUCT, true, pot))
 				abilities.blocked_shots += 1
 			continue
-		var raw := DamageMath.hit_damage(wdef, hit.distance + dist_off, hit.headshot, 1, fr) * wm \
-			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO) * abilities.extras.shot_mult(h, hit.target)
+		var raw := DamageMath.hit_damage(wdef, hit.distance + dist_off, hit.headshot, 1, fr, hs_bonus) \
+			* DamageMath.ammo_mult(ammo, DamageMath.TARGET_HERO, false, pot)
 		var id := hit.target.net_id
 		if not per_target.has(id):
 			per_target[id] = [0.0, 0, hit.point]
@@ -600,20 +627,39 @@ func _resolve_pellets(h: HeroBody, wdef: WeaponDef, origin: Vector3, dirs: Array
 		var target := hero(id)
 		var rec: Array = per_target[id]
 		var dmg_flags: int = DamageInfo.FLAG_HEADSHOT if (rec[1] & GameEvent.FLAG_HEADSHOT) != 0 else 0
-		var info := DamageInfo.make(rec[0] * dealt, h.net_id, c.team, dmg_flags)
-		info.armor_pen = DamageMath.ammo_armor_pen(ammo) + c.stats.get_value(StatCatalog.ARMOR_PEN_BONUS)  # E13 Piercing + Penetrator
+		var tst := target.combat.status.ammo
+		var s_skill := abilities.extras.shot_mult(h, target) * dealt
+		var mult := lvl * DamageMath.weapon_hit_mult(m_dmg, m_rate, s_skill, ammo_fx.brittle(tst, tick),
+			ammo_fx.burn_share(ammo, c.ammo_mod, DamageMath.TARGET_HERO), beam)
+		var info := DamageInfo.make(rec[0] * mult, h.net_id, c.team, dmg_flags)
+		info.armor_pen = DamageMath.ammo_armor_pen(ammo, pot) + c.stats.get_value(StatCatalog.ARMOR_PEN_BONUS)  # Piercing + Bore items
 		var applied := target.combat.health.apply_damage(info)
 		if applied > 0.0:
 			hero_damaged.emit(id, h.net_id, applied)
 			hero_damage_taken.emit(id, applied, DamageInfo.Type.WEAPON)
+		var final := applied + target.combat.health.last_absorbed
+		if final > 0.0:
+			_apply_ammo_hit(h, tst, DamageMath.TARGET_HERO, final, target, target.state.position)
 		var ev_flags: int = rec[1]
-		if not target.combat.health.is_alive():
+		if not target.combat.health.is_alive() and not target.combat.dead:
 			ev_flags |= GameEvent.FLAG_KILL
+			var vpos := target.state.position
 			_kill(target, h.net_id)
+			_volatile(h, tst, vpos)
+		elif not target.combat.health.is_alive():
+			ev_flags |= GameEvent.FLAG_KILL
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(id, h.net_id, applied, ev_flags, rec[2]))
 	for wd in per_wardling:
 		var wrec: Array = per_wardling[wd]
-		var wapplied := wardlings.damage_wardling(wd, DamageInfo.make(wrec[0] * dealt, h.net_id, c.team))
+		var wst := ammo_fx.state_for(wd)
+		var wmult := lvl * DamageMath.weapon_hit_mult(m_dmg, m_rate, dealt, ammo_fx.brittle(wst, tick),
+			ammo_fx.burn_share(ammo, c.ammo_mod, DamageMath.TARGET_CONSTRUCT), beam)
+		var wapplied := wardlings.damage_wardling(wd, DamageInfo.make(wrec[0] * wmult, h.net_id, c.team))
+		if wapplied > 0.0:
+			_note_combat(h.net_id)
+			_apply_ammo_hit(h, wst, DamageMath.TARGET_CONSTRUCT, wapplied + wd.health.last_absorbed, null, wd.global_position)
+			if wd.dead:
+				_volatile(h, wst, wd.global_position)
 		var wflags: int = GameEvent.FLAG_KILL if wd.dead else 0
 		_queue_event(_peer_of.get(h.net_id, 0), GameEvent.hit_confirm(wd.net_id, h.net_id, wapplied, wflags, wrec[1]))
 	for g in per_gen:
@@ -691,6 +737,168 @@ func skill_hit_feedback(caster: HeroBody, target_id: int, applied: float, killed
 		GameEvent.hit_confirm(target_id, caster.net_id, applied, GameEvent.FLAG_KILL if killed else 0, pos))
 
 
+# --- Armory v2: items on the weapon and the body, ammo effects ----------------------
+
+## Item stats on the weapon each tick (fire rate, spread; Overcharged costs),
+## combined with skill buffs by WeaponSim (items-and-armory.md §3.5, §4.3).
+func _apply_weapon_items(c: HeroCombat) -> void:
+	c.weapon.apply_item_stats(c.stats)
+	var costs := ammo_fx.feed_costs(c.ammo_type, c.ammo_mod)
+	c.weapon.feed.cost_mult = costs[0]
+	c.weapon.feed.reload_mult = costs[1]
+
+
+## Move-speed items (items-and-armory.md §3.5): +item speed, +Cell carry while
+## carrying a Mana Cell, +out-of-combat after AmmoRulesDef.out_of_combat_s
+## without taking or dealing damage. 1.0 with no items.
+func _item_move_mult(h: HeroBody) -> float:
+	var s := h.combat.stats
+	var bonus := s.get_value(StatCatalog.ITEM_MOVE_SPEED)
+	if objectives != null and objectives.carriers.has(h.net_id):
+		bonus += s.get_value(StatCatalog.CELL_CARRY_SPEED)
+	var ooc := s.get_value(StatCatalog.OOC_MOVE_SPEED)
+	if ooc > 0.0 and is_out_of_combat(h.net_id):
+		bonus += ooc
+	return 1.0 + bonus
+
+
+## True if hero `net_id` has neither taken nor dealt damage for out_of_combat_s.
+func is_out_of_combat(net_id: int) -> bool:
+	var last: int = _last_combat_tick.get(net_id, -1000000)
+	return tick - last >= roundi(ammo_fx.rules.out_of_combat_s * net.tick_rate_hz)
+
+
+func _note_combat(net_id: int) -> void:
+	if net_id > 0:
+		_last_combat_tick[net_id] = tick
+
+
+## Ammo state of an enemy object (HeroBody or WardlingSim).
+func _ammo_state_of(o: Object) -> AmmoTargetState:
+	if o is HeroBody:
+		return (o as HeroBody).combat.status.ammo
+	return ammo_fx.state_for(o)
+
+
+## Alive enemies of `team` (heroes and Wardlings) within `radius` of `pos`,
+## nearest first, without `exclude`.
+func _enemies_near(pos: Vector3, team: int, radius: float, exclude: Object = null) -> Array:
+	var found: Array = []
+	var r2 := radius * radius
+	for t in _hurtable_enemies(team):
+		if t != exclude and t.state.position.distance_squared_to(pos) <= r2:
+			found.append([t.state.position.distance_squared_to(pos), t])
+	if wardlings != null:
+		for w in wardlings.wardlings:
+			if w != exclude and not w.dead and w.team != team and w.global_position.distance_squared_to(pos) <= r2:
+				found.append([w.global_position.distance_squared_to(pos), w])
+	found.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var out: Array = []
+	for f in found:
+		out.append(f[1])
+	return out
+
+
+## Ammo effect damage (Burn, arcs, Volatile) from `shooter_id` to a hero or Wardling.
+func _ammo_damage(target: Object, shooter_id: int, team: int, amount: float, premitigated: bool) -> float:
+	var flags := DamageInfo.FLAG_AMMO_EFFECT | (DamageInfo.FLAG_PREMITIGATED if premitigated else 0)
+	var info := DamageInfo.make(amount, shooter_id, team, flags, DamageInfo.Type.WEAPON)
+	if target is HeroBody:
+		return damage_hero(target as HeroBody, info)
+	if target is WardlingSim and wardlings != null:
+		return wardlings.damage_wardling(target as WardlingSim, info)
+	return 0.0
+
+
+## Applies the shooter's ammo effects for one target's final damage.
+func _apply_ammo_hit(h: HeroBody, st: AmmoTargetState, target_class: int, final: float,
+		target_hero: HeroBody, pos: Vector3) -> void:
+	var c := h.combat
+	if c.ammo_type == DamageMath.AMMO_STANDARD or c.weapon == null:
+		return
+	var hit := AmmoEffects.Hit.new()
+	hit.shooter_id = h.net_id
+	hit.team = c.team
+	hit.ammo = c.ammo_type
+	hit.mod = c.ammo_mod
+	hit.target_class = target_class
+	hit.damage = final
+	hit.tick = tick
+	hit.mana_gun = c.weapon.def.feed_kind == WeaponDef.FeedKind.MANA
+	var out := ammo_fx.apply_hit(st, hit)
+	if out.heal > 0.0:
+		c.health.heal(out.heal, h.net_id)
+	if out.mana > 0.0 and c.weapon.feed is ManaPoolFeed:
+		(c.weapon.feed as ManaPoolFeed).add_mana(out.mana)
+	if out.overload:
+		_ammo_arcs(h, pos, out, target_hero)
+	if out.disrupt_s > 0.0 and target_hero != null and target_hero.combat.weapon != null:
+		var f := target_hero.combat.weapon.feed
+		f.disrupt(target_hero.combat.local_tick, f.ticks(out.disrupt_s), f.ticks(out.reload_penalty_s))
+	if out.mark_s > 0.0 and target_hero != null:
+		abilities.reveals.reveal(target_hero.net_id, c.team, roundi(out.mark_s * net.tick_rate_hz), tick)
+
+
+## Shock Overload arcs: `out.arc_damage` to up to `out.arc_targets` other enemies.
+func _ammo_arcs(h: HeroBody, pos: Vector3, out: AmmoEffects.Outcome, exclude: Object) -> void:
+	var n := 0
+	for e in _enemies_near(pos, h.combat.team, out.arc_radius, exclude):
+		if n >= out.arc_targets:
+			break
+		_ammo_damage(e, h.net_id, h.combat.team, out.arc_damage, false)
+		n += 1
+
+
+## §3.7.2 Volatile on a kill by `h`'s weapon hit. Not recursive: burst damage is
+## ammo-effect damage and never reaches this function.
+func _volatile(h: HeroBody, victim: AmmoTargetState, pos: Vector3) -> void:
+	var c := h.combat
+	var out := ammo_fx.volatile_burst(victim, h.net_id, c.ammo_type, c.ammo_mod)
+	if out.burst_radius <= 0.0:
+		return
+	if out.overload:
+		_ammo_arcs(h, pos, out, null)
+	if out.burst_heal > 0.0:
+		var r2 := out.burst_heal_radius * out.burst_heal_radius
+		for a in _hero_bodies():
+			var ab := a as HeroBody
+			if ab.combat.team == c.team and not ab.combat.dead and ab.state.position.distance_squared_to(h.state.position) <= r2:
+				ab.combat.health.heal(out.burst_heal, h.net_id)
+	if out.burst_burn <= 0.0 and out.burst_chill <= 0.0 and out.burst_construct_damage <= 0.0:
+		return
+	var dur := ammo_fx.duration(c.ammo_type, c.ammo_mod)
+	for e in _enemies_near(pos, c.team, out.burst_radius):
+		if out.burst_burn > 0.0:
+			ammo_fx.add_burn(_ammo_state_of(e), h.net_id, c.team, out.burst_burn, dur)
+		if out.burst_chill > 0.0:
+			ammo_fx.add_chill(_ammo_state_of(e), out.burst_chill, tick, dur)
+		if out.burst_construct_damage > 0.0 and e is WardlingSim:
+			_ammo_damage(e, h.net_id, c.team, out.burst_construct_damage, false)
+
+
+## Per tick: Burn damage, Chill slow and Scorched on heroes; Burn on Wardlings.
+func _step_ammo() -> void:
+	var cut := ammo_fx.rules.scorched_heal_cut
+	for o in _hero_bodies():
+		var hb := o as HeroBody
+		var hc := hb.combat
+		if hc == null or hc.dead:
+			continue
+		var st := hc.status.ammo
+		for d in ammo_fx.step_target(st, tick):
+			_ammo_damage(hb, d[0], d[1], d[2], true)
+		if hc.dead:
+			continue
+		hc.status.set_chill_slow(ammo_fx.chill_slow(st), tick)
+		hc.status.set_scorched(cut if st.is_burning() else 0.0, tick)
+	if ammo_fx.others.is_empty():
+		return
+	ammo_fx.prune(func(k: Object) -> bool: return is_instance_valid(k) and not (k as WardlingSim).dead)
+	for w in ammo_fx.others.keys():
+		for d in ammo_fx.step_target(ammo_fx.others[w], tick):
+			_ammo_damage(w, d[0], d[1], d[2], true)
+
+
 func _hurtable_enemies(team: int) -> Array[HeroBody]:
 	var out: Array[HeroBody] = []
 	for id in registry.ids():
@@ -714,6 +922,7 @@ func _kill(victim: HeroBody, killer_id: int) -> void:
 	else:
 		c.respawn_tick = tick + RespawnSystem.respawn_ticks(rules, tick, net.tick_rate_hz)
 	victim.collision_layer = 0  # corpses do not block
+	c.status.ammo.clear()  # Burn / Charge / Chill end with the hero
 	var ev := GameEvent.kill(victim.net_id, killer_id, victim.state.position)
 	for peer in session.clients:
 		_queue_event(peer, ev)
@@ -1056,6 +1265,13 @@ static func _own_combat(c: HeroCombat) -> SnapshotData.OwnCombat:
 		o.ammo_capacity = f.capacity()
 		o.reserve = f.reserve_count()
 		o.ammo_flags = f.flags()
+		# Armory v2 prediction parity: filled once OwnCombat carries these fields
+		# (snippet in the C2 report); until then the client predicts v1 values.
+		if "weapon_rate_mult" in o:
+			o.set("weapon_rate_mult", c.weapon.total_rate_mult())
+			o.set("weapon_spread_mult", c.weapon.spread_mult)
+			o.set("weapon_recoil_mult", c.weapon.recoil_mult)
+			o.set("weapon_kick_mult", c.stats.get_value(StatCatalog.RECOIL_MULT))
 	return o
 
 

@@ -61,3 +61,19 @@ func test_the_simulation_is_deterministic() -> void:
 	var b: Dictionary = ArmorySim.new().simulate(h, _sim.guides.for_hero(h.id), _slice, earned, 0, others)
 	assert_array(a["buys"]).is_equal(b["buys"])
 	assert_int(int(a["left"])).is_equal(int(b["left"]))
+
+
+## Armory v2 sim (armory_sim_v2.gd): one hero, average curve, every 180 s.
+func test_v2_simulation_spends_within_earned_lumen_and_buys_a_signature() -> void:
+	var sim2 = preload("res://tools/balance/armory_sim_v2.gd").new()
+	var earned: Array = ArmorySim.curve(_slice, false)
+	var h: HeroDef = null
+	for d in sim2.heroes:
+		if d.id == &"hero_ryker_vance":
+			h = d
+	var run: Dictionary = sim2.simulate(h, sim2.guides.for_hero(h.id), _slice, earned, VISIT_S)
+	var paid := int(run["items"]) + int(run["squad"]) + int(run["consumables"])
+	assert_bool(int(run["left"]) >= 0).is_true()
+	assert_int(paid + int(run["left"])).is_less_equal(floori(earned[ArmorySim.MATCH_S - 1]))
+	assert_int(int(run["first_sig"])).is_greater(0)
+	assert_int(int(run["first_sig"]) % VISIT_S).is_equal(0)

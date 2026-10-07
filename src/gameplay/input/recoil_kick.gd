@@ -25,13 +25,14 @@ func _init(seed_value: int = 0) -> void:
 
 ## One tick step (shots only; call recover() every rendered frame). `mult` is the replicated recoil multiplier (Overdrive 0.5).
 ## Returns true when a shot kicked the view.
-func tick(firing: bool, can_fire: bool, def: WeaponDef, dt: float, mult: float = 1.0) -> bool:
+## `rate_mult` = replicated fire-rate multiplier (skill buffs × Armory v2 M_rate).
+func tick(firing: bool, can_fire: bool, def: WeaponDef, dt: float, mult: float = 1.0, rate_mult: float = 1.0) -> bool:
 	_cooldown_s = maxf(0.0, _cooldown_s - dt)
 	var kicked := false
 	var edge := firing and not _was_firing
 	_was_firing = firing
 	if def != null and firing and can_fire and _cooldown_s <= 0.0 and (edge or not def.semi_auto):
-		_cooldown_s = 1.0 / maxf(def.fire_rate, 0.1)
+		_cooldown_s = 1.0 / maxf(def.fire_rate * maxf(rate_mult, 0.01), 0.1)
 		_idle_s = 0.0
 		shots += 1
 		kicked = true
