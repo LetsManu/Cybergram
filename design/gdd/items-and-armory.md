@@ -586,9 +586,10 @@ All knobs live in `assets/data/economy/` (catalog, advice rules), never in code.
 
 **`design/registry/entities.yaml`**
 - `lumen.price_bands` adds component / assembly / signature bands.
-- `bastion_weave`, `null_weave`: `status: replaced`.
-- `full_weapon_build` → `status: replaced`, new `full_item_build` (11,850–12,600).
-- New constants (open slots, Signature limit, caps, TTK bounds, spend split, protocol 22) and every v2 item with price and source.
+- `bastion_weave`, `null_weave`, `full_weapon_build`: `status: deprecated` (the registry never deletes entries); new `full_item_build` (11,850–12,600).
+- `lumen`: `item_price_bands` and `spend_split_balanced`.
+- `final_damage_per_hit` formula updated (`G_hit`, gear armor / resist, max 670); new formula `recipe_remaining_cost`.
+- New constants `open_item_slots`, `signature_limit`, `item_stat_caps`, `item_ttk_bounds`, `brannoc_ehp_ratio_min`, `armory_protocol`; all 34 v2 recipe items and the ammo type / mod price sets.
 
 ### 9.2 Waiting for the implementation (not changed now)
 

@@ -50,6 +50,7 @@ Cybergram has **7 heroes** (Canon C17), each with one weapon (the primary damage
 | Hex | Hacker | Mana | 250 | 0% | 6.0 m/s | 4 |
 
 - **Armor** is a flat percentage reduction of all incoming damage (weapon and skill). Brannoc's 550 HP at 20% = **687 effective HP**.
+- **Gear (Armory v2, 2026-10-07):** item **Armor** adds to this armor against **weapon** damage only (gunfire, ammo effects, Wardling / Sentinel / turret shots), capped at +0.20 and cut by penetration; item **Resist** adds against **skill** damage only, capped at +0.20; item HP is capped at +200. Base armor still applies to all damage. Full rules: `items-and-armory.md` §3.7, §4.3.
 - Sprint = ×1.35 move speed, no firing while sprinting. Crouch = ×0.5. These are shared and owned by the movement system.
 - All heroes have identical hitbox *rules* (head ×multiplier from `weapons-and-mods.md`). Brannoc's hitbox is 25% larger by volume (the cost of his HP).
 
@@ -103,7 +104,7 @@ Durations, cooldowns, ranges and radii **do not scale** with level; they only ch
 | When the cooldown starts | On cast for instant skills; **when the effect ends** for skills with a duration (stealth, stim, fields, walls). |
 | Charges | Skills with charges recharge one charge at a time on the listed timer. |
 | Skill lockout | 0.25 s shared lockout between any two skill casts (prevents frame-perfect combos). |
-| External cooldown reduction (from mods, if `weapons-and-mods.md` adds any) | Capped at **25%** total. `EffectiveCD = NodeCD × (1 − min(0.25, CDR))`. Minimum effective CD 3 s (basic), 45 s (ultimate). |
+| External cooldown reduction (from items: Cadence Bead / Circlet / Crown, `items-and-armory.md` §3.5) | Capped at **25%** total. `EffectiveCD = NodeCD × (1 − min(0.25, CDR))`. Minimum effective CD 3 s (basic), 45 s (ultimate). |
 | On death | Cooldowns keep ticking while dead. |
 | On respawn at HQ Sanctum | **Basic** skill cooldowns reset (ultimate does not). Spawning at a Forward Beacon gives no reset. This adds one more reason to choose HQ (C6, C14). |
 | Ultimate | Ready immediately when Rank 1 is learned; later ranks do not refresh it. |

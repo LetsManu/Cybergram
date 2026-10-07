@@ -457,34 +457,35 @@ Example: Overclock I (400) → II pays 500 → III pays 900; total paid 1,800; s
 | Supply Cache refill rate (Mech) | 25%/s | 10–50%/s | Mechanical sustain near held nodes |
 | Supply Cache Mana buff: regen-delay cut / duration / per-hero cooldown | −50% / 10 s / 8 s (C5) | −25–75% / 5–15 s / 5–15 s | Mana sustain near held nodes |
 | Heal beam: hero / Wardling heal, mana drain, range | 60 / 30 HP/s, 25 mana/s, 18 m | 45–75 / 20–40, 20–30, 15–22 m | Liora's sustain vs her own DPS |
-| Tier power share | 40 / 70 / 100% | ±10 pts each | Value of early vs late buys |
-| Sell rate | 60% | 50–75% | Cost of experimenting / adapting |
+| Tier power share | 40 / 70 / 100% | ±10 pts each | Value of early vs late buys. *v2: moved to `items-and-armory.md` §7.* |
+| Sell rate | 60% | 50–75% | Cost of experimenting / adapting. *v2: `items-and-armory.md` §7.* |
 | Ammo potency (Burn 12%, Shock 0.6, Siphon 8%, Cryo 0.5, Sunder 35%, Pierce 40%) | §3.7.1 | ±30% each | Ammo strength |
 | Shock Overload ICD | 3 s | 2–5 s | Teamfight chain spam |
 | Cryo slow max | 25% | 15–30% | Kiting frustration |
 | Uplink ammo immunity | on | on/off | Siege length (keep on; Canon C7) |
-| Price per tier | §3.8 | Inside band only | Build pacing |
+| Price per tier | §3.8 | Inside band only | Build pacing. *v2: item prices, combine costs and caps are in `items-and-armory.md` §7.* |
+| Brannoc EHP ratio vs 250 HP (rule c) | ≥ 2.35× (owner 2026-10-07) | 2.3–2.5× | Tank survival vs penetration |
 
 ---
 
 ## 8. Acceptance Criteria
 
 1. In a test range, each weapon's unmodded body TTK vs 225 HP, 250 HP and Brannoc (550 HP, 20% armor) dummies at optimal range is within its §3.4 / `heroes.md` §5.2 band (±10%, automated test).
-2. With any combination of mounts, ammo and Ammo Mod, body TTK_ideal vs a level-matched 250 HP target is never below 0.80 s without an ultimate (automated sweep over all valid builds).
-3. Every catalog entry's price sits inside its band; Tier I/II/III map to Minor/Standard/Major; Ammo Types are Standard, Ammo Mods Minor (data validation test).
+2. With any combination of items, ammo and Ammo Mod, body TTK_ideal vs a level-matched 250 HP target is never below 0.80 s without an ultimate and never below 0.75 × the unmodded TTK, ammo effects included (automated sweep over all valid builds; `items-and-armory.md` AC 9).
+3. Every catalog entry's price sits inside its band; Ammo Types are Standard, Ammo Mods Minor (data validation test). *v2: item bands per tier are checked by `items-and-armory.md` AC 1.*
 4. Buying any Crystal/Chip tier changes the first-person and third-person weapon model within 1 frame of purchase; QA can identify each socket's tier from 20 m in third person by size/glow alone (screenshot review, greyscale pass).
 5. Crystals cannot be bought for a Mechanical gun and vice versa; restricted lines are greyed for other weapons.
 6. Purchases are impossible outside the own HQ Armory zone, at Forward Beacons, and during Sudden Death.
 7. Selling within the same Armory visit refunds 100%; after leaving and re-entering, 60% rounded down to 5.
-8. Upgrading Overclock I → III charges 400 + 500 + 900 = 1,800 total.
+8. *(v1; replaced by `items-and-armory.md` AC 2: Ember Heart costs 2,550 from nothing, 1,550 with Ember Facet mounted.)* Upgrading Overclock I → III charges 400 + 500 + 900 = 1,800 total.
 9. Emptying a Mana pool triggers Burnout (regen delay ×1.5) and the crystals visibly go dark; the crackle is audible at 15 m and not at 20 m.
 10. Standing in a held Supply Cache refills a Mechanical reserve from 0 to full in 4 s ±0.1 s. A Mana hero touching it gets `regen_delay` ×0.5 for 10 s ±0.1 s, and touching it again within 8 s does nothing.
-16. Halo Repeater heal beam: heals an allied hero at 60 HP/s ±2% (L1), a Wardling at 30 HP/s, drains 25 mana/s from the shared pool, drains nothing on a full-HP target, and its heal output is unchanged by any Core damage line or Ammo Type; with Reservoir III a full-pool beam lasts 6.0 s ±0.1 s.
+16. Halo Repeater heal beam: heals an allied hero at 60 HP/s ±2% (L1), a Wardling at 30 HP/s, drains 25 mana/s from the shared pool, drains nothing on a full-HP target, and its heal output is unchanged by any Core damage line or Ammo Type; with Reservoir Frame (pool +45%) a full-pool beam lasts 5.8 s ±0.1 s (v1: Reservoir III, 6.0 s).
 11. The Mana Uplink takes base damage only from any ammo type (no Burn, no Sunder bonus).
 12. Shock Overload cannot proc on the same target from the same shooter more than once per 3 s.
 13. Cryo never reduces a target's move speed by more than 25% from Cryo alone.
 14. At match end all mounts, ammo types and Lumen are cleared; the next match starts every weapon unmodded.
-15. Median telemetry from 20+ bot matches: full gun build completes at 24–32 min; no player completes a full gun + max squad before 30:00.
+15. Median telemetry from 20+ bot matches: no player completes a full item build + max squad before 30:00. *(v2: full-build timing targets are `items-and-armory.md` AC 15–17; v1 said "full gun build completes at 24–32 min".)*
 
 ---
 
