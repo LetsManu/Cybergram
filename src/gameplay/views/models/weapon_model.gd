@@ -26,6 +26,7 @@ var _mount_nodes: Array[Node3D] = []
 var _spinners: Array = []  # [Node3D, axis, speed]
 var _conduit_tint := Color(0, 0, 0, 0)
 var _time: float = 0.0
+var _last_build := PackedInt32Array()
 
 
 func build_from(bp: Dictionary, first_person_: bool, team_: int) -> void:
@@ -133,6 +134,25 @@ func set_mounts(items: Array, tiers: PackedInt32Array) -> int:
 	return _mount_nodes.size()
 
 
+## Armory v2 (items-and-armory.md §3.1, §3.8 rule 1): mounts the gun places
+## of an 11-place build (Core, Barrel, Frame, Ammo Type, Ammo Mod); the recipe
+## tier picks the size. The Chamber window / conduit takes the loaded ammo
+## type's tracer colour (weapons-and-mods.md §3.6.3). Unchanged builds are skipped.
+func set_build(build: PackedInt32Array, cat: ArmoryCatalogDef = null) -> int:
+	if build == _last_build:
+		return _mount_nodes.size()
+	_last_build = build.duplicate()
+	var c := cat if cat != null else ArmoryVisualsData.catalog()
+	var items := BuildVisuals.gun_items(build, c)
+	var tiers := PackedInt32Array()
+	for it in items:
+		tiers.append(BuildVisuals.visual_tier(it as ArmoryItemDef))
+	var n := set_mounts(items, tiers)
+	var ammo := BuildVisuals.ammo_type(build, c)
+	set_chamber_tint(ArmoryVisualsData.ammo_color(ammo, Color(0, 0, 0, 0)) if ammo > 0 else Color(0, 0, 0, 0))
+	return n
+
+
 func mount_count() -> int:
 	return _mount_nodes.size()
 
@@ -155,6 +175,10 @@ func _process(delta: float) -> void:
 				n.rotation = Vector3(r0.x, r0.y, r0.z + _time * a[2])
 			&"wobble_z":
 				n.rotation = Vector3(r0.x, r0.y, r0.z + sin(_time * a[2]) * a[3])
+	if not first_person and not _spinners.is_empty():
+		var cam := get_viewport().get_camera_3d()
+		if cam != null and cam.global_position.distance_to(global_position) > ArmoryVisualsData.idle_cull_m():
+			return  # idle mount motion culled beyond 30 m (weapons-and-mods.md R9)
 	for sp in _spinners:
 		var n: Node3D = sp[0]
 		if is_instance_valid(n):

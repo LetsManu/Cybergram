@@ -277,6 +277,9 @@ func _on_snapshot(snap: SnapshotData) -> void:
 			_vel = e.velocity
 			if model != null:
 				model.set_grounded(e.grounded)
+				# Armory v2 public build (items-and-armory.md §3.8): gun parts and
+				# body gear; skipped inside the model while the build is unchanged.
+				model.set_build(e.build)
 			if e.team != team:
 				team = e.team
 				if model != null:

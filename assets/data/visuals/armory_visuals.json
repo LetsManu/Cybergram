@@ -1,0 +1,549 @@
+{
+ "idle_cull_m": 30.0,
+ "tier_size": [
+  1.0,
+  1.4,
+  1.9
+ ],
+ "tier_glow": [
+  0.6,
+  1.0,
+  1.6
+ ],
+ "spare_dim": 0.15,
+ "item_cuts": {
+  "ember_part": "ember_heart",
+  "ember_facet": "ember_heart",
+  "ember_heart": "ember_heart",
+  "tempo_part": "tempest",
+  "pulse_facet": "tempest",
+  "tempest_heart": "tempest",
+  "lens_part": "lens",
+  "prism_eye": "prism_eye",
+  "longsight_ring": "lens",
+  "longsight_lens": "lens",
+  "steady_part": "flat",
+  "bore_ring": "bore",
+  "breaker_bore": "bore",
+  "feed_part": "vial",
+  "wellframe": "vial",
+  "reservoir_frame": "tank",
+  "flux_coil": "helix",
+  "anchor_frame": "hexblock"
+ },
+ "gear_shapes": {
+  "vital_cell": "cell",
+  "vital_core": "cell_cage",
+  "vigil_core": "heart_cage",
+  "plate_scale": "plate",
+  "plate_harness": "plates",
+  "bastion_plate": "pauldron",
+  "null_thread": "spool",
+  "null_cowl": "cowl",
+  "null_veil": "fins",
+  "barrier_lattice": "lattice",
+  "cadence_bead": "bead",
+  "cadence_circlet": "circlet",
+  "cadence_crown": "halo",
+  "stride_clip": "band",
+  "stride_rig": "calf_rig",
+  "breaker_sigil": "gauntlet"
+ },
+ "ammo": {
+  "0": {
+   "name": "standard",
+   "color": "",
+   "width": 1.0,
+   "length": 1.0,
+   "shape": "plain",
+   "impact": "spark"
+  },
+  "1": {
+   "name": "piercing",
+   "color": "#B8C7D6",
+   "width": 0.55,
+   "length": 1.4,
+   "shape": "thin",
+   "impact": "puncture"
+  },
+  "2": {
+   "name": "sunder",
+   "color": "#FFC040",
+   "width": 2.2,
+   "length": 0.8,
+   "shape": "heavy",
+   "impact": "debris"
+  },
+  "3": {
+   "name": "incendiary",
+   "color": "#FF9A40",
+   "width": 1.2,
+   "length": 1.6,
+   "shape": "trail",
+   "impact": "flame"
+  },
+  "4": {
+   "name": "shock",
+   "color": "#F2F5A8",
+   "width": 1.0,
+   "length": 1.0,
+   "shape": "arc",
+   "impact": "ring"
+  },
+  "5": {
+   "name": "siphon",
+   "color": "#57E07F",
+   "width": 1.0,
+   "length": 1.0,
+   "shape": "plain",
+   "impact": "mote"
+  },
+  "6": {
+   "name": "cryo",
+   "color": "#D8F6FF",
+   "width": 1.1,
+   "length": 1.0,
+   "shape": "frost",
+   "impact": "bloom"
+  }
+ },
+ "ammo_mods": {
+  "1": {
+   "name": "saturated",
+   "width": 1.5
+  },
+  "2": {
+   "name": "lingering",
+   "linger_s": 0.3
+  },
+  "3": {
+   "name": "volatile",
+   "sparks": true
+  },
+  "4": {
+   "name": "tracer",
+   "pulse_head": true
+  },
+  "5": {
+   "name": "overcharged",
+   "glow": 1.6
+  }
+ },
+ "anchors": {
+  "body_belt": {
+   "subs": [
+    {
+     "bone": "Hips",
+     "pos": [
+      0.16,
+      0.06,
+      0.044
+     ]
+    },
+    {
+     "bone": "Hips",
+     "pos": [
+      0.155,
+      0.06,
+      -0.053
+     ]
+    },
+    {
+     "bone": "Hips",
+     "pos": [
+      0.064,
+      0.06,
+      -0.121
+     ]
+    },
+    {
+     "bone": "Hips",
+     "pos": [
+      -0.064,
+      0.06,
+      -0.121
+     ]
+    },
+    {
+     "bone": "Hips",
+     "pos": [
+      -0.155,
+      0.06,
+      -0.053
+     ]
+    },
+    {
+     "bone": "Hips",
+     "pos": [
+      -0.16,
+      0.06,
+      0.044
+     ]
+    }
+   ],
+   "overflow": null,
+   "fp": true
+  },
+  "body_chest": {
+   "subs": [
+    {
+     "bone": "UpperChest",
+     "pos": [
+      -0.07,
+      -0.02,
+      -0.15
+     ]
+    },
+    {
+     "bone": "UpperChest",
+     "pos": [
+      0.07,
+      -0.02,
+      -0.15
+     ]
+    }
+   ],
+   "overflow": {
+    "bone": "Spine",
+    "pos": [
+     0.0,
+     0.02,
+     -0.15
+    ]
+   }
+  },
+  "body_shoulders": {
+   "subs": [
+    {
+     "bone": "UpperChest",
+     "pos": [
+      -0.19,
+      0.13,
+      0.0
+     ]
+    },
+    {
+     "bone": "UpperChest",
+     "pos": [
+      0.19,
+      0.13,
+      0.0
+     ]
+    }
+   ],
+   "overflow": {
+    "bone": "UpperChest",
+    "pos": [
+     0.0,
+     0.17,
+     0.08
+    ]
+   }
+  },
+  "body_back": {
+   "subs": [
+    {
+     "bone": "UpperChest",
+     "pos": [
+      0.0,
+      0.06,
+      0.17
+     ]
+    },
+    {
+     "bone": "Spine",
+     "pos": [
+      0.0,
+      -0.02,
+      0.15
+     ]
+    }
+   ],
+   "overflow": {
+    "bone": "Hips",
+    "pos": [
+     0.14,
+     0.02,
+     0.1
+    ]
+   }
+  },
+  "body_head": {
+   "subs": [
+    {
+     "bone": "Head",
+     "pos": [
+      0.0,
+      0.14,
+      0.0
+     ]
+    }
+   ],
+   "overflow": {
+    "bone": "UpperChest",
+    "pos": [
+     0.0,
+     0.2,
+     0.15
+    ]
+   }
+  },
+  "body_legs": {
+   "subs": [
+    {
+     "bone": "LowerLeg_L",
+     "along": [
+      "Foot_L",
+      0.4
+     ],
+     "pos": [
+      0.0,
+      0.0,
+      0.05
+     ]
+    },
+    {
+     "bone": "LowerLeg_R",
+     "along": [
+      "Foot_R",
+      0.4
+     ],
+     "pos": [
+      0.0,
+      0.0,
+      0.05
+     ]
+    }
+   ],
+   "overflow": {
+    "bone": "UpperLeg_L",
+    "along": [
+     "LowerLeg_L",
+     0.5
+    ],
+    "pos": [
+     -0.06,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "body_forearm": {
+   "subs": [
+    {
+     "bone": "LowerArm_L",
+     "along": [
+      "Hand_L",
+      0.5
+     ],
+     "pos": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "bone": "LowerArm_R",
+     "along": [
+      "Hand_R",
+      0.5
+     ],
+     "pos": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   ],
+   "overflow": {
+    "bone": "UpperArm_L",
+    "along": [
+     "LowerArm_L",
+     0.5
+    ],
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "fp": true
+  }
+ },
+ "badge": {
+  "bone": "UpperChest",
+  "pos": [
+   0.0,
+   0.0,
+   0.2
+  ],
+  "step": [
+   0.045,
+   0.0,
+   0.0
+  ]
+ },
+ "bone_fallback": {
+  "Hips": [
+   0,
+   0.98,
+   0
+  ],
+  "Spine": [
+   0,
+   1.12,
+   0
+  ],
+  "UpperChest": [
+   0,
+   1.38,
+   0
+  ],
+  "Head": [
+   0,
+   1.62,
+   0
+  ],
+  "UpperLeg_L": [
+   -0.1,
+   0.9,
+   0
+  ],
+  "LowerLeg_L": [
+   -0.1,
+   0.5,
+   0
+  ],
+  "LowerLeg_R": [
+   0.1,
+   0.5,
+   0
+  ],
+  "Foot_L": [
+   -0.1,
+   0.08,
+   0
+  ],
+  "Foot_R": [
+   0.1,
+   0.08,
+   0
+  ],
+  "UpperArm_L": [
+   -0.2,
+   1.4,
+   0
+  ],
+  "LowerArm_L": [
+   -0.3,
+   1.15,
+   0
+  ],
+  "LowerArm_R": [
+   0.3,
+   1.15,
+   0
+  ],
+  "Hand_L": [
+   -0.32,
+   0.92,
+   0
+  ],
+  "Hand_R": [
+   0.32,
+   0.92,
+   0
+  ]
+ },
+ "gun": {
+  "bone": "Hand_R",
+  "scale": 1.3,
+  "socket_core": [
+   0.0,
+   0.07,
+   -0.2
+  ],
+  "socket_barrel": [
+   0.0,
+   0.04,
+   -0.5
+  ],
+  "socket_frame": [
+   -0.03,
+   0.0,
+   -0.08
+  ],
+  "socket_chamber": [
+   0.0,
+   -0.04,
+   -0.18
+  ]
+ },
+ "heroes": {
+  "default": {
+   "spread": 1.0,
+   "gear_scale": 1.0,
+   "nudge": {},
+   "mana": true
+  },
+  "brannoc": {
+   "mana": false,
+   "spread": 1.3,
+   "gear_scale": 1.3,
+   "nudge": {
+    "body_shoulders": [
+     0.0,
+     0.03,
+     0.0
+    ],
+    "body_back": [
+     0.0,
+     0.0,
+     0.05
+    ]
+   }
+  },
+  "ryker": {
+   "mana": false,
+   "spread": 1.08,
+   "gear_scale": 1.05,
+   "nudge": {}
+  },
+  "juniper": {
+   "mana": false,
+   "spread": 0.95,
+   "gear_scale": 0.95,
+   "nudge": {}
+  },
+  "liora": {
+   "mana": true,
+   "spread": 0.95,
+   "gear_scale": 0.95,
+   "nudge": {}
+  },
+  "sable": {
+   "mana": true,
+   "spread": 0.95,
+   "gear_scale": 0.95,
+   "nudge": {}
+  },
+  "vesper": {
+   "mana": true,
+   "spread": 0.97,
+   "gear_scale": 0.97,
+   "nudge": {}
+  },
+  "hex": {
+   "mana": true,
+   "spread": 0.92,
+   "gear_scale": 0.92,
+   "nudge": {
+    "body_head": [
+     0.0,
+     0.03,
+     0.0
+    ]
+   }
+  }
+ }
+}
