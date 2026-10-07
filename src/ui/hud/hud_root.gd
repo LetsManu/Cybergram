@@ -245,6 +245,13 @@ func _apply_context(c: ClientWorld) -> void:
 	_skills.visible = v.skills
 	_weapon.visible = v.weapon
 	_armory.visible = shop or _armory.wants_draw()
+	if shop and _armory is ItemShopPanel:
+		# The v2 shop is a modal with its own Lumen / inventory strip (§3.9):
+		# nothing of the combat HUD may read through it.
+		_vitals.visible = false
+		_weapon.visible = false
+		_skills.visible = false
+		_squad.visible = false
 	_death.visible = dead and not board
 	_end.visible = not board
 	_scoreboard.visible = board

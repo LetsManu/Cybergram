@@ -39,6 +39,7 @@ const GRID_X: float = 160.0
 const GRID_W: float = 676.0
 const DETAIL_X: float = 846.0
 const REC_RIGHT_X: float = 820.0
+const STEP_W: float = 58.0
 const TOAST_LIFE_S: float = 2.5
 const HINT_LIFE_S: float = 2.5
 const PENDING_TIMEOUT_S: float = 1.5
@@ -63,6 +64,12 @@ var _items: Array[Dictionary] = []
 var _labels: Array[Dictionary] = []
 var _scroll: float = 0.0
 var _view: Vector2 = Vector2(BODY_Y, BODY_B)
+## Bottom of the Core steps (canvas units, unscrolled): the "more below" hint.
+var _core_bottom: float = 0.0
+## Evidence only (env CYBERGRAM_SHOP_EVIDENCE=full): fill the open slots, then
+## send one buy the server refuses (INVENTORY_FULL) to show its toast.
+var _evidence: Array = []
+var _evidence_t: float = 0.0
 var _held: Dictionary = {}
 var _edges: Dictionary = {}
 var _econ: EconomyRulesDef
@@ -100,6 +107,8 @@ func bind(c: HudContext) -> void:
 	# Evidence runs use an in-memory store, never the player's file.
 	builds_vm = BuildsViewModel.new(null, "" if _debug_builds else CustomBuildStore.DEFAULT_PATH)
 	builds_vm.load_store()
+	if _auto_open and OS.get_environment("CYBERGRAM_SHOP_EVIDENCE") == "full":
+		_evidence = [&"steady_part", &"stride_clip", &"lens_part"]
 
 
 ## True while something must be drawn: the shop or the off-pad hint.
@@ -149,6 +158,8 @@ func poll() -> void:
 				_hint_t = HINT_LIFE_S if not client.is_dead() else 0.0
 	_sync_open()
 	_check_pending(dt)
+	if open and not _evidence.is_empty():
+		_evidence_step(dt)
 	if open:
 		_layout()
 		if not searching:
@@ -192,6 +203,20 @@ func _sync_open() -> void:
 		if _mouse_before == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		_mouse_before = -1
+
+
+## Evidence only: one raw ACTION_BUY every 0.6 s (the last one is refused by
+## the server, so its exact Result toast shows), then the All Items tab.
+func _evidence_step(dt: float) -> void:
+	_evidence_t += dt
+	if _evidence_t < 0.6 or not _pending.is_empty():
+		return
+	_evidence_t = 0.0
+	var idx := ctx.client.catalog.index_of(_evidence.pop_front())
+	_send("buy", idx, InputCommand.ACTION_BUY, idx, model.cost(idx))
+	if _evidence.is_empty():
+		_set_tab(ItemShopModel.Tab.ALL)
+		_focus_index(idx)
 
 
 func _update_context(client: ClientWorld) -> void:
@@ -656,14 +681,21 @@ func _layout_rec() -> void:
 	_labels.append({"key": "HUD_SHOP2_SEC_CORE", "pos": Vector2(PAD, y - 6.0)})
 	_view = Vector2(y, BODY_B)
 	var rows: Array = s["core"]
-	var cw := (REC_RIGHT_X - PAD - 12.0 - 64.0 - 8.0 * 2.0) / 3.0
+	var cw := (REC_RIGHT_X - PAD - 12.0 - STEP_W - 8.0 * 2.0) / 3.0
+	var x := PAD
+	var ry := y
 	for r in rows.size():
-		var ry := y + r * CARD_PITCH
 		var cards: Array = rows[r]["cards"]
-		_labels.append({"step": r + 1, "pos": Vector2(PAD, ry), "scroll": true, "next": bool(rows[r]["next"])})
+		var bw := STEP_W + cards.size() * (cw + 8.0) - 8.0
+		if x > PAD and x + bw > REC_RIGHT_X - 12.0:
+			x = PAD
+			ry += CARD_PITCH
+		_labels.append({"step": r + 1, "pos": Vector2(x, ry), "scroll": true, "next": bool(rows[r]["next"])})
 		for c in cards.size():
-			_items.append({"rect": Rect2(PAD + 64.0 + c * (cw + 8.0), ry, cw, CARD_H), "index": int(cards[c]["next"]),
+			_items.append({"rect": Rect2(x + STEP_W + c * (cw + 8.0), ry, cw, CARD_H), "index": int(cards[c]["next"]),
 				"goal": int(cards[c]["goal"]), "card": cards[c], "scroll": true})
+		x += bw + 16.0
+	_core_bottom = ry + CARD_H if not rows.is_empty() else y
 	var rx := REC_RIGHT_X
 	var rw := VW - PAD - rx
 	var yy := BODY_Y + 20.0
@@ -828,7 +860,7 @@ func _draw() -> void:
 		if _hint_t > 0.0:
 			_draw_hint()
 		return
-	draw_rect(Rect2(Vector2.ZERO, size), Color(HudPalette.INK_DEEP, 0.95))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(HudPalette.INK_DEEP, 1.0))
 	_draw_header()
 	match tab:
 		ItemShopModel.Tab.RECOMMENDED:
@@ -892,6 +924,8 @@ func _draw_labels() -> void:
 			if pos.y < _view.x - 2.0 or pos.y > _view.y - 10.0:
 				continue
 		if l.has("step"):
+			if pos.y + CARD_H > _view.y + 1.0:
+				continue
 			var nxt := bool(l.get("next", false))
 			_c(tr("HUD_SHOP2_STEP") % int(l["step"]), pos.x, pos.y + 26.0, 12.0,
 				HudPalette.BRASS_HI if nxt else HudPalette.MUTED, 0.16)
@@ -911,6 +945,36 @@ func _draw_rec() -> void:
 		_draw_card(r, _items[i]["card"], i == sel and area == Area.MAIN)
 	if _items.is_empty():
 		_t(tr("HUD_SHOP_NO_BUILD"), PAD, BODY_Y + 60.0, 15.0, HudPalette.MUTED)
+	# More Core steps below the fold: a visible hint (Down / wheel scrolls).
+	if _core_bottom - _scroll > _view.y + 1.0:
+		var hy := _view.y + 8.0
+		chevron_line(Vector2(PAD + 8.0, hy - 4.0) * _k, 5.0 * _k, HudPalette.BRASS)
+		_t(tr("HUD_SHOP2_MORE"), PAD + 22.0, hy, 12.0, HudPalette.BRASS, ctx.font_body)
+	if area == Area.MAIN and sel >= 0 and sel < _items.size() and _shown(sel).size != Vector2.ZERO:
+		_draw_tip(_shown(sel), _items[sel]["card"])
+
+
+## Focused card: the full name, price, next part and reason that the card
+## itself cuts with ".." at 720p (§3.9: every card shows its reason).
+func _draw_tip(r: Rect2, c: Dictionary) -> void:
+	var w := maxf(r.size.x, 360.0)
+	var x := clampf(r.position.x, PAD, VW - PAD - w)
+	var h := 74.0
+	var y := r.end.y + 4.0 if r.end.y + 4.0 + h < STRIP_Y - 4.0 else r.position.y - h - 4.0
+	var tr_ := Rect2(x, y, w, h)
+	draw_rect(_r(tr_), Color(0.03, 0.045, 0.06, 0.99))
+	draw_rect(_r(tr_).grow(-0.5), HudPalette.BRASS, false, 1.0)
+	var goal := int(c["goal"])
+	var head := "%s  ·  %s" % [model.name_of(goal), tr("HUD_SHOP2_TOTAL") % HudFormat.thousands(int(c["total"]))]
+	_t(_fit(head, 13.0, w - 20.0), x + 10.0, y + 18.0, 13.0, HudPalette.IVORY, UiKit.body_font(600))
+	var st := int(c["state"])
+	var reason := tr(String(c["reason"]))
+	if not bool(c["done"]) and st != ItemShopModel.State.AVAILABLE and st != ItemShopModel.State.CANT_AFFORD:
+		reason = _state_text(int(c["next"]), st) + "  ·  " + reason
+	elif st == ItemShopModel.State.CANT_AFFORD and not bool(c["done"]):
+		reason = _state_text(int(c["next"]), st) + "  ·  " + reason
+	draw_multiline_string(ctx.font_body, Vector2(x + 10.0, y + 38.0) * _k, reason, HORIZONTAL_ALIGNMENT_LEFT,
+		(w - 20.0) * _k, ts(_px(12.0)), 3, HudPalette.MUTED)
 
 
 ## One Recommended card: icon, name, total price, "Next: part · price", reason.
@@ -1160,7 +1224,7 @@ func _draw_strip() -> void:
 		_draw_place(k)
 	# Squad / Med-Pack row.
 	var rr := _row_rect()
-	_c(tr("HUD_SHOP2_ROW"), rr.position.x, STRIP_Y + 22.0, 11.0, HudPalette.MUTED, 0.2)
+	_c(_fit(tr("HUD_SHOP2_ROW"), 10.0, rr.size.x + 10.0), rr.position.x, STRIP_Y + 22.0, 10.0, HudPalette.MUTED, 0.1)
 	draw_rect(_r(rr), Color(0.051, 0.075, 0.094, 0.9))
 	draw_rect(_r(rr).grow(-0.5), HudPalette.HAIR_STRONG, false, 1.0)
 	var med := model.catalog.index_of(&"med_pack")
@@ -1173,7 +1237,7 @@ func _draw_strip() -> void:
 	# Signatures, Undo last, Sell.
 	var sig := model.signatures()
 	_c(tr("HUD_SHOP2_SIGNATURES") % [sig.x, sig.y], 984.0, STRIP_Y + 22.0, 11.0,
-		HudPalette.WARN_UI if sig.x >= sig.y else HudPalette.BRASS, 0.2)
+		HudPalette.WARN_UI if sig.x >= sig.y else HudPalette.BRASS, 0.2, HORIZONTAL_ALIGNMENT_RIGHT, VW - PAD - 984.0)
 	var ur := _undo_rect()
 	var can_undo := model.undo_last_available()
 	draw_rect(_r(ur).grow(-0.5), HudPalette.BRASS if can_undo else HudPalette.HAIR_STRONG, false, 1.0)
