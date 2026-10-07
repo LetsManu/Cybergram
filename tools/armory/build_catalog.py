@@ -13,7 +13,7 @@ import re
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-V1 = os.path.join(ROOT, "assets/data/economy/armory_catalog_slice.tres")
+V1 = os.path.join(ROOT, "tools/armory/legacy/armory_catalog_v1.tres.txt")  # frozen v1 item properties (squad, Med-Pack, Ammo)
 OUT = os.path.join(ROOT, "assets/data/economy/armory_catalog_v22.tres")
 
 # ArmoryItemDef enums
