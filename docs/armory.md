@@ -259,6 +259,44 @@ What each suite covers:
 - `build_advisor_test.gd`: recommendations.
 - `shop_model_test.gd`: shop logic.
 
+## Balance check
+
+`tools/balance/armory_report.gd` spends every hero's default guide along the
+average-player Lumen curve (wardlings-and-economy.md §18; the model in
+`tests/unit/economy/economy_curve_test.gd`). It buys through the same path as a
+bot: `BuildState.from_hero`, then `BuildAdvisor.best()`, then `Armory.buy`.
+
+```
+$GODOT --headless --path . -s res://tools/balance/armory_report.gd -- --out docs/balance/armory-report.md
+```
+
+- **Runs:** slice rules and GDD defaults; always on the pad (when a step becomes
+  affordable) or one visit every 180 s; no enemy threat tags or all six other
+  heroes' tags.
+- **Output:** the purchase timeline, first spike and core-done times, dead
+  zones (over 240 s without a purchase), Lumen unspent at 30:00, items no guide
+  names or no run buys, build overlap between heroes, and tier steps whose
+  Lumen value is out of line.
+- The report only observes. The economy designer's reading and proposals are
+  in `docs/balance/armory-review.md`; canon values change through the GDD and
+  `design/registry/entities.yaml` first.
+
+Rerun the report after changing prices, items or guides.
+
+## Screenshots
+
+Each preset spawns the hero on the Armory pad with Lumen and opens the panel:
+
+- `--map slice --debug-armory`: the Recommended tab.
+- `--map slice --debug-armory-catalog`: the All tab with the expert detail.
+- `--map slice --debug-armory-builds`: My builds with a sample build (in
+  memory only; `user://builds.json` is not touched).
+
+`RESOLUTION=1920x1080 tools/ci/capture_scene.sh "" out.png 120 --map slice --debug-armory`
+renders at 1080p (720p by default). Run `--import` first after editing
+`hud.csv`, or new keys show raw. The current set and the open issues are in
+`docs/item-shop-polish.md`.
+
 ## Logs
 
 The server writes one OpsLog line per Armory request:

@@ -29,9 +29,11 @@ const GDD_AVG: Array = [[5, 1550, 1050, 4], [10, 2880, 2370, 7], [20, 5790, 5230
 
 
 ## Integrates the model in 1 s steps; returns {minute: [lumen, exp, level]} and "l6" (minutes).
+## `samples`, when given, gets the earned Lumen after every second (the
+## Armory balance report, tools/balance/armory_report.gd, spends along it).
 ## Activity (waves, squads, kills, captures) starts at 1:00: Deploy has no
 ## Vanguard waves and nothing is capturable (match-flow-and-map.md §2).
-static func run_model(r: EconomyRulesDef, sentinels: bool, surge_s: float = 900.0) -> Dictionary:
+static func run_model(r: EconomyRulesDef, sentinels: bool, surge_s: float = 900.0, samples: Array = []) -> Dictionary:
 	var out := {}
 	var lumen := float(r.starting_purse)
 	var xp := 0.0
@@ -46,6 +48,7 @@ static func run_model(r: EconomyRulesDef, sentinels: bool, surge_s: float = 900.
 			lumen += r.trickle_per_min * dt
 		var sec := i + 1
 		if m < DEPLOY_MIN:
+			samples.append(lumen)
 			continue
 		var van := VANGUARD_PER_MIN * (1.0 + VANGUARD_GROWTH * m) * dt
 		var lv := float(r.lumen_vanguard[tier - 1]) * MEAN_SHARE
@@ -64,6 +67,7 @@ static func run_model(r: EconomyRulesDef, sentinels: bool, surge_s: float = 900.
 		lumen += (CAPTURES_TEAM * 40.0 + CAPTURES_PART * 120.0 + DEFENCES * 60.0) / 29.0 * dt
 		xp += (CAPTURES_TEAM * r.exp_capture_team + CAPTURES_PART * r.exp_capture_participant
 			+ DEFENCES * r.exp_defence) / 29.0 * dt
+		samples.append(lumen)
 		if l6 < 0.0 and EconomyMath.level_for_exp(r, floori(xp)) >= 6:
 			l6 = (i + 1) * dt
 		if sec % 300 == 0:

@@ -77,6 +77,8 @@ var builds_vm: BuildsViewModel
 var _auto_open: bool = false
 ## --debug-armory-builds: open on My builds with a sample build.
 var _debug_builds: bool = false
+## --debug-armory-catalog: open on the All tab with the expert detail.
+var _debug_catalog: bool = false
 
 const _KEYS: Array[int] = [KEY_F, KEY_B, KEY_ESCAPE, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_ENTER, KEY_KP_ENTER,
 	KEY_1, KEY_2, KEY_3, KEY_BACKSPACE, KEY_Q, KEY_E, KEY_PAGEUP, KEY_PAGEDOWN, KEY_SLASH, KEY_R, KEY_Z, KEY_O, KEY_TAB,
@@ -94,6 +96,7 @@ func bind(c: HudContext) -> void:
 	var lc = c.session.get("launch_config") if c.session != null else null
 	_auto_open = lc != null and lc.get("debug_armory") == true
 	_debug_builds = lc != null and lc.get("debug_armory_builds") == true
+	_debug_catalog = lc != null and lc.get("debug_armory_catalog") == true
 	# --debug-armory-builds: an in-memory store, so evidence runs never touch the player's file.
 	builds_vm = BuildsViewModel.new(null, "" if _debug_builds else CustomBuildStore.DEFAULT_PATH)
 	builds_vm.load_store()
@@ -173,6 +176,11 @@ func _sync_open() -> void:
 		_refresh_rows()
 		if tab != ShopModel.Tab.BUILDS:
 			_jump_recommended()
+		if _debug_catalog:
+			_debug_catalog = false
+			tab = ShopModel.Tab.ALL
+			expert = true
+			_refresh_rows()
 		_mouse_before = Input.mouse_mode
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
