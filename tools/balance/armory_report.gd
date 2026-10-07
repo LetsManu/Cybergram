@@ -2,7 +2,7 @@ extends SceneTree
 ## Writes the Armory balance report (tools/balance/armory_sim.gd; docs/armory.md
 ## "Balance check").
 ##
-## Run: $GODOT --headless --path . -s res://tools/balance/armory_report.gd [-- [--out docs/balance/armory-v2-report.md]]
+## Run: $GODOT --headless --path . -s res://tools/balance/armory_report.gd [-- [--quick] [--out docs/balance/armory-v2-report.md]]
 ## (`--v22` is accepted and ignored: the v2 catalog is the only one.)
 
 const ArmorySim := preload("res://tools/balance/armory_sim.gd")
@@ -15,8 +15,12 @@ func _init() -> void:
 	var k := args.find("--out")
 	if k >= 0 and k + 1 < args.size():
 		out_path = args[k + 1]
-	var text: String = ArmorySim.new().report()
+	var quick := args.has("--quick")  # average curve, pad only; written nowhere unless --out is given
+	var text: String = ArmorySim.new().report(quick)
 	print(text)
+	if quick and k < 0:
+		quit()
+		return
 	var abs := out_path if out_path.begins_with("res://") or out_path.is_absolute_path() else "res://" + out_path
 	var fa := FileAccess.open(abs, FileAccess.WRITE)
 	if fa != null:

@@ -111,7 +111,8 @@ func test_reset_to_default_copies_the_guide_core_path() -> void:
 	assert_bool(store.reset_to_default(id, _builds.for_hero(VESPER))).is_true()
 	var steps: Array = store.find(id)["steps"]
 	assert_str(String(steps[0]["item"])).is_equal("med_pack")
-	assert_str(String(steps[1]["item"])).is_equal("ember_part")  # the guide's first mount step
+	var items: Array = steps.map(func(st: Dictionary) -> String: return String(st["item"]))
+	assert_int(items.find("ember_part")).is_equal(2)  # after the opening Med-Pack and the restock step
 	for st in steps:
 		assert_bool(String(st["item"]) in ["bastion_plate", "null_veil", "ammo_incendiary", "breaker_sigil"]).is_false()  # situational only
 

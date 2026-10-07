@@ -15,6 +15,18 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_0_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_0_2"]
+script = ExtResource("3")
 id = &"start"
 item_id = &"ember_part"
 target = 1
@@ -24,27 +36,27 @@ requires = PackedStringArray("open")
 alternatives = PackedStringArray("vital_cell")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_0_2"]
+[sub_resource type="Resource" id="n_0_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"ember_heart"
 target = 1
 section = 2
-priority = 900
+priority = 880
 requires = PackedStringArray("start")
 alternatives = PackedStringArray("tempest_heart", "prism_eye")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_0_3"]
+[sub_resource type="Resource" id="n_0_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"vital_core"
 target = 1
 section = 3
-priority = 850
+priority = 930
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_0_4"]
+[sub_resource type="Resource" id="n_0_5"]
 script = ExtResource("3")
 id = &"barrel"
 item_id = &"longsight_ring"
@@ -55,7 +67,7 @@ requires = PackedStringArray("core1")
 alternatives = PackedStringArray("bore_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_0_5"]
+[sub_resource type="Resource" id="n_0_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_shock"
@@ -65,7 +77,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_cryo")
 
-[sub_resource type="Resource" id="n_0_6"]
+[sub_resource type="Resource" id="n_0_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -74,17 +86,17 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_0_7"]
+[sub_resource type="Resource" id="n_0_8"]
 script = ExtResource("3")
 id = &"sig2"
-item_id = &"barrier_lattice"
+item_id = &"cadence_crown"
 target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("vigil_core", "cadence_crown")
+alternatives = PackedStringArray("barrier_lattice", "vigil_core")
 
-[sub_resource type="Resource" id="n_0_8"]
+[sub_resource type="Resource" id="n_0_9"]
 script = ExtResource("3")
 id = &"mod"
 item_id = &"mod_saturated"
@@ -96,7 +108,7 @@ alternatives = PackedStringArray("mod_lingering")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_0_9"]
+[sub_resource type="Resource" id="n_0_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"cadence_circlet"
@@ -109,7 +121,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_0_10"]
+[sub_resource type="Resource" id="n_0_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"null_cowl"
@@ -122,7 +134,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_0_11"]
+[sub_resource type="Resource" id="n_0_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"stride_rig"
@@ -135,7 +147,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_0_12"]
+[sub_resource type="Resource" id="n_0_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"plate_harness"
@@ -148,7 +160,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_0_13"]
+[sub_resource type="Resource" id="n_0_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"vital_cell"
@@ -161,74 +173,70 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_0_14"]
+[sub_resource type="Resource" id="n_0_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 850
-requires = PackedStringArray("core1")
-reason_key = "HUD_ADVICE_N_SQUAD"
-
-[sub_resource type="Resource" id="n_0_15"]
-script = ExtResource("3")
-id = &"sq_dmg"
-item_id = &"amplifier_emitters"
-target = 1
-section = 4
-priority = 750
+priority = 940
 requires = PackedStringArray("start")
 reason_key = "HUD_ADVICE_N_SQUAD"
 
 [sub_resource type="Resource" id="n_0_16"]
 script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 4
+priority = 930
+requires = PackedStringArray("sq_hp")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_0_17"]
+script = ExtResource("3")
 id = &"sq_size"
 item_id = &"squad_expansion_1"
 target = 1
 section = 4
-priority = 690
-requires = PackedStringArray("sq_dmg")
+priority = 870
+requires = PackedStringArray("sq_dmg", "core1")
 reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
 
-[sub_resource type="Resource" id="n_0_17"]
-script = ExtResource("3")
-id = &"sq_hp2"
-item_id = &"reinforced_cores_2"
-target = 1
-section = 4
-priority = 560
-requires = PackedStringArray("sq_hp", "core1")
-
 [sub_resource type="Resource" id="n_0_18"]
-script = ExtResource("3")
-id = &"sq_mint"
-item_id = &"quick_mint"
-target = 1
-section = 4
-priority = 620
-requires = PackedStringArray("sq_size")
-reason_key = "HUD_ADVICE_N_QUICK_MINT"
-
-[sub_resource type="Resource" id="n_0_19"]
 script = ExtResource("3")
 id = &"sq_tether"
 item_id = &"harmonic_tether"
 target = 1
-section = 4
-priority = 600
+section = 10
+priority = 450
 requires = PackedStringArray("sq_size")
 reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_0_19"]
+script = ExtResource("3")
+id = &"sq_mint"
+item_id = &"quick_mint"
+target = 1
+section = 10
+priority = 440
+requires = PackedStringArray("sq_tether")
+reason_key = "HUD_ADVICE_N_QUICK_MINT"
+core = false
+optional = true
 
 [sub_resource type="Resource" id="n_0_20"]
 script = ExtResource("3")
-id = &"sq_bulwark"
-item_id = &"bulwark_protocol"
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
 target = 1
 section = 10
-priority = 540
-requires = PackedStringArray("sq_hp2", "sig2")
-reason_key = "HUD_ADVICE_N_BULWARK"
+priority = 430
+requires = PackedStringArray("sq_mint", "sq_hp")
+core = false
+optional = true
 
 [sub_resource type="Resource" id="n_0_21"]
 script = ExtResource("3")
@@ -236,13 +244,25 @@ id = &"sq_size2"
 item_id = &"squad_expansion_2"
 target = 1
 section = 10
-priority = 520
-requires = PackedStringArray("sq_size", "sig2")
+priority = 420
+requires = PackedStringArray("sq_hp2", "sq_size")
 reason_key = "HUD_ADVICE_N_LUXURY"
 core = false
 optional = true
 
 [sub_resource type="Resource" id="n_0_22"]
+script = ExtResource("3")
+id = &"sq_bulwark"
+item_id = &"bulwark_protocol"
+target = 1
+section = 10
+priority = 410
+requires = PackedStringArray("sq_size2")
+reason_key = "HUD_ADVICE_N_BULWARK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_0_23"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -254,7 +274,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_0_23"]
+[sub_resource type="Resource" id="n_0_24"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -268,7 +288,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_0_24"]
+[sub_resource type="Resource" id="n_0_25"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -282,7 +302,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_0_25"]
+[sub_resource type="Resource" id="n_0_26"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -296,7 +316,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_0_26"]
+[sub_resource type="Resource" id="n_0_27"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -308,7 +328,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_0_27"]
+[sub_resource type="Resource" id="n_0_28"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -322,7 +342,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_0_28"]
+[sub_resource type="Resource" id="n_0_29"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -339,9 +359,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_vesper_loom"
 display_name = "Loom Weaver"
-item_ids = PackedStringArray("med_pack", "ember_part", "ember_heart", "vital_core", "reinforced_cores_1", "longsight_ring", "ammo_shock", "amplifier_emitters", "wellframe", "barrier_lattice", "squad_expansion_1", "quick_mint", "harmonic_tether", "reinforced_cores_2", "bulwark_protocol")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_0_0"), SubResource("n_0_1"), SubResource("n_0_2"), SubResource("n_0_3"), SubResource("n_0_4"), SubResource("n_0_5"), SubResource("n_0_6"), SubResource("n_0_7"), SubResource("n_0_8"), SubResource("n_0_9"), SubResource("n_0_10"), SubResource("n_0_11"), SubResource("n_0_12"), SubResource("n_0_13"), SubResource("n_0_14"), SubResource("n_0_15"), SubResource("n_0_16"), SubResource("n_0_17"), SubResource("n_0_18"), SubResource("n_0_19"), SubResource("n_0_20"), SubResource("n_0_21"), SubResource("n_0_22"), SubResource("n_0_23"), SubResource("n_0_24"), SubResource("n_0_25"), SubResource("n_0_26"), SubResource("n_0_27"), SubResource("n_0_28")])
+item_ids = PackedStringArray("med_pack", "ember_part", "reinforced_cores_1", "vital_core", "amplifier_emitters", "ember_heart", "squad_expansion_1", "longsight_ring", "ammo_shock", "wellframe", "cadence_crown")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_0_0"), SubResource("n_0_1"), SubResource("n_0_2"), SubResource("n_0_3"), SubResource("n_0_4"), SubResource("n_0_5"), SubResource("n_0_6"), SubResource("n_0_7"), SubResource("n_0_8"), SubResource("n_0_9"), SubResource("n_0_10"), SubResource("n_0_11"), SubResource("n_0_12"), SubResource("n_0_13"), SubResource("n_0_14"), SubResource("n_0_15"), SubResource("n_0_16"), SubResource("n_0_17"), SubResource("n_0_18"), SubResource("n_0_19"), SubResource("n_0_20"), SubResource("n_0_21"), SubResource("n_0_22"), SubResource("n_0_23"), SubResource("n_0_24"), SubResource("n_0_25"), SubResource("n_0_26"), SubResource("n_0_27"), SubResource("n_0_28"), SubResource("n_0_29")])
 roles = PackedStringArray("commander")
 summary_key = "HUD_ADVICE_B_VESPER"
 
@@ -356,15 +376,28 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_1_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_1_2"]
+script = ExtResource("3")
 id = &"start"
-item_id = &"ember_part"
+item_id = &"stride_clip"
 target = 1
 section = 1
 priority = 950
 requires = PackedStringArray("open")
+alternatives = PackedStringArray("ember_part")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_1_2"]
+[sub_resource type="Resource" id="n_1_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"prism_eye"
@@ -375,7 +408,7 @@ requires = PackedStringArray("start")
 alternatives = PackedStringArray("ember_heart", "tempest_heart")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_1_3"]
+[sub_resource type="Resource" id="n_1_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"vital_core"
@@ -384,18 +417,18 @@ section = 3
 priority = 850
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_1_4"]
+[sub_resource type="Resource" id="n_1_5"]
 script = ExtResource("3")
 id = &"barrel"
-item_id = &"bore_ring"
+item_id = &"longsight_ring"
 target = 1
 section = 3
 priority = 800
 requires = PackedStringArray("core1")
-alternatives = PackedStringArray("longsight_ring")
+alternatives = PackedStringArray("bore_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_1_5"]
+[sub_resource type="Resource" id="n_1_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_cryo"
@@ -405,7 +438,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_siphon")
 
-[sub_resource type="Resource" id="n_1_6"]
+[sub_resource type="Resource" id="n_1_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -414,17 +447,17 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_1_7"]
+[sub_resource type="Resource" id="n_1_8"]
 script = ExtResource("3")
 id = &"sig2"
-item_id = &"cadence_crown"
+item_id = &"longsight_lens"
 target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("vigil_core", "breaker_sigil")
+alternatives = PackedStringArray("breaker_sigil")
 
-[sub_resource type="Resource" id="n_1_8"]
+[sub_resource type="Resource" id="n_1_9"]
 script = ExtResource("3")
 id = &"mod"
 item_id = &"mod_overcharged"
@@ -436,7 +469,7 @@ alternatives = PackedStringArray("mod_saturated")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_1_9"]
+[sub_resource type="Resource" id="n_1_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"null_cowl"
@@ -449,7 +482,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_1_10"]
+[sub_resource type="Resource" id="n_1_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"stride_rig"
@@ -462,7 +495,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_1_11"]
+[sub_resource type="Resource" id="n_1_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"plate_harness"
@@ -475,7 +508,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_1_12"]
+[sub_resource type="Resource" id="n_1_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"cadence_circlet"
@@ -488,7 +521,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_1_13"]
+[sub_resource type="Resource" id="n_1_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"plate_scale"
@@ -501,19 +534,49 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_1_14"]
+[sub_resource type="Resource" id="n_1_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 560
-requires = PackedStringArray("start")
+priority = 870
+requires = PackedStringArray("core1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_1_16"]
+script = ExtResource("3")
+id = &"sq_mint"
+item_id = &"quick_mint"
+target = 1
+section = 4
+priority = 860
+requires = PackedStringArray("sq_hp")
+reason_key = "HUD_ADVICE_N_QUICK_MINT"
+
+[sub_resource type="Resource" id="n_1_17"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 4
+priority = 850
+requires = PackedStringArray("sq_mint")
+reason_key = "HUD_ADVICE_N_TETHER"
+
+[sub_resource type="Resource" id="n_1_18"]
+script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 10
+priority = 450
+requires = PackedStringArray("sq_tether")
 reason_key = "HUD_ADVICE_N_SQUAD"
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_1_15"]
+[sub_resource type="Resource" id="n_1_19"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -525,7 +588,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_16"]
+[sub_resource type="Resource" id="n_1_20"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -539,7 +602,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_17"]
+[sub_resource type="Resource" id="n_1_21"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -553,7 +616,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_18"]
+[sub_resource type="Resource" id="n_1_22"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -567,7 +630,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_19"]
+[sub_resource type="Resource" id="n_1_23"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -579,7 +642,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_20"]
+[sub_resource type="Resource" id="n_1_24"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -593,7 +656,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_1_21"]
+[sub_resource type="Resource" id="n_1_25"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -610,9 +673,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_sable"
 display_name = "Shadow Edge"
-item_ids = PackedStringArray("med_pack", "ember_part", "prism_eye", "vital_core", "bore_ring", "ammo_cryo", "wellframe", "cadence_crown")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_1_0"), SubResource("n_1_1"), SubResource("n_1_2"), SubResource("n_1_3"), SubResource("n_1_4"), SubResource("n_1_5"), SubResource("n_1_6"), SubResource("n_1_7"), SubResource("n_1_8"), SubResource("n_1_9"), SubResource("n_1_10"), SubResource("n_1_11"), SubResource("n_1_12"), SubResource("n_1_13"), SubResource("n_1_14"), SubResource("n_1_15"), SubResource("n_1_16"), SubResource("n_1_17"), SubResource("n_1_18"), SubResource("n_1_19"), SubResource("n_1_20"), SubResource("n_1_21")])
+item_ids = PackedStringArray("med_pack", "stride_clip", "prism_eye", "reinforced_cores_1", "quick_mint", "vital_core", "harmonic_tether", "longsight_ring", "ammo_cryo", "wellframe", "longsight_lens")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_1_0"), SubResource("n_1_1"), SubResource("n_1_2"), SubResource("n_1_3"), SubResource("n_1_4"), SubResource("n_1_5"), SubResource("n_1_6"), SubResource("n_1_7"), SubResource("n_1_8"), SubResource("n_1_9"), SubResource("n_1_10"), SubResource("n_1_11"), SubResource("n_1_12"), SubResource("n_1_13"), SubResource("n_1_14"), SubResource("n_1_15"), SubResource("n_1_16"), SubResource("n_1_17"), SubResource("n_1_18"), SubResource("n_1_19"), SubResource("n_1_20"), SubResource("n_1_21"), SubResource("n_1_22"), SubResource("n_1_23"), SubResource("n_1_24"), SubResource("n_1_25")])
 roles = PackedStringArray("infiltrator")
 summary_key = "HUD_ADVICE_B_SABLE"
 
@@ -627,6 +690,18 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_2_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_2"]
+script = ExtResource("3")
 id = &"start"
 item_id = &"cadence_bead"
 target = 1
@@ -636,27 +711,27 @@ requires = PackedStringArray("open")
 alternatives = PackedStringArray("ember_part")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_2_2"]
+[sub_resource type="Resource" id="n_2_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"tempest_heart"
 target = 1
 section = 2
-priority = 900
+priority = 880
 requires = PackedStringArray("start")
 alternatives = PackedStringArray("ember_heart", "prism_eye")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_2_3"]
+[sub_resource type="Resource" id="n_2_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"cadence_circlet"
 target = 1
 section = 3
-priority = 850
+priority = 930
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_2_4"]
+[sub_resource type="Resource" id="n_2_5"]
 script = ExtResource("3")
 id = &"barrel"
 item_id = &"longsight_ring"
@@ -667,7 +742,7 @@ requires = PackedStringArray("core1")
 alternatives = PackedStringArray("bore_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_2_5"]
+[sub_resource type="Resource" id="n_2_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_shock"
@@ -677,7 +752,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_incendiary")
 
-[sub_resource type="Resource" id="n_2_6"]
+[sub_resource type="Resource" id="n_2_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -686,17 +761,17 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_2_7"]
+[sub_resource type="Resource" id="n_2_8"]
 script = ExtResource("3")
 id = &"sig2"
-item_id = &"cadence_crown"
+item_id = &"flux_coil"
 target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("barrier_lattice", "null_veil")
+alternatives = PackedStringArray("reservoir_frame")
 
-[sub_resource type="Resource" id="n_2_8"]
+[sub_resource type="Resource" id="n_2_9"]
 script = ExtResource("3")
 id = &"mod"
 item_id = &"mod_lingering"
@@ -708,7 +783,7 @@ alternatives = PackedStringArray("mod_saturated")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_2_9"]
+[sub_resource type="Resource" id="n_2_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"null_cowl"
@@ -721,7 +796,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_2_10"]
+[sub_resource type="Resource" id="n_2_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"vital_core"
@@ -734,7 +809,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_2_11"]
+[sub_resource type="Resource" id="n_2_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"stride_rig"
@@ -747,7 +822,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_2_12"]
+[sub_resource type="Resource" id="n_2_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"plate_harness"
@@ -760,7 +835,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_2_13"]
+[sub_resource type="Resource" id="n_2_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"vital_cell"
@@ -773,19 +848,61 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_2_14"]
+[sub_resource type="Resource" id="n_2_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 560
+priority = 940
 requires = PackedStringArray("start")
 reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_2_16"]
+script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 4
+priority = 930
+requires = PackedStringArray("sq_hp")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_2_17"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 4
+priority = 870
+requires = PackedStringArray("sq_dmg", "core1")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+
+[sub_resource type="Resource" id="n_2_18"]
+script = ExtResource("3")
+id = &"sq_mint"
+item_id = &"quick_mint"
+target = 1
+section = 10
+priority = 450
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_QUICK_MINT"
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_2_15"]
+[sub_resource type="Resource" id="n_2_19"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 440
+requires = PackedStringArray("sq_mint")
+reason_key = "HUD_ADVICE_N_TETHER"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_2_20"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -797,7 +914,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_16"]
+[sub_resource type="Resource" id="n_2_21"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -811,7 +928,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_17"]
+[sub_resource type="Resource" id="n_2_22"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -825,7 +942,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_18"]
+[sub_resource type="Resource" id="n_2_23"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -839,7 +956,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_19"]
+[sub_resource type="Resource" id="n_2_24"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -851,7 +968,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_20"]
+[sub_resource type="Resource" id="n_2_25"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -865,7 +982,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_2_21"]
+[sub_resource type="Resource" id="n_2_26"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -882,9 +999,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_hex"
 display_name = "Static Overload"
-item_ids = PackedStringArray("med_pack", "cadence_bead", "tempest_heart", "cadence_circlet", "longsight_ring", "ammo_shock", "wellframe", "cadence_crown")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_2_0"), SubResource("n_2_1"), SubResource("n_2_2"), SubResource("n_2_3"), SubResource("n_2_4"), SubResource("n_2_5"), SubResource("n_2_6"), SubResource("n_2_7"), SubResource("n_2_8"), SubResource("n_2_9"), SubResource("n_2_10"), SubResource("n_2_11"), SubResource("n_2_12"), SubResource("n_2_13"), SubResource("n_2_14"), SubResource("n_2_15"), SubResource("n_2_16"), SubResource("n_2_17"), SubResource("n_2_18"), SubResource("n_2_19"), SubResource("n_2_20"), SubResource("n_2_21")])
+item_ids = PackedStringArray("med_pack", "cadence_bead", "reinforced_cores_1", "cadence_circlet", "amplifier_emitters", "tempest_heart", "squad_expansion_1", "longsight_ring", "ammo_shock", "wellframe", "flux_coil")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_2_0"), SubResource("n_2_1"), SubResource("n_2_2"), SubResource("n_2_3"), SubResource("n_2_4"), SubResource("n_2_5"), SubResource("n_2_6"), SubResource("n_2_7"), SubResource("n_2_8"), SubResource("n_2_9"), SubResource("n_2_10"), SubResource("n_2_11"), SubResource("n_2_12"), SubResource("n_2_13"), SubResource("n_2_14"), SubResource("n_2_15"), SubResource("n_2_16"), SubResource("n_2_17"), SubResource("n_2_18"), SubResource("n_2_19"), SubResource("n_2_20"), SubResource("n_2_21"), SubResource("n_2_22"), SubResource("n_2_23"), SubResource("n_2_24"), SubResource("n_2_25"), SubResource("n_2_26")])
 roles = PackedStringArray("hacker")
 summary_key = "HUD_ADVICE_B_HEX"
 
@@ -899,6 +1016,18 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_3_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_3_2"]
+script = ExtResource("3")
 id = &"start"
 item_id = &"feed_part"
 target = 1
@@ -908,27 +1037,27 @@ requires = PackedStringArray("open")
 alternatives = PackedStringArray("vital_cell")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_3_2"]
+[sub_resource type="Resource" id="n_3_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"tempest_heart"
 target = 1
 section = 2
-priority = 900
+priority = 880
 requires = PackedStringArray("start")
 alternatives = PackedStringArray("ember_heart", "prism_eye")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_3_3"]
+[sub_resource type="Resource" id="n_3_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"vital_core"
 target = 1
 section = 3
-priority = 850
+priority = 930
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_3_4"]
+[sub_resource type="Resource" id="n_3_5"]
 script = ExtResource("3")
 id = &"barrel"
 item_id = &"longsight_ring"
@@ -939,7 +1068,7 @@ requires = PackedStringArray("core1")
 alternatives = PackedStringArray("bore_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_3_5"]
+[sub_resource type="Resource" id="n_3_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_siphon"
@@ -949,7 +1078,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_cryo")
 
-[sub_resource type="Resource" id="n_3_6"]
+[sub_resource type="Resource" id="n_3_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -958,29 +1087,29 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_3_7"]
+[sub_resource type="Resource" id="n_3_8"]
 script = ExtResource("3")
 id = &"sig2"
-item_id = &"barrier_lattice"
+item_id = &"reservoir_frame"
 target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("cadence_crown", "vigil_core")
+alternatives = PackedStringArray("anchor_frame")
 
-[sub_resource type="Resource" id="n_3_8"]
+[sub_resource type="Resource" id="n_3_9"]
 script = ExtResource("3")
 id = &"mod"
-item_id = &"mod_saturated"
+item_id = &"mod_volatile"
 target = 1
 section = 10
 priority = 650
 requires = PackedStringArray("ammo")
-alternatives = PackedStringArray("mod_volatile")
+alternatives = PackedStringArray("mod_saturated")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_3_9"]
+[sub_resource type="Resource" id="n_3_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"null_cowl"
@@ -993,7 +1122,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_3_10"]
+[sub_resource type="Resource" id="n_3_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"cadence_circlet"
@@ -1006,7 +1135,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_3_11"]
+[sub_resource type="Resource" id="n_3_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"stride_rig"
@@ -1019,7 +1148,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_3_12"]
+[sub_resource type="Resource" id="n_3_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"plate_harness"
@@ -1032,7 +1161,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_3_13"]
+[sub_resource type="Resource" id="n_3_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"plate_scale"
@@ -1045,19 +1174,48 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_3_14"]
+[sub_resource type="Resource" id="n_3_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 560
+priority = 940
 requires = PackedStringArray("start")
 reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_3_16"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 4
+priority = 870
+requires = PackedStringArray("sq_hp", "core1", "sq_hp")
+
+[sub_resource type="Resource" id="n_3_17"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 4
+priority = 860
+requires = PackedStringArray("sq_hp2")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+
+[sub_resource type="Resource" id="n_3_18"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 450
+requires = PackedStringArray("sq_size")
+reason_key = "HUD_ADVICE_N_TETHER"
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_3_15"]
+[sub_resource type="Resource" id="n_3_19"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -1069,7 +1227,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_16"]
+[sub_resource type="Resource" id="n_3_20"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -1083,7 +1241,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_17"]
+[sub_resource type="Resource" id="n_3_21"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -1097,7 +1255,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_18"]
+[sub_resource type="Resource" id="n_3_22"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -1111,7 +1269,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_19"]
+[sub_resource type="Resource" id="n_3_23"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -1123,7 +1281,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_20"]
+[sub_resource type="Resource" id="n_3_24"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -1137,7 +1295,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_3_21"]
+[sub_resource type="Resource" id="n_3_25"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -1154,9 +1312,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_liora_vale"
 display_name = "Steady Light"
-item_ids = PackedStringArray("med_pack", "feed_part", "tempest_heart", "vital_core", "longsight_ring", "ammo_siphon", "wellframe", "barrier_lattice")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_3_0"), SubResource("n_3_1"), SubResource("n_3_2"), SubResource("n_3_3"), SubResource("n_3_4"), SubResource("n_3_5"), SubResource("n_3_6"), SubResource("n_3_7"), SubResource("n_3_8"), SubResource("n_3_9"), SubResource("n_3_10"), SubResource("n_3_11"), SubResource("n_3_12"), SubResource("n_3_13"), SubResource("n_3_14"), SubResource("n_3_15"), SubResource("n_3_16"), SubResource("n_3_17"), SubResource("n_3_18"), SubResource("n_3_19"), SubResource("n_3_20"), SubResource("n_3_21")])
+item_ids = PackedStringArray("med_pack", "feed_part", "reinforced_cores_1", "vital_core", "tempest_heart", "reinforced_cores_2", "squad_expansion_1", "longsight_ring", "ammo_siphon", "wellframe", "reservoir_frame")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_3_0"), SubResource("n_3_1"), SubResource("n_3_2"), SubResource("n_3_3"), SubResource("n_3_4"), SubResource("n_3_5"), SubResource("n_3_6"), SubResource("n_3_7"), SubResource("n_3_8"), SubResource("n_3_9"), SubResource("n_3_10"), SubResource("n_3_11"), SubResource("n_3_12"), SubResource("n_3_13"), SubResource("n_3_14"), SubResource("n_3_15"), SubResource("n_3_16"), SubResource("n_3_17"), SubResource("n_3_18"), SubResource("n_3_19"), SubResource("n_3_20"), SubResource("n_3_21"), SubResource("n_3_22"), SubResource("n_3_23"), SubResource("n_3_24"), SubResource("n_3_25")])
 roles = PackedStringArray("healer")
 summary_key = "HUD_ADVICE_B_LIORA"
 
@@ -1171,6 +1329,18 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_4_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_4_2"]
+script = ExtResource("3")
 id = &"start"
 item_id = &"vital_cell"
 target = 1
@@ -1180,27 +1350,27 @@ requires = PackedStringArray("open")
 alternatives = PackedStringArray("plate_scale")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_4_2"]
+[sub_resource type="Resource" id="n_4_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"ember_heart"
 target = 1
 section = 2
-priority = 900
+priority = 880
 requires = PackedStringArray("start")
 alternatives = PackedStringArray("tempest_heart", "prism_eye")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_4_3"]
+[sub_resource type="Resource" id="n_4_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"plate_harness"
 target = 1
 section = 3
-priority = 850
+priority = 930
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_4_4"]
+[sub_resource type="Resource" id="n_4_5"]
 script = ExtResource("3")
 id = &"barrel"
 item_id = &"bore_ring"
@@ -1211,7 +1381,7 @@ requires = PackedStringArray("core1")
 alternatives = PackedStringArray("longsight_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_4_5"]
+[sub_resource type="Resource" id="n_4_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_sunder"
@@ -1221,7 +1391,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_piercing")
 
-[sub_resource type="Resource" id="n_4_6"]
+[sub_resource type="Resource" id="n_4_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -1230,7 +1400,7 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_4_7"]
+[sub_resource type="Resource" id="n_4_8"]
 script = ExtResource("3")
 id = &"sig2"
 item_id = &"bastion_plate"
@@ -1238,9 +1408,9 @@ target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("vigil_core", "breaker_sigil")
+alternatives = PackedStringArray("vigil_core", "anchor_frame")
 
-[sub_resource type="Resource" id="n_4_8"]
+[sub_resource type="Resource" id="n_4_9"]
 script = ExtResource("3")
 id = &"mod"
 item_id = &"mod_saturated"
@@ -1252,7 +1422,7 @@ alternatives = PackedStringArray("mod_volatile")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_4_9"]
+[sub_resource type="Resource" id="n_4_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"vital_core"
@@ -1265,7 +1435,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_4_10"]
+[sub_resource type="Resource" id="n_4_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"null_cowl"
@@ -1278,7 +1448,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_4_11"]
+[sub_resource type="Resource" id="n_4_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"stride_rig"
@@ -1291,7 +1461,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_4_12"]
+[sub_resource type="Resource" id="n_4_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"cadence_circlet"
@@ -1304,7 +1474,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_4_13"]
+[sub_resource type="Resource" id="n_4_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"null_thread"
@@ -1317,37 +1487,60 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_4_14"]
+[sub_resource type="Resource" id="n_4_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 760
+priority = 940
 requires = PackedStringArray("start")
 reason_key = "HUD_ADVICE_N_SQUAD"
 
-[sub_resource type="Resource" id="n_4_15"]
+[sub_resource type="Resource" id="n_4_16"]
+script = ExtResource("3")
+id = &"sq_hp2"
+item_id = &"reinforced_cores_2"
+target = 1
+section = 4
+priority = 930
+requires = PackedStringArray("sq_hp", "sq_hp")
+
+[sub_resource type="Resource" id="n_4_17"]
 script = ExtResource("3")
 id = &"sq_size"
 item_id = &"squad_expansion_1"
 target = 1
 section = 4
-priority = 620
-requires = PackedStringArray("core1")
+priority = 870
+requires = PackedStringArray("sq_hp2", "core1")
 reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
 
-[sub_resource type="Resource" id="n_4_16"]
+[sub_resource type="Resource" id="n_4_18"]
 script = ExtResource("3")
 id = &"sq_bulwark"
 item_id = &"bulwark_protocol"
 target = 1
 section = 10
-priority = 550
-requires = PackedStringArray("sq_size", "sig2")
+priority = 450
+requires = PackedStringArray("sq_size")
 reason_key = "HUD_ADVICE_N_BULWARK"
+core = false
+optional = true
 
-[sub_resource type="Resource" id="n_4_17"]
+[sub_resource type="Resource" id="n_4_19"]
+script = ExtResource("3")
+id = &"sq_size2"
+item_id = &"squad_expansion_2"
+target = 1
+section = 10
+priority = 440
+requires = PackedStringArray("sq_bulwark", "sq_size")
+reason_key = "HUD_ADVICE_N_LUXURY"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_4_20"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -1359,7 +1552,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_4_18"]
+[sub_resource type="Resource" id="n_4_21"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -1373,7 +1566,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_4_19"]
+[sub_resource type="Resource" id="n_4_22"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -1387,7 +1580,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_4_20"]
+[sub_resource type="Resource" id="n_4_23"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -1401,7 +1594,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_4_21"]
+[sub_resource type="Resource" id="n_4_24"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -1413,7 +1606,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_4_22"]
+[sub_resource type="Resource" id="n_4_25"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -1427,7 +1620,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_4_23"]
+[sub_resource type="Resource" id="n_4_26"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -1444,9 +1637,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_brannoc"
 display_name = "Bulwark Gunner"
-item_ids = PackedStringArray("med_pack", "vital_cell", "ember_heart", "plate_harness", "bore_ring", "ammo_sunder", "reinforced_cores_1", "wellframe", "bastion_plate", "squad_expansion_1", "bulwark_protocol")
+item_ids = PackedStringArray("med_pack", "vital_cell", "reinforced_cores_1", "plate_harness", "reinforced_cores_2", "ember_heart", "squad_expansion_1", "bore_ring", "ammo_sunder", "wellframe", "bastion_plate")
 targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_4_0"), SubResource("n_4_1"), SubResource("n_4_2"), SubResource("n_4_3"), SubResource("n_4_4"), SubResource("n_4_5"), SubResource("n_4_6"), SubResource("n_4_7"), SubResource("n_4_8"), SubResource("n_4_9"), SubResource("n_4_10"), SubResource("n_4_11"), SubResource("n_4_12"), SubResource("n_4_13"), SubResource("n_4_14"), SubResource("n_4_15"), SubResource("n_4_16"), SubResource("n_4_17"), SubResource("n_4_18"), SubResource("n_4_19"), SubResource("n_4_20"), SubResource("n_4_21"), SubResource("n_4_22"), SubResource("n_4_23")])
+nodes = Array[ExtResource("3")]([SubResource("n_4_0"), SubResource("n_4_1"), SubResource("n_4_2"), SubResource("n_4_3"), SubResource("n_4_4"), SubResource("n_4_5"), SubResource("n_4_6"), SubResource("n_4_7"), SubResource("n_4_8"), SubResource("n_4_9"), SubResource("n_4_10"), SubResource("n_4_11"), SubResource("n_4_12"), SubResource("n_4_13"), SubResource("n_4_14"), SubResource("n_4_15"), SubResource("n_4_16"), SubResource("n_4_17"), SubResource("n_4_18"), SubResource("n_4_19"), SubResource("n_4_20"), SubResource("n_4_21"), SubResource("n_4_22"), SubResource("n_4_23"), SubResource("n_4_24"), SubResource("n_4_25"), SubResource("n_4_26")])
 roles = PackedStringArray("tank")
 summary_key = "HUD_ADVICE_B_BRANNOC"
 
@@ -1461,6 +1654,18 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_5_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_5_2"]
+script = ExtResource("3")
 id = &"start"
 item_id = &"ember_part"
 target = 1
@@ -1470,7 +1675,7 @@ requires = PackedStringArray("open")
 alternatives = PackedStringArray("tempo_part")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_5_2"]
+[sub_resource type="Resource" id="n_5_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"ember_heart"
@@ -1481,7 +1686,7 @@ requires = PackedStringArray("start")
 alternatives = PackedStringArray("prism_eye", "tempest_heart")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_5_3"]
+[sub_resource type="Resource" id="n_5_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"plate_harness"
@@ -1490,18 +1695,18 @@ section = 3
 priority = 850
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_5_4"]
+[sub_resource type="Resource" id="n_5_5"]
 script = ExtResource("3")
 id = &"barrel"
-item_id = &"longsight_ring"
+item_id = &"bore_ring"
 target = 1
 section = 3
 priority = 800
 requires = PackedStringArray("core1")
-alternatives = PackedStringArray("bore_ring")
+alternatives = PackedStringArray("longsight_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_5_5"]
+[sub_resource type="Resource" id="n_5_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_piercing"
@@ -1511,7 +1716,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_incendiary")
 
-[sub_resource type="Resource" id="n_5_6"]
+[sub_resource type="Resource" id="n_5_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -1520,17 +1725,17 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_5_7"]
+[sub_resource type="Resource" id="n_5_8"]
 script = ExtResource("3")
 id = &"sig2"
-item_id = &"vigil_core"
+item_id = &"breaker_bore"
 target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("bastion_plate", "breaker_sigil")
+alternatives = PackedStringArray("vigil_core")
 
-[sub_resource type="Resource" id="n_5_8"]
+[sub_resource type="Resource" id="n_5_9"]
 script = ExtResource("3")
 id = &"mod"
 item_id = &"mod_overcharged"
@@ -1542,7 +1747,7 @@ alternatives = PackedStringArray("mod_saturated")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_5_9"]
+[sub_resource type="Resource" id="n_5_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"vital_core"
@@ -1555,7 +1760,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_5_10"]
+[sub_resource type="Resource" id="n_5_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"stride_rig"
@@ -1568,7 +1773,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_5_11"]
+[sub_resource type="Resource" id="n_5_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"null_cowl"
@@ -1581,7 +1786,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_5_12"]
+[sub_resource type="Resource" id="n_5_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"cadence_circlet"
@@ -1594,7 +1799,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_5_13"]
+[sub_resource type="Resource" id="n_5_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"null_thread"
@@ -1607,19 +1812,39 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_5_14"]
+[sub_resource type="Resource" id="n_5_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 560
-requires = PackedStringArray("start")
+priority = 870
+requires = PackedStringArray("core1")
 reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_5_16"]
+script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 4
+priority = 860
+requires = PackedStringArray("sq_hp")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_5_17"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 10
+priority = 450
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_5_15"]
+[sub_resource type="Resource" id="n_5_18"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -1631,7 +1856,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_16"]
+[sub_resource type="Resource" id="n_5_19"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -1645,7 +1870,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_17"]
+[sub_resource type="Resource" id="n_5_20"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -1659,7 +1884,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_18"]
+[sub_resource type="Resource" id="n_5_21"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -1673,7 +1898,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_19"]
+[sub_resource type="Resource" id="n_5_22"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -1685,7 +1910,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_20"]
+[sub_resource type="Resource" id="n_5_23"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -1699,7 +1924,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_5_21"]
+[sub_resource type="Resource" id="n_5_24"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -1716,9 +1941,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_ryker_vance"
 display_name = "Line Breaker"
-item_ids = PackedStringArray("med_pack", "ember_part", "ember_heart", "plate_harness", "longsight_ring", "ammo_piercing", "wellframe", "vigil_core")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_5_0"), SubResource("n_5_1"), SubResource("n_5_2"), SubResource("n_5_3"), SubResource("n_5_4"), SubResource("n_5_5"), SubResource("n_5_6"), SubResource("n_5_7"), SubResource("n_5_8"), SubResource("n_5_9"), SubResource("n_5_10"), SubResource("n_5_11"), SubResource("n_5_12"), SubResource("n_5_13"), SubResource("n_5_14"), SubResource("n_5_15"), SubResource("n_5_16"), SubResource("n_5_17"), SubResource("n_5_18"), SubResource("n_5_19"), SubResource("n_5_20"), SubResource("n_5_21")])
+item_ids = PackedStringArray("med_pack", "ember_part", "ember_heart", "reinforced_cores_1", "amplifier_emitters", "plate_harness", "bore_ring", "ammo_piercing", "wellframe", "breaker_bore")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_5_0"), SubResource("n_5_1"), SubResource("n_5_2"), SubResource("n_5_3"), SubResource("n_5_4"), SubResource("n_5_5"), SubResource("n_5_6"), SubResource("n_5_7"), SubResource("n_5_8"), SubResource("n_5_9"), SubResource("n_5_10"), SubResource("n_5_11"), SubResource("n_5_12"), SubResource("n_5_13"), SubResource("n_5_14"), SubResource("n_5_15"), SubResource("n_5_16"), SubResource("n_5_17"), SubResource("n_5_18"), SubResource("n_5_19"), SubResource("n_5_20"), SubResource("n_5_21"), SubResource("n_5_22"), SubResource("n_5_23"), SubResource("n_5_24")])
 roles = PackedStringArray("soldier")
 summary_key = "HUD_ADVICE_B_RYKER"
 
@@ -1733,6 +1958,18 @@ reason_key = "HUD_ADVICE_N_OPEN"
 
 [sub_resource type="Resource" id="n_6_1"]
 script = ExtResource("3")
+id = &"restock"
+item_id = &"med_pack"
+target = 3
+section = 5
+priority = 990
+requires = PackedStringArray("open")
+reason_key = "HUD_ADVICE_N_RESTOCK"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_2"]
+script = ExtResource("3")
 id = &"start"
 item_id = &"cadence_bead"
 target = 1
@@ -1742,27 +1979,27 @@ requires = PackedStringArray("open")
 alternatives = PackedStringArray("ember_part")
 reason_key = "HUD_ADVICE_N_FIRST_MOUNT"
 
-[sub_resource type="Resource" id="n_6_2"]
+[sub_resource type="Resource" id="n_6_3"]
 script = ExtResource("3")
 id = &"core1"
 item_id = &"tempest_heart"
 target = 1
 section = 2
-priority = 900
+priority = 880
 requires = PackedStringArray("start")
 alternatives = PackedStringArray("ember_heart", "prism_eye")
 reason_key = "HUD_ADVICE_N_SPIKE"
 
-[sub_resource type="Resource" id="n_6_3"]
+[sub_resource type="Resource" id="n_6_4"]
 script = ExtResource("3")
 id = &"def1"
 item_id = &"cadence_circlet"
 target = 1
 section = 3
-priority = 850
+priority = 930
 requires = PackedStringArray("start")
 
-[sub_resource type="Resource" id="n_6_4"]
+[sub_resource type="Resource" id="n_6_5"]
 script = ExtResource("3")
 id = &"barrel"
 item_id = &"longsight_ring"
@@ -1773,7 +2010,7 @@ requires = PackedStringArray("core1")
 alternatives = PackedStringArray("bore_ring")
 reason_key = "HUD_ADVICE_N_RANGE"
 
-[sub_resource type="Resource" id="n_6_5"]
+[sub_resource type="Resource" id="n_6_6"]
 script = ExtResource("3")
 id = &"ammo"
 item_id = &"ammo_cryo"
@@ -1783,7 +2020,7 @@ priority = 760
 requires = PackedStringArray("core1")
 alternatives = PackedStringArray("ammo_shock")
 
-[sub_resource type="Resource" id="n_6_6"]
+[sub_resource type="Resource" id="n_6_7"]
 script = ExtResource("3")
 id = &"frame"
 item_id = &"wellframe"
@@ -1792,29 +2029,29 @@ section = 3
 priority = 740
 requires = PackedStringArray("core1")
 
-[sub_resource type="Resource" id="n_6_7"]
+[sub_resource type="Resource" id="n_6_8"]
 script = ExtResource("3")
 id = &"sig2"
-item_id = &"cadence_crown"
+item_id = &"breaker_sigil"
 target = 1
 section = 10
 priority = 700
 requires = PackedStringArray("core1", "def1")
-alternatives = PackedStringArray("barrier_lattice", "vigil_core")
+alternatives = PackedStringArray("null_veil")
 
-[sub_resource type="Resource" id="n_6_8"]
+[sub_resource type="Resource" id="n_6_9"]
 script = ExtResource("3")
 id = &"mod"
-item_id = &"mod_lingering"
+item_id = &"mod_tracer"
 target = 1
 section = 10
 priority = 650
 requires = PackedStringArray("ammo")
-alternatives = PackedStringArray("mod_tracer")
+alternatives = PackedStringArray("mod_lingering")
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_6_9"]
+[sub_resource type="Resource" id="n_6_10"]
 script = ExtResource("3")
 id = &"gear2"
 item_id = &"plate_harness"
@@ -1827,7 +2064,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_6_10"]
+[sub_resource type="Resource" id="n_6_11"]
 script = ExtResource("3")
 id = &"gear3"
 item_id = &"vital_core"
@@ -1840,7 +2077,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_6_11"]
+[sub_resource type="Resource" id="n_6_12"]
 script = ExtResource("3")
 id = &"gear4"
 item_id = &"null_cowl"
@@ -1853,7 +2090,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_6_12"]
+[sub_resource type="Resource" id="n_6_13"]
 script = ExtResource("3")
 id = &"gear5"
 item_id = &"stride_rig"
@@ -1866,7 +2103,7 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_6_13"]
+[sub_resource type="Resource" id="n_6_14"]
 script = ExtResource("3")
 id = &"gear6"
 item_id = &"vital_cell"
@@ -1879,19 +2116,61 @@ core = false
 optional = true
 keep = true
 
-[sub_resource type="Resource" id="n_6_14"]
+[sub_resource type="Resource" id="n_6_15"]
 script = ExtResource("3")
 id = &"sq_hp"
 item_id = &"reinforced_cores_1"
 target = 1
 section = 4
-priority = 560
+priority = 940
 requires = PackedStringArray("start")
 reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_6_16"]
+script = ExtResource("3")
+id = &"sq_size"
+item_id = &"squad_expansion_1"
+target = 1
+section = 4
+priority = 930
+requires = PackedStringArray("sq_hp")
+reason_key = "HUD_ADVICE_N_SQUAD_SIZE"
+
+[sub_resource type="Resource" id="n_6_17"]
+script = ExtResource("3")
+id = &"sq_dmg"
+item_id = &"amplifier_emitters"
+target = 1
+section = 4
+priority = 870
+requires = PackedStringArray("sq_size", "core1")
+reason_key = "HUD_ADVICE_N_SQUAD"
+
+[sub_resource type="Resource" id="n_6_18"]
+script = ExtResource("3")
+id = &"sq_tether"
+item_id = &"harmonic_tether"
+target = 1
+section = 10
+priority = 450
+requires = PackedStringArray("sq_dmg")
+reason_key = "HUD_ADVICE_N_TETHER"
 core = false
 optional = true
 
-[sub_resource type="Resource" id="n_6_15"]
+[sub_resource type="Resource" id="n_6_19"]
+script = ExtResource("3")
+id = &"sq_mint"
+item_id = &"quick_mint"
+target = 1
+section = 10
+priority = 440
+requires = PackedStringArray("sq_tether")
+reason_key = "HUD_ADVICE_N_QUICK_MINT"
+core = false
+optional = true
+
+[sub_resource type="Resource" id="n_6_20"]
 script = ExtResource("3")
 id = &"heal_pack"
 item_id = &"med_pack"
@@ -1903,7 +2182,7 @@ reason_key = "HUD_ADVICE_N_HEAL_PACK"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_16"]
+[sub_resource type="Resource" id="n_6_21"]
 script = ExtResource("3")
 id = &"vs_guns"
 item_id = &"bastion_plate"
@@ -1917,7 +2196,7 @@ reason_key = "HUD_ADVICE_N_VS_GUNS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_17"]
+[sub_resource type="Resource" id="n_6_22"]
 script = ExtResource("3")
 id = &"vs_skills"
 item_id = &"null_veil"
@@ -1931,7 +2210,7 @@ reason_key = "HUD_ADVICE_N_VS_SKILLS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_18"]
+[sub_resource type="Resource" id="n_6_23"]
 script = ExtResource("3")
 id = &"vs_armor"
 item_id = &"ammo_piercing"
@@ -1945,7 +2224,7 @@ reason_key = "HUD_ADVICE_N_VS_ARMOR"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_19"]
+[sub_resource type="Resource" id="n_6_24"]
 script = ExtResource("3")
 id = &"vs_sustain"
 item_id = &"ammo_incendiary"
@@ -1957,7 +2236,7 @@ conditions = PackedStringArray("enemy_sustain")
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_20"]
+[sub_resource type="Resource" id="n_6_25"]
 script = ExtResource("3")
 id = &"vs_squads"
 item_id = &"ammo_shock"
@@ -1971,7 +2250,7 @@ reason_key = "HUD_ADVICE_N_VS_SQUADS"
 core = false
 skippable = true
 
-[sub_resource type="Resource" id="n_6_21"]
+[sub_resource type="Resource" id="n_6_26"]
 script = ExtResource("3")
 id = &"siege"
 item_id = &"breaker_sigil"
@@ -1988,9 +2267,9 @@ skippable = true
 script = ExtResource("1")
 hero_id = &"hero_juniper_quill"
 display_name = "Snare Field"
-item_ids = PackedStringArray("med_pack", "cadence_bead", "tempest_heart", "cadence_circlet", "longsight_ring", "ammo_cryo", "wellframe", "cadence_crown")
-targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1)
-nodes = Array[ExtResource("3")]([SubResource("n_6_0"), SubResource("n_6_1"), SubResource("n_6_2"), SubResource("n_6_3"), SubResource("n_6_4"), SubResource("n_6_5"), SubResource("n_6_6"), SubResource("n_6_7"), SubResource("n_6_8"), SubResource("n_6_9"), SubResource("n_6_10"), SubResource("n_6_11"), SubResource("n_6_12"), SubResource("n_6_13"), SubResource("n_6_14"), SubResource("n_6_15"), SubResource("n_6_16"), SubResource("n_6_17"), SubResource("n_6_18"), SubResource("n_6_19"), SubResource("n_6_20"), SubResource("n_6_21")])
+item_ids = PackedStringArray("med_pack", "cadence_bead", "reinforced_cores_1", "cadence_circlet", "squad_expansion_1", "tempest_heart", "amplifier_emitters", "longsight_ring", "ammo_cryo", "wellframe", "breaker_sigil")
+targets = PackedInt32Array(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+nodes = Array[ExtResource("3")]([SubResource("n_6_0"), SubResource("n_6_1"), SubResource("n_6_2"), SubResource("n_6_3"), SubResource("n_6_4"), SubResource("n_6_5"), SubResource("n_6_6"), SubResource("n_6_7"), SubResource("n_6_8"), SubResource("n_6_9"), SubResource("n_6_10"), SubResource("n_6_11"), SubResource("n_6_12"), SubResource("n_6_13"), SubResource("n_6_14"), SubResource("n_6_15"), SubResource("n_6_16"), SubResource("n_6_17"), SubResource("n_6_18"), SubResource("n_6_19"), SubResource("n_6_20"), SubResource("n_6_21"), SubResource("n_6_22"), SubResource("n_6_23"), SubResource("n_6_24"), SubResource("n_6_25"), SubResource("n_6_26")])
 roles = PackedStringArray("trapper")
 summary_key = "HUD_ADVICE_B_JUNIPER"
 
