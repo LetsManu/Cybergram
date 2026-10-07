@@ -43,12 +43,12 @@ const STEP_W: float = 58.0
 ## Recommended grid (canvas units): cell = icon + 2 name lines + price.
 const CELL_W: float = 92.0
 const CELL_H: float = 90.0
-const ICON: float = 42.0
+const ICON: float = 46.0
 const MINI: float = 28.0
 const NAME_PX: float = 12.0
 const GUTTER: float = 14.0
 const CHEVRON_W: float = 26.0
-const SECTION_GAP: float = 24.0
+const SECTION_GAP: float = 30.0
 const LEFT_W: float = DETAIL_X - 10.0 - 2.0 * PAD
 const MAX_CORE_TILES: int = 10
 const TOAST_LIFE_S: float = 2.5
@@ -713,10 +713,12 @@ func _layout_rec() -> void:
 		_add_cell(ammo[i], Vector2(x, y), 0, best_goal)
 		x += CELL_W + GUTTER
 	# Core path.
-	y += CELL_H + SECTION_GAP
+	y += _fit_row(0) + SECTION_GAP
 	x = PAD
+	var core_start := _items.size()
 	_labels.append({"key": "HUD_SHOP2_SEC_CORE", "pos": Vector2(x, y - 8.0)})
 	var rows: Array = s["core"]
+	var minis: Array = []
 	var max_steps := floori((LEFT_W + CHEVRON_W) / (CELL_W + CHEVRON_W))
 	var tiles := 0
 	for r in mini(rows.size(), max_steps):
@@ -726,17 +728,24 @@ func _layout_rec() -> void:
 		if r > 0:
 			_labels.append({"chevron": true, "pos": Vector2(x - CHEVRON_W * 0.5, y + ICON * 0.5 + 4.0)})
 		_add_cell(cards[0], Vector2(x, y), r + 1, best_goal)
-		# Other choices: a mini "or" stack under the step.
-		for c in range(1, cards.size()):
-			var mr := Rect2(x + (c - 1) * (MINI + 8.0), y + CELL_H + 18.0, MINI, MINI + 14.0)
-			_items.append({"rect": mr, "index": int(cards[c]["next"]), "goal": int(cards[c]["goal"]), "card": cards[c],
-				"mini": true, "is_next": int(cards[c]["goal"]) == best_goal})
 		if cards.size() > 1:
-			_labels.append({"or": true, "pos": Vector2(x, y + CELL_H + 12.0)})
+			minis.append([x, cards])
 		tiles += cards.size()
 		x += CELL_W + CHEVRON_W
+	# Other choices: a mini "or" stack centred under each step.
+	var rh := _fit_row(core_start)
+	for m in minis:
+		var cards: Array = m[1]
+		var n := cards.size() - 1
+		var gw := n * MINI + (n - 1) * 8.0
+		var mx: float = float(m[0]) + (CELL_W - gw) * 0.5
+		_labels.append({"or": true, "pos": Vector2(float(m[0]), y + rh + 10.0)})
+		for c in range(1, cards.size()):
+			var mr := Rect2(mx + (c - 1) * (MINI + 8.0), y + rh + 16.0, MINI, MINI + 14.0)
+			_items.append({"rect": mr, "index": int(cards[c]["next"]), "goal": int(cards[c]["goal"]), "card": cards[c],
+				"mini": true, "is_next": int(cards[c]["goal"]) == best_goal})
 	# Squad | Situational.
-	y += CELL_H + MINI + 14.0 + 18.0 + SECTION_GAP
+	y += rh + (16.0 + MINI + 14.0 if not minis.is_empty() else 0.0) + SECTION_GAP
 	x = PAD
 	_labels.append({"key": "HUD_ARMORY_SQUAD", "pos": Vector2(x, y - 8.0)})
 	var squad: Array = s["squad"]
@@ -751,6 +760,25 @@ func _layout_rec() -> void:
 	for i in mini(sit.size(), 3):
 		_add_cell(sit[i], Vector2(x, y), 0, best_goal)
 		x += CELL_W + GUTTER
+
+
+## Gives every cell from `start` on the row's name line count (prices line up)
+## and returns the row height (canvas units).
+func _fit_row(start: int) -> float:
+	var lines := 1
+	for i in range(start, _items.size()):
+		if not bool(_items[i].get("mini", false)):
+			lines = maxi(lines, _wrap(model.name_of(int(_items[i]["goal"])), CELL_W).size() - 1)
+	for i in range(start, _items.size()):
+		_items[i]["lines"] = lines
+		var r: Rect2 = _items[i]["rect"]
+		if not bool(_items[i].get("mini", false)):
+			_items[i]["rect"] = Rect2(r.position, Vector2(CELL_W, _cell_h(lines)))
+	return _cell_h(lines)
+
+
+func _cell_h(lines: int) -> float:
+	return ICON + 15.0 + lines * (NAME_PX + 2.0) + 6.0
 
 
 func _add_cell(c: Dictionary, at: Vector2, step: int, best_goal: int) -> void:
@@ -986,7 +1014,7 @@ func _draw_rec() -> void:
 			draw_polyline(PackedVector2Array([cp + Vector2(-cs * 0.5, -cs), cp + Vector2(cs * 0.5, 0.0),
 				cp + Vector2(-cs * 0.5, cs)]), HudPalette.BRASS, 1.5, true)
 		elif l.has("or"):
-			_c(tr("HUD_SHOP2_OR"), pos.x, pos.y, 10.0, HudPalette.DIM, 0.2)
+			_c(tr("HUD_SHOP2_OR"), pos.x, pos.y, 10.0, HudPalette.DIM, 0.2, HORIZONTAL_ALIGNMENT_CENTER, CELL_W)
 		else:
 			_c(tr(String(l["key"])), pos.x, pos.y, 12.0, HudPalette.DIM if l.has("muted") else HudPalette.BRASS, 0.2)
 	for i in _items.size():
@@ -1048,7 +1076,7 @@ func _draw_cell(e: Dictionary, focused: bool) -> void:
 			ctx.font_body, HORIZONTAL_ALIGNMENT_CENTER, CELL_W)
 		ny += fs + 2.0
 	var pr := _price_of(c)
-	_t(String(pr[0]), r.position.x, r.position.y + ICON + 15.0 + 2.0 * (NAME_PX + 2.0) + 2.0, 12.0, pr[1],
+	_t(String(pr[0]), r.position.x, ib.end.y + 15.0 + int(e.get("lines", 2)) * (NAME_PX + 2.0) + 2.0, 12.0, pr[1],
 		ctx.font_numbers, HORIZONTAL_ALIGNMENT_CENTER, CELL_W)
 
 
