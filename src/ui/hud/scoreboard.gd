@@ -127,6 +127,14 @@ func _team_block(rows: Array, team: int, x: float, y: float, own: bool) -> float
 		var hn := hero_name(row.hero_id)
 		if hn != "":
 			text(hn, Vector2(nx, base - 1.0), 18, HudPalette.MUTED)
+			nx += text_width(hn, 18) + 16.0
+		# Armory v2: every hero's sockets, Chamber and open slots as icons (§3.8 rule 7).
+		var bld := ScoreboardModel.build_of(ctx.client, row.net_id)
+		if BuildIcons.has_any(bld):
+			var bx := maxf(nx, x + 300.0)
+			var room := x + C_LV - 64.0 - bx
+			var cell := clampf(room / (BuildIcons.strip_width(1.0)), 12.0, 20.0)
+			BuildIcons.draw_strip(self, bld, ScoreboardModel.build_catalog(ctx.client), Vector2(bx, mid - cell * 0.5), cell, fa)
 		var ncl := HudPalette.IVORY if row.alive else HudPalette.DIM
 		text(str(row.level) if row.level > 0 else "–", Vector2(x, base), 21, ncl, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, C_LV)
 		text(HudFormat.kd(row.kills, row.deaths), Vector2(x, base), 21, ncl, ctx.font_numbers, HORIZONTAL_ALIGNMENT_RIGHT, C_KD)

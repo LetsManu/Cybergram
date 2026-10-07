@@ -46,12 +46,13 @@ func test_entity_fork_state_survives_snapshot_and_keeps_neighbours() -> void:
 	assert_int(d.entities[1].fork_bits).is_equal(0)
 
 
-## v16 (W16-NET): a new hero is u16 key + u8 group mask + the 28 B quantised record.
-func test_new_entity_costs_31_bytes() -> void:
+## v16 (W16-NET): a new hero is u16 key + u8 group mask + the quantised record
+## (v22: 39 B, the 11-byte public build included; items-and-armory.md §3.8).
+func test_new_entity_costs_42_bytes() -> void:
 	var a := SnapshotData.new()
 	var b := SnapshotData.new()
 	b.entities.append(_entity(1, 0))
-	assert_int(SnapshotCodec.encode(b).size() - SnapshotCodec.encode(a).size()).is_equal(31)
+	assert_int(SnapshotCodec.encode(b).size() - SnapshotCodec.encode(a).size()).is_equal(42)
 
 
 func test_skill_cast_event_round_trip() -> void:

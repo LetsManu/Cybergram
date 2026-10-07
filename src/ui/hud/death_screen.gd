@@ -67,6 +67,13 @@ func _draw() -> void:
 		if sub != "":
 			text(sub, Vector2(tx + 27.0, y + 104.0), 18, HudPalette.MUTED)
 		y += 150.0
+		# Armory v2 (items-and-armory.md §3.8 rule 7): the killer's full build.
+		var kb := ScoreboardModel.build_of(client, killer_id)
+		if BuildIcons.has_any(kb):
+			var cell := 30.0
+			var bw := BuildIcons.strip_width(cell)
+			BuildIcons.draw_strip(self, kb, ScoreboardModel.build_catalog(client), Vector2(cx - bw * 0.5, y - 12.0), cell)
+			y += cell + 12.0
 	else:
 		caps_c(tr("HUD_ELIMINATED"), Vector2(cx, y + 40.0), 24, HudPalette.MUTED, 0.3)
 		y += 90.0
