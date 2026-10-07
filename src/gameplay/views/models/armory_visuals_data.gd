@@ -50,6 +50,11 @@ static func tier_glow(tier: int) -> float:
 	return float(a[clampi(tier, 1, a.size()) - 1])
 
 
+## Base scale of body gear meshes (silhouette first, §3.8 rule 6).
+static func gear_base_scale() -> float:
+	return float(data().get("gear_base_scale", 1.0))
+
+
 ## Glow factor of a spare (§3.4 rule 3: shown unlit).
 static func spare_dim() -> float:
 	return float(data().get("spare_dim", 0.15))

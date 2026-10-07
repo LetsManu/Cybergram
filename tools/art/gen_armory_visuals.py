@@ -19,7 +19,7 @@ def belt_clips():
     for i in range(6):
         t = i / 5.0
         ang = math.radians(200.0 - t * 220.0)
-        x = round(math.cos(ang) * -0.17, 3)
+        x = round(math.cos(ang) * 0.17, 3)
         z = round(-math.sin(ang) * 0.13, 3)
         out.append({"bone": "Hips", "pos": [x, 0.06, z]})
     return out
@@ -30,6 +30,8 @@ DATA = {
     "tier_size": [1.0, 1.4, 1.9],
     "tier_glow": [0.6, 1.0, 1.6],
     "spare_dim": 0.15,
+    # Body gear base scale: silhouette first, readable at 20 m (§3.8 rule 6).
+    "gear_base_scale": 1.5,
     "item_cuts": {
         "ember_part": "ember_heart", "ember_facet": "ember_heart", "ember_heart": "ember_heart",
         "tempo_part": "tempest", "pulse_facet": "tempest", "tempest_heart": "tempest",
@@ -68,8 +70,8 @@ DATA = {
         "body_chest": {"subs": [{"bone": "UpperChest", "pos": [-0.07, -0.02, -0.15]},
                                 {"bone": "UpperChest", "pos": [0.07, -0.02, -0.15]}],
                        "overflow": {"bone": "Spine", "pos": [0.0, 0.02, -0.15]}},
-        "body_shoulders": {"subs": [{"bone": "UpperChest", "pos": [-0.19, 0.13, 0.0]},
-                                    {"bone": "UpperChest", "pos": [0.19, 0.13, 0.0]}],
+        "body_shoulders": {"subs": [{"bone": "UpperChest", "pos": [-0.21, 0.17, 0.0]},
+                                    {"bone": "UpperChest", "pos": [0.21, 0.17, 0.0]}],
                            "overflow": {"bone": "UpperChest", "pos": [0.0, 0.17, 0.08]}},
         "body_back": {"subs": [{"bone": "UpperChest", "pos": [0.0, 0.06, 0.17]},
                                {"bone": "Spine", "pos": [0.0, -0.02, 0.15]}],

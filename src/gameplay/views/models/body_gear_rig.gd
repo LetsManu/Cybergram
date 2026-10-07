@@ -40,7 +40,7 @@ func setup(model: Node3D, hero_key_: StringName, skeleton: Skeleton3D = null) ->
 	model.add_child(self)
 	var preset := ArmoryVisualsData.hero_preset(hero_key)
 	var spread := float(preset.get("spread", 1.0))
-	_gear_scale = float(preset.get("gear_scale", 1.0))
+	_gear_scale = float(preset.get("gear_scale", 1.0)) * ArmoryVisualsData.gear_base_scale()
 	var nudge: Dictionary = preset.get("nudge", {})
 	var table := ArmoryVisualsData.anchors()
 	for a in ANCHORS:

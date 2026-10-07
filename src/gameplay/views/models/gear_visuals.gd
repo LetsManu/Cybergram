@@ -65,7 +65,7 @@ static func badge(item: ArmoryItemDef, tier: int, spare: bool) -> Node3D:
 static func _hardware(b: PartBuilder, shape: String, t: int) -> void:
 	match shape:
 		"clip_crystal", "clip_card":
-			b.box(Vector3(0.022, 0.03, 0.008), PartBuilder.xf(Vector3(0, 0, 0)), HW, PB.METAL)
+			b.box(Vector3(0.02, 0.008, 0.006), PartBuilder.xf(Vector3(0, -0.006, 0)), HW, PB.METAL)  # belt clip
 		"cell", "cell_cage", "heart_cage":
 			for k in 2 + t:  # cage bars
 				var a := TAU * k / (2.0 + t)
