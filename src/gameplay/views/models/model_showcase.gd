@@ -179,7 +179,7 @@ func _hero_closeup(args: PackedStringArray) -> void:
 # ----------------------------------------------------------------- weapons
 
 func _weapons() -> void:
-	var cat := load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
+	var cat := load(ArmoryCatalogDef.active_path()) as ArmoryCatalogDef
 	var by_id := {}
 	for it in cat.items:
 		by_id[(it as ArmoryItemDef).id] = it

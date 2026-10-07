@@ -143,7 +143,7 @@ func setup(net_config: NetConfig, movement_def: MovementDef, look: LookSettings,
 	water.name = "WaterFx"
 	water.client = self
 	add_child(water)
-	catalog = load(ArmoryCatalogDef.DEFAULT_PATH) as ArmoryCatalogDef
+	catalog = load(ArmoryCatalogDef.active_path()) as ArmoryCatalogDef
 	session.connect_to_server()
 
 

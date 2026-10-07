@@ -41,7 +41,7 @@ func bind(c: HudContext) -> void:
 	super(c)
 	def = load(ArmoryMarkerDef.DEFAULT_PATH) as ArmoryMarkerDef
 	_econ = load(GameSession.ECONOMY_RULES) as EconomyRulesDef
-	_builds = load(RecommendedBuildsDef.DEFAULT_PATH) as RecommendedBuildsDef
+	_builds = load(RecommendedBuildsDef.active_path()) as RecommendedBuildsDef
 
 
 # --- Pure rules -------------------------------------------------------------------

@@ -8,6 +8,11 @@ const DEFAULT_PATH := "res://assets/data/economy/recommended_builds_slice.tres"
 ## tools/armory/build_guides_v22.py. Becomes DEFAULT_PATH at the switch-over.
 const V22_PATH := "res://assets/data/economy/recommended_builds_v22.tres"
 
+
+## Guides matching ArmoryCatalogDef.active_path().
+static func active_path() -> String:
+	return V22_PATH if ArmoryCatalogDef.use_v22 else DEFAULT_PATH
+
 @export var builds: Array[RecommendedBuildDef] = []
 
 

@@ -8,6 +8,15 @@ const DEFAULT_PATH := "res://assets/data/economy/armory_catalog_slice.tres"
 ## tools/armory/build_catalog.py. Becomes DEFAULT_PATH at the v2 switch-over.
 const V22_PATH := "res://assets/data/economy/armory_catalog_v22.tres"
 
+## Process-wide switch to the v22 catalog (`--catalog-v22`, until the v2
+## switch-over makes it the default). Server and client read active_path().
+static var use_v22: bool = false
+
+
+## Path of the catalog in use (DEFAULT_PATH, or V22_PATH under --catalog-v22).
+static func active_path() -> String:
+	return V22_PATH if use_v22 else DEFAULT_PATH
+
 @export var items: Array[ArmoryItemDef] = []
 
 
