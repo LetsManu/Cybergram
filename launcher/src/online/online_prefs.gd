@@ -29,7 +29,10 @@ func load_file() -> OnlinePrefs:
 	if cfg.load(path) == OK:
 		var m: String = String(cfg.get_value(SECTION, "crash_reports", CRASH_ASK))
 		crash_mode = m if m in CRASH_MODES else CRASH_ASK
-		discord_presence = cfg.get_value(SECTION, "discord_presence", false) == true
+		# Only a real `true` opts in: comparing a junk String to a bool is a
+		# runtime error in Godot 4 (it aborted the load and returned null).
+		var d: Variant = cfg.get_value(SECTION, "discord_presence", false)
+		discord_presence = typeof(d) == TYPE_BOOL and d
 	return self
 
 
